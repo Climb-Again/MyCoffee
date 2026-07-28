@@ -202,3 +202,18 @@ Railway env vars, add a real 1024² AppIcon, then dispatch the first builds.
   the plan depends on PhotoKit.
 - Gemini 2.5 output tokens are dominated by *thinking* tokens — budget extraction
   cost from output, not input (see `PLAN.md` §2).
+
+### Railway deploy (token-based CI, not Railway's native trigger)
+
+Railway gates deploys from commit authors who aren't members of the Railway team
+("Needs approval" on every push), and adding the automation identity costs a paid
+seat. So `railway-deploy.yml` deploys with a **Railway project token** instead
+(`RAILWAY_TOKEN`, Project → Settings → Tokens, scoped to production) — this
+bypasses the committer gate and needs no seat. Three traps, all fast <30 s
+failures, all already worked around in the committed workflow — don't reintroduce:
+
+| Symptom | Cause |
+|---|---|
+| `Service not found` | Wrong `--service`. Railway auto-named the service **`MyCoffee`** after the repo, *not* `mycoffee-api` as planned. Use the canvas name. |
+| `Deploy failed` <1 s after "scheduling build" | Root-directory double-up. Run `railway up` from the **repo root**, not `backend/` — it honours the service's Root Directory (`backend`) itself, so running from inside `backend/` makes it look for `backend/backend`. |
+| Immediate "no linked project" | An *account* token was used without project context. Prefer a **project** token scoped to the environment. |
