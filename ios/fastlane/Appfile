@@ -1,0 +1,2 @@
+# No apple_id / team_id here — resolved from the ASC API key at runtime.
+app_identifier("ro.climbagain.mycoffee")
