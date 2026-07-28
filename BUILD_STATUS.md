@@ -32,15 +32,16 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
 - [x] Repo is **private** (verified 2026-07-28).
 
-### Railway
-- [ ] New project `mycoffee` → add service from `Climb-Again/MyCoffee`.
-- [ ] Set service **Root Directory = `backend/`**.
-- [ ] Add Postgres plugin (auto `DATABASE_URL`) + a Volume mounted at `/data`.
-- [ ] Env vars: 6× `GOOGLE_*` (reused from MyHealthOS), plus fresh
-      `INGEST_TOKEN` + `APP_TOKEN` (`openssl rand -hex 32` each).
-- [ ] Auto-deploy on push to `main`; **turn "Wait for CI" off**.
-- [ ] After first deploy, copy the public URL into `BACKEND_URL` (CLAUDE.md,
-      AppConfig.swift `defaultBaseURL`, smoke-test blocks).
+### Railway — DONE (live at `https://mycoffee-production-bd43.up.railway.app`)
+- [x] New project `mycoffee` → service from `Climb-Again/MyCoffee`.
+- [x] Service **Root Directory = `backend`**.
+- [x] Postgres added and **linked** (`DATABASE_URL = ${{Postgres.DATABASE_URL}}`) + Volume at `/data`.
+- [x] Env vars: `GOOGLE_*` (reused from MyHealthOS — full SA JSON in `GOOGLE_PRIVATE_KEY`,
+      so `GOOGLE_CLIENT_ID` is not set separately), `VERTEX_AI_REGION=us-central1`,
+      fresh `INGEST_TOKEN` + `APP_TOKEN`.
+- [x] Auto-deploy on push to `main`; healthcheck green.
+- [x] Public URL wired into `BACKEND_URL` (CLAUDE.md, AppConfig.swift `defaultBaseURL`,
+      smoke-test blocks).
 
 ### Cron routines (per CLAUDE.md §10)
 - [ ] iOS dev loop `0 3,9,15,21 * * *`
@@ -49,14 +50,22 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [ ] Backend loop `0 */3 * * *`
 - [ ] Set the account's Actions spending limit (~$40–50/mo, shared with MyHealthOS).
 
-### First build (after the above)
-- [ ] Push scaffold to `main` → Railway deploys backend.
-- [ ] Dispatch `ios-testflight.yml` with `publish=false` → confirm it compiles.
-- [ ] Dispatch with `publish=true` → first TestFlight upload (`match` populates
-      `certs/`+`profiles/`).
+### First build
+- [x] Scaffold on `main` → Railway deployed backend (healthcheck green).
+- [~] iOS compile check: runs automatically on push to `main` (merge #1 triggered
+      run #1). Confirm it's green.
+- [ ] Dispatch `ios-testflight.yml` with `publish=true` → first TestFlight upload
+      (`match` populates `certs/`+`profiles/` under team `PH2NNQ47UB`).
 - [ ] Accept the build on the phone; enter `BACKEND_URL` + `INGEST_TOKEN` on Connect.
 
 ## Done log
 
 - Infra scaffold created (backend Fastify skeleton, iOS SwiftUI/XcodeGen scaffold,
   fastlane `:beta` lane, `ios-testflight.yml` CI, `CLAUDE.md`).
+- Apple: App ID `ro.climbagain.mycoffee` + ASC record (listing `MyCoffeeOS`) under
+  team `PH2NNQ47UB`; ASC API key in hand.
+- GitHub: 5 Actions secrets set; repo confirmed private.
+- Scaffold merged to `main` (PR #1). iOS CI set to compile-on-push, upload only on
+  `publish=true` dispatch.
+- Railway: backend live at `https://mycoffee-production-bd43.up.railway.app`;
+  Postgres linked, migrations applied, healthcheck green. `BACKEND_URL` wired in.

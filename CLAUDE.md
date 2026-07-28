@@ -15,14 +15,14 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 | `REPO` | GitHub repo | `Climb-Again/MyCoffee` |
 | `RAILWAY_PROJECT` | Railway project | `mycoffee` |
 | `RAILWAY_SERVICE` | Node service | `mycoffee-api` |
-| `BACKEND_URL` | Railway public URL | **TBD after first deploy** |
+| `BACKEND_URL` | Railway public URL | `mycoffee-production-bd43.up.railway.app` |
 | `APPLE_TEAM_ID` | Apple team | `PH2NNQ47UB` (ASOCIATIA CLUB SPORTIV CLIMB AGAIN; Apple ID `an Apple ID not recorded here`) |
 | `BG_REFRESH_ID` | BGTask identifier | `ro.climbagain.mycoffee.refresh` |
 | HealthKit | Uses HealthKit? | **No** |
 
-> ⚠️ When the first Railway deploy is done, replace `BACKEND_URL` here, in
-> `ios/MyCoffee/Sources/Store/AppConfig.swift` (`defaultBaseURL`), and in the
-> smoke-test/verification blocks below.
+> ✅ `BACKEND_URL` is live and wired into `ios/MyCoffee/Sources/Store/AppConfig.swift`
+> (`defaultBaseURL`) and the smoke-test blocks below. Bump it here + there if the
+> Railway domain ever changes.
 >
 > ℹ️ **Apple team correction:** the setup brief said to reuse `TTR9KS5493`, but the
 > only team on Apple ID `an Apple ID not recorded here` is `PH2NNQ47UB`. MyCoffee is registered
@@ -32,7 +32,8 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 
 ## 1. What's live
 
-- **Backend:** `mycoffee-api` on Railway (`mycoffee` project). URL: _TBD_.
+- **Backend:** `mycoffee-api` on Railway (`mycoffee` project), live at
+  `https://mycoffee-production-bd43.up.railway.app`.
 - **iOS:** SwiftUI app, XcodeGen-generated, ships to TestFlight via GitHub Actions.
 - **AI:** Vertex AI `gemini-2.5-pro` (reused GCP project/SA from MyHealthOS).
 
@@ -88,13 +89,14 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
 
 ## 7. Verification without connectors
 
-Once `BACKEND_URL` is known:
-
 ```bash
-BASE="https://BACKEND_URL"; TOK="${APP_TOKEN:-$INGEST_TOKEN}"
+BASE="https://mycoffee-production-bd43.up.railway.app"; TOK="${APP_TOKEN:-$INGEST_TOKEN}"
 curl -s "$BASE/health"
 curl -s "$BASE/api/status" -H "Authorization: Bearer $TOK"
 ```
+
+> Note: the agent's own sandbox may block outbound to `*.railway.app` via egress
+> policy — run these from a machine that can reach Railway.
 
 Expect `/health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`.
 
