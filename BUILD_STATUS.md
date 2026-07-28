@@ -75,5 +75,5 @@ Infra scaffold is committed. The following are manual / need credentials:
   member seat. **Verified green** (run #3): `railway up --service MyCoffee` from the
   repo root (service is named `MyCoffee`; run from root so the service Root
   Directory `backend` selects the app — running from `backend/` hit `backend/backend`).
-  Manual step still owed: disconnect the service's native GitHub branch trigger so
-  it stops the "Needs approval" prompts (CI is the sole deployer now).
+  Native Railway GitHub branch trigger **disconnected** — CI is now the sole
+  deployer, no more "Needs approval" prompts.
