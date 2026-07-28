@@ -27,9 +27,9 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] ASC API key `.p8` in hand, with Key ID (from filename) + Issuer ID noted.
 
 ### GitHub (repo → Settings → Secrets and variables → Actions)
-- [ ] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
-- [ ] `MATCH_PASSWORD` (reuse or new — must match this repo's `match` storage)
-- [ ] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
+- [x] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
+- [x] `MATCH_PASSWORD` (new passphrase — must stay constant for this repo's `match` storage)
+- [x] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
 - [ ] Keep the repo **private**.
 
 ### Railway
