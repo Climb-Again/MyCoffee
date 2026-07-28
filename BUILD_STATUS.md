@@ -24,7 +24,7 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Create the App Store Connect app record (iOS, this bundle id). Listing name
       `MyCoffeeOS` ("MyCoffee" was taken); SKU `mycoffee`. Home-screen name stays
       `MyCoffee` via Info.plist — listing name has no code impact.
-- [ ] ASC API key `.p8` (reuse existing team key or create a new one). Note Key ID + Issuer ID.
+- [x] ASC API key `.p8` in hand, with Key ID (from filename) + Issuer ID noted.
 
 ### GitHub (repo → Settings → Secrets and variables → Actions)
 - [ ] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
