@@ -1,19 +1,26 @@
 # MyCoffee — Build Status
 
-Claims + queue + Done log. Claim a work item here before coding (lane rules in
-`CLAUDE.md` §4).
+External checklist + Done log.
 
-## Claims (in progress)
+- **Work items** live in GitHub issues, labelled by lane and phase. The approved
+  breakdown they come from is **`PLAN.md`**.
+- **Claims** live in **`status/<lane>.md`** — one file per lane so six agents never
+  conflict. Protocol in `status/README.md`. Do **not** add a Claims section here.
 
-_none_
+The product brief has landed (`MyCoffee app.docx`, extracted and analysed in
+`PLAN.md`), so the four "once the product brief lands" queue items are superseded
+by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
 
-## Queue (ready)
+## Blocking, do first
 
-- [ ] Backend: wire `POST /api/ingest` payloads to real MyCoffee event types (once
-      the product brief lands).
-- [ ] Backend: implement real brief generation in `GET /api/brief` via `src/vertex.js`.
-- [ ] iOS: replace placeholder `ContentView` with the real MyCoffee UI.
-- [ ] iOS: add a real 1024² AppIcon to `ios/MyCoffee/Resources/Assets.xcassets/AppIcon.appiconset`.
+- [ ] **Real 1024² AppIcon** → `ios/MyCoffee/Resources/Assets.xcassets/AppIcon.appiconset`.
+      The slot is currently empty (`Contents.json` has no `filename`). Compiles
+      green; App Store Connect rejects it at *processing* time, ~20 min after CI
+      reports success. **Blocks the first TestFlight upload.**
+- [ ] **First `publish=true` dispatch** — `match` has never run, there is no
+      distribution certificate under team `PH2NNQ47UB`, and `certs/`+`profiles/`
+      are empty. Do this on the placeholder app, now, while a red ship is cheap to
+      diagnose (`PLAN.md` §8).
 
 ## External setup checklist (owed by Radu — not doable from the agent)
 
@@ -43,12 +50,25 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Public URL wired into `BACKEND_URL` (CLAUDE.md, AppConfig.swift `defaultBaseURL`,
       smoke-test blocks).
 
-### Cron routines (per CLAUDE.md §10)
-- [ ] iOS dev loop `0 3,9,15,21 * * *`
-- [ ] iOS compile check `0 20 * * 3,6`
-- [ ] iOS publish `0 20 * * 4,0`
-- [ ] Backend loop `0 */3 * * *`
-- [ ] Set the account's Actions spending limit (~$40–50/mo, shared with MyHealthOS).
+### Cron routines (per CLAUDE.md §10) — six lanes
+- [x] Backend `0 */3 * * *`
+- [x] Data extract + validate `30 1 * * *`
+- [x] iOS shell `0 3,15 * * *`
+- [x] iOS UX `0 9,21 * * *`
+- [x] Compile check `0 20 * * 3,6`
+- [x] Publish `0 20 * * 0` (Sundays only during build-out)
+- [ ] **Set the account's Actions spending limit** (~$40–50/mo, shared with
+      MyHealthOS). Only the two macOS lanes bill; ~$20/mo for MyCoffee.
+
+### Env / secrets for the plan — nothing new required
+Verified while planning: the extraction pipeline needs **no new Railway env vars**.
+`MEDIA_SIGNING_KEY` defaults to `HMAC(APP_TOKEN,'media')`; `INGEST_RATE_LIMIT_MAX`,
+the per-field confidence thresholds, prompt version, worker concurrency and the
+spend cap all get defaults in `src/config.js`. Optional overrides only:
+- [ ] `WORKER_ENABLED=true` — leave unset until the extraction lane reaches Phase 3.
+- [ ] `EXTRACTION_MAX_SPEND_USD=80` — a hard stop for the ~$62 backfill.
+- [ ] Disconnect the Railway service's native GitHub branch trigger (CI is the sole
+      deployer now via `railway-deploy.yml`) so the "Needs approval" prompts stop.
 
 ### First build
 - [x] Scaffold on `main` → Railway deployed backend (healthcheck green).
