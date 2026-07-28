@@ -1,0 +1,13 @@
+# XcodeGen generates this in CI — never commit it.
+*.xcodeproj/
+# Build output
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+# Ruby / fastlane
+vendor/bundle/
+fastlane/report.xml
+fastlane/README.md
+*.mobileprovision
+*.p12
