@@ -46,7 +46,10 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
                                          └── Vertex AI gemini-2.5-pro (reused SA)
 ```
 
-- **Backend deploy:** push to `main` touching `backend/**` → Railway rebuilds (~2–3 min).
+- **Backend deploy:** push to `main` touching `backend/**` → `railway-deploy.yml`
+  runs `railway up` with `RAILWAY_TOKEN` (~2–3 min). Token-based CI deploy, **not**
+  Railway's native GitHub trigger — that trigger gates the automation identity's
+  commits on "Needs approval", so it's disconnected on the service.
 - **iOS compile check:** push to `main` touching `ios/**` **or** `workflow_dispatch`
   `publish=false` → compile only, no upload (~15–20 min).
 - **iOS ship:** `workflow_dispatch` `publish=true` (manual or the publish cron) →
