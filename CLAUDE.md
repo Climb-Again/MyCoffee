@@ -46,8 +46,11 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
 ```
 
 - **Backend deploy:** push to `main` touching `backend/**` → Railway rebuilds (~2–3 min).
-- **iOS ship:** push to `main` touching `ios/**` → Actions → TestFlight (~15–20 min).
-- **iOS compile check:** `workflow_dispatch` `publish=false` → compile only, no upload.
+- **iOS compile check:** push to `main` touching `ios/**` **or** `workflow_dispatch`
+  `publish=false` → compile only, no upload (~15–20 min).
+- **iOS ship:** `workflow_dispatch` `publish=true` (manual or the publish cron) →
+  full build + TestFlight upload (~15–20 min). A push to `main` never uploads —
+  upload is always an explicit `publish=true` dispatch.
 
 ## 3. Deploy model & the end-of-session push rule
 
@@ -71,8 +74,9 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
    items, push `ios-staging` only. Never pushes `ios/**` to `main`, never builds.
 2. **iOS compile check** — dispatch `ios-testflight.yml` `publish=false` on
    `ios-staging`; fix reds there.
-3. **iOS publish** — merge `ios-staging → main`; that push ships to TestFlight.
-   Fix any red ship the same session.
+3. **iOS publish** — merge `ios-staging → main` (the push compile-checks `main`),
+   then dispatch `ios-testflight.yml` `publish=true` to ship to TestFlight. Fix any
+   red ship the same session.
 4. **Backend loop** — every few hours: pick a ready item, ship to `main`, verify
    with a live curl.
 

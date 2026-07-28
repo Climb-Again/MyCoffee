@@ -60,8 +60,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      # Compile-only on every push to main, and on a publish=false dispatch.
       - name: Compile check (no upload)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == false }}
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish == false) }}
         run: |
           xcodegen generate
           xcodebuild build \
@@ -71,6 +72,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
+      # TestFlight upload only on an explicit manual/cron publish=true dispatch.
       - name: Build & upload to TestFlight
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.publish == false) }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
         run: bundle exec fastlane beta
