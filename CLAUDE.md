@@ -16,13 +16,19 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 | `RAILWAY_PROJECT` | Railway project | `mycoffee` |
 | `RAILWAY_SERVICE` | Node service | `mycoffee-api` |
 | `BACKEND_URL` | Railway public URL | **TBD after first deploy** |
-| `APPLE_TEAM_ID` | Apple team (reused) | `TTR9KS5493` |
+| `APPLE_TEAM_ID` | Apple team | `PH2NNQ47UB` (ASOCIATIA CLUB SPORTIV CLIMB AGAIN; Apple ID `ioradu@yahoo.com`) |
 | `BG_REFRESH_ID` | BGTask identifier | `ro.climbagain.mycoffee.refresh` |
 | HealthKit | Uses HealthKit? | **No** |
 
 > ⚠️ When the first Railway deploy is done, replace `BACKEND_URL` here, in
 > `ios/MyCoffee/Sources/Store/AppConfig.swift` (`defaultBaseURL`), and in the
 > smoke-test/verification blocks below.
+>
+> ℹ️ **Apple team correction:** the setup brief said to reuse `TTR9KS5493`, but the
+> only team on Apple ID `ioradu@yahoo.com` is `PH2NNQ47UB`. MyCoffee is registered
+> under `PH2NNQ47UB`; the GH secret `APPLE_TEAM_ID` must be `PH2NNQ47UB`. There is
+> **no cross-team cert reuse** — `match` creates/manages a distribution cert under
+> this team on the first CI run.
 
 ## 1. What's live
 

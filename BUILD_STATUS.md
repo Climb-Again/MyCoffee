@@ -20,14 +20,14 @@ _none_
 Infra scaffold is committed. The following are manual / need credentials:
 
 ### Apple
-- [ ] Register App ID `ro.climbagain.mycoffee` (Explicit; no HealthKit). Team `TTR9KS5493`.
+- [ ] Register App ID `ro.climbagain.mycoffee` (Explicit; no HealthKit). Team `PH2NNQ47UB`.
 - [ ] Create the App Store Connect app record (iOS, this bundle id, name/SKU).
 - [ ] ASC API key `.p8` (reuse MyHealthOS's team key or create a new one). Note Key ID + Issuer ID.
 
 ### GitHub (repo → Settings → Secrets and variables → Actions)
 - [ ] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
 - [ ] `MATCH_PASSWORD` (reuse or new — must match this repo's `match` storage)
-- [ ] `APPLE_TEAM_ID` = `TTR9KS5493`
+- [ ] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
 - [ ] Keep the repo **private**.
 
 ### Railway
