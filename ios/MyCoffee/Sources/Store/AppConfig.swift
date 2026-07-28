@@ -10,7 +10,7 @@ final class AppConfig: ObservableObject {
     static let shared = AppConfig()
 
     // Filled in after the first Railway deploy. Override on the Connect screen.
-    static let defaultBaseURL = "https://REPLACE_WITH_BACKEND_URL"
+    static let defaultBaseURL = "https://mycoffee-production-bd43.up.railway.app"
 
     private let baseURLKey = "backend_base_url"
 
