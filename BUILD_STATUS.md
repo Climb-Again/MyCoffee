@@ -69,3 +69,7 @@ Infra scaffold is committed. The following are manual / need credentials:
   `publish=true` dispatch.
 - Railway: backend live at `https://mycoffee-production-bd43.up.railway.app`;
   Postgres linked, migrations applied, healthcheck green. `BACKEND_URL` wired in.
+- Backend auto-deploy: switched to token-based CI (`railway-deploy.yml` +
+  `RAILWAY_TOKEN` secret) because Railway gates the `ai414` committer on approval
+  and the plan has no spare member seat. Manual step owed: disconnect the service's
+  native GitHub branch trigger so it stops prompting.
