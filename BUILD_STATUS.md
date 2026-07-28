@@ -69,7 +69,10 @@ Infra scaffold is committed. The following are manual / need credentials:
   `publish=true` dispatch.
 - Railway: backend live at `https://mycoffee-production-bd43.up.railway.app`;
   Postgres linked, migrations applied, healthcheck green. `BACKEND_URL` wired in.
-- Backend auto-deploy: switched to token-based CI (`railway-deploy.yml` +
-  `RAILWAY_TOKEN` secret) because Railway gates the `ai414` committer on approval
-  and the plan has no spare member seat. Manual step owed: disconnect the service's
-  native GitHub branch trigger so it stops prompting.
+- Backend auto-deploy: token-based CI (`railway-deploy.yml` + `RAILWAY_TOKEN`)
+  because Railway gates the `ai414` committer on approval and the plan has no spare
+  member seat. **Verified green** (run #3): `railway up --service MyCoffee` from the
+  repo root (service is named `MyCoffee`; run from root so the service Root
+  Directory `backend` selects the app — running from `backend/` hit `backend/backend`).
+  Manual step still owed: disconnect the service's native GitHub branch trigger so
+  it stops the "Needs approval" prompts (CI is the sole deployer now).
