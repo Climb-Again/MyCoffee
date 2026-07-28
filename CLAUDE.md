@@ -14,7 +14,7 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 | `BUNDLE_PREFIX` | org prefix | `ro.climbagain` (reused) |
 | `REPO` | GitHub repo | `Climb-Again/MyCoffee` |
 | `RAILWAY_PROJECT` | Railway project | `mycoffee` |
-| `RAILWAY_SERVICE` | Node service | `mycoffee-api` |
+| `RAILWAY_SERVICE` | Node service | `MyCoffee` (Railway auto-named it after the repo, not `mycoffee-api`) |
 | `BACKEND_URL` | Railway public URL | `mycoffee-production-bd43.up.railway.app` |
 | `APPLE_TEAM_ID` | Apple team | `PH2NNQ47UB` (ASOCIATIA CLUB SPORTIV CLIMB AGAIN; Apple ID `ioradu@yahoo.com`) |
 | `BG_REFRESH_ID` | BGTask identifier | `ro.climbagain.mycoffee.refresh` |
