@@ -30,7 +30,7 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
 - [x] `MATCH_PASSWORD` (new passphrase — must stay constant for this repo's `match` storage)
 - [x] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
-- [ ] Keep the repo **private**.
+- [x] Repo is **private** (verified 2026-07-28).
 
 ### Railway
 - [ ] New project `mycoffee` → add service from `Climb-Again/MyCoffee`.
