@@ -25,9 +25,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,8 +35,9 @@ jobs:
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        # Uploads backend/ as the build context and deploys the Railway service.
-        # NB: the service is named "MyCoffee" (Railway auto-named it after the repo),
-        # not "mycoffee-api" as the brief planned. --ci streams build logs and exits
-        # non-zero on build failure.
+        # Run from the REPO ROOT (not backend/): `railway up` honors the service's
+        # Root Directory setting (= "backend"), so it selects backend/ itself.
+        # Uploading from backend/ would make it look for backend/backend and fail.
+        # Service is named "MyCoffee" (Railway auto-named it after the repo).
+        # --ci streams build logs and exits non-zero on failure.
         run: railway up --ci --service MyCoffee
