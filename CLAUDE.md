@@ -165,14 +165,17 @@ non-colliding days — two macOS runners never fire simultaneously.
 | iOS shell | `0 3,15 * * *` | none |
 | iOS UX | `0 9,21 * * *` | none |
 | Compile check (Wed, Sat) | `0 20 * * 3,6` | ~15–20 min ea. |
-| Publish (Sun) | `0 20 * * 0` | ~15–20 min ea. |
+| Publish (Thu, Sun) | `0 20 * * 4,0` | ~15–20 min ea. |
 
 > Shared account ⇒ shared 2000 Actions-min/month; macOS is 10×, so ~200 free
 > *actual* macOS minutes shared with MyHealthOS. Only the two macOS lanes cost
-> anything: ~350 actual min/month ⇒ **~$20/mo for MyCoffee, ~$40 combined**.
-> Publish is held to **Sundays only during build-out** (the brief's Thu+Sun would
-> be ~$27) — it also enforces the batch-2–4-items rule that makes a red ship cheap
-> to diagnose. Set the account's Actions spending limit to ~$40–50.
+> anything: ~520 actual min/month ⇒ **~$27/mo for MyCoffee, ~$47 combined**.
+> Set the account's Actions spending limit to ~$50–60.
+>
+> Publish days (Thu/Sun) don't collide with MyHealthOS's (Tue/Fri), and the 20:00
+> hour keeps two macOS runners from ever firing together. Compile runs the day
+> before each publish. Still batch 2–4 ready items per ship — that's what makes a
+> red ship cheap to diagnose.
 
 ## 11. Manual steps still owed by Radu (not doable from the agent)
 

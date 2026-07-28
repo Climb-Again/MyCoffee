@@ -815,12 +815,17 @@ non-colliding days):
 | Compile | `0 20 * * 3,6` | ~20 min → 200 billed | ~8.7 |
 | Publish | `0 20 * * 4,0` | ~20 min → 200 billed | ~8.7 |
 
-~350 *actual* macOS minutes/month for MyCoffee. The free 2000 includes the 10×
+~520 *actual* macOS minutes/month for MyCoffee. The free 2000 includes the 10×
 multiplier, i.e. ~200 free actual macOS minutes shared with MyHealthOS, so
-MyCoffee's share is roughly **$20/month, ~$40 combined** — matching the setup
-brief. **During build-out, hold Publish to Sundays only** (`0 20 * * 0`): saves
-~$7/month and enforces the "batch 2–4 ready items" rule that makes a red ship
-cheap to diagnose.
+MyCoffee's share is roughly **$27/month, ~$47 combined**. Set the account's
+Actions spending limit to ~$50–60. Publish days (Thu/Sun) don't collide with
+MyHealthOS's (Tue/Fri); compile runs the day before each publish. Still batch 2–4
+ready items per ship — that's what makes a red ship cheap to diagnose.
+
+**The two macOS routines start disabled.** They are enabled only after the AppIcon
+lands and a *manual* `publish=true` dispatch has proven `match` + signing under
+`PH2NNQ47UB`. That first run is the riskiest step in the project and must not fire
+unattended at 20:00.
 
 **New lane rule for `CLAUDE.md`: never ship `backend/**` while an extraction job
 is `running`.** Railway auto-deploys on push and would SIGTERM the worker. The
@@ -852,8 +857,11 @@ URLs. **2** coffees + search (`008`–`009` + snapshot) — gate: the app lists 
 empty dataset. **3** extraction (`010`–`011`) — gate: **Phase-0 rules pass over
 the full corpus for $0**, vocabulary confirmed through the review queue, then
 thresholds tuned on 25 records and re-adjudicated free until the queue looks
-right. **4** full backfill overnight with the spend cap set — gate: **30 random
-auto-accepted records hand-checked.** **5** review queue UI, insights, roaster and
+right. **4** extraction, gated in three widening steps — **(a) 5 photos first**
+(~$0.35), hand-inspect every field before going further; **(b) 25 records**, tune
+thresholds and re-adjudicate for $0 until the queue looks right; **(c) stop and
+ask Radu** before launching the full ~$62 backfill overnight with the spend cap
+set — gate: **30 random auto-accepted records hand-checked.** **5** review queue UI, insights, roaster and
 country pages. **6** harden the incremental path: `launchd` monthly schedule on the
 Mac, the `awaiting_text` deadline sweep, and `POST /api/admin/sync` on a backend
 cron. (There is no in-app-capture phase — see §6.7.)

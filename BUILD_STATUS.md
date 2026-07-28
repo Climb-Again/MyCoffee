@@ -55,10 +55,13 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Data extract + validate `30 1 * * *`
 - [x] iOS shell `0 3,15 * * *`
 - [x] iOS UX `0 9,21 * * *`
-- [x] Compile check `0 20 * * 3,6`
-- [x] Publish `0 20 * * 0` (Sundays only during build-out)
-- [ ] **Set the account's Actions spending limit** (~$40–50/mo, shared with
-      MyHealthOS). Only the two macOS lanes bill; ~$20/mo for MyCoffee.
+- [~] Compile check `0 20 * * 3,6` — **created but disabled** until the first ship
+- [~] Publish `0 20 * * 4,0` (Thu + Sun) — **created but disabled** until the first ship
+- [ ] **Enable the two macOS routines** once the AppIcon has landed and the first
+      manual `publish=true` dispatch has proven `match` + signing under `PH2NNQ47UB`.
+      That first run is the riskiest step in the project and must not fire unattended.
+- [ ] **Set the account's Actions spending limit** (~$50–60/mo, shared with
+      MyHealthOS). Only the two macOS lanes bill; ~$27/mo for MyCoffee.
 
 ### Env / secrets for the plan — nothing new required
 Verified while planning: the extraction pipeline needs **no new Railway env vars**.
