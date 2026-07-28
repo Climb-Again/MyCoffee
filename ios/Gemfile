@@ -1,0 +1,5 @@
+source "https://rubygems.org"
+
+# Pinned to match ../match_version.txt
+gem "fastlane", "2.237.0"
+gem "xcodeproj"
