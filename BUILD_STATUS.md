@@ -13,7 +13,8 @@ _none_
       the product brief lands).
 - [ ] Backend: implement real brief generation in `GET /api/brief` via `src/vertex.js`.
 - [ ] iOS: replace placeholder `ContentView` with the real MyCoffee UI.
-- [ ] iOS: add a real 1024² AppIcon to `ios/MyCoffee/Resources/Assets.xcassets/AppIcon.appiconset`.
+- [~] iOS AppIcon: **placeholder** coffee-cup 1024² added (`AppIcon-1024.png`,
+      RGB no-alpha) so TestFlight uploads pass. Replace with real brand art later.
 
 ## External setup checklist (owed by Radu — not doable from the agent)
 
