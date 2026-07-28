@@ -1,0 +1,43 @@
+name: Deploy backend (Railway)
+
+# Token-based deploy so pushes auto-deploy regardless of commit author.
+# Railway's native GitHub trigger gates commits from authors who aren't on the
+# Railway team (e.g. the automation identity), parking them on "Needs approval".
+# This deploys via a Railway token from CI instead — no member seat required.
+#
+# Setup: repo secret RAILWAY_TOKEN = a Railway *project* token (Project → Settings
+# → Tokens), scoped to the production environment. Disconnect the service's native
+# GitHub branch trigger so only this workflow deploys (no more approval prompts).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/railway-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        # Uploads backend/ as the build context and deploys the mycoffee-api
+        # service. --ci streams build logs and exits non-zero on build failure.
+        run: railway up --ci --service mycoffee-api
