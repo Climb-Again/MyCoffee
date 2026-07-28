@@ -38,6 +38,8 @@ jobs:
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        # Uploads backend/ as the build context and deploys the mycoffee-api
-        # service. --ci streams build logs and exits non-zero on build failure.
-        run: railway up --ci --service mycoffee-api
+        # Uploads backend/ as the build context and deploys the Railway service.
+        # NB: the service is named "MyCoffee" (Railway auto-named it after the repo),
+        # not "mycoffee-api" as the brief planned. --ci streams build logs and exits
+        # non-zero on build failure.
+        run: railway up --ci --service MyCoffee
