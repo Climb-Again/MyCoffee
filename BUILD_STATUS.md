@@ -1,20 +1,35 @@
 # MyCoffee — Build Status
 
-Claims + queue + Done log. Claim a work item here before coding (lane rules in
-`CLAUDE.md` §4).
+External checklist + Done log.
 
-## Claims (in progress)
+- **Work items** live in GitHub issues, labelled by lane and phase. The approved
+  breakdown they come from is **`PLAN.md`**.
+- **Claims** live in **`status/<lane>.md`** — one file per lane so six agents never
+  conflict. Protocol in `status/README.md`. Do **not** add a Claims section here.
 
-_none_
+The product brief has landed (`MyCoffee app.docx`, extracted and analysed in
+`PLAN.md`), so the four "once the product brief lands" queue items are superseded
+by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
 
-## Queue (ready)
+## Blocking, do first
 
-- [ ] Backend: wire `POST /api/ingest` payloads to real MyCoffee event types (once
-      the product brief lands).
-- [ ] Backend: implement real brief generation in `GET /api/brief` via `src/vertex.js`.
-- [ ] iOS: replace placeholder `ContentView` with the real MyCoffee UI.
-- [~] iOS AppIcon: **placeholder** coffee-cup 1024² added (`AppIcon-1024.png`,
-      RGB no-alpha) so TestFlight uploads pass. Replace with real brand art later.
+- [x] **1024² AppIcon** — placeholder coffee-cup added (`AppIcon-1024.png`,
+      independently verified 1024×1024, RGB colour type 2, **no alpha**;
+      `Contents.json` carries the `filename`). This was the blocker on the first
+      TestFlight upload. Replace with real brand art later — tracked as issue #9.
+- [ ] **First `publish=true` dispatch** (issue #10) — **now unblocked, do this
+      next.** `match` has never run, there is no distribution certificate under
+      team `PH2NNQ47UB`, and `certs/`+`profiles/` are still empty. Run it **by
+      hand** on the current placeholder app, while a red ship is cheap to
+      diagnose (`PLAN.md` §8). The Compile and Publish routines stay **disabled**
+      until it passes.
+
+> The other three items that used to sit here (`POST /api/ingest` event types,
+> real `GET /api/brief` generation, replacing the placeholder `ContentView`) all
+> said "once the product brief lands". The brief has landed, so they are
+> superseded by the phased breakdown in `PLAN.md` §8 and issues #11–#29 — the
+> ingest work by #19, the brief work by the Insights section of #28, and
+> `ContentView` by #17 and #18.
 
 ## External setup checklist (owed by Radu — not doable from the agent)
 
@@ -44,12 +59,29 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Public URL wired into `BACKEND_URL` (CLAUDE.md, AppConfig.swift `defaultBaseURL`,
       smoke-test blocks).
 
-### Cron routines (per CLAUDE.md §10)
-- [ ] iOS dev loop `0 3,9,15,21 * * *`
-- [ ] iOS compile check `0 20 * * 3,6`
-- [ ] iOS publish `0 20 * * 4,0`
-- [ ] Backend loop `0 */3 * * *`
-- [ ] Set the account's Actions spending limit (~$40–50/mo, shared with MyHealthOS).
+### Cron routines (per CLAUDE.md §10) — six lanes
+- [x] Backend `0 */3 * * *`
+- [x] Data extract + validate `30 1 * * *`
+- [x] iOS shell `0 3,15 * * *`
+- [x] iOS UX `0 9,21 * * *`
+- [~] Compile check `0 20 * * 3,6` — **created but disabled** until the first ship
+- [~] Publish `0 20 * * 4,0` (Thu + Sun) — **created but disabled** until the first ship
+- [ ] **Enable the two macOS routines** once the AppIcon has landed and the first
+      manual `publish=true` dispatch has proven `match` + signing under `PH2NNQ47UB`.
+      That first run is the riskiest step in the project and must not fire unattended.
+- [ ] **Set the account's Actions spending limit** (~$50–60/mo, shared with
+      MyHealthOS). Only the two macOS lanes bill; ~$27/mo for MyCoffee.
+
+### Env / secrets for the plan — nothing new required
+Verified while planning: the extraction pipeline needs **no new Railway env vars**.
+`MEDIA_SIGNING_KEY` defaults to `HMAC(APP_TOKEN,'media')`; `INGEST_RATE_LIMIT_MAX`,
+the per-field confidence thresholds, prompt version, worker concurrency and the
+spend cap all get defaults in `src/config.js`. Optional overrides only:
+- [ ] `WORKER_ENABLED=true` — leave unset until the extraction lane reaches Phase 3.
+- [ ] `EXTRACTION_MAX_SPEND_USD=80` — a hard stop for the ~$62 backfill.
+- [x] Railway's native GitHub branch trigger is **disconnected** (`5d8b10e`) —
+      `railway-deploy.yml` + `RAILWAY_TOKEN` is the sole deployer, no more
+      "Needs approval" prompts.
 
 ### First build
 - [x] Scaffold on `main` → Railway deployed backend (healthcheck green).
