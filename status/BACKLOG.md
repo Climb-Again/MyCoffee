@@ -14,8 +14,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 
 | # | Lane | Phase | Status | Needs | Item |
 |---|---|---|---|---|---|
-| 9  | publish   | 0 | human   | — | Real 1024² AppIcon — **blocks the first ship** |
-| 10 | publish   | 0 | human   | 9 | First `publish=true` dispatch — prove `match` + signing under `PH2NNQ47UB` |
+| 9  | publish   | 0 | done    | — | Real 1024² AppIcon — landed on `main` in `c427f3f` (verified 1024×1024, RGB, no alpha) |
+| 10 | publish   | 0 | human   | — | First `publish=true` dispatch — prove `match` + signing under `PH2NNQ47UB`. **Unblocked: do this next.** |
 | 11 | backend   | 0 | ready   | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | blocked | 11 | Migration 005 — vocabulary seed from the docx lists |
 | 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
@@ -35,7 +35,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
-| 30 | human     | — | human   | — | Manual: disconnect Railway's native trigger; set the Actions spending limit |
+| 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
 whose `needs` are now all `done` from `blocked` to `ready` in the same commit. If
@@ -46,9 +46,12 @@ you don't, the next lane has nothing to pick up.
 Four rows are `ready`: **#11, #15, #16** (backend) · **#13** (data) · **#17** (ios-shell).
 The iOS UX lane is blocked on #17 and will correctly no-op until it lands.
 
-#9 and #10 are `human` on purpose — the first `match` run is the riskiest step in
-the project and must not fire unattended. The Compile and Publish routines stay
-disabled until both are done.
+**#9 is done** — a valid placeholder AppIcon landed on `main` (`c427f3f`), verified
+1024×1024, RGB, no alpha. That unblocks **#10**, which is now the next thing to do
+and is `human` on purpose: the first `match` run has to create a distribution
+certificate under `PH2NNQ47UB` where none exists, and it is the riskiest step in
+the project. Run it by hand, on the current placeholder app, while a red ship is
+cheap to diagnose. The Compile and Publish routines stay disabled until it passes.
 
 ## Spend gates (data lane)
 
