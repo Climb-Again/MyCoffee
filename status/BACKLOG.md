@@ -24,8 +24,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
 | 17 | ios-shell | 0 | ready   | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
 | 18 | ios-ux    | 0 | blocked | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
-| 19 | backend   | 1 | ready   | 11 | Migration 007 + images/media libs + `routes/photos.js` |
-| 20 | data      | 1 | blocked | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
+| 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
+| 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
 | 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
 | 22 | ios-shell | 2 | blocked | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
@@ -35,7 +35,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
-| 33 | human     | 0 | human   | — | **`vertex:false`** — `GOOGLE_PRIVATE_KEY` arrives **empty** (measured). Env fix, not code. Blocks all extraction |
+| 33 | human     | 0 | human   | — | **`vertex:false`** — `GOOGLE_PRIVATE_KEY` arrives **empty** (measured), even after a confirmed fresh redeploy (rules out staleness). Env fix, not code. Blocks all extraction |
 | 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). API shape + anchors verified — see notes |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
@@ -45,15 +45,19 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
-Ready rows: **#12, #19** (backend-unblocked, data/backend) · **#13** (data) ·
-**#17** (ios-shell). The iOS UX lane is blocked on #17 and will correctly no-op
+Ready rows: **#12** (data) · **#13** (data) · **#17** (ios-shell) · **#20** (data,
+just unblocked by #19). The iOS UX lane is blocked on #17 and will correctly no-op
 until it lands.
 
-**#11, #15, #16 are done** (backend, `2f2c282`). Migrations 003/004/006
+**#11, #15, #16, #19 are done** (backend). Migrations 003/004/006
 landed (extensions, vocab tables incl. a fixed `profiles` seed + the `Blend`
 pseudo-country, and the `fx_rates` table structure); `railway-deploy.yml` now
 gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
-`GET /api/config` shipped. That unblocks **#12** and **#19**.
+`GET /api/config` shipped; migration 007 (`photos`/`photo_texts`/`assets`) plus
+`src/media.js` + `routes/photos.js` + `routes/media.js` landed and were verified
+end-to-end against a local Postgres + real JPEG (manifest upsert, dedupe on a
+re-run, sha256-mismatch rejection, duplicate-content-hash handling, signed
+`/media` URLs). That unblocks **#20**.
 
 **Two P0 gaps found by live smoke test, now owned:**
 
@@ -68,11 +72,18 @@ gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
   trailing space in the variable *name*. Row is `human`, not `ready` — **no lane
   should claim it.** Verify with `/api/status` → `vertex:true`.
 
-  ⚠️ **A lane already did the wrong fix here, because this note used to be wrong.**
-  `e238f10` reconciled `isConfigured()` with `loadCredentials()` and added
-  `test/vertex.test.js`. That work is correct and worth keeping, but it cannot fix an
-  empty value (`if (!privateKey) return false` is its first line). It also removed the
-  temporary diagnostic from `config.js`, which is fine now that the answer is known.
+  A separate session independently pushed a `backend/**` commit (`e238f10`) and
+  confirmed via the Actions API that `railway-deploy.yml`'s `deploy` job ran to
+  completion — a guaranteed fresh container — and `/api/status` still reported
+  `vertex:false` afterward. That rules out "stale container env" as an
+  alternative explanation and corroborates the diagnosis above.
+
+  ⚠️ **That commit's own code change doesn't fix this.** `e238f10` reconciled
+  `isConfigured()` with `loadCredentials()` and added `test/vertex.test.js`.
+  That work is correct and worth keeping, but it cannot fix an empty value
+  (`if (!privateKey) return false` is its first line). It also removed the
+  temporary diagnostic from `config.js`, which is fine now that the answer is
+  known.
 - **#34 — `fx_rates` has structure but no rows.** Now owned, sourced from
   Frankfurter (ECB, no API key). `#14` depends on it. Watch the direction:
   Frankfurter returns EUR→X but the column is `rate_to_eur`, so invert.
