@@ -4,7 +4,10 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-07-29 12:25 UTC] #33 diagnostic — temporary `vertexDiag` block in
+  `src/routes/config.js` to identify which `GOOGLE_*` var arrives falsy. Added by
+  the operator session, not a lane fire; released immediately on push. Backend lane:
+  the *fix* is still yours once the diagnostic reports.
 
 ## Done
 
