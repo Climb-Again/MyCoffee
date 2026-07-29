@@ -35,7 +35,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
-| 33 | backend   | 0 | ready   | — | **`vertex:false`** — `isConfigured()` can't see a full-SA-JSON credential. Blocks all extraction |
+| 33 | human     | 0 | human   | — | **`vertex:false`** — `GOOGLE_PRIVATE_KEY` arrives **empty** (measured). Env fix, not code. Blocks all extraction |
 | 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). API shape + anchors verified — see notes |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
@@ -57,11 +57,22 @@ gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
 
 **Two P0 gaps found by live smoke test, now owned:**
 
-- **#33 — `/api/status` reports `vertex:false`.** `isConfigured()` requires the three
-  individual `GOOGLE_*` vars, but Railway holds the full SA JSON in
-  `GOOGLE_PRIVATE_KEY` — which `loadCredentials()` supports and `isConfigured()`
-  does not. **Blocks every extraction item (#23–#26).** Silent until the first
-  model call, so fix it now.
+- **#33 — `vertex:false`, and it is NOT a code bug.** Measured via a temporary
+  `/api/config` diagnostic: `projectId` present (24 chars, clean),
+  `serviceAccountEmail` present (62 chars, valid shape, clean), **`privateKey`
+  present=false, length 0**. `GOOGLE_PRIVATE_KEY` is visible in the Railway UI but
+  arrives at the process as an empty string — almost certainly because a ~1,700-char
+  multi-line PEM was pasted into a single-line field. **Only Radu can fix this**;
+  re-set the variable as base64, or `\n`-escaped, or the whole SA JSON via Railway's
+  Raw Editor (`normalizePrivateKey()` accepts all three). Also worth ruling out a
+  trailing space in the variable *name*. Row is `human`, not `ready` — **no lane
+  should claim it.** Verify with `/api/status` → `vertex:true`.
+
+  ⚠️ **A lane already did the wrong fix here, because this note used to be wrong.**
+  `e238f10` reconciled `isConfigured()` with `loadCredentials()` and added
+  `test/vertex.test.js`. That work is correct and worth keeping, but it cannot fix an
+  empty value (`if (!privateKey) return false` is its first line). It also removed the
+  temporary diagnostic from `config.js`, which is fine now that the answer is known.
 - **#34 — `fx_rates` has structure but no rows.** Now owned, sourced from
   Frankfurter (ECB, no API key). `#14` depends on it. Watch the direction:
   Frankfurter returns EUR→X but the column is `rate_to_eur`, so invert.

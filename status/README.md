@@ -44,6 +44,18 @@ Claim line format:
 
 Full rules in `CLAUDE.md` §4–§5; the work breakdown is in `PLAN.md`.
 
+## Correcting a task means correcting THIS file
+
+Lane sessions have no GitHub API access, so **they never see issue bodies.** If a
+diagnosis changes, updating the GitHub issue is not enough — the row and notes in
+`BACKLOG.md` are the only thing a lane reads. A stale note here will be executed
+faithfully.
+
+This has already happened once: issue #33's diagnosis was corrected on GitHub but
+not here, and the backend lane implemented the superseded fix (`e238f10`) exactly as
+this file still described it. The code it wrote was fine; it just wasn't the fix.
+When a task turns out to need a human, set its status to `human` so no lane claims it.
+
 ## Hard interlocks
 
 - **Publish is the only lane that may dispatch `publish=true`.** Compile only ever
