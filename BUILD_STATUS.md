@@ -13,14 +13,23 @@ by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
 
 ## Blocking, do first
 
-- [ ] **Real 1024² AppIcon** → `ios/MyCoffee/Resources/Assets.xcassets/AppIcon.appiconset`.
-      The slot is currently empty (`Contents.json` has no `filename`). Compiles
-      green; App Store Connect rejects it at *processing* time, ~20 min after CI
-      reports success. **Blocks the first TestFlight upload.**
-- [ ] **First `publish=true` dispatch** — `match` has never run, there is no
-      distribution certificate under team `PH2NNQ47UB`, and `certs/`+`profiles/`
-      are empty. Do this on the placeholder app, now, while a red ship is cheap to
-      diagnose (`PLAN.md` §8).
+- [x] **1024² AppIcon** — placeholder coffee-cup added (`AppIcon-1024.png`,
+      independently verified 1024×1024, RGB colour type 2, **no alpha**;
+      `Contents.json` carries the `filename`). This was the blocker on the first
+      TestFlight upload. Replace with real brand art later — tracked as issue #9.
+- [ ] **First `publish=true` dispatch** (issue #10) — **now unblocked, do this
+      next.** `match` has never run, there is no distribution certificate under
+      team `PH2NNQ47UB`, and `certs/`+`profiles/` are still empty. Run it **by
+      hand** on the current placeholder app, while a red ship is cheap to
+      diagnose (`PLAN.md` §8). The Compile and Publish routines stay **disabled**
+      until it passes.
+
+> The other three items that used to sit here (`POST /api/ingest` event types,
+> real `GET /api/brief` generation, replacing the placeholder `ContentView`) all
+> said "once the product brief lands". The brief has landed, so they are
+> superseded by the phased breakdown in `PLAN.md` §8 and issues #11–#29 — the
+> ingest work by #19, the brief work by the Insights section of #28, and
+> `ContentView` by #17 and #18.
 
 ## External setup checklist (owed by Radu — not doable from the agent)
 
@@ -70,8 +79,9 @@ the per-field confidence thresholds, prompt version, worker concurrency and the
 spend cap all get defaults in `src/config.js`. Optional overrides only:
 - [ ] `WORKER_ENABLED=true` — leave unset until the extraction lane reaches Phase 3.
 - [ ] `EXTRACTION_MAX_SPEND_USD=80` — a hard stop for the ~$62 backfill.
-- [ ] Disconnect the Railway service's native GitHub branch trigger (CI is the sole
-      deployer now via `railway-deploy.yml`) so the "Needs approval" prompts stop.
+- [x] Railway's native GitHub branch trigger is **disconnected** (`5d8b10e`) —
+      `railway-deploy.yml` + `RAILWAY_TOKEN` is the sole deployer, no more
+      "Needs approval" prompts.
 
 ### First build
 - [x] Scaffold on `main` → Railway deployed backend (healthcheck green).
@@ -97,5 +107,5 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
   member seat. **Verified green** (run #3): `railway up --service MyCoffee` from the
   repo root (service is named `MyCoffee`; run from root so the service Root
   Directory `backend` selects the app — running from `backend/` hit `backend/backend`).
-  Manual step still owed: disconnect the service's native GitHub branch trigger so
-  it stops the "Needs approval" prompts (CI is the sole deployer now).
+  Native Railway GitHub branch trigger **disconnected** — CI is now the sole
+  deployer, no more "Needs approval" prompts.
