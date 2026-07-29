@@ -19,7 +19,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists |
 | 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
-| 14 | backend   | 0 | blocked | 11, 13 | `src/lib/vocab.js` + `fx.js` |
+| 14 | backend   | 0 | blocked | 11, 13, 34 | `src/lib/vocab.js` + `fx.js` |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
 | 17 | ios-shell | 0 | ready   | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
@@ -30,11 +30,13 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 22 | ios-shell | 2 | blocked | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
 | 24 | backend   | 3 | blocked | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
-| 25 | data      | 3 | blocked | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
+| 25 | data      | 3 | blocked | 20, 24, 33 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
+| 33 | backend   | 0 | ready   | — | **`vertex:false`** — `isConfigured()` can't see a full-SA-JSON credential. Blocks all extraction |
+| 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). Needs `api.frankfurter.app` allowlisted |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
@@ -53,12 +55,21 @@ pseudo-country, and the `fx_rates` table structure); `railway-deploy.yml` now
 gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
 `GET /api/config` shipped. That unblocks **#12** and **#19**.
 
-**Gap, not a blocker:** `fx_rates` (migration 006) has structure but **no seed
-rows**. PLAN.md §1 calls for ~1,320 rows of real ECB monthly averages
-(RON/CZK/PLN/HUF/SEK/DKK/NOK/GBP/USD/CHF) — fabricating those numbers would
-silently corrupt every historical price, so the Backend lane left the table
-empty rather than guess. Whichever lane picks up **#14** (`src/lib/fx.js`)
-needs a real seed first; nothing in the backlog currently owns sourcing it.
+**Two P0 gaps found by live smoke test, now owned:**
+
+- **#33 — `/api/status` reports `vertex:false`.** `isConfigured()` requires the three
+  individual `GOOGLE_*` vars, but Railway holds the full SA JSON in
+  `GOOGLE_PRIVATE_KEY` — which `loadCredentials()` supports and `isConfigured()`
+  does not. **Blocks every extraction item (#23–#26).** Silent until the first
+  model call, so fix it now.
+- **#34 — `fx_rates` has structure but no rows.** Now owned, sourced from
+  Frankfurter (ECB, no API key). `#14` depends on it. Watch the direction:
+  Frankfurter returns EUR→X but the column is `rate_to_eur`, so invert.
+
+**Environment note:** `mycoffee-production-bd43.up.railway.app` is allowlisted, so
+lanes can now verify live — `/health`, `/api/status`, `/api/config` and
+`/api/brief` were all confirmed green from a session. `api.frankfurter.app` is
+**not** allowlisted yet and #34 needs it.
 
 **#9 is done** — a valid placeholder AppIcon landed on `main` (`c427f3f`), verified
 1024×1024, RGB, no alpha. That unblocks **#10**, which is now the next thing to do
