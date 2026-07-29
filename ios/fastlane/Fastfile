@@ -87,6 +87,30 @@ platform :ios do
     # 6. Build number = minute timestamp (monotonic, TestFlight-friendly).
     build_number = Time.now.strftime("%Y%m%d%H%M")
 
+    # 6b. Signing diagnostics.
+    #
+    # Runs #10 and #11 both died at the archive with "No profile for team matching
+    # 'match AppStore ro.climbagain.mycoffee' found", even though match installed the
+    # profile (correct name/team/type), it was mirrored into the legacy dir too, and
+    # gym itself logged "Detected provisioning profile mapping". So xcodebuild is not
+    # seeing a profile it should. Print exactly what it can see before archiving so
+    # the fix is data-driven, not another guess. All non-secret: the team id is a GH
+    # secret and auto-masks. `|| true` so diagnostics never fail the lane themselves.
+    UI.header("Signing diagnostics")
+    sh("echo '--- new-dir profiles ---'; ls -la ~/Library/Developer/Xcode/UserData/Provisioning\\ Profiles/ 2>/dev/null || true")
+    sh("echo '--- legacy-dir profiles ---'; ls -la ~/Library/MobileDevice/Provisioning\\ Profiles/ 2>/dev/null || true")
+    if installed_profile && File.exist?(installed_profile)
+      sh("security cms -D -i \"#{installed_profile}\" > /tmp/pp.plist 2>/dev/null || true; " \
+         "echo '--- profile Name ---';     /usr/libexec/PlistBuddy -c 'Print :Name'                                    /tmp/pp.plist 2>/dev/null || true; " \
+         "echo '--- profile Platform ---'; /usr/libexec/PlistBuddy -c 'Print :Platform'                                /tmp/pp.plist 2>/dev/null || true; " \
+         "echo '--- app-identifier ---';   /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier'     /tmp/pp.plist 2>/dev/null || true; " \
+         "echo '--- team ---';             /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0'                        /tmp/pp.plist 2>/dev/null || true; " \
+         "echo '--- expires ---';          /usr/libexec/PlistBuddy -c 'Print :ExpirationDate'                          /tmp/pp.plist 2>/dev/null || true; " \
+         "rm -f /tmp/pp.plist")
+    end
+    sh("echo '--- keychain search list ---'; security list-keychains || true")
+    sh("echo '--- codesigning identities ---'; security find-identity -v -p codesigning || true")
+
     # 7. Build the archive.
     #
     # Manual signing must be handed to BOTH xcodebuild steps explicitly, or the
