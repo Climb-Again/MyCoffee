@@ -39,6 +39,27 @@ platform :ios do
       keychain_password: keychain_password
     )
 
+    # 3b. Mirror the matched profile into the LEGACY provisioning-profiles dir.
+    #
+    # match 2.237.0 installs the profile into the Xcode 16+ location
+    # (~/Library/Developer/Xcode/UserData/Provisioning Profiles/), but a
+    # command-line `xcodebuild archive` resolving PROVISIONING_PROFILE_SPECIFIER by
+    # name still scans the legacy ~/Library/MobileDevice/Provisioning Profiles/.
+    # With the profile only in the new dir, the archive fails with "No profile for
+    # team '...' matching 'match AppStore ro.climbagain.mycoffee' found" even though
+    # match installed it correctly (runs #8 and #10 both died here). Copy it into
+    # the legacy dir under its UUID so xcodebuild finds it by name wherever it looks.
+    installed_profile = ENV["sigh_#{APP_ID}_appstore_profile-path"]
+    profile_uuid      = ENV["sigh_#{APP_ID}_appstore"]
+    if installed_profile && profile_uuid && File.exist?(installed_profile)
+      legacy_dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
+      FileUtils.mkdir_p(legacy_dir)
+      FileUtils.cp(installed_profile, File.join(legacy_dir, "#{profile_uuid}.mobileprovision"))
+      UI.message("Mirrored profile #{profile_uuid} into #{legacy_dir}")
+    else
+      UI.important("Could not locate installed profile to mirror (path=#{installed_profile.inspect})")
+    end
+
     # 4. Generate the Xcode project from project.yml.
     #
     # fastlane's `sh` runs with the working directory set to the Fastfile's own
