@@ -121,8 +121,9 @@ curl -s "$BASE/api/status" -H "Authorization: Bearer $TOK"
 > allowed-domains list, so these run from inside a session. `APP_TOKEN` and
 > `INGEST_TOKEN` are in the environment too. If a curl returns
 > `CONNECT tunnel failed, response 403`, the host isn't allowlisted — **say so
-> plainly rather than reporting a pass.** `api.frankfurter.app` is currently in
-> that state and issue #34 needs it.
+> plainly rather than reporting a pass.** Allowlisted today: the Railway host,
+> `api.frankfurter.app` + `api.frankfurter.dev` (#34), and
+> `*.blob.core.windows.net` (where GitHub serves Actions log downloads).
 
 Expect `/health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`.
 
@@ -231,6 +232,15 @@ into a runner. But three things change, and two of them are footguns:
 - **`PHAsset` cannot read Photos titles/captions/descriptions** — they live in the
   Photos database, not the asset. Ingestion is `osxphotos` on the Mac; nothing in
   the plan depends on PhotoKit.
+- **An env var that is "definitely set" but reads as empty: enumerate `process.env`
+  keys with JSON escaping before touching anything else.** Whitespace can be captured
+  into a variable *name* (`"GOOGLE_PRIVATE_KEY\n"`), and Railway's UI renders that
+  identically to the clean name — it even collapses the two rows, reporting 8
+  variables while the container receives 9. No amount of looking at the UI reveals it.
+  `config.js` now resolves by trimmed name so this specific class can't recur, but the
+  debugging lesson generalises: when a value looks impossible, measure the key space,
+  not the value. Length **0** rather than a truncated length is the tell that the
+  lookup missed entirely.
 - Gemini 2.5 output tokens are dominated by *thinking* tokens — budget extraction
   cost from output, not input (see `PLAN.md` §2).
 
