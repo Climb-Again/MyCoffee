@@ -40,7 +40,7 @@ Claim line format:
 | `ios-shell.md` | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | `ios-ux.md` | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
 | `compile.md` | Compile check | dispatch only | nothing — dispatches `publish=false` |
-| `publish.md` | Publish | `main` | `certs/`, `profiles/`, `match_version.txt`, `.github/workflows/**` |
+| `publish.md` | Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is `Climb-Again/mycoffee-private`) |
 
 Full rules in `CLAUDE.md` §4–§5; the work breakdown is in `PLAN.md`.
 

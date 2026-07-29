@@ -7,8 +7,10 @@ External checklist + Done log.
 - **Claims** live in **`status/<lane>.md`** — one file per lane so six agents never
   conflict. Protocol in `status/README.md`. Do **not** add a Claims section here.
 
-The product brief has landed (`MyCoffee app.docx`, extracted and analysed in
-`PLAN.md`), so the four "once the product brief lands" queue items are superseded
+The product brief has landed and been extracted into `PLAN.md`. The source
+document now lives in **`Climb-Again/mycoffee-private`** at `brief/MyCoffee app.docx`
+— it holds ten years of personal purchase history and screenshots with a profile
+avatar, so it must not sit in a public repo. So the four "once the product brief lands" queue items are superseded
 by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
 
 ## Blocking, do first
@@ -19,7 +21,7 @@ by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
       TestFlight upload. Replace with real brand art later — tracked as issue #9.
 - [ ] **First `publish=true` dispatch** (issue #10) — **now unblocked, do this
       next.** `match` has never run, there is no distribution certificate under
-      team `PH2NNQ47UB`, and `certs/`+`profiles/` are still empty. Run it **by
+      team `PH2NNQ47UB`, and the private repo's `match` branch is still empty. Run it **by
       hand** on the current placeholder app, while a red ship is cheap to
       diagnose (`PLAN.md` §8). The Compile and Publish routines stay **disabled**
       until it passes.
@@ -46,7 +48,11 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
 - [x] `MATCH_PASSWORD` (new passphrase — must stay constant for this repo's `match` storage)
 - [x] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
-- [x] Repo is **private** (verified 2026-07-28).
+- [~] Repo visibility: going **public** so Actions (incl. macOS) are free. Signing
+      material and the product brief moved to `Climb-Again/mycoffee-private`
+      (branches `match` and `main`). Flip to public only after the history purge.
+- [ ] `MATCH_PAT` — fine-grained PAT, resource owner `Climb-Again`,
+      **`mycoffee-private` only**, Contents: read+write. Added as an Actions secret.
 
 ### Railway — DONE (live at `https://mycoffee-production-bd43.up.railway.app`)
 - [x] New project `mycoffee` → service from `Climb-Again/MyCoffee`.
@@ -88,7 +94,8 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
 - [~] iOS compile check: runs automatically on push to `main` (merge #1 triggered
       run #1). Confirm it's green.
 - [ ] Dispatch `ios-testflight.yml` with `publish=true` → first TestFlight upload
-      (`match` populates `certs/`+`profiles/` under team `PH2NNQ47UB`).
+      (`match` populates `Climb-Again/mycoffee-private` branch `match`, under team
+      `PH2NNQ47UB`). Needs the `MATCH_PAT` secret set.
 - [ ] Accept the build on the phone; enter `BACKEND_URL` + `INGEST_TOKEN` on Connect.
 
 ## Done log

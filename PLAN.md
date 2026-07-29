@@ -769,7 +769,7 @@ lanes to six doesn't change the bill.
 | iOS shell | `ios-staging` | `Sources/{App,Store,API,Models,Query,Utilities}/**` | iOS UX (at the seam only) |
 | iOS UX | `ios-staging` | `Sources/{Features,DesignSystem}/**`, `Resources/**` | iOS shell (at the seam only) |
 | Compile | dispatch only | — | Publish (one workflow, one concurrency group) |
-| Publish | `main` | `certs/`, `profiles/`, `match_version.txt`, `.github/workflows/**` | Compile |
+| Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is the private repo) | Compile |
 
 The iOS partition is genuinely disjoint and checkable by path glob: **shell owns
 plumbing, UX owns presentation.** The seam is the `CoffeeStore`/`CoffeeIndex` API
@@ -844,7 +844,7 @@ lease reaper makes it survivable, but check `GET /api/admin/jobs` first.
 
 **That last item is the single highest-risk unproven step in the whole project**
 and it is currently scheduled last, which is backwards. `match` has never run,
-`certs/` and `profiles/` are empty, there is **no distribution certificate under
+the private repo's `match` branch is empty, there is **no distribution certificate under
 team `PH2NNQ47UB`** (the setup brief's cert-reuse claim was wrong — that team
 isn't on this Apple ID), and the empty AppIcon fails at *processing* time, after
 CI has already gone green. Prove the whole signing and upload chain **while the

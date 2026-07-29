@@ -16,7 +16,8 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 | `RAILWAY_PROJECT` | Railway project | `mycoffee` |
 | `RAILWAY_SERVICE` | Node service | `MyCoffee` (Railway auto-named it after the repo, not `mycoffee-api`) |
 | `BACKEND_URL` | Railway public URL | `mycoffee-production-bd43.up.railway.app` |
-| `APPLE_TEAM_ID` | Apple team | `PH2NNQ47UB` (ASOCIATIA CLUB SPORTIV CLIMB AGAIN; Apple ID `an Apple ID not recorded here`) |
+| `APPLE_TEAM_ID` | Apple team | `PH2NNQ47UB` (ASOCIATIA CLUB SPORTIV CLIMB AGAIN) |
+| `MATCH_REPO` | Private match storage | `Climb-Again/mycoffee-private`, branch `match` |
 | `BG_REFRESH_ID` | BGTask identifier | `ro.climbagain.mycoffee.refresh` |
 | HealthKit | Uses HealthKit? | **No** |
 
@@ -25,7 +26,7 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 > Railway domain ever changes.
 >
 > ℹ️ **Apple team correction:** the setup brief said to reuse `TTR9KS5493`, but the
-> only team on Apple ID `an Apple ID not recorded here` is `PH2NNQ47UB`. MyCoffee is registered
+> only team on the owning Apple ID is `PH2NNQ47UB`. MyCoffee is registered
 > under `PH2NNQ47UB`; the GH secret `APPLE_TEAM_ID` must be `PH2NNQ47UB`. There is
 > **no cross-team cert reuse** — `match` creates/manages a distribution cert under
 > this team on the first CI run.
@@ -77,7 +78,7 @@ six lanes cost the same as the original two.
 | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
 | Compile | dispatch only | nothing — dispatches `publish=false` |
-| Publish | `main` | `certs/`, `profiles/`, `match_version.txt`, `.github/workflows/**` |
+| Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is the private repo) |
 
 - **Shared:** root docs (`CLAUDE.md`, `BUILD_STATUS.md`, `PLAN.md`) — claim first.
 - The two iOS lanes share `ios-staging` but own **disjoint directories**, so git
@@ -190,7 +191,27 @@ Railway env vars, add a real 1024² AppIcon, then dispatch the first builds.
 - `MARKETING_VERSION` must move forward every release or TestFlight won't update.
 - Build on `macos-15` / Xcode 26 (iOS 26 SDK required for uploads).
 - `match` rewrites the repo-root `README.md` — keep real docs in other `.md` files.
-- Keep the repo **private** (`certs/`+`profiles/` are committed match storage).
+  (It now does that on `mycoffee-private`'s `match` branch, not here.)
+
+### This repo is PUBLIC — three rules that follow from it
+
+Public so GitHub Actions (including macOS runners) are free. Actions secrets are
+**not** exposed by public visibility — they are encrypted at rest and only decrypted
+into a runner. But three things change, and two of them are footguns:
+
+1. **Never add a `pull_request` or `pull_request_target` trigger to a workflow that
+   references secrets.** Today both workflows trigger only on `push: [main]` and
+   `workflow_dispatch`, both of which require write access — so a stranger's fork PR
+   cannot run a job that touches a secret. Adding a PR trigger is the single change
+   that turns this public repo into a credential leak. Don't.
+2. **Actions logs are world-readable.** Never `echo` a secret, never `set -x` around
+   one, and remember GitHub's auto-masking fails if a value is transformed (base64'd,
+   split across lines). Assume anything printed is published.
+3. **No signing material, personal data, or credentials in this repo — ever.** The
+   distribution certificate lives in `Climb-Again/mycoffee-private` (branch `match`);
+   the product brief lives on that repo's `main`. `MATCH_PAT` reaches it and is
+   scoped to that repo alone. `contents:` permission here is `read` — CI has no
+   reason to write to this repo.
 - **Never push `backend/**` while an extraction job is `running`** — the push
   redeploys and SIGTERMs the worker. Check `GET /api/admin/jobs` first. The lease
   reaper makes it recoverable, not free.
