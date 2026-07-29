@@ -36,7 +36,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
 | 33 | backend   | 0 | ready   | — | **`vertex:false`** — `isConfigured()` can't see a full-SA-JSON credential. Blocks all extraction |
-| 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). Needs `api.frankfurter.app` allowlisted |
+| 34 | data      | 0 | blocked | — | Seed `fx_rates` from Frankfurter (ECB). **Needs `api.frankfurter.dev` allowlisted** — `.app` only redirects |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
@@ -68,8 +68,17 @@ gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
 
 **Environment note:** `mycoffee-production-bd43.up.railway.app` is allowlisted, so
 lanes can now verify live — `/health`, `/api/status`, `/api/config` and
-`/api/brief` were all confirmed green from a session. `api.frankfurter.app` is
-**not** allowlisted yet and #34 needs it.
+`/api/brief` were all confirmed green from a session.
+
+**Frankfurter redirect trap (#34).** `api.frankfurter.app` is allowlisted and
+resolves, but it **301-redirects to `api.frankfurter.dev/v1/…`** — a *different*
+host that is NOT allowlisted, so following the redirect dies with
+`CONNECT tunnel failed, response 403`. Symptom to expect: the allowlist looks
+correct, a bare request returns 301, and `curl -L` then fails. **`api.frankfurter.dev`
+must be added** before #34 can run in a session. Note also that the live API is
+now `/v1/`-prefixed, so the query shape differs from the older `.app` examples —
+confirm the exact parameter names against a real response rather than assuming.
+Alternative: generate the seed on the Mac and commit the SQL.
 
 **#9 is done** — a valid placeholder AppIcon landed on `main` (`c427f3f`), verified
 1024×1024, RGB, no alpha. That unblocks **#10**, which is now the next thing to do
