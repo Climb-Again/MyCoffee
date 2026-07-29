@@ -124,7 +124,22 @@ platform :ios do
     #     EXPORT step.
     # profile_name comes from match's own sigh_* env var, so it always matches the
     # profile match just installed.
-    team_id = ENV["DEVELOPMENT_TEAM"]
+    #
+    # TEAM: derive it from the profile match actually installed
+    # (sigh_*_team-id), NOT from the DEVELOPMENT_TEAM secret. Runs #10-#12 proved
+    # the profile is installed, valid, correctly named, and the signing identity is
+    # present — yet the archive still reports "No profile for team '<TEAM>/match
+    # AppStore ...' found". The one thing that produces that with a valid profile
+    # present is a TEAM MISMATCH: match resolves the team from the ASC API key
+    # (PH2NNQ47UB) and stamps the profile with it, but the archive searched under
+    # ENV["DEVELOPMENT_TEAM"]. If that secret is stale/wrong/whitespaced (CLAUDE.md
+    # flags both the TTR9KS5493->PH2NNQ47UB mixup and a whitespace-in-env class of
+    # bug), the two teams differ and no profile matches. Using the profile's own
+    # team guarantees the archive searches under the same team match created it in.
+    profile_team = ENV["sigh_#{APP_ID}_appstore_team-id"]
+    team_id = profile_team || ENV["DEVELOPMENT_TEAM"]
+    UI.message("Archive team == DEVELOPMENT_TEAM secret? #{ENV["DEVELOPMENT_TEAM"] == profile_team} " \
+               "(secret len=#{(ENV["DEVELOPMENT_TEAM"] || "").length}, profile-team len=#{(profile_team || "").length})")
     build_app(
       project: PROJECT,
       scheme: SCHEME,
