@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write   # match writes certs/profiles back into the repo
+  contents: read    # match storage lives in the private repo, not here
 
 jobs:
   build:
@@ -33,7 +33,10 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
-      MATCH_GIT_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+      # match storage is a SEPARATE PRIVATE repo. This repo is public, and an
+      # encrypted distribution cert in a public repo is an offline brute-force
+      # target. GITHUB_TOKEN can't be used here — it is scoped to this repo only.
+      MATCH_GIT_URL: https://x-access-token:${{ secrets.MATCH_PAT }}@github.com/Climb-Again/mycoffee-private.git
     steps:
       - name: Checkout
         uses: actions/checkout@v4
