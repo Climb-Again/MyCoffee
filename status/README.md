@@ -4,13 +4,25 @@ One file per lane. **Never edit another lane's file.** This is the whole point:
 six agents contending over a single `Claims` section in `BUILD_STATUS.md` is a
 merge-conflict generator, whereas one file per lane merges cleanly by construction.
 
+## Where the work list lives
+
+**`status/BACKLOG.md`** — not the GitHub issue list. Routine-fired sessions run
+without MCP connector tools and cannot query the GitHub API, so everything a lane
+needs to pick its next task lives in the repo. Each backlog row mirrors a GitHub
+issue of the same number: the issue holds the full spec, the backlog holds lane,
+phase, status and dependencies.
+
 ## Protocol
 
+0. **Pick a task** from `status/BACKLOG.md`: status `ready`, lane matching yours,
+   and all `needs` already `done`. Lowest phase first, then lowest number.
 1. **Before coding**, append a claim to your own `status/<lane>.md` under
    `## Claimed`, commit it, and push. If the push rejects, `git pull --rebase` and
    retry — your file can only conflict with your own lane.
 2. **When done**, move the line to `## Done` with the commit SHA.
-3. **Stale claims** — a claim older than 24 h with no commits on its branch is
+3. **Unblock the next lane** — when you finish an item, flip every backlog row
+   whose `needs` are now all `done` from `blocked` to `ready`, in the same commit.
+4. **Stale claims** — a claim older than 24 h with no commits on its branch is
    reclaimable by any lane. Move it to `## Abandoned` with a one-line reason.
 
 Claim line format:
