@@ -17,7 +17,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 9  | publish   | 0 | done    | — | Real 1024² AppIcon — landed on `main` in `c427f3f` (verified 1024×1024, RGB, no alpha) |
 | 10 | publish   | 0 | human   | — | First `publish=true` dispatch — prove `match` + signing under `PH2NNQ47UB`. **Unblocked: do this next.** |
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
-| 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists |
+| 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists (docx is in `mycoffee-private`) |
 | 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
 | 14 | backend   | 0 | blocked | 11, 13, 34 | `src/lib/vocab.js` + `fx.js` |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
@@ -69,6 +69,21 @@ gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
 **Environment note:** `mycoffee-production-bd43.up.railway.app` is allowlisted, so
 lanes can now verify live — `/health`, `/api/status`, `/api/config` and
 `/api/brief` were all confirmed green from a session.
+
+**The product brief lives in the OTHER repo.** `Climb-Again/mycoffee-private` is
+attached to every lane routine as a second source; the brief is
+`brief/MyCoffee app.docx` on its `main`. That is the **authoritative source for the
+roaster and country vocabularies** (#12) — `PLAN.md` carries the analysis and the
+alias pairs but *not* all ~105 roaster names verbatim, so seeding from `PLAN.md`
+alone would produce a silently incomplete vocabulary. Extract it with
+`unzip` + parse `word/document.xml` (`<w:p>` paragraphs, `<w:t>` runs); note that
+many entries split the name and its `(count)` across **adjacent paragraphs**, so
+pair them when parsing.
+
+**Never copy the docx or any personally-identifying excerpt into this public repo.**
+Extracted vocabulary *values* are the deliverable; the document is not. It was moved
+out precisely because it holds ten years of personal purchase history and
+screenshots containing a profile avatar.
 
 **Frankfurter is reachable and verified (#34 unblocked).** Both
 `api.frankfurter.app` and `api.frankfurter.dev` are allowlisted. `.app`
