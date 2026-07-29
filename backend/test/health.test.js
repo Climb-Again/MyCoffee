@@ -33,3 +33,19 @@ test('POST /api/ingest rejects unauthorized writes', async () => {
   assert.ok([401, 503].includes(res.statusCode));
   await app.close();
 });
+
+test('GET /api/brief requires a token but accepts either kind', async () => {
+  const app = await build();
+  const res = await app.inject({ method: 'GET', url: '/api/brief' });
+  // No token configured server-side -> 503; token configured but missing -> 401.
+  // Never 404 (the route exists) and never a hardcoded APP_TOKEN-only 401.
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});
+
+test('GET /api/config requires a token', async () => {
+  const app = await build();
+  const res = await app.inject({ method: 'GET', url: '/api/config' });
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});

@@ -17,6 +17,7 @@ import { runMigrations } from './migrate.js';
 import statusRoutes from './routes/status.js';
 import ingestRoutes from './routes/ingest.js';
 import briefRoutes from './routes/brief.js';
+import configRoutes from './routes/config.js';
 
 export async function build() {
   const app = Fastify({
@@ -52,6 +53,7 @@ export async function build() {
   await app.register(statusRoutes);
   await app.register(ingestRoutes);
   await app.register(briefRoutes);
+  await app.register(configRoutes);
 
   return app;
 }

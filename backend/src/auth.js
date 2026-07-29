@@ -51,3 +51,13 @@ export const requireAnyToken = makeGuard(
   () => [config.ingestToken, config.appToken],
   'any',
 );
+
+// Which configured token the request presented, for self-diagnosing routes
+// like GET /api/config. Call only behind a guard that already validated the
+// bearer token — returns 'unknown' rather than guessing if neither matches.
+export function presentedTokenKind(req) {
+  const presented = extractBearer(req);
+  if (presented && safeEqual(presented, config.ingestToken)) return 'ingest';
+  if (presented && safeEqual(presented, config.appToken)) return 'app';
+  return 'unknown';
+}
