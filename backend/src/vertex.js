@@ -80,6 +80,21 @@ async function getAuthClient() {
 
 export function isConfigured() {
   const { projectId, serviceAccountEmail, privateKey } = config.vertex;
+  if (!privateKey) return false;
+  // Full SA JSON carries its own project_id/client_email, so the individual
+  // vars aren't required in that shape (see loadCredentials() case 1).
+  if (privateKey.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(privateKey.trim());
+      return Boolean(
+        (parsed.project_id || projectId) &&
+          (parsed.client_email || serviceAccountEmail) &&
+          parsed.private_key,
+      );
+    } catch {
+      return false;
+    }
+  }
   return Boolean(projectId && serviceAccountEmail && privateKey);
 }
 
