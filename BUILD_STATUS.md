@@ -48,11 +48,14 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (full `.p8` contents)
 - [x] `MATCH_PASSWORD` (new passphrase — must stay constant for this repo's `match` storage)
 - [x] `APPLE_TEAM_ID` = `PH2NNQ47UB`  (brief said TTR9KS5493 — wrong for this Apple ID)
-- [~] Repo visibility: going **public** so Actions (incl. macOS) are free. Signing
-      material and the product brief moved to `Climb-Again/mycoffee-private`
-      (branches `match` and `main`). Flip to public only after the history purge.
-- [ ] `MATCH_PAT` — fine-grained PAT, resource owner `Climb-Again`,
-      **`mycoffee-private` only**, Contents: read+write. Added as an Actions secret.
+- [x] Repo is **public** (verified `visibility=public`, 0 forks). Signing material
+      and the product brief live in `Climb-Again/mycoffee-private` (verified
+      `private=true`); docx + the Apple ID email were purged from git history
+      before the flip, confirmed 0 matches from a fresh clone; all 10 prior
+      Actions runs deleted so no logs leak; `INGEST_TOKEN`/`APP_TOKEN` rotated.
+- [x] `MATCH_PAT` — fine-grained PAT scoped to `mycoffee-private` only, set as an
+      Actions secret. `MATCH_GIT_URL` and `Matchfile` (`git_branch("match")`) point
+      at it; this repo's workflow permission is `contents: read`.
 
 ### Railway — DONE (live at `https://mycoffee-production-bd43.up.railway.app`)
 - [x] New project `mycoffee` → service from `Climb-Again/MyCoffee`.
@@ -70,13 +73,14 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Data extract + validate `30 1 * * *`
 - [x] iOS shell `0 3,15 * * *`
 - [x] iOS UX `0 9,21 * * *`
-- [~] Compile check `0 20 * * 3,6` — **created but disabled** until the first ship
-- [~] Publish `0 20 * * 4,0` (Thu + Sun) — **created but disabled** until the first ship
-- [ ] **Enable the two macOS routines** once the AppIcon has landed and the first
-      manual `publish=true` dispatch has proven `match` + signing under `PH2NNQ47UB`.
-      That first run is the riskiest step in the project and must not fire unattended.
-- [ ] **Set the account's Actions spending limit** (~$50–60/mo, shared with
-      MyHealthOS). Only the two macOS lanes bill; ~$27/mo for MyCoffee.
+- [x] Compile check `0 20 * * 3,6` — **enabled**
+- [~] Publish `0 20 * * 4,0` (Thu + Sun) — **deliberately still disabled.** Going
+      public removed the *cost* barrier, not the *risk* one: `match` has never run
+      and must mint a distribution cert under `PH2NNQ47UB` where none exists. Do
+      that first run **by hand** (issue #10), then enable this routine.
+- [x] ~~Set an Actions spending limit~~ — **not needed.** The repo is public, so
+      Actions on standard runners (incl. macOS) are free and unlimited. This is
+      what the public flip bought.
 
 ### Env / secrets for the plan — nothing new required
 Verified while planning: the extraction pipeline needs **no new Railway env vars**.
@@ -91,8 +95,9 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
 
 ### First build
 - [x] Scaffold on `main` → Railway deployed backend (healthcheck green).
-- [~] iOS compile check: runs automatically on push to `main` (merge #1 triggered
-      run #1). Confirm it's green.
+- [~] iOS compile check: fires on push to `main` touching `ios/**`, and on a
+      `publish=false` dispatch. All prior runs were deleted before the public flip,
+      so there is no green run on record yet — the next `ios/**` change proves it.
 - [ ] Dispatch `ios-testflight.yml` with `publish=true` → first TestFlight upload
       (`match` populates `Climb-Again/mycoffee-private` branch `match`, under team
       `PH2NNQ47UB`). Needs the `MATCH_PAT` secret set.

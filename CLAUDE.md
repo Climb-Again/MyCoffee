@@ -68,8 +68,8 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
 ## 4. Lane rule (so loops never collide)
 
 **Six lanes.** The approved work breakdown is `PLAN.md`; the claim protocol and the
-full ownership table are `status/README.md`. Only two lanes cost macOS minutes, so
-six lanes cost the same as the original two.
+full ownership table are `status/README.md`. The repo is public, so Actions are
+free — lane count has no cost implication.
 
 | Lane | Branch | Owns |
 |---|---|---|
@@ -117,8 +117,12 @@ curl -s "$BASE/health"
 curl -s "$BASE/api/status" -H "Authorization: Bearer $TOK"
 ```
 
-> Note: the agent's own sandbox may block outbound to `*.railway.app` via egress
-> policy — run these from a machine that can reach Railway.
+> `mycoffee-production-bd43.up.railway.app` **is** on the cloud environment's
+> allowed-domains list, so these run from inside a session. `APP_TOKEN` and
+> `INGEST_TOKEN` are in the environment too. If a curl returns
+> `CONNECT tunnel failed, response 403`, the host isn't allowlisted — **say so
+> plainly rather than reporting a pass.** `api.frankfurter.app` is currently in
+> that state and issue #34 needs it.
 
 Expect `/health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`.
 
@@ -168,15 +172,18 @@ non-colliding days — two macOS runners never fire simultaneously.
 | Compile check (Wed, Sat) | `0 20 * * 3,6` | ~15–20 min ea. |
 | Publish (Thu, Sun) | `0 20 * * 4,0` | ~15–20 min ea. |
 
-> Shared account ⇒ shared 2000 Actions-min/month; macOS is 10×, so ~200 free
-> *actual* macOS minutes shared with MyHealthOS. Only the two macOS lanes cost
-> anything: ~520 actual min/month ⇒ **~$27/mo for MyCoffee, ~$47 combined**.
-> Set the account's Actions spending limit to ~$50–60.
+> **The repo is public, so Actions on standard runners — including macOS — are free
+> and unlimited.** That is the main reason it's public. The earlier arithmetic
+> (10× macOS multiplier, ~200 billed minutes per run, ~$27/mo, a spending limit)
+> **no longer applies**. There is no Actions bill and no shared-budget contention
+> with MyHealthOS.
 >
-> Publish days (Thu/Sun) don't collide with MyHealthOS's (Tue/Fri), and the 20:00
-> hour keeps two macOS runners from ever firing together. Compile runs the day
-> before each publish. Still batch 2–4 ready items per ship — that's what makes a
-> red ship cheap to diagnose.
+> Still batch 2–4 ready items per ship. That was never really about cost — it's
+> what makes a red ship cheap to diagnose.
+>
+> Publish days (Thu/Sun) and the 20:00 hour are kept so two macOS runners never
+> fire simultaneously with MyHealthOS's, and so compile runs the day before each
+> publish.
 
 ## 11. Manual steps still owed by Radu (not doable from the agent)
 

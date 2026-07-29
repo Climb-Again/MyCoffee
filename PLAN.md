@@ -815,12 +815,13 @@ non-colliding days):
 | Compile | `0 20 * * 3,6` | ~20 min → 200 billed | ~8.7 |
 | Publish | `0 20 * * 4,0` | ~20 min → 200 billed | ~8.7 |
 
-~520 *actual* macOS minutes/month for MyCoffee. The free 2000 includes the 10×
-multiplier, i.e. ~200 free actual macOS minutes shared with MyHealthOS, so
-MyCoffee's share is roughly **$27/month, ~$47 combined**. Set the account's
-Actions spending limit to ~$50–60. Publish days (Thu/Sun) don't collide with
-MyHealthOS's (Tue/Fri); compile runs the day before each publish. Still batch 2–4
-ready items per ship — that's what makes a red ship cheap to diagnose.
+**Superseded — the repo went public, so Actions on standard runners (including
+macOS) are free and unlimited.** The cost analysis that follows in this section's
+history — 10× multiplier, ~520 billed minutes/month, ~$27/mo, a spending limit —
+no longer applies, and neither does the free-tier contention with MyHealthOS.
+Going public is what removed it. Publish days (Thu/Sun) and the 20:00 hour are
+kept only so two macOS runners never fire at once, and batching 2–4 items per ship
+is kept because it makes a red ship cheap to diagnose.
 
 **The two macOS routines start disabled.** They are enabled only after the AppIcon
 lands and a *manual* `publish=true` dispatch has proven `match` + signing under
