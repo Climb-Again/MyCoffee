@@ -31,6 +31,15 @@ export const config = {
 
   rateLimitMax: int('RATE_LIMIT_MAX', 300),
   rateLimitWindowMs: int('RATE_LIMIT_WINDOW_MS', 60_000),
+  // Override for PUT /api/photos/:sourceId/image — a cold backfill run is
+  // ~900 requests, which would otherwise take ~3.5 min of 429-dodging at the
+  // global 300/min cap.
+  ingestRateLimitMax: int('INGEST_RATE_LIMIT_MAX', 1200),
+
+  // HMAC key for signed GET /media/:publicId/:variant.jpg URLs. Empty by
+  // default: media.js falls back to HMAC(APP_TOKEN, 'media') so this adds no
+  // required env var.
+  mediaSigningKey: str('MEDIA_SIGNING_KEY'),
 
   vertex: {
     projectId: str('GOOGLE_PROJECT_ID'),

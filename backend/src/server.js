@@ -18,6 +18,8 @@ import statusRoutes from './routes/status.js';
 import ingestRoutes from './routes/ingest.js';
 import briefRoutes from './routes/brief.js';
 import configRoutes from './routes/config.js';
+import photosRoutes from './routes/photos.js';
+import mediaRoutes from './routes/media.js';
 
 export async function build() {
   const app = Fastify({
@@ -40,6 +42,15 @@ export async function build() {
     limits: { fileSize: config.maxUploadBytes },
   });
 
+  // PUT /api/photos/:sourceId/image sends a raw JPEG body (not multipart) so
+  // the exporter script stays a one-line curl and the dedupe identity lives
+  // in the URL.
+  app.addContentTypeParser(
+    ['image/jpeg', 'application/octet-stream'],
+    { parseAs: 'buffer' },
+    (req, body, done) => done(null, body),
+  );
+
   await app.register(compress, { threshold: 1024 });
   await app.register(etag);
 
@@ -54,6 +65,8 @@ export async function build() {
   await app.register(ingestRoutes);
   await app.register(briefRoutes);
   await app.register(configRoutes);
+  await app.register(photosRoutes);
+  await app.register(mediaRoutes);
 
   return app;
 }
