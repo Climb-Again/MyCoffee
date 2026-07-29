@@ -15,7 +15,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | # | Lane | Phase | Status | Needs | Item |
 |---|---|---|---|---|---|
 | 9  | publish   | 0 | done    | — | Real 1024² AppIcon — landed on `main` in `c427f3f` (verified 1024×1024, RGB, no alpha) |
-| 10 | publish   | 0 | human   | — | First `publish=true`. **`match` + signing now PROVEN** (cert `DQ2D2T3MR9` in `mycoffee-private`). Next blocker was `xcodegen` cwd — fixed; re-dispatch |
+| 10 | publish   | 0 | human   | — | First `publish=true`. `match`+`xcodegen` PROVEN; #8 archive-signing fixed in `2b165c4` (untested). **Autopilot ready — needs `GH_ACTIONS_PAT` in env to run.** See `status/publish.md` |
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists (docx is in `mycoffee-private`) |
 | 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
