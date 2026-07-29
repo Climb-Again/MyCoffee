@@ -40,7 +40,16 @@ platform :ios do
     )
 
     # 4. Generate the Xcode project from project.yml.
-    sh("xcodegen", "generate")
+    #
+    # fastlane's `sh` runs with the working directory set to the Fastfile's own
+    # folder (ios/fastlane), but the XcodeGen spec lives one level up at
+    # ios/project.yml -- so a bare `sh("xcodegen","generate")` fails with
+    # "No project spec found at .../ios/fastlane/project.yml". Run it from ios/,
+    # which is also where build_app expects MyCoffee.xcodeproj to appear and where
+    # the workflow's compile-check step generates it.
+    Dir.chdir("..") do
+      sh("xcodegen", "generate")
+    end
 
     # 5. Force manual signing with the matched profile.
     profile_name = ENV["sigh_#{APP_ID}_appstore_profile-name"] ||

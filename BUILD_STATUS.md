@@ -98,9 +98,15 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
 - [~] iOS compile check: fires on push to `main` touching `ios/**`, and on a
       `publish=false` dispatch. All prior runs were deleted before the public flip,
       so there is no green run on record yet — the next `ios/**` change proves it.
-- [ ] Dispatch `ios-testflight.yml` with `publish=true` → first TestFlight upload
-      (`match` populates `Climb-Again/mycoffee-private` branch `match`, under team
-      `PH2NNQ47UB`). Needs the `MATCH_PAT` secret set.
+- [x] **Signing chain PROVEN** (run #6, 2026-07-29). `match` decrypted the repo with
+      `MATCH_PASSWORD`, created a distribution certificate under `PH2NNQ47UB`, generated
+      the app-store profile, and pushed them encrypted to `mycoffee-private` branch
+      `match`: `certs/distribution/DQ2D2T3MR9.{cer,p12}` +
+      `profiles/appstore/AppStore_ro.climbagain.mycoffee.mobileprovision`.
+      (It also rewrote that branch's `README.md`, as the gotcha predicted.)
+- [ ] Dispatch `publish=true` again → first actual TestFlight upload. Run #6 then died
+      at `xcodegen generate`: fastlane's `sh` runs in `ios/fastlane/`, so the spec at
+      `ios/project.yml` wasn't found. Fixed by wrapping in `Dir.chdir("..")`.
 - [ ] Accept the build on the phone; enter `BACKEND_URL` + `INGEST_TOKEN` on Connect.
 
 ## Done log

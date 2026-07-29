@@ -15,7 +15,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | # | Lane | Phase | Status | Needs | Item |
 |---|---|---|---|---|---|
 | 9  | publish   | 0 | done    | — | Real 1024² AppIcon — landed on `main` in `c427f3f` (verified 1024×1024, RGB, no alpha) |
-| 10 | publish   | 0 | human   | — | First `publish=true` dispatch — prove `match` + signing under `PH2NNQ47UB`. **Unblocked: do this next.** |
+| 10 | publish   | 0 | human   | — | First `publish=true`. **`match` + signing now PROVEN** (cert `DQ2D2T3MR9` in `mycoffee-private`). Next blocker was `xcodegen` cwd — fixed; re-dispatch |
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists (docx is in `mycoffee-private`) |
 | 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
@@ -35,7 +35,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
-| 33 | human     | 0 | human   | — | **`vertex:false`** — `GOOGLE_PRIVATE_KEY` arrives **empty** (measured), even after a confirmed fresh redeploy (rules out staleness). Env fix, not code. Blocks all extraction |
+| 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
 | 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). API shape + anchors verified — see notes |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
@@ -61,29 +61,15 @@ re-run, sha256-mismatch rejection, duplicate-content-hash handling, signed
 
 **Two P0 gaps found by live smoke test, now owned:**
 
-- **#33 — `vertex:false`, and it is NOT a code bug.** Measured via a temporary
-  `/api/config` diagnostic: `projectId` present (24 chars, clean),
-  `serviceAccountEmail` present (62 chars, valid shape, clean), **`privateKey`
-  present=false, length 0**. `GOOGLE_PRIVATE_KEY` is visible in the Railway UI but
-  arrives at the process as an empty string — almost certainly because a ~1,700-char
-  multi-line PEM was pasted into a single-line field. **Only Radu can fix this**;
-  re-set the variable as base64, or `\n`-escaped, or the whole SA JSON via Railway's
-  Raw Editor (`normalizePrivateKey()` accepts all three). Also worth ruling out a
-  trailing space in the variable *name*. Row is `human`, not `ready` — **no lane
-  should claim it.** Verify with `/api/status` → `vertex:true`.
-
-  A separate session independently pushed a `backend/**` commit (`e238f10`) and
-  confirmed via the Actions API that `railway-deploy.yml`'s `deploy` job ran to
-  completion — a guaranteed fresh container — and `/api/status` still reported
-  `vertex:false` afterward. That rules out "stale container env" as an
-  alternative explanation and corroborates the diagnosis above.
-
-  ⚠️ **That commit's own code change doesn't fix this.** `e238f10` reconciled
-  `isConfigured()` with `loadCredentials()` and added `test/vertex.test.js`.
-  That work is correct and worth keeping, but it cannot fix an empty value
-  (`if (!privateKey) return false` is its first line). It also removed the
-  temporary diagnostic from `config.js`, which is fine now that the answer is
-  known.
+- **#33 — DONE.** Cause was a newline captured into the env var *name*: the process
+  received both `"GOOGLE_PRIVATE_KEY"` (empty) and `"GOOGLE_PRIVATE_KEY
+"` (the real
+  2,391-byte key). Railway's UI renders these identically **and collapses the rows** —
+  it showed 8 variables while the container had 9 — so it was invisible from the
+  console, and no redeploy could help. Fixed in code (`0b38388`): `config.js` resolves
+  by exact name, falling back to a trimmed-name match. `/api/status` now reports
+  `vertex:true`. The earlier `e238f10` lane fix is correct and stays; it addressed a
+  different credential shape.
 - **#34 — `fx_rates` has structure but no rows.** Now owned, sourced from
   Frankfurter (ECB, no API key). `#14` depends on it. Watch the direction:
   Frankfurter returns EUR→X but the column is `rate_to_eur`, so invert.
