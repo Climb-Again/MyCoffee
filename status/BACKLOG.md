@@ -47,7 +47,7 @@ Ready rows: **#12, #19** (backend-unblocked, data/backend) · **#13** (data) ·
 **#17** (ios-shell). The iOS UX lane is blocked on #17 and will correctly no-op
 until it lands.
 
-**#11, #15, #16 are done** (backend, this commit). Migrations 003/004/006
+**#11, #15, #16 are done** (backend, `2f2c282`). Migrations 003/004/006
 landed (extensions, vocab tables incl. a fixed `profiles` seed + the `Blend`
 pseudo-country, and the `fx_rates` table structure); `railway-deploy.yml` now
 gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
