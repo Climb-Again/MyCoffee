@@ -36,7 +36,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
 | 33 | backend   | 0 | ready   | — | **`vertex:false`** — `isConfigured()` can't see a full-SA-JSON credential. Blocks all extraction |
-| 34 | data      | 0 | blocked | — | Seed `fx_rates` from Frankfurter (ECB). **Needs `api.frankfurter.dev` allowlisted** — `.app` only redirects |
+| 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). API shape + anchors verified — see notes |
 | 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
@@ -70,15 +70,35 @@ gates `deploy` on a `test` job; `GET /api/brief` moved to `requireAnyToken` and
 lanes can now verify live — `/health`, `/api/status`, `/api/config` and
 `/api/brief` were all confirmed green from a session.
 
-**Frankfurter redirect trap (#34).** `api.frankfurter.app` is allowlisted and
-resolves, but it **301-redirects to `api.frankfurter.dev/v1/…`** — a *different*
-host that is NOT allowlisted, so following the redirect dies with
-`CONNECT tunnel failed, response 403`. Symptom to expect: the allowlist looks
-correct, a bare request returns 301, and `curl -L` then fails. **`api.frankfurter.dev`
-must be added** before #34 can run in a session. Note also that the live API is
-now `/v1/`-prefixed, so the query shape differs from the older `.app` examples —
-confirm the exact parameter names against a real response rather than assuming.
-Alternative: generate the seed on the Mac and commit the SQL.
+**Frankfurter is reachable and verified (#34 unblocked).** Both
+`api.frankfurter.app` and `api.frankfurter.dev` are allowlisted. `.app`
+301-redirects to `.dev/v1/…`, so **follow redirects** (`curl -L` / `fetch` default)
+or call `.dev` directly.
+
+Working request shape, confirmed against a live response — do not guess the params:
+
+```
+GET https://api.frankfurter.dev/v1/2015-01-01..2015-01-31?base=EUR&symbols=RON
+→ {"amount":1.0,"base":"EUR","start_date":…,"end_date":…,"rates":{"2015-01-02":{"RON":4.4761}, …}}
+```
+
+Note it is **`base` + `symbols`** (not `from`/`to`), the path is `/v1/`-prefixed, and
+`rates` is keyed by date with a nested currency object. Only ECB business days are
+present — expect ~21–22 observations per month, which is the correct set to average.
+
+**Verified inversion anchors.** Frankfurter returns EUR→X; `fx_rates.rate_to_eur`
+is "1 unit of quote = N EUR", so invert. Real values:
+
+| Month | EUR→RON | `rate_to_eur` |
+|---|---|---|
+| 2015-01 | 4.4872 | **0.222856** |
+| 2019-06 | 4.7259 | 0.211602 |
+| 2024-06 | 4.9767 | **0.200935** |
+
+If a 2015 RON row comes out near `4.49` instead of `0.22`, the direction is
+backwards and every RON price will be ~24× too large. Use these three as the test
+fixture. RON drifted 4.49 → 5.23 (~17%) across the corpus window, which is exactly
+why the rate must be dated rather than flat.
 
 **#9 is done** — a valid placeholder AppIcon landed on `main` (`c427f3f`), verified
 1024×1024, RGB, no alpha. That unblocks **#10**, which is now the next thing to do
