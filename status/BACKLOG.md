@@ -22,8 +22,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 14 | backend   | 0 | blocked | 11, 13, 34 | `src/lib/vocab.js` + `fx.js` |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
-| 17 | ios-shell | 0 | ready   | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
-| 18 | ios-ux    | 0 | blocked | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
+| 17 | ios-shell | 0 | done    | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
+| 18 | ios-ux    | 0 | ready   | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
 | 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
 | 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
@@ -45,9 +45,22 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
-Ready rows: **#12** (data) · **#13** (data) · **#17** (ios-shell) · **#20** (data,
-just unblocked by #19). The iOS UX lane is blocked on #17 and will correctly no-op
-until it lands.
+Ready rows: **#12** (data) · **#13** (data) · **#18** (ios-ux, just unblocked) ·
+**#20** (data, just unblocked by #19).
+
+**#17 is done.** `ios-staging` now exists (branched from `main`) and carries
+`Sources/{Models,Query,Store}/**`: the `Coffee`/`Roaster`/`Country`/`Farm`/`Profile`
+models, the `CoffeeFilter`/`FilterDimension`/`RatingBand`/`AltitudeBand`/`PriceBand`/
+`FacetCounts`/`TopFilterCard`/`SortOption` query layer, the `CoffeeIndex` in-memory
+index (postings-based `matches`/`facets`/`topFilterCards`, no SwiftData), and a
+`SampleCoffeeRepository` + ~22-record `SampleData` fixture set (via `CoffeeStore`,
+the shell/UX seam) so #18 can build every screen against realistic data without
+waiting on the real backend sync (#22, still blocked on #21). One naming note for
+whoever writes the real network repository: model properties spell acronyms as
+`Id`/`Eur`, not `ID`/`EUR` (`roasterId`, `priceEur`, …), because
+`JSONDecoder.coffeeAPI`'s `.convertFromSnakeCase` produces exactly that casing from
+`roaster_id`/`price_eur` — the all-caps Swift convention would silently fail to
+decode.
 
 **#11, #15, #16, #19 are done** (backend). Migrations 003/004/006
 landed (extensions, vocab tables incl. a fixed `profiles` seed + the `Blend`
