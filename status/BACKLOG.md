@@ -23,7 +23,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
 | 17 | ios-shell | 0 | done    | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
-| 18 | ios-ux    | 0 | ready   | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
+| 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
 | 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
 | 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
@@ -45,8 +45,15 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
-Ready rows: **#12** (data) · **#13** (data) · **#18** (ios-ux, just unblocked) ·
-**#20** (data, just unblocked by #19).
+Ready rows: **#12** (data) · **#13** (data) · **#20** (data, just unblocked by #19).
+
+**#18 is done.** `ios-staging` now also carries `Sources/{DesignSystem,Features}/**`: the Coffees tab (listing, filter
+sheet, sort, detail with rating-ordered rails) built entirely against #17's `SampleCoffeeRepository` fixture, plus
+placeholder Insights/Review tabs (their real screens are #28/#27, still blocked). See `status/ios-ux.md` for two
+cross-boundary notes worth the shell lane's attention: a one-line `ContentView.swift` swap, and manual `Hashable`
+extensions added for `Profile`/`SortOption` (both shell-owned, neither compiles as committed without one — `Set<Profile>`
+and a `Picker` binding to `SortOption` both need it, and Swift doesn't synthesize `Hashable` from outside a type's
+original declaration file). Next ios-ux work (#27, #28) stays blocked on #22/#24.
 
 **#17 is done.** `ios-staging` now exists (branched from `main`) and carries
 `Sources/{Models,Query,Store}/**`: the `Coffee`/`Roaster`/`Country`/`Farm`/`Profile`
