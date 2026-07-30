@@ -241,6 +241,19 @@ into a runner. But three things change, and two of them are footguns:
   debugging lesson generalises: when a value looks impossible, measure the key space,
   not the value. Length **0** rather than a truncated length is the tell that the
   lookup missed entirely.
+- **A CCR routine/fired session commits to its OWN branch, not `main`.** The first
+  publish autopilot did all its winning work on `claude/mycoffee-publish-autopilot-*`
+  and dispatched against that branch; `main` did not move until a human merged it. If
+  a routine's output must land on `main`, merge its branch afterward — don't assume it
+  pushed there.
+- **`match` archive signing: derive the team from the installed profile, not the
+  `DEVELOPMENT_TEAM` secret.** Root cause of publish runs #8–#12: the profile was
+  installed, valid and correctly named, yet `xcodebuild archive` failed with "No
+  profile for team '<TEAM>' matching 'match AppStore …' found". `match` stamps the
+  profile with the team from the ASC API key (`PH2NNQ47UB`), but the archive searched
+  under `ENV["DEVELOPMENT_TEAM"]`; the two diverged. Use `sigh_<bundleid>_appstore_team-id`.
+  Also mirror the profile into the legacy `~/Library/MobileDevice/Provisioning Profiles/`
+  dir — CLI `xcodebuild` scans there even though match 2.237 installs to the Xcode-16 path.
 - Gemini 2.5 output tokens are dominated by *thinking* tokens — budget extraction
   cost from output, not input (see `PLAN.md` §2).
 
