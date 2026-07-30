@@ -107,7 +107,11 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
 - [ ] Dispatch `publish=true` again → first actual TestFlight upload. Run #6 then died
       at `xcodegen generate`: fastlane's `sh` runs in `ios/fastlane/`, so the spec at
       `ios/project.yml` wasn't found. Fixed by wrapping in `Dir.chdir("..")`.
-- [ ] Accept the build on the phone; enter `BACKEND_URL` + `INGEST_TOKEN` on Connect.
+- [x] **Build accepted on the phone and connected to the backend** (Radu, confirmed).
+      End-to-end spine proven: signed TestFlight build → Connect screen → `/api/status`
+      → Postgres, `db:true` `vertex:true`. NOTE: this build is the **placeholder shell**
+      (cup icon + health dot) built from `main`; the real coffee UI is on `ios-staging`
+      (12 files under `Sources/Features/`), unmerged, so it is not in this build yet.
 
 ## Done log
 
