@@ -19,7 +19,7 @@ _none_
   (`status/README.md`). Corrected `status/BACKLOG.md` #14 to lane `data`
   instead of writing the file out-of-lane. No other backend-owned row was
   `ready` (#21/#23/#24 remain `blocked`), so no code changes this session —
-  branch `main` — SHA: (this commit)
+  branch `main` — SHA: `02fcac0`
 - [2026-07-29 00:00 UTC] #11 Migrations 003, 004, 006 — extensions, vocab tables, FX table (structure only — no `fx_rates` seed, see `status/BACKLOG.md` "Right now") — branch `main` — SHA: `2f2c282`
 - [2026-07-29 00:00 UTC] #15 Gate the Railway deploy on backend tests — branch `main` — SHA: `2f2c282`
 - [2026-07-29 00:00 UTC] #16 Fix read auth (`requireAnyToken`) + `GET /api/config` — branch `main` — SHA: `2f2c282`
