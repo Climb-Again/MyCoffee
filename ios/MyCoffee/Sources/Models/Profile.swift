@@ -4,7 +4,7 @@ import Foundation
 /// `Coffee` — decaffeination is orthogonal to process, not a sixth case — and a
 /// `nil` profile renders as an "Unknown" facet chip rather than defaulting to
 /// the modal value (Washed).
-enum Profile: String, Codable, CaseIterable, Sendable, Identifiable {
+enum Profile: String, Codable, CaseIterable, Sendable, Identifiable, Hashable {
     case washed
     case natural
     case anaerobic

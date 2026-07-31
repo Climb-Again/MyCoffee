@@ -63,37 +63,7 @@ extension Coffee {
     }
 }
 
-/// `Profile` (`Models/Profile.swift`, shell-owned) declares `String, Codable,
-/// CaseIterable, Sendable, Identifiable` but not `Hashable` — and Swift only
-/// synthesizes `Equatable`/`Hashable` when a type declares conformance in its
-/// *original* file, so without this the module doesn't build at all:
-/// `CoffeeFilter.profiles: Set<Profile>` and `FacetKey.profile(Profile)`
-/// (both shell-owned too) both require it. Added here rather than in
-/// `Profile.swift` to respect the "never touch shell files" rule; flagged in
-/// `status/ios-ux.md` in case shell prefers to move it into the original
-/// declaration instead, which would make this extension redundant.
-extension Profile: Hashable {
-    static func == (lhs: Profile, rhs: Profile) -> Bool { lhs.rawValue == rhs.rawValue }
-    func hash(into hasher: inout Hasher) { hasher.combine(rawValue) }
-}
-
-extension SortOption: Hashable {
-    /// Manual conformance — `SortOption` lives in `Query/` (shell-owned) and
-    /// wasn't declared `Hashable` there. Auto-synthesis only works from the
-    /// original declaration's file, so this implements the requirements by
-    /// hand instead of asking the compiler to derive them.
-    static func == (lhs: SortOption, rhs: SortOption) -> Bool { lhs.sortKey == rhs.sortKey }
-    func hash(into hasher: inout Hasher) { hasher.combine(sortKey) }
-
-    private var sortKey: Int {
-        switch self {
-        case .dateBought: return 0
-        case .rating: return 1
-        case .price: return 2
-        case .pricePer100g: return 3
-        }
-    }
-
+extension SortOption {
     var displayName: String {
         switch self {
         case .dateBought: return "Date bought"

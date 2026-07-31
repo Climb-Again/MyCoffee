@@ -3,7 +3,7 @@ import Foundation
 /// Listing sort orders (PLAN.md §6.1). Each has its own section-header rule;
 /// nil values always sort last and get the table's "trailing" section rather
 /// than being dropped.
-enum SortOption: CaseIterable, Sendable {
+enum SortOption: CaseIterable, Hashable, Sendable {
     case dateBought
     case rating
     case price
