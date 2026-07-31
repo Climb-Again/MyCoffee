@@ -22,8 +22,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 14 | data      | 0 | ready   | 11, 13, 34 | `src/lib/vocab.js` — **`fx.js` already landed** with #34 consolidation, so only `vocab.js` remains. **Lane corrected from `backend` to `data`** (2026-07-31) — see "Right now" |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
-| 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **done on `ios-staging`** (not yet merged to `main`, not yet compile-checked) |
-| 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **done on `ios-staging`** (see #17 caveats) |
+| 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **merged to `main`, compile-green** (run #18, `29c1def`) |
+| 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **merged to `main`, compile-green** (run #18) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
 | 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
 | 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
@@ -69,14 +69,20 @@ work" rule in `status/README.md` — **check for stranded lane branches before s
 new work.**
 
 Ready rows now:
-- **#14** (backend) — unblocked; only `vocab.js` remains (`fx.js` landed with #34).
+- **#14** (data) — unblocked; only `vocab.js` remains (`fx.js` landed with #34). Lane
+  corrected `backend`→`data` this cycle (see note above).
 - **#20** (data) — `ops/` Mac exporter + uploader (unblocked by #19 already).
-- **iOS #17 + #18 are done on `ios-staging`** but (a) not merged to `main`, and (b)
-  **never compile-checked** — no Xcode in lane sessions, and the one compile run
-  no-op'd before `ios-staging` existed. Next iOS step is a **compile dispatch on
-  `ios-staging`** (`ios-testflight.yml`, `publish=false`, `ref: ios-staging`), then a
-  publish-lane merge to `main`. The shell lane already fixed the likely first red
-  (missing `Hashable` on `Profile`/`SortOption`).
+
+**iOS #17 + #18 are DONE, merged to `main`, and compile-green** (run #18 on `29c1def`,
+2026-07-31). `ios-staging` was merged here after its first-ever compile check passed;
+the compile lane fixed two first-build Swift errors (`ProcessTag` dot-shorthand,
+`CoffeeDetailView` optional-chain `flatMap`) beforehand. Detail lives in
+`status/ios-ux.md` / `status/ios-shell.md` (the one-line `ContentView.swift` swap; the
+`Hashable` conformances on `Profile`/`SortOption` now declared at origin; the
+`Id`/`Eur` acronym-casing convention that matches `.convertFromSnakeCase`). Remaining
+iOS work (#22, #27, #28) stays blocked on backend #21/#24. **Publish to TestFlight is
+still a separate explicit `publish=true` dispatch — the publish lane's call, not done
+here.**
 
 **#11, #15, #16, #19 are done** (backend). Migrations 003/004/006
 landed (extensions, vocab tables incl. a fixed `profiles` seed + the `Blend`
