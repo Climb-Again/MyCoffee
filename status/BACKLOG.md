@@ -19,7 +19,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | done    | 11 | Migration 005 — vocab seed (42 countries/89 roasters/148 aliases). Consolidated to `main`, Postgres-validated |
 | 13 | data      | 0 | done    | — | `src/lib/normalize.js` + `fuzzy.js` + tests — consolidated to `main`, all green |
-| 14 | backend   | 0 | ready   | 11, 13, 34 | `src/lib/vocab.js` — **`fx.js` already landed** with #34 consolidation, so only `vocab.js` remains |
+| 14 | data      | 0 | ready   | 11, 13, 34 | `src/lib/vocab.js` — **`fx.js` already landed** with #34 consolidation, so only `vocab.js` remains. **Lane corrected from `backend` to `data`** (2026-07-31) — see "Right now" |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
 | 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **done on `ios-staging`** (not yet merged to `main`, not yet compile-checked) |
@@ -44,6 +44,22 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**#14's lane tag corrected `backend` → `data`** (2026-07-31 Backend lane session).
+The original GitHub issue #14 body says "Lane: backend" (it predates the lane
+split), and this row still carried that tag. But `CLAUDE.md` §4, `status/README.md`
+§Lanes, and `PLAN.md` §7 — all written after the issue and all more current —
+agree `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` is a
+single glob owned by **Data**, not Backend; `fx.js` (also originally in #14's
+"backend" scope) already landed under Data's #34 for the same reason
+(`status/data.md`). Backend's own claimed ownership this session explicitly
+excludes `src/lib/vocab.js`. Leaving the row tagged `backend` would repeat the
+exact stale-note failure mode `status/README.md` documents for #33: a lane
+executing a note faithfully instead of the current ownership table. Corrected the
+tag rather than writing the file out-of-lane. **This was the only `ready` row
+tagged `backend` this cycle** — with it reassigned, the Backend lane found no
+in-scope work and is stopping cleanly (no invented work). Next `ready` row for
+Data is `#20` (already was), now also `#14`.
 
 **Data lane #12/#13/#34 are DONE and consolidated onto `main`** (2026-07-31) — they
 had been done three times over on separate fired-session branches that never merged,

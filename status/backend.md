@@ -8,6 +8,18 @@ _none_
 
 ## Done
 
+- [2026-07-31 UTC] Session audit: only `ready` row tagged `backend` was #14
+  (`src/lib/vocab.js`). That file is inside the
+  `src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` glob that
+  `CLAUDE.md` §4 / `status/README.md` / `PLAN.md` §7 assign to the **Data**
+  lane — this session's own ownership boundaries explicitly exclude it, and
+  `fx.js` (also originally scoped to #14) already landed under Data's #34 for
+  the identical reason. Issue #14's body still says "Lane: backend" because it
+  predates the lane split; that stale tag is the same failure mode as #33
+  (`status/README.md`). Corrected `status/BACKLOG.md` #14 to lane `data`
+  instead of writing the file out-of-lane. No other backend-owned row was
+  `ready` (#21/#23/#24 remain `blocked`), so no code changes this session —
+  branch `main` — SHA: (this commit)
 - [2026-07-29 00:00 UTC] #11 Migrations 003, 004, 006 — extensions, vocab tables, FX table (structure only — no `fx_rates` seed, see `status/BACKLOG.md` "Right now") — branch `main` — SHA: `2f2c282`
 - [2026-07-29 00:00 UTC] #15 Gate the Railway deploy on backend tests — branch `main` — SHA: `2f2c282`
 - [2026-07-29 00:00 UTC] #16 Fix read auth (`requireAnyToken`) + `GET /api/config` — branch `main` — SHA: `2f2c282`
