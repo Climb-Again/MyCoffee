@@ -6,6 +6,19 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## Audit (no work claimed)
+
+- [2026-07-31 UTC] Session audit: no `ios-shell` row in `status/BACKLOG.md` is
+  `ready`. #17 is `done`; #22 is `blocked` (needs #21, itself `blocked` on
+  backend #11/#14 — #11 done, #14 still `ready`). Checked
+  `git branch -r --list 'origin/claude/*'` for stranded prior shell work per the
+  "integrate before you start" rule (`status/README.md`) — none of the 9 open
+  branches touch `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}` or
+  `ios/project.yml`. `ios-staging` already exists at parity with the #17/#18
+  merge to `main`. Per the work loop's own instruction ("if none qualifies, post
+  a one-line status and stop — do not invent work"), no code changes this
+  session. — branch `claude/wizardly-thompson-eurlj6`
+
 ## Done
 
 - [2026-07-30 00:00 UTC] 17 Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo — branch `ios-staging`
