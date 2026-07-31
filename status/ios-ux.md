@@ -6,6 +6,18 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## Session notes
+
+- [2026-07-31 UTC] No-op session. Checked `status/BACKLOG.md`: no `ios-ux` row is
+  `ready` — `#27` (needs 22, 24) and `#28` (needs 22) are both still `blocked` on
+  the shell lane's `#22` (Remote repository + SyncEngine), which is itself blocked
+  on backend `#21`. Checked `git branch -r --list 'origin/claude/*'` per the
+  "integrate before you start" rule — only this session's own branch, nothing
+  stranded to adopt. Fast-forwarded `ios-staging` to `origin/main` (picked up the
+  data-lane #12/#13/#34 consolidation + backend #11 migrations, no conflicts with
+  `Features/`/`DesignSystem/`/`Resources/`) and stopping cleanly, per the lane's
+  documented no-op behaviour.
+
 ## Done
 
 - [2026-07-30 00:00 UTC] 18 Design system + listing + filter sheet + sort + detail (sample data) — branch `ios-staging`
