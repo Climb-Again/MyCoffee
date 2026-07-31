@@ -57,7 +57,7 @@ enum ProcessStyles {
 struct ProcessTag: View {
     let profile: Profile?
 
-    private var style: ProcessStyle { profile.map(ProcessStyles.style) ?? .unknown }
+    private var style: ProcessStyle { profile.map(ProcessStyles.style) ?? ProcessStyles.unknown }
     private var title: String { profile?.displayName ?? "Unknown" }
 
     var body: some View {

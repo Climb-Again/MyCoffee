@@ -48,7 +48,7 @@ struct CoffeeDetailView: View {
 
     private var heroImage: some View {
         ZStack {
-            if let url = coffee.images?.display.flatMap(URL.init(string:)) {
+            if let url = (coffee.images?.display).flatMap(URL.init(string:)) {
                 AsyncImage(url: url) { phase in
                     if case let .success(image) = phase {
                         image.resizable().scaledToFill()
