@@ -8,6 +8,14 @@ _none_
 
 ## Done
 
+- [2026-07-31 UTC] Session audit: no `backend`-lane row in `status/BACKLOG.md` is
+  currently `ready`. #21 is `blocked` (needs #11 done, #14 still `ready`/data-lane
+  in progress); #23/#24 remain `blocked`. No stranded `origin/claude/*` branches
+  found with un-integrated backend work. Per the work loop's own instruction
+  ("if nothing qualifies, post a one-line status and stop — do not invent work"),
+  no code changes this session. `main` at `960e37d` (iOS #17/#18 merge) is
+  unaffected; this note recorded on the session's designated branch. — branch
+  `claude/determined-thompson-nto1g8`
 - [2026-07-31 UTC] Session audit: only `ready` row tagged `backend` was #14
   (`src/lib/vocab.js`). That file is inside the
   `src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` glob that
