@@ -21,6 +21,11 @@ _none_
   **Issue is NOT resolved** — moved to `status/BACKLOG.md` #33 as `human`; Radu
   needs to check the literal `GOOGLE_PRIVATE_KEY` value in the Railway
   dashboard directly. — branch `main` — SHA: `e238f10`
+  - **UPDATE 2026-07-31: #33 is RESOLVED.** Live `/api/status` now reports
+    `vertex:true`. Root cause was a newline captured into the env var *name*
+    (`"GOOGLE_PRIVATE_KEY\n"`); fixed in `0b38388` (`config.js` resolves by trimmed
+    name). This "NOT resolved / needs Radu" note above is superseded — no human action
+    is owed. `BACKLOG.md` #33 is correctly marked `done`.
 - [2026-07-29 13:45 UTC] #19 Migration 007 (`photos`/`photo_texts`/`assets`) +
   `src/media.js` (HMAC-signed media URLs, content-addressed derivative paths) +
   `routes/photos.js` (manifest upsert, signed-URL image PUT, sharp derivatives)

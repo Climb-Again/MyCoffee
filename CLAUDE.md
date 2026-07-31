@@ -245,7 +245,15 @@ into a runner. But three things change, and two of them are footguns:
   publish autopilot did all its winning work on `claude/mycoffee-publish-autopilot-*`
   and dispatched against that branch; `main` did not move until a human merged it. If
   a routine's output must land on `main`, merge its branch afterward — don't assume it
-  pushed there.
+  pushed there. **This bit the data lane hard:** #12/#13/#34 were each built *three
+  times* on separate `claude/*` branches because none merged to `main`, so every new
+  session saw them still `ready` and redid them — "firing runs with no output." The
+  fix is the **"Integrate before you start" rule in `status/README.md`**: a lane must
+  check `git branch -r --list 'origin/claude/*'` for stranded prior work before
+  claiming, adopt it instead of redoing it, and treat a row as `done` only once it's on
+  the shared branch. If lanes keep producing orphan branches, add a small integration
+  routine (or a human step) that merges completed `claude/*` lane branches to
+  `main`/`ios-staging` on a schedule.
 - **`match` archive signing: derive the team from the installed profile, not the
   `DEVELOPMENT_TEAM` secret.** Root cause of publish runs #8–#12: the profile was
   installed, valid and correctly named, yet `xcodebuild archive` failed with "No

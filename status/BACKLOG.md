@@ -17,13 +17,13 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 9  | publish   | 0 | done    | — | Real 1024² AppIcon — landed on `main` in `c427f3f` (verified 1024×1024, RGB, no alpha) |
 | 10 | publish   | 0 | done    | — | **First TestFlight upload GREEN** (run #15, sha `1336a4b` = current `main`). Autopilot fixed legacy-profile-dir + team-from-profile + `CFBundleExecutable`. Processing (~20 min) → check ASC/email |
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
-| 12 | data      | 0 | ready   | 11 | Migration 005 — vocabulary seed from the docx lists (docx is in `mycoffee-private`) |
-| 13 | data      | 0 | ready   | — | `src/lib/normalize.js` + `fuzzy.js` + tests |
-| 14 | backend   | 0 | blocked | 11, 13, 34 | `src/lib/vocab.js` + `fx.js` |
+| 12 | data      | 0 | done    | 11 | Migration 005 — vocab seed (42 countries/89 roasters/148 aliases). Consolidated to `main`, Postgres-validated |
+| 13 | data      | 0 | done    | — | `src/lib/normalize.js` + `fuzzy.js` + tests — consolidated to `main`, all green |
+| 14 | backend   | 0 | ready   | 11, 13, 34 | `src/lib/vocab.js` — **`fx.js` already landed** with #34 consolidation, so only `vocab.js` remains |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
-| 17 | ios-shell | 0 | ready   | — | Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo |
-| 18 | ios-ux    | 0 | blocked | 17 | Design system + listing + filter sheet + sort + detail (sample data) |
+| 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **done on `ios-staging`** (not yet merged to `main`, not yet compile-checked) |
+| 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **done on `ios-staging`** (see #17 caveats) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
 | 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
 | 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
@@ -36,8 +36,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
 | 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
-| 34 | data      | 0 | ready   | — | Seed `fx_rates` from Frankfurter (ECB). API shape + anchors verified — see notes |
-| 30 | human     | — | human   | — | Manual: **set the Actions spending limit** (~$50–60). Railway's native trigger is already disconnected (`5d8b10e`) |
+| 34 | data      | 0 | done    | — | `fx_rates` seed (1510 rows) + `fx.js` — consolidated to `main`, inversion verified vs anchors |
+| 30 | ~~human~~ | — | dropped | — | ~~Set the Actions spending limit~~ **OBSOLETE** — repo is public, Actions free (CLAUDE.md §10). Nothing owed. |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
 whose `needs` are now all `done` from `blocked` to `ready` in the same commit. If
@@ -45,9 +45,22 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
-Ready rows: **#12** (data) · **#13** (data) · **#17** (ios-shell) · **#20** (data,
-just unblocked by #19). The iOS UX lane is blocked on #17 and will correctly no-op
-until it lands.
+**Data lane #12/#13/#34 are DONE and consolidated onto `main`** (2026-07-31) — they
+had been done three times over on separate fired-session branches that never merged,
+so `main` never advanced and each new session redid them. Rebuilt cleanly and
+Postgres-validated (59/59 tests). See `status/data.md` and the "un-integrated prior
+work" rule in `status/README.md` — **check for stranded lane branches before starting
+new work.**
+
+Ready rows now:
+- **#14** (backend) — unblocked; only `vocab.js` remains (`fx.js` landed with #34).
+- **#20** (data) — `ops/` Mac exporter + uploader (unblocked by #19 already).
+- **iOS #17 + #18 are done on `ios-staging`** but (a) not merged to `main`, and (b)
+  **never compile-checked** — no Xcode in lane sessions, and the one compile run
+  no-op'd before `ios-staging` existed. Next iOS step is a **compile dispatch on
+  `ios-staging`** (`ios-testflight.yml`, `publish=false`, `ref: ios-staging`), then a
+  publish-lane merge to `main`. The shell lane already fixed the likely first red
+  (missing `Hashable` on `Profile`/`SortOption`).
 
 **#11, #15, #16, #19 are done** (backend). Migrations 003/004/006
 landed (extensions, vocab tables incl. a fixed `profiles` seed + the `Blend`

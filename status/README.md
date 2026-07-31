@@ -31,6 +31,30 @@ Claim line format:
 - [YYYY-MM-DD HH:MM UTC] <issue #> <one-line description> — branch `<branch>`
 ```
 
+## Integrate before you start — the rule that keeps loops from redoing work
+
+**A fired CCR session commits to its own `claude/*` branch, not to your lane's shared
+branch (`main` / `ios-staging`).** If that work never lands on the shared branch, the
+next session reads the *same* backlog, sees the *same* rows still `ready`, and does the
+*same* work again on a fresh branch. That is exactly how #12/#13/#34 got built **three
+times** (branches `claude/peaceful-mccarthy-{n4nt4i,o8kxxo,toj6mv}`) while `main` never
+moved — "firing runs with no output." Two hard rules follow:
+
+1. **Before claiming anything, check for stranded prior work in your lane.** Run
+   `git branch -r --list 'origin/claude/*'` and read your `status/<lane>.md`. If a
+   recent branch already did the row you were about to pick, **adopt/rebase it — do not
+   redo it.** A row is only truly `ready` if no un-integrated branch already closed it.
+2. **End your session by getting the work onto the shared branch, not by leaving it on
+   the `claude/*` branch.** If you can push to the shared branch, rebase and push there
+   (`git pull --rebase` first). If a routine can only commit to its own `claude/*`
+   branch, then **record that branch name in `status/<lane>.md` and flag it for
+   integration** — the work is not "done" until it is on `main`/`ios-staging` and the
+   backlog row + `status/<lane>.md` say so with the landed SHA. Update the backlog in
+   the *same* push that lands the code, so the next session sees an accurate world.
+
+Corollary: **`done` in the backlog means "on the shared branch."** A row whose work
+only exists on a `claude/*` branch is still `blocked`/`claimed`, never `done`.
+
 ## Lanes
 
 | File | Lane | Branch | Owns |
