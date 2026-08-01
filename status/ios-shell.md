@@ -36,6 +36,15 @@ _none_
   - `Sources/Models/Profile.swift`, `Sources/Query/SortOption.swift`, `Sources/Features/Coffees/CoffeeDisplay.swift`
   - Commit: (see `git log` on `ios-staging`)
 
+- [2026-08-01 00:00 UTC] Session check — no ready `ios-shell` row. Only other
+  row is #22 (phase 2), still `blocked` on backend #21, which is itself
+  `blocked` on #11 (done) + #14 (data lane, still `ready` not `done`). Checked
+  `git branch -r --list 'origin/claude/*'` per the integrate-before-you-start
+  rule: all stranded branches predate the #17/#18 merge (they diff as pure
+  deletions against current `main`/`ios-staging`) — no un-integrated ios-shell
+  work to adopt. `ios-staging` and `main` agree on `status/BACKLOG.md`. Stopping
+  cleanly rather than inventing work or touching UX-owned paths.
+
 ## Abandoned
 
 _none_
