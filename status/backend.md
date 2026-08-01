@@ -65,6 +65,27 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh `git fetch origin` (unscoped) confirms `HEAD`/`origin/main` agree at
+  `c70e426`. Swept every `origin/claude/*` branch
+  (`git rev-list --count origin/main..<branch>` over all 17) — five are
+  ahead by 1–3 commits, none backend-owned or actionable:
+  `peaceful-mccarthy-rwi2ql` (3 ahead) is the superseded #14 `vocab.js`
+  attempt — `backend/src/lib/vocab.js` already exists on `main` via the
+  path this file's own history records, so that branch is redundant, not
+  stranded work to adopt; the other four (`determined-thompson-nto1g8`,
+  `modest-newton-oxaddt`, `relaxed-thompson-ceai5p`,
+  `wizardly-thompson-eurlj6`) are single no-op audit/status commits from
+  other lanes. Backlog has no row tagged `backend` with status `ready`:
+  #11/#15/#16/#19/#21/#33 are `done`; #20 (data) and #22 (ios-shell) are
+  `ready` but not backend's; #23/#24 stay `blocked` on purpose per
+  `PLAN.md` §8 phasing (gated on data lane's #20/#25 landing real photo
+  data first). Ran `cd backend && npm ci && npm test` — 93/93 green, no
+  drift. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
+- [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
   `main` is even with `origin/main` (`e800d49`) and the fast-forward pulled in
   #21's real code (`backend/src/routes/coffees.js`, migrations 008/009) plus
   all prior lane work — confirmed via a full `git fetch origin` (not the
