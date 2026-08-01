@@ -4,7 +4,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-01 12:00 UTC] 22 Remote repository + SyncEngine + ImageStore + MutationOutbox — branch `ios-staging`
 
 ## Done
 
