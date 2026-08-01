@@ -26,7 +26,8 @@ _none_
     hit, `CoffeeDetailView.swift:51`'s `(coffee.images?.display).flatMap(URL.init(string:))`,
     already correctly parenthesized to force `Optional.flatMap` from the #17
     fix. No other instances.
-  - Rerun after the fix: see below.
+  - **Rerun (run #21, sha `e34c0b1`) went GREEN** — compile check confirmed
+    fixed, no upload (this lane never dispatches `publish=true`).
 
 ## Abandoned
 
