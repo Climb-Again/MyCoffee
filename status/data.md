@@ -2,11 +2,34 @@
 
 Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.md`
 
+## ⚠ Correction (2026-08-01): "done, on `main`" below is NOT on the real `main`
+
+This session was harness-assigned to develop on `claude/peaceful-mccarthy-rwi2ql`
+(a fixed branch name for this session, not something this lane chose). Verified
+directly: `git rev-parse main origin/main` are identical (`0ad0023`), and that
+commit is `git show origin/main:status/BACKLOG.md` — which still lists #12/#13/#34
+as `ready`, #17/#18 as `ready`/`blocked`, #10 as `human` — i.e. **none of the
+"consolidated onto main" work below, from any lane, is actually on the real
+shared `main`.** It all lives only on this `claude/*` branch. Every prior
+"branch `main`" note in this file (and the matching ones in `backend.md` /
+`ios-shell.md` / `ios-ux.md` / `publish.md`) was written by a session under the
+same branch-name confusion this file's own "Superseded / to delete" section
+describes for `o8kxxo`/`toj6mv`/`n4nt4i` — it's the identical failure mode one
+level up: not "three branches redid the same work", but "one branch believes
+itself to be `main` and says so in its own status notes".
+
+This is not something a lane session can fix by pushing harder — `git push` is
+restricted to this one branch this session (`claude/peaceful-mccarthy-rwi2ql`;
+"never push to a different branch without explicit permission"). **Someone
+with authority to push to `origin/main` needs to fast-forward/merge this
+branch in**, the same way `status/README.md`'s "Integrate before you start"
+rule already prescribes for stranded `claude/*` work. Until that happens,
+treat every "done, on `main`" note across all `status/*.md` files as "done, on
+`claude/peaceful-mccarthy-rwi2ql`" instead.
+
 ## Claimed
 
-- [2026-08-01 01:40 UTC] #14 `src/lib/vocab.js` — resolution (exact alias + fuzzy
-  fallback) against the 004_vocab.sql tables, plus origin_country_ids array
-  referential-integrity enforcement — branch `claude/peaceful-mccarthy-rwi2ql`
+_none_
 
 ## Done
 
@@ -37,6 +60,28 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
     006's own comment.
   - `fx.js` satisfies the `fx.js` half of backend #14 (data lane owns `src/lib/fx.js`
     per the ownership table); #14 now needs only `vocab.js`. — branch `main`
+    (see correction above: really `claude/peaceful-mccarthy-rwi2ql`)
+
+- [2026-08-01 SHA_PLACEHOLDER] #14 — **`backend/src/lib/vocab.js`** + 24 new tests
+  (`test/vocab.test.js`, 86/86 green). Resolution against the `004_vocab.sql`
+  tables: `resolveVocab` (exact `alias_norm` lookup, fuzzy fallback via
+  `fuzzy.js`'s `matchVocab`, so a fuzzy accept still needs the unique-candidate +
+  margin guard — covered the mandatory `Kofio`/`Kolibri` and `Father's Coffee
+  Roastery`/`Father Carpenter` negative cases at this layer too, not just in
+  `fuzzy.test.js`); `resolveOriginCountries` (splits `/`/`,`-separated multi-origin
+  text, e.g. `Colombia / Brazil`, into ids — origin isn't single-valued, PLAN.md
+  §1); `computeIsBlend` + `validateOriginCountryIds` (the array-referential-
+  integrity check the migration 004 comment says belongs here, since Postgres
+  can't FK-constrain `origin_country_ids` array elements); `buildCityMap` +
+  `resolveCity` (merges `cities` + `city_aliases` into one normalized-name map,
+  delegates the actual ambiguous-never-resolves rule to `normalize.js`'s existing
+  `resolveCityCountry`); and four thin DB loaders (`loadCountryVocab`,
+  `loadRoasterVocab`, `loadFarmVocab`, `loadCityVocab`) that shape query results
+  for the pure functions above, same query-elsewhere/logic-here split as
+  `fx.js` — kept the resolution logic testable without a live Postgres. Unblocks
+  backend #21 (needs 11, 14 — both now done; flipped `blocked`→`ready` in the same
+  commit). — branch `claude/peaceful-mccarthy-rwi2ql` (not `main` — see correction
+  above)
 
 ## Superseded / to delete
 
