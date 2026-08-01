@@ -8,6 +8,20 @@ _none_
 
 ## Session notes
 
+- [2026-08-01 UTC] No-op session. Checked `status/BACKLOG.md`: no `ios-ux` row is
+  `ready` — `#27` (needs 22, 24) and `#28` (needs 22) are both still `blocked`.
+  Backend landed `#21` on `main` this cycle (migrations 008–009 + `routes/coffees.js`)
+  and flipped `#22` (ios-shell) `blocked`→`ready`, but that's the shell lane's row, not
+  ours — `#27`/`#28` still need `#22` actually done (and `#27` also needs `#24`,
+  untouched). Checked `git branch -r --list 'origin/claude/*'` for stranded prior work
+  touching `Sources/{Features,DesignSystem}/**` or `Resources/**` per the "integrate
+  before you start" rule — none of the 15 open `claude/*` branches touch either path
+  (`git log origin/ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem` empty for all of them), so nothing to adopt.
+  Merged `origin/main` into `ios-staging` (clean, no conflicts with
+  `Features/`/`DesignSystem/`/`Resources/` — picked up backend's #14/#21 landing) and
+  stopping cleanly, per the lane's documented no-op behaviour.
+
 - [2026-07-31 UTC] No-op session. Checked `status/BACKLOG.md`: no `ios-ux` row is
   `ready` — `#27` (needs 22, 24) and `#28` (needs 22) are both still `blocked` on
   the shell lane's `#22` (Remote repository + SyncEngine), which is itself blocked
