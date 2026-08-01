@@ -19,14 +19,14 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 11 | backend   | 0 | done    | — | Migrations 003, 004, 006 — extensions, vocab tables, FX table |
 | 12 | data      | 0 | done    | 11 | Migration 005 — vocab seed (42 countries/89 roasters/148 aliases). Consolidated to `main`, Postgres-validated |
 | 13 | data      | 0 | done    | — | `src/lib/normalize.js` + `fuzzy.js` + tests — consolidated to `main`, all green |
-| 14 | data      | 0 | ready   | 11, 13, 34 | `src/lib/vocab.js` — **`fx.js` already landed** with #34 consolidation, so only `vocab.js` remains. **Lane corrected from `backend` to `data`** (2026-07-31) — see "Right now" |
+| 14 | data      | 0 | done    | 11, 13, 34 | `src/lib/vocab.js` — resolution (exact alias + fuzzy fallback) against `004_vocab.sql`, `origin_country_ids` referential-integrity + multi-value origin split, city→country lookup, DB loaders. 24 new tests, 86/86 green |
 | 15 | backend   | 0 | done    | — | Gate the Railway deploy on backend tests |
 | 16 | backend   | 0 | done    | — | Fix read auth (`requireAnyToken`) + `GET /api/config` |
 | 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **merged to `main`, compile-green** (run #18, `29c1def`) |
 | 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **merged to `main`, compile-green** (run #18) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
 | 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
-| 21 | backend   | 2 | blocked | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
+| 21 | backend   | 2 | ready   | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` |
 | 22 | ios-shell | 2 | blocked | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
 | 24 | backend   | 3 | blocked | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
@@ -44,6 +44,22 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**⚠ 2026-08-01: everything below marked "done, on `main`" is only on this
+`claude/*` branch, not on the real `origin/main`.** Verified directly:
+`git rev-parse main origin/main` are identical at `0ad0023`, and
+`git show origin/main:status/BACKLOG.md` at that commit still lists #12/#13/#34
+as `ready`, #17/#18 as `ready`/`blocked`, #10 as `human` — none of the work
+this file and `status/*.md` describe as "consolidated onto main" has actually
+reached the shared branch. Every session that wrote "branch main" below was
+scheduler-assigned to a `claude/peaceful-mccarthy-*` branch and (understandably,
+given the branch name never changes across a session's fires) believed pushing
+there was equivalent to landing on `main`. It isn't — see full detail and the
+verification commands in `status/data.md`'s correction note. **A human or an
+integration step with push access to `origin/main` needs to merge this branch
+in** before any of this is actually shared with the other lanes' branches
+(`ios-staging` etc.) or reflected in the real repo. Until then, read every
+"done" row below as "done, on `claude/peaceful-mccarthy-rwi2ql`".
 
 **#14's lane tag corrected `backend` → `data`** (2026-07-31 Backend lane session).
 The original GitHub issue #14 body says "Lane: backend" (it predates the lane
@@ -68,10 +84,14 @@ Postgres-validated (59/59 tests). See `status/data.md` and the "un-integrated pr
 work" rule in `status/README.md` — **check for stranded lane branches before starting
 new work.**
 
+**#14 is now DONE** (2026-08-01 data lane session) — `src/lib/vocab.js` + 24 tests,
+86/86 green. See `status/data.md` for detail. Unblocked **#21** (backend, needs
+11+14 — both done now), flipped `blocked`→`ready` in the same commit.
+
 Ready rows now:
-- **#14** (data) — unblocked; only `vocab.js` remains (`fx.js` landed with #34). Lane
-  corrected `backend`→`data` this cycle (see note above).
 - **#20** (data) — `ops/` Mac exporter + uploader (unblocked by #19 already).
+- **#21** (backend) — migrations 008–009 + snapshot + `routes/coffees.js`, newly
+  unblocked by #14 above.
 
 **iOS #17 + #18 are DONE, merged to `main`, and compile-green** (run #18 on `29c1def`,
 2026-07-31). `ios-staging` was merged here after its first-ever compile check passed;
