@@ -11,7 +11,7 @@ extension KeyedDecodingContainer {
     /// out of the snapshot.
     func decodeFlexibleDouble(forKey key: Key) -> Double? {
         if let string = try? decodeIfPresent(String.self, forKey: key) {
-            return string.flatMap(Double.init)
+            return Double(string)
         }
         return try? decodeIfPresent(Double.self, forKey: key)
     }
