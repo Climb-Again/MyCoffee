@@ -40,4 +40,9 @@ enum Symbols {
 
     // Empty / misc states
     static let emptyCup = "cup.and.saucer"
+
+    // Insights (#28)
+    static let dataQuality = "checkmark.seal"
+    static let zscoreToggle = "chart.line.uptrend.xyaxis"
+    static let insightsEmpty = "chart.bar.xaxis"
 }

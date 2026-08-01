@@ -34,6 +34,56 @@ _none_
 
 ## Done
 
+- [2026-08-01 00:00 UTC] 28 Insights (statistical gates) + roaster/country entity pages — branch `ios-staging`
+  - Picked up after checking `git branch -r --list 'origin/claude/*'` for stranded prior work on #28 — none found, so
+    built fresh. #22 (ios-shell, remote repo/sync) had just landed on `ios-staging`, unblocking this row.
+  - `Sources/Features/Insights/{InsightsStats,InsightsAggregation,InsightsFindings,InsightsCharts,InsightsView,
+    DataQualityCard}.swift` + `Sources/Features/Insights/EntityPages/{RoasterPageView,CountryPageView}.swift`,
+    replacing `InsightsPlaceholderView.swift` (deleted) in `RootTabView`.
+  - **Gates exactly per PLAN.md §6.4** (`InsightsStats.swift`): categorical needs n ≥ 5 both sides and |Δmean| ≥ 0.08;
+    ordinal (altitude/price/price-per-100g/purchase-year vs rating) uses Spearman ρ on fractional tie-aware ranks,
+    gated n ≥ 20 and |ρ| ≥ 0.15. Every sentence states its n; ρ itself is shown (an effect size, not a p-value — the
+    brief explicitly forbids p-values, not ρ). Capped at 12 sentences, ordered by effect size.
+  - **The two additions the brief doesn't ask for, both built:** a Data quality card (per-field missing/total counts,
+    pinned at the top, omitted entirely at 100% complete) and a within-year z-score toggle
+    (`InsightsStats.withinYearZScores`) that swaps every categorical/ordinal comparison's rating input for a
+    within-purchase-year z-score — a year with < 2 rated coffees or zero spread passes its points through unscored
+    rather than dividing by zero. The year-vs-rating ordinal finding is suppressed in z-score mode since it would be
+    tautologically ~0 by construction.
+  - Charts: yearly stacked counts by origin country (top 6 + Other), by process (all 5 profiles + Unknown — no
+    "Other" needed, fixed 6-value domain), by roaster (top 6 + Other), plus average rating by year with a dashed
+    `RuleMark` at the all-time mean. All `BarMark`/`LineMark`/`PointMark`/`RuleMark` + `.chartForegroundStyleScale`
+    (iOS 17-safe, no `BarPlot`/`LinePlot`/`Chart3D`). The process chart's color scale reuses `ProcessStyles`' exact
+    hues via `overrideColors` so a color means the same profile it means in the listing tags, per PLAN.md §6.4's
+    "colours are pinned... and matches the listing tags"; origin-country/roaster charts get a generic 6-color
+    rotation with gray reserved for "Other".
+  - **Entity pages resolve pushback #7 and #11.** `RoasterPageView`/`CountryPageView` (the latter parameterized by
+    `CountryPageRole: .origin | .roaster` — a coffee's roaster-country and origin-country are different pages, not
+    the same page reused) show a stats header (count, average rating) and a rating-ordered coffee list.
+    `DesignSystem/MonogramAvatar.swift` adds the deterministic colored-initials avatar pushback #11 calls for — same
+    name always hashes to the same color from a small fixed palette. **`Roaster` has no `blurb` field yet**
+    (`Models/Vocab.swift`, shell-owned); the page simply omits that section rather than inventing the field or
+    shipping an empty box. Flagging here rather than in `status/ios-shell.md` since it's not a claim, just a
+    pointer — no action needed unless/until the data lane seeds one.
+  - **Flipped both `FeatureFlags` to `true`** (`tapNavigatesToEntityPages`, `railMoreGoesToEntityPage`) now that the
+    entity pages exist, and wired the actual navigation the flags gate: in `CoffeeDetailView`, the roaster-row flag
+    now opens the roaster's country page, the roaster name opens the roaster page, and the origin pill opens the
+    origin-country page (pushback #7's exact mapping) — each guarded by the flag with a static fallback, so flipping
+    it back is still a one-line revert. `RailView`'s "More" now routes the roaster/origin rails to their entity page
+    (`CoffeeRail.moreDestination`, a new field) instead of the bare `RailMoreView` list; the profile rail has no
+    entity page and keeps the bare list unconditionally.
+  - **Not done, flagged rather than guessed:** PLAN.md §6.4 says to "reuse the existing `/api/brief` + `briefs` table
+    for a clearly separated 'This month' editorial section." `CoffeeStore`/`APIClient` (shell-owned) expose no
+    brief-fetching method today, and this lane can't add one without touching `Store`/`API`. Rather than duplicate
+    networking plumbing inside `Features` (which would fight the shell/UX seam this repo is built around), left it
+    out of `InsightsView` with a doc-comment pointer here. **Shell lane:** if you'd like to add a
+    `CoffeeStore.loadBrief()` (mirroring `loadDetail`'s shape — fetch, no local caching needed since it's a
+    once-a-day read), claim it in both lane files and I'll wire the section in.
+  - Built against `SampleCoffeeRepository`'s fixture (~22 records) — small enough that most gated findings correctly
+    produce nothing (n ≥ 20 for ordinal is above the whole sample size), which is the gate working as intended, not
+    a bug; verified by reading through the logic rather than running it (no local Xcode).
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-07-30 00:00 UTC] 18 Design system + listing + filter sheet + sort + detail (sample data) — branch `ios-staging`
   - `Sources/DesignSystem/{Symbols,FeatureFlags,Flag,ProcessTag,WrapLayout,FilterPill,FactRow,Thumbnail}.swift` — every SF Symbol
     name centralized; process tags as light/dark hex pairs via `UIColor(dynamicProvider:)`; ISO-alpha2 → flag emoji per
