@@ -4,7 +4,9 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-01 01:40 UTC] #14 `src/lib/vocab.js` — resolution (exact alias + fuzzy
+  fallback) against the 004_vocab.sql tables, plus origin_country_ids array
+  referential-integrity enforcement — branch `claude/peaceful-mccarthy-rwi2ql`
 
 ## Done
 
