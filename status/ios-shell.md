@@ -4,9 +4,56 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-01 12:00 UTC] 22 Remote repository + SyncEngine + ImageStore + MutationOutbox — branch `ios-staging`
+_none_
 
 ## Done
+
+- [2026-08-01 12:00 UTC] 22 Remote repository + SyncEngine + ImageStore + MutationOutbox — branch `ios-staging`
+  - `Sources/Store/{SyncEngine,RemoteCoffeeRepository,MutationOutbox,ImageStore,PersistedSnapshot}.swift`,
+    `Sources/API/Wire/{SnapshotWire,CoffeeDetailWire,CoffeeMapping,FlexibleDecoding}.swift`, plus edits to
+    `Sources/{Models/Coffee,Models/Vocab,Store/CoffeeIndex,Store/CoffeeRepository,Store/SampleCoffeeRepository,
+    Store/CoffeeStore,API/APIClient,Utilities/CoffeeCoding}.swift` (renamed from `JSONDecoder+Coffee.swift`).
+  - `RemoteCoffeeRepository` is `CoffeeStore`'s default now (`SampleCoffeeRepository` stays for previews).
+    `SyncEngine` actor holds the single `[id: Coffee]` map every operation (sync merge, favorite toggle, detail
+    enrichment) mutates through, so "server row wins unless a pending mutation is un-acked" (PLAN.md §5) has one
+    place to hold true; delta-syncs `/api/snapshot` with `since = lastSyncAt − 60s`, merges upserts + `deleted`,
+    drops the cache and forces one full refetch on a `schemaVersion` mismatch, persists to
+    `Application Support/MyCoffee/snapshot.json` via `PersistedSnapshot` (atomic write). `MutationOutbox` persists
+    pending favorite writes to `outbox.json` and flushes them against `APIClient` at the end of every sync.
+    `ImageStore` is the disk-backed, downsample-on-write cache PLAN.md §5 specifies instead of `URLCache`
+    (in-flight coalescing, 250 MB/30-day eviction) — built but **not yet wired into any view** (see below).
+  - **Two real wire-format bugs found and fixed while building this, both in code this lane owns, discovered
+    because #21's actual backend responses don't match what #17 assumed before those endpoints existed:**
+    1. `Country`'s wire shape (`loadCountryVocab` in the backend's `vocab.js`) is `{id, name, iso2, is_origin,
+       is_roaster, kind}` — no `isPseudo` boolean at all (`kind` is a string, `"pseudo"` one of its values) and
+       the ISO column is `iso2`, not `iso_code`. Decoding the real `/api/snapshot` into the existing `Country`
+       struct as-is would have thrown on every sync. Fixed with a custom `Codable` on `Country` (`Models/Vocab.swift`)
+       that bridges `iso2`/`kind` to `isoCode`/`isPseudo` — every other call site (`isoCode` is used all over
+       `DesignSystem`/`Features`) keeps working unchanged. `Roaster`/`Farm` didn't need this; their columns already
+       line up under `.convertFromSnakeCase`.
+    2. Postgres `NUMERIC` columns (`price_eur`, `price_original_amount`, `rating`, `min_field_confidence`) come
+       back from `pg` as JSON **strings**, not bare numbers — the driver doesn't auto-parse them, to avoid float
+       precision loss. A plain `Double?` `Decodable` property fails on a quoted number. Added
+       `KeyedDecodingContainer.decodeFlexibleDouble(forKey:)` (`API/Wire/FlexibleDecoding.swift`) and gave
+       `CompactCoffeeDTO`/`CoffeeDetailDTO` custom `init(from:)` using it for exactly those four fields —
+       `INT`/`SMALLINT` columns (`weight_g`, `altitude_min_m`, …) don't have this problem and stay plain `Int`.
+  - Two follow-ups flagged for whoever picks them up next, **not done here** because they're outside this
+    lane's owned directories or blocked on backend scope:
+    1. **UX wiring gap** (`Sources/{Features,DesignSystem}/**`, iOS UX lane's files): `DesignSystem/Thumbnail.swift`
+       still renders via a plain `AsyncImage`, not `ImageStore`; and no view calls `CoffeeStore.toggleFavorite`/
+       `.loadDetail` yet — the heart icon in `CoffeeRowView.swift` renders `coffee.isFavorite` but has no tap
+       gesture, and `CoffeeDetailView.swift` never calls `.task { await store.loadDetail(for: coffee) }` to
+       populate real notes/images (the compact snapshot doesn't carry them — PLAN.md §4). Both methods exist and
+       are ready to call; this is presentation wiring, not new plumbing, so left for the UX lane.
+    2. **Batch media-URL endpoint** (backend-owned, noted independently by the backend lane after #21): the
+       compact snapshot has no per-row image URL at all, so bulk thumbnail prefetch (PLAN.md §5's "prefetch them
+       all over Wi-Fi via the BGTask") has nothing to prefetch *from* yet — only `GET /api/coffees/:publicId`
+       returns `thumbUrl`/`displayUrl` today, one coffee at a time. `ImageStore` is built and ready to consume such
+       an endpoint once it exists; not inventing it here since `routes/**` is backend-owned. No BGTask registration
+       was added either (`Info.plist`'s `ro.climbagain.mycoffee.refresh` id has never been registered anywhere in
+       `Sources/App`) — same reasoning: its only real payload today (bulk thumbnail prefetch) is blocked on the
+       same missing endpoint, so registering an empty handler now would be scaffolding without a job.
+  - Commit: (see `git log` on `ios-staging`)
 
 - [2026-07-30 00:00 UTC] 17 Create `ios-staging`; models, `CoffeeIndex`, filters/facets/bands, sample repo — branch `ios-staging`
   - `Sources/Models/{Coffee,Profile,Vocab}.swift` — mirrors the planned `coffees` row (PLAN.md §1). Property names spell

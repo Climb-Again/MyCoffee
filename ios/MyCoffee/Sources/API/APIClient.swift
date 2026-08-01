@@ -3,7 +3,7 @@ import Foundation
 /// Thin async HTTP client for the MyCoffee backend.
 /// Every request carries `Authorization: Bearer <ingestToken>`.
 /// Mirrors MyHealthOS's API/APIClient.swift.
-struct APIClient {
+struct APIClient: Sendable {
     enum APIError: Error, LocalizedError {
         case notConfigured
         case badURL
@@ -74,6 +74,56 @@ struct APIClient {
         ]
         let body = try JSONSerialization.data(withJSONObject: envelope)
         let req = try makeRequest(path: "/api/ingest", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
+    // GET /api/snapshot — full delta-syncable dataset (PLAN.md §4). `since`
+    // filters to rows updated after that instant server-side; omit it for a
+    // full resync.
+    func snapshot(since: Date?) async throws -> SnapshotResponseDTO {
+        var path = "/api/snapshot"
+        if let since {
+            let raw = ISO8601DateFormatter.coffeeAPI.string(from: since)
+            let encoded = raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw
+            path += "?since=\(encoded)"
+        }
+        let req = try makeRequest(path: path, method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(SnapshotResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // GET /api/snapshot/text — folded search blobs, keyed by coffee public id.
+    func snapshotText() async throws -> [String: String] {
+        let req = try makeRequest(path: "/api/snapshot/text", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(SnapshotTextResponseDTO.self, from: data).texts
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // GET /api/coffees/:publicId — detail + notes + signed thumb/display URLs.
+    func coffeeDetail(publicId: String) async throws -> CoffeeDetailDTO {
+        let req = try makeRequest(path: "/api/coffees/\(publicId)", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(CoffeeDetailDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/coffees/:publicId/favorite
+    @discardableResult
+    func setFavorite(publicId: String, favorite: Bool) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["favorite": favorite])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/favorite", method: "POST", body: body)
         _ = try await send(req)
         return true
     }
