@@ -62,7 +62,7 @@ _none_
     per the ownership table); #14 now needs only `vocab.js`. — branch `main`
     (see correction above: really `claude/peaceful-mccarthy-rwi2ql`)
 
-- [2026-08-01 SHA_PLACEHOLDER] #14 — **`backend/src/lib/vocab.js`** + 24 new tests
+- [2026-08-01 ebfce55] #14 — **`backend/src/lib/vocab.js`** + 24 new tests
   (`test/vocab.test.js`, 86/86 green). Resolution against the `004_vocab.sql`
   tables: `resolveVocab` (exact `alias_norm` lookup, fuzzy fallback via
   `fuzzy.js`'s `matchVocab`, so a fuzzy accept still needs the unique-candidate +
