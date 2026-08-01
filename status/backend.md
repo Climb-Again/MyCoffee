@@ -8,6 +8,13 @@ _none_
 
 ## Done
 
+- [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
+  `HEAD` even with `origin/main`; only stranded branch is this session's own
+  `origin/claude/determined-thompson-se6ru7`, zero commits beyond `origin/main`
+  (nothing to integrate). `backend/src/lib/vocab.js` still doesn't exist, so
+  #14 (data) isn't done and #21 (needs 11, 14) stays `blocked`; #23/#24
+  unchanged. No `ready` row tagged `backend` this cycle. No code changes —
+  stopping cleanly per the work loop.
 - [2026-07-31 UTC] Session check: re-verified no `ready` backend row exists.
   `HEAD` even with `origin/main`; `origin/claude/determined-thompson-w06dlc` has
   zero commits beyond `origin/main` (fully merged, nothing stranded).
