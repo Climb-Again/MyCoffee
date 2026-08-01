@@ -64,6 +64,47 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
+  This session's own designated branch (`claude/determined-thompson-0ivpqc`)
+  arrived already sitting exactly on `origin/main`'s tip (`b9f0d75`) — a
+  first `git fetch origin main` returned a stale cached `origin/main`
+  (`0ad0023`) that made it *look* like 26 commits of backend work (#14/#21
+  merges, prior session-check commits) were stranded off `main`; a full
+  `git fetch origin` and an independent check via the GitHub MCP
+  `list_branches`/`list_commits` tools confirmed the real `main` on GitHub
+  is `b9f0d75`, identical to `HEAD` — nothing was actually stranded, the
+  first read was just a cache artifact. Worth recording so the next session
+  doesn't repeat the same false alarm: **trust a fresh `git fetch origin`
+  (not `git fetch origin <branch>`) or the GitHub API over a
+  possibly-cached `origin/<branch>` ref** when auditing for stranded work.
+  Also swept every `origin/claude/*` branch for commits not in the real
+  `origin/main` (`git rev-list --count origin/main..<branch>` for all 17) —
+  the only non-zero ones (`peaceful-mccarthy-rwi2ql`, `modest-newton-oxaddt`,
+  `wizardly-thompson-eurlj6`, `relaxed-thompson-ceai5p`,
+  `determined-thompson-nto1g8`) are all superseded duplicates (an earlier,
+  since-superseded #14 attempt; other lanes' own no-op audit commits) —
+  nothing backend-owned or actionable.
+  All backend-tagged rows are `done` except `#23`/`#24`, which stay
+  `blocked` on purpose: `PLAN.md` §8's phasing gates extraction work on Data
+  lane's `#20`/`#25` landing real photo data first, even though `#23`'s
+  `needs` column reads `—`. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `vertex:true`, `db:true`, `ingestEvents:0`. Ran
+  `cd backend && npm ci && npm test` — 93/93 green, matching the last
+  recorded count, no drift. No code changes — stopping cleanly per the work
+  loop (do not invent work).
+- [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
+  `HEAD` even with `origin/main` and with this session's own
+  `origin/claude/determined-thompson-1yhp32` — zero unmerged commits, nothing
+  stranded to integrate (`git branch -r --list 'origin/claude/*'` shows only
+  that one branch). All backend-tagged rows are `done` except `#23`/`#24`,
+  which stay `blocked` on purpose: `PLAN.md` §8's phasing gates extraction
+  work on Data lane's `#20`/`#25` landing real photo data first, even though
+  `#23`'s `needs` column reads `—`. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `vertex:true`, `db:true`. Ran `cd backend && npm ci && npm test` — 93/93
+  green, matching the last recorded count. No code changes — stopping
+  cleanly per the work loop (do not invent work).
 - [2026-08-01 UTC] Merged stranded `origin/claude/peaceful-mccarthy-rwi2ql`
   (data lane's #14, `src/lib/vocab.js` + 24 tests) into `main` — see the
   "Resolved" note above for detail. Re-ran `npm test` post-merge (86/86 green)
