@@ -65,6 +65,21 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
+  `main` is even with `origin/main` (`e800d49`) and the fast-forward pulled in
+  #21's real code (`backend/src/routes/coffees.js`, migrations 008/009) plus
+  all prior lane work — confirmed via a full `git fetch origin` (not the
+  branch-scoped form) before comparing. Only stranded branch is this
+  session's own (`origin/claude/determined-thompson-lqxezh`), 0 commits
+  ahead of `origin/main` — nothing to integrate. Backlog has no row tagged
+  `backend` with status `ready`: #11/#15/#16/#19/#21/#33 are `done`; #23/#24
+  stay `blocked` on purpose per `PLAN.md` §8 phasing (gated on data lane's
+  #20/#25 landing real photo data first), even though #23's `needs` column
+  reads `—`. Live-verified `GET /health` → `{"ok":true,"db":true,"service":
+  "mycoffee-api"}` and `GET /api/status` → `vertex:true`, `db:true`,
+  `ingestEvents:0`. Ran `cd backend && npm ci && npm test` — 93/93 green,
+  matching the last recorded count, no drift. No code changes — stopping
+  cleanly per the work loop (do not invent work).
+- [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
   This session's own designated branch (`claude/determined-thompson-0ivpqc`)
   arrived already sitting exactly on `origin/main`'s tip (`b9f0d75`) — a
   first `git fetch origin main` returned a stale cached `origin/main`
