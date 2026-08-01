@@ -6,7 +6,22 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
-## ⚠ Audit finding (2026-08-01): validated cross-lane work stranded off `main`, not mergeable from this session
+## ✅ Resolved (2026-08-01, later same-day session): the audit finding below is merged
+
+A fresh session re-ran the same audit, got the same result (86/86 green on
+`origin/claude/peaceful-mccarthy-rwi2ql`, clean merge base), and this time the
+merge to `main` went through: `git merge --no-ff` locally, then
+`git pull --rebase origin main` (which linearized it into the three original
+commits rather than keeping the merge commit — content-identical, no conflicts),
+then `git push`. Re-ran `npm test` post-merge (86/86 still green) before
+pushing. `main` and `origin/main` agree and both now contain `vocab.js`. This
+unblocked `#21`, which this session then also completed (see `## Done` below).
+**No human action was needed** — the previous session's push block was a
+property of that session's own permission classifier on a large (~60-file)
+cross-lane push, not a structural block on this branch. Leaving the original
+finding below for the record, since it documents real, correct auditing work.
+
+## ⚠ Audit finding (2026-08-01, earlier session): validated cross-lane work stranded off `main`, not mergeable from that session
 
 No backend row is `ready` on the real `origin/main` right now (`#14`/`#21` both
 `blocked` — `13`/`34` aren't `done` here). Before concluding there was really no
@@ -49,6 +64,44 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-01 UTC] Merged stranded `origin/claude/peaceful-mccarthy-rwi2ql`
+  (data lane's #14, `src/lib/vocab.js` + 24 tests) into `main` — see the
+  "Resolved" note above for detail. Re-ran `npm test` post-merge (86/86 green)
+  before pushing. This unblocked #21.
+- [2026-08-01 UTC] #21 — Migrations `008_coffees.sql` + `009_search.sql`
+  (the `coffees` table per `PLAN.md` §1: purchase/roaster/origin/altitude/
+  price/profile/rating/favorite fields, the three detail-page note blocks,
+  verbatim raw text, `review_state` + `min_field_confidence`; generated
+  `purchased_year`/`month`, `origin_country_id`, `altitude_mid_m`,
+  `price_per_100g_eur` — `is_blend` and `roaster_country_id` are plain columns,
+  not generated, since PLAN.md §1 says both need a lookup into `countries`
+  that a generated column can't do; weighted `search_tsv` generated from two
+  explicit pre-folded blob columns, `'simple'` config, GIN on `search_tsv` +
+  `origin_country_ids`) + `src/routes/coffees.js`
+  (`GET /api/snapshot` — compact per-row shape + a `vocab{}` dictionary via
+  data lane's `loadCountryVocab`/`loadRoasterVocab`/`loadFarmVocab`, no
+  per-row signed media URL to stay near the ~140 B/row budget in PLAN.md §4;
+  `GET /api/snapshot/text`; `GET /api/coffees` paged/faceted parity route;
+  `GET /api/coffees/:publicId` detail incl. signed `thumbUrl`/`displayUrl` at
+  a 30-day TTL, not `media.js`'s 1-hour default, since the client caches these
+  for a ten-year archive, not one request; `GET /api/coffees/top-filters`
+  implementing PLAN.md §6.1's pinned-Favourites/pinned-4.5+/single-top-
+  interesting-process/up-to-4-origin-country-cards rule exactly, including
+  the count≥5-and-<total gate; `POST /api/coffees/:publicId/favorite` on
+  `requireIngestToken`, matching every other write path — the iOS app holds
+  `INGEST_TOKEN` in its Keychain for exactly this, not just the Mac exporter).
+  Bumped `GET /api/config`'s `snapshotVersion`/`capabilities` off the
+  placeholder `null` `routes/config.js` had left since #16.
+  **Verified beyond the auth-guard smoke tests in `test/coffees.test.js`**: ran
+  all 9 migrations against a real local Postgres 16 (clean apply), inserted a
+  real coffee row and confirmed every generated column by hand
+  (`purchased_year=2024`, `altitude_mid_m=1450` from 1300/1600,
+  `price_per_100g_eur=7.40` from 18.50 EUR / 250 g, `is_blend=true`), and
+  exercised every new route with `app.inject()` against that same DB —
+  snapshot/detail/list/top-filters/favorite all returned the expected shape,
+  `to_tsvector` FTS matched on real text. 93/93 `npm test` green (86 prior +
+  7 new). Flipped `#22`→`ready` (ios-shell) in `BACKLOG.md` in the same push.
+  — branch `main`.
 - [2026-08-01 UTC] Session check: re-verified no `ready` backend row exists.
   `HEAD` even with `origin/main`; only stranded branch is this session's own
   `origin/claude/determined-thompson-se6ru7`, zero commits beyond `origin/main`
