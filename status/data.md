@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-_none_
+- [2026-08-02 00:00 UTC] #20 `ops/` Mac exporter + uploader (osxphotos + sips) — branch `claude/peaceful-mccarthy-3f480y`
 
 ## Done
 
