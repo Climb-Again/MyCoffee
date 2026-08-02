@@ -65,6 +65,37 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` (24 `claude/*` branches, up from the
+  prior sweep). Swept all of them via `git rev-list --count
+  origin/main..<branch>`: `hopeful-johnson-3xcwg7` showed 20 ahead, which
+  looked alarming at first, but `git rev-list --count
+  origin/ios-staging..origin/claude/hopeful-johnson-3xcwg7` (and the reverse)
+  are both `0` — it's the exact same commit as `origin/ios-staging`'s tip
+  (`5e117ba`), not stranded work, just a differently-named ref. That branch
+  closed #22 (ios-shell) and #28 (ios-ux) and is sitting correctly on
+  `ios-staging`, not `main` — merging `ios-staging`→`main` is the Publish
+  lane's job (`CLAUDE.md` §5), not backend's, and none of that work touches
+  `backend/**`. The other seven non-zero branches (`peaceful-mccarthy-rwi2ql`
+  3 ahead, `wizardly-thompson-eurlj6`/`relaxed-thompson-ceai5p`/
+  `modest-newton-oxaddt`/`determined-thompson-{nto1g8,ljny72,jwlcyu,7z8a69}`
+  1 ahead each) remain the same previously-identified no-op status commits or
+  the superseded #14 attempt already on `main` — nothing backend-owned or
+  actionable. Confirmed `ios-staging`'s `status/BACKLOG.md` marks #22/#28
+  `done` and flags one backend-relevant follow-up (a batch media-URL
+  endpoint for bulk thumbnail prefetch) — already noted in this repo's
+  `BACKLOG.md` "Two scope notes" from #21's own session, not a new ask, and
+  not backlogged as a numbered row yet (shape still undecided), so not
+  claimable. No row tagged `backend` is `ready`: #11/#15/#16/#19/#21/#33 are
+  `done`; #23/#24 stay `blocked` on purpose — `PLAN.md` §8 gates extraction
+  on Data's on-Mac 20-photo verification landing real data, which
+  `BACKLOG.md`'s "Right now" section still says hasn't run (no Mac in any
+  sandbox). Ran `cd backend && npm ci && npm test` — 93/93 green, matching
+  the last recorded count. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
+- [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` picked up Data's just-landed `#20` close
   (`e2a669f`/`a5f563d`) — still doesn't unblock backend: `#25` needs `20, 24`
   and `#24` isn't done, and `#23`/`#24` themselves stay `blocked` on purpose
