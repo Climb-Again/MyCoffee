@@ -62,7 +62,7 @@ _none_
     per the ownership table); #14 now needs only `vocab.js`. — branch `main`
     (see correction above: really `claude/peaceful-mccarthy-rwi2ql`)
 
-- [2026-08-02 PENDING-SHA] #20 — **`ops/mycoffee_export.py`** + `ops/test_mycoffee_export.py`
+- [2026-08-02 e2a669f] #20 — **`ops/mycoffee_export.py`** + `ops/test_mycoffee_export.py`
   (29/29 green) + `ops/README.md`. Two-phase Mac exporter/uploader for the
   "Coffees" Photos album against #19's `routes/photos.js`
   (`POST /api/photos/manifest` then `PUT /api/photos/:sourceId/image`).
