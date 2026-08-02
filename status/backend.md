@@ -65,6 +65,30 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
+  Note for future sessions: a scoped `git fetch origin main
+  claude/determined-thompson-2c546d` returned a stale `origin/main`
+  (`0ad0023`) that made this branch look 37 commits ahead/stranded — the same
+  cache-artifact trap the 2026-08-01 note below already warned about. A full
+  `git fetch origin +refs/heads/*:refs/remotes/origin/*` (also picked up the
+  remote's `claude/determined-thompson-2c546d` deletion) resolved it:
+  `origin/main` and `HEAD` agree at `0765fb9`, nothing stranded on this
+  session's own branch. Re-swept all 24 remaining `origin/claude/*` branches
+  (`git rev-list --count origin/main..<branch>`) — same set as every prior
+  sweep: `peaceful-mccarthy-rwi2ql` (3 ahead, superseded #14 attempt —
+  confirmed `vocab.js` already on `origin/main`), `hopeful-johnson-3xcwg7`
+  (20 ahead of `main` but 0 ahead of / fully contained in `origin/ios-staging`,
+  not backend-owned), and seven 1-ahead no-op status commits from other
+  lanes. Nothing backend-owned or actionable. No row tagged `backend` is
+  `ready`: #11/#15/#16/#19/#21/#33 done; #23/#24 stay `blocked` on purpose —
+  `PLAN.md` §8 still gates extraction on Data's on-Mac 20-photo verification
+  of #20, which `status/data.md`/`BACKLOG.md` confirm hasn't run (no Mac in
+  any sandbox). Ran `cd backend && npm ci && npm test` — 93/93 green, no
+  drift. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
+- [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` (24 `claude/*` branches). Swept every one
   via `git rev-list --count origin/main..<branch>`: the same seven
   no-op status commits (`determined-thompson-{7z8a69,jwlcyu,ljny72,nto1g8}`
