@@ -25,7 +25,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **merged to `main`, compile-green** (run #18, `29c1def`) |
 | 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **merged to `main`, compile-green** (run #18) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
-| 20 | data      | 1 | ready   | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) |
+| 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — implemented + unit-tested (29/29); the on-Mac 20-photo gate (PLAN.md §8) is still owed, no Mac in this sandbox |
 | 21 | backend   | 2 | done    | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` — verified end-to-end against a local Postgres (insert → generated columns → `GET /api/snapshot`/`/api/coffees/:id`/`top-filters`/favorite all 200 with real data) |
 | 22 | ios-shell | 2 | ready   | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
@@ -44,6 +44,25 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**#20 is DONE** (2026-08-02, data lane session) — `ops/mycoffee_export.py`, the
+two-phase Mac exporter + uploader against `POST /api/photos/manifest` +
+`PUT /api/photos/:sourceId/image` (`routes/photos.js`, #19). Structured so the
+pure logic (manifest-entry shaping, ≤200-entry batching, an on-disk
+`(size, mtime)` state cache that skips re-`sips`-converting unchanged photos,
+HTTP retry/backoff that never retries a 4xx) is unit-tested without macOS —
+`ops/test_mycoffee_export.py`, 29/29 green — and only the Photos-library read
+(`osxphotos`) and HEIC→JPEG conversion (`sips`) are macOS-specific, isolated
+behind lazy imports so the test run needs neither installed. Full detail,
+including the `contentSha256`-must-equal-the-uploaded-bytes trap and why
+`caption` is always sent `null`, is in `ops/README.md`.
+
+**Not done, and can't be from this sandbox:** the actual on-Mac verification
+gate PLAN.md §8 asks for — run against Radu's real "Coffees" album with
+`--limit 20`, confirm derivatives + dedupe-on-rerun. This session has no
+macOS runner and no access to the real Photos library; `ops/README.md` has a
+checklist ready for whoever runs it. `#25` (needs 20, 24) stays `blocked` —
+`#24` is still blocked upstream, so nothing newly unblocks this session.
 
 **✅ 2026-08-01 (Backend lane session): the `claude/peaceful-mccarthy-rwi2ql`
 merge described in the warning below is DONE — this is real `origin/main` now.**
