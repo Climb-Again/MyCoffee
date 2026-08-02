@@ -65,6 +65,21 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` picked up Data's just-landed `#20` close
+  (`e2a669f`/`a5f563d`) — still doesn't unblock backend: `#25` needs `20, 24`
+  and `#24` isn't done, and `#23`/`#24` themselves stay `blocked` on purpose
+  per `PLAN.md` §8 (extraction phase gates on the on-Mac 20-photo verification
+  landing real data, which `status/data.md`/`BACKLOG.md` both confirm hasn't
+  run — no Mac in any sandbox yet), even though `#23`'s `needs` column reads
+  `—`. Swept all `origin/claude/*` branches (`git rev-list --count
+  origin/main..<branch>`) — the same handful of no-op/superseded ones remain
+  ahead by 1–3 commits, nothing backend-owned or actionable. Ran
+  `cd backend && npm ci && npm test` — 93/93 green. Live-verified
+  `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}` and
+  `GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+  "vertex":true,"ingestEvents":0}`. No code changes — stopping cleanly per
+  the work loop (do not invent work).
+- [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` confirms `HEAD`/`origin/main`/this
   session's own branch (`claude/determined-thompson-c5t66g`) all agree at
   `f8c89d8`. Swept all 18 `origin/claude/*` branches
