@@ -8,6 +8,18 @@ _none_
 
 ## Session notes
 
+- [2026-08-02 UTC] No-op session. `BACKLOG.md`: `#27` (needs 22, 24) still
+  `blocked` — backend's `#24` hasn't landed. `#28` (needs 22) is already `done`
+  (prior session). Swept `git branch -r --list 'origin/claude/*'` for stranded
+  work touching `Sources/{Features,DesignSystem}/**` or `Resources/**`
+  (`git log origin/ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` across all 24
+  branches) — none touch either path, nothing to adopt. Merged `origin/main`
+  into `ios-staging` (one conflict, in `status/backend.md` — two backend
+  session-note entries appended at the same spot on divergent history; resolved
+  as a union, kept both entries, no code involved). Stopping cleanly per the
+  lane's documented no-op behaviour; no code changes this session.
+
 - [2026-08-01 UTC] No-op session. Checked `status/BACKLOG.md`: no `ios-ux` row is
   `ready` — `#27` (needs 22, 24) and `#28` (needs 22) are both still `blocked`.
   Backend landed `#21` on `main` this cycle (migrations 008–009 + `routes/coffees.js`)
