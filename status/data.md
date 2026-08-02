@@ -62,6 +62,29 @@ _none_
     per the ownership table); #14 now needs only `vocab.js`. — branch `main`
     (see correction above: really `claude/peaceful-mccarthy-rwi2ql`)
 
+- [2026-08-02 e2a669f] #20 — **`ops/mycoffee_export.py`** + `ops/test_mycoffee_export.py`
+  (29/29 green) + `ops/README.md`. Two-phase Mac exporter/uploader for the
+  "Coffees" Photos album against #19's `routes/photos.js`
+  (`POST /api/photos/manifest` then `PUT /api/photos/:sourceId/image`).
+  Pure logic (manifest-entry shaping incl. always-null `caption` since
+  Photos.app has no field distinct from `.description`; ≤200-entry batching;
+  an on-disk `(size, mtime)` state cache so a repeat run skips `sips` for
+  every unchanged photo; HTTP retry/backoff `(2,5,15,45,120)s` that never
+  retries a deterministic 4xx) is unit-tested with no macOS dependency —
+  `osxphotos` (Photos-library read) and `sips` (HEIC→JPEG, matching the
+  server's `ocr` 2048px/q85 derivative) are isolated behind lazy imports
+  specifically so tests never need them installed. Key invariant documented
+  in the README: `contentSha256` in the manifest must be the hash of the
+  **exact bytes later PUT** (the post-`sips` JPEG), not the original file,
+  because the server 409s (`sha256_mismatch`) on any mismatch against a
+  previously-declared `photos.content_sha256`.
+  **Not verified end-to-end** — this sandbox has no macOS runner and no
+  access to a real Photos library, so the PLAN.md §8 20-photo gate (run,
+  confirm derivatives, confirm a re-run is a no-op) is still owed by whoever
+  next has a Mac. Checklist is in `ops/README.md`. Backend `npm test` still
+  93/93 green (unaffected — this lane touched only `ops/**`). — branch
+  `claude/peaceful-mccarthy-3f480y`
+
 - [2026-08-01 ebfce55] #14 — **`backend/src/lib/vocab.js`** + 24 new tests
   (`test/vocab.test.js`, 86/86 green). Resolution against the `004_vocab.sql`
   tables: `resolveVocab` (exact `alias_norm` lookup, fuzzy fallback via
