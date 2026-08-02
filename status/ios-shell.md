@@ -92,6 +92,22 @@ _none_
   work to adopt. `ios-staging` and `main` agree on `status/BACKLOG.md`. Stopping
   cleanly rather than inventing work or touching UX-owned paths.
 
+- [2026-08-02 00:00 UTC] Session check — no ready `ios-shell` row. Only rows
+  are #17 and #22, both already `done` (the latter closed 2026-08-01 by the
+  prior ios-shell session, after this routine's last "no ready row" check).
+  The only other iOS-shell-adjacent row, #27 (ios-ux, phase 5), needs #22
+  (done) + #24 (backend, still `blocked` on #23). Checked
+  `git branch -r --list 'origin/claude/*'` per the integrate-before-you-start
+  rule: every candidate branch (`determined-thompson-*`, `wizardly-thompson-eurlj6`,
+  `relaxed-thompson-ceai5p`, `modest-newton-oxaddt`, `lanes-status-blockers-wws2lc`,
+  `new-app-infrastructure-setup-h3r3wz`, `coffee-app-plan-9jdh0c`) diffs as pure
+  deletions against current `ios-staging` in the owned paths — each predates
+  #22 and carries no unmerged work. Merged `origin/main` into `ios-staging`
+  (resolved a "Right now" conflict in `status/BACKLOG.md` by keeping both the
+  ios-shell #22 note and the data #20 note — additive, no factual conflict)
+  to pick up #20's landing before stopping. Stopping cleanly rather than
+  inventing work or touching UX-owned paths.
+
 ## Abandoned
 
 _none_
