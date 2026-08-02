@@ -108,6 +108,20 @@ _none_
   to pick up #20's landing before stopping. Stopping cleanly rather than
   inventing work or touching UX-owned paths.
 
+- [2026-08-02 UTC] Session check — no ready `ios-shell` row, unchanged from
+  the prior check earlier today. Only ios-shell rows are #17 and #22, both
+  `done`. The only other iOS-adjacent row, #27 (ios-ux, phase 5), needs #22
+  (done) + #24 (backend, still `blocked` on #23 — unstarted). Re-fetched
+  origin and re-swept every `origin/claude/*` branch (`git rev-list --count
+  origin/ios-staging..<branch> -- <ios-shell-owned paths>`) per the
+  integrate-before-you-start rule: all 25 candidate branches show `0` commits
+  ahead in the paths this lane owns (`Sources/{App,Store,API,Models,Query,
+  Utilities}`, `project.yml`) — nothing stranded to adopt. Merged
+  `origin/main` into `ios-staging` (resolved an additive conflict in
+  `status/backend.md` — two backend session-check entries from the same UTC
+  day, kept both, no factual conflict) before stopping. Stopping cleanly
+  rather than inventing work or touching UX-owned paths.
+
 ## Abandoned
 
 _none_
