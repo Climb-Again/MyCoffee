@@ -65,6 +65,22 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
+  Local branch had been rebased from a stale point and hit a conflict merging
+  onto `origin/main` (content-identical BACKLOG.md history diverged after an
+  earlier `git pull --rebase` linearization elsewhere); aborted the rebase and
+  recreated `claude/determined-thompson-ljny72` fresh from `origin/main`
+  (`aa84890`) rather than force through a conflict on a shared doc. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  exists, now identical to `origin/main`, nothing stranded to integrate. All
+  backend-tagged rows are `done` except `#23`/`#24`, which stay `blocked` on
+  purpose per `PLAN.md` §8 phasing; `#22` (the only row newly `ready` off
+  `#21`) is ios-shell's, not backend's. Ran `cd backend && npm ci && npm test`
+  — 93/93 green, no drift. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
+- [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` picked up Data's just-landed `#20` close
   (`e2a669f`/`a5f563d`) — still doesn't unblock backend: `#25` needs `20, 24`
   and `#24` isn't done, and `#23`/`#24` themselves stay `blocked` on purpose
