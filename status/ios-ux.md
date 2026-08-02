@@ -34,6 +34,51 @@ _none_
 
 ## Done
 
+- [2026-08-02 00:00 UTC] No open `ios-ux` backlog row (`#27` still blocked on
+  backend `#24`) — instead closed the UX-wiring gap the shell lane flagged in
+  `status/ios-shell.md` after `#22` landed: `Thumbnail.swift` was still a plain
+  `AsyncImage` instead of using the disk-cached, downsample-on-write
+  `Store/ImageStore.swift` actor, the row heart had no tap target, and
+  `CoffeeDetailView` never called `store.loadDetail(for:)` so real notes/images
+  never populated past the compact snapshot. All three are presentation wiring
+  inside owned paths — no new plumbing needed, both `CoffeeStore` methods
+  already existed.
+  - `Sources/DesignSystem/Thumbnail.swift` — replaced `AsyncImage` with a
+    `.task(id: urlString)` that calls `ImageStore.shared.thumbnail(for:
+    maxPixelSize:)` (sized by `size * @Environment(\.displayScale)`) and wraps
+    the returned `CGImage` in `UIImage` for display; silently falls back to
+    the existing placeholder on any failure. Used by both the 84pt row
+    thumbnail and the 64pt detail-page inline thumbnail, so both got this for
+    free.
+  - `Sources/Features/Coffees/CoffeeRowView.swift` — added `@EnvironmentObject
+    private var store: CoffeeStore` and wrapped the heart `Image` in a
+    `Button { store.toggleFavorite(coffee) }` with `.buttonStyle(.plain)`.
+    It's nested inside the row's `NavigationLink` label; SwiftUI hit-tests the
+    inner `Button` first, so the tap doesn't fall through to row navigation
+    (same pattern already used for the roaster/origin taps in
+    `CoffeeDetailView`, not new territory).
+  - `Sources/Features/Coffees/CoffeeDetailView.swift` — the view took `coffee:
+    Coffee` as a plain stored property, so a `.task` alone wouldn't have shown
+    the merge (the local copy never changes). Renamed the init parameter to
+    `initialCoffee`, added a computed `private var coffee: Coffee {
+    store.index.coffee(id: initialCoffee.id) ?? initialCoffee }`, and added
+    `.task { await store.loadDetail(for: initialCoffee) }` on the root
+    `ScrollView`. Every existing `coffee.*` reference in the file now reads
+    through the computed property with zero other line changes, so once
+    `loadDetail` merges the detail payload into `store.index`, the next body
+    re-render (triggered by `index` being `@Published`) picks it up
+    automatically.
+  - **Flag for the shell lane, not acted on here:** `Store/ImageStore.swift`'s
+    doc comment still says "Not yet wired into `DesignSystem/Thumbnail.swift`"
+    — that's now stale, but the file is shell-owned so left it for you to
+    update rather than editing out-of-lane.
+  - No `BACKLOG.md` row for this (not new scope, just closing a flagged gap in
+    already-owned files) — same precedent as the shell lane's `Profile`/
+    `SortOption` `Hashable` fix on 2026-07-31.
+  - Not locally compiled (no Xcode in this environment) — flag the compile
+    lane to these three files specifically if the next compile check goes red.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-01 00:00 UTC] 28 Insights (statistical gates) + roaster/country entity pages — branch `ios-staging`
   - Picked up after checking `git branch -r --list 'origin/claude/*'` for stranded prior work on #28 — none found, so
     built fresh. #22 (ios-shell, remote repo/sync) had just landed on `ios-staging`, unblocking this row.

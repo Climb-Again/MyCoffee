@@ -7,9 +7,18 @@ import UIKit
 /// an inset thumbnail, roaster row, title, pill row, process, fact rows,
 /// note blocks, then rating-ordered rails.
 struct CoffeeDetailView: View {
-    let coffee: Coffee
+    private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
     @Environment(\.dismiss) private var dismiss
+
+    init(coffee: Coffee) {
+        self.initialCoffee = coffee
+    }
+
+    /// The compact snapshot doesn't carry notes/images (PLAN.md §4) — reads
+    /// through `store.index` so the `.task` below's `loadDetail` merge shows
+    /// up here without every call site needing to re-fetch by hand.
+    private var coffee: Coffee { store.index.coffee(id: initialCoffee.id) ?? initialCoffee }
 
     private var vocabulary: Vocabulary { store.index.vocabulary }
 
@@ -21,6 +30,9 @@ struct CoffeeDetailView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .task {
+            await store.loadDetail(for: initialCoffee)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {

@@ -10,6 +10,7 @@ struct CoffeeRowView: View {
     let vocabulary: Vocabulary
     let sort: SortOption
 
+    @EnvironmentObject private var store: CoffeeStore
     @ScaledMetric(relativeTo: .body) private var thumbSize: CGFloat = 84
 
     private var roaster: Roaster? { coffee.roaster(vocabulary: vocabulary) }
@@ -55,8 +56,16 @@ struct CoffeeRowView: View {
                                 .foregroundStyle(.orange)
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
-                            .foregroundStyle(coffee.isFavorite ? .red : .secondary)
+                        // A `Button` nested inside the row's `NavigationLink`
+                        // label: SwiftUI hit-tests it first, so the heart tap
+                        // never falls through to the row's own navigation.
+                        Button {
+                            store.toggleFavorite(coffee)
+                        } label: {
+                            Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
+                                .foregroundStyle(coffee.isFavorite ? .red : .secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
 
