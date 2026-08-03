@@ -65,6 +65,29 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
+  Full unscoped `git fetch origin` (30 `claude/*` branches, up from 27) —
+  `HEAD`/`origin/main`/this session's own branch
+  (`claude/determined-thompson-wjm3gv`) all agree at `91b6c7c`. Swept every
+  `origin/claude/*` branch via `git rev-list --count origin/main..<branch>`:
+  two new ones since the last sweep — `peaceful-mccarthy-9yq99y` (2 ahead,
+  data lane's own doc-only session-check + integration-flag commits to
+  `status/data.md`, nothing backend-owned) and `determined-thompson-2c546d`
+  (1 ahead, another prior backend session's own no-op status-note commit to
+  this file). `hopeful-johnson-3xcwg7` (20 ahead of `main`) re-confirmed 0
+  ahead of / fully contained in `origin/ios-staging` — still not stranded,
+  still not backend-owned. `peaceful-mccarthy-rwi2ql` (3 ahead) re-confirmed
+  as the superseded #14 `vocab.js` attempt already on `main`. The remaining
+  single-commit-ahead branches are all prior lanes' own no-op status
+  commits. Nothing backend-owned or actionable to integrate. All
+  backend-tagged rows are `done` except `#23`/`#24`, which stay `blocked` on
+  purpose: `status/data.md` confirms the on-Mac 20-photo verification gate
+  (`PLAN.md` §8) still hasn't run (no Mac in any sandbox), so code-complete
+  `#20` doesn't unblock extraction yet. Ran `cd backend && npm ci && npm
+  test` — 93/93 green, matching the last recorded count, no drift.
+  Live-verified `GET /health` → `{"ok":true,"db":true,"service":
+  "mycoffee-api"}` and `GET /api/status` → `{"ok":true,"service":
+  "mycoffee-api","db":true,"vertex":true,"ingestEvents":0}`. No code changes
+  — stopping cleanly per the work loop (do not invent work).
   Fresh unscoped `git fetch origin` (27 `claude/*` branches, up from 24 —
   three new: `determined-thompson-{ij4ozz,llrspt,v93cvk,x99e3x,c5t66g}` and
   `lanes-status-blockers-wws2lc`/`new-app-infrastructure-setup-h3r3wz` show
