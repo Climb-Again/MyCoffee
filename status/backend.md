@@ -64,6 +64,30 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` (27 `claude/*` branches, up from 24 —
+  three new: `determined-thompson-{ij4ozz,llrspt,v93cvk,x99e3x,c5t66g}` and
+  `lanes-status-blockers-wws2lc`/`new-app-infrastructure-setup-h3r3wz` show
+  0 ahead of `origin/main`, nothing stranded). Swept all via
+  `git rev-list --count origin/main..<branch>`: `hopeful-johnson-3xcwg7`
+  (20 ahead of `main`) is 0 ahead / 8 behind `origin/ios-staging` — the exact
+  same tip, already merged there, not backend-owned regardless;
+  `peaceful-mccarthy-rwi2ql` (3 ahead) re-confirmed as the superseded #14
+  `vocab.js` attempt (`git diff` against `origin/main:backend/src/lib/vocab.js`
+  is empty); the remaining single-commit-ahead branches
+  (`wizardly-thompson-eurlj6`, `relaxed-thompson-ceai5p`,
+  `modest-newton-oxaddt`, `determined-thompson-{nto1g8,ljny72,jwlcyu,
+  7z8a69,2c546d}`) are all prior lanes' own no-op status-note commits.
+  Nothing backend-owned or actionable to integrate. `status/data.md`
+  confirms #20's on-Mac 20-photo verification gate (`PLAN.md` §8) still
+  hasn't run (no Mac in any sandbox), so `#23`/`#24` stay `blocked` on
+  purpose even though `#23`'s `needs` column reads `—`. Ran
+  `cd backend && npm ci && npm test` — 93/93 green, matching the last
+  recorded count, no drift. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
 - [2026-08-02 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` (24 `claude/*` branches). Swept every one
   via `git rev-list --count origin/main..<branch>`: the same seven
