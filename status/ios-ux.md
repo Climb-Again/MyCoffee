@@ -8,6 +8,20 @@ _none_
 
 ## Session notes
 
+- [2026-08-03 UTC] No-op session. `BACKLOG.md`: `#27` (needs 22, 24) still
+  `blocked` — backend's own 2026-08-03 session check confirms `#23`/`#24`
+  remain `blocked` on purpose (the on-Mac 20-photo verification gate, PLAN.md
+  §8, still hasn't run; no Mac in any sandbox). `#28` (needs 22) stays `done`
+  (2026-08-01 session). Swept `git branch -r --list 'origin/claude/*'` (now
+  ~19 branches) via `git rev-list --count origin/ios-staging..origin/<branch>
+  -- ios/MyCoffee/Sources/Features ios/MyCoffee/Sources/DesignSystem
+  ios/MyCoffee/Resources` — zero for every branch, nothing stranded to adopt.
+  Merged `origin/main` into `ios-staging` (one conflict, in
+  `status/backend.md` — two backend session-note entries appended at the same
+  spot on divergent history, same pattern as the 2026-08-02 merge; resolved
+  as a union, kept both entries, no code involved). Stopping cleanly per the
+  lane's documented no-op behaviour; no code changes this session.
+
 - [2026-08-02 UTC] No-op session. `BACKLOG.md`: `#27` (needs 22, 24) still
   `blocked` — backend's `#24` hasn't landed. `#28` (needs 22) is already `done`
   (prior session). Swept `git branch -r --list 'origin/claude/*'` for stranded
