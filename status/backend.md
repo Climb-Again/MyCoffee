@@ -65,6 +65,32 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` — 32 `claude/*` branches (up from 31) —
+  `HEAD`/`origin/main`/this session's own branch
+  (`claude/determined-thompson-ekezl2`) all agree at `9f789e8`, the same tip
+  the prior session pushed — no new commits landed on `main` between
+  sessions. Swept every
+  `origin/claude/*` branch via `git rev-list --count origin/main..<branch>`:
+  the same eleven non-zero branches as every recent sweep, re-verified rather
+  than assumed — `origin/claude/hopeful-johnson-3xcwg7` (20 ahead) reconfirmed
+  0 ahead of / 13 behind `origin/ios-staging` (identical tip, already merged
+  there, not stranded, not backend-owned); `origin/claude/peaceful-mccarthy-rwi2ql`
+  (3 ahead) reconfirmed via `git diff origin/main:backend/src/lib/vocab.js
+  origin/claude/peaceful-mccarthy-rwi2ql:backend/src/lib/vocab.js` — empty,
+  fully superseded; `origin/claude/peaceful-mccarthy-9yq99y` (2 ahead) is
+  Data lane's own doc-only session-check + integration-flag commits to
+  `status/data.md`; the remaining eight single-commit branches are prior
+  lanes' own no-op status-note commits, previously inspected. Nothing
+  backend-owned or actionable to integrate. `status/data.md` unchanged: #20's
+  on-Mac 20-photo verification gate (`PLAN.md` §8) still hasn't run (no Mac in
+  any sandbox), so `#23`/`#24` stay `blocked` on purpose even though `#23`'s
+  `needs` column reads `—`. Ran `cd backend && npm ci && npm test` — 93/93
+  green, matching the last recorded count, no drift. Live-verified
+  `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}` and
+  `GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+  "vertex":true,"ingestEvents":0}`. No code changes — stopping cleanly per
+  the work loop (do not invent work).
+- [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` — 31 `claude/*` branches (up from 30) —
   `HEAD`/`origin/main`/this session's own branch
   (`claude/determined-thompson-w41je3`) all agree at `6fb8bbf`, one commit
