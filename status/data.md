@@ -2,6 +2,16 @@
 
 Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.md`
 
+## ✅ Resolved (2026-08-01, confirmed again 2026-08-03): the warning below is stale
+
+A backend lane session merged `claude/peaceful-mccarthy-rwi2ql` onto real
+`origin/main` on 2026-08-01 (see `status/BACKLOG.md` "Right now" section,
+~line 67) — `git rev-parse main origin/main` agree and both contain
+#12/#13/#14/#34's code, verified again this session (`git show
+origin/main:backend/src/lib/vocab.js`). No human action was needed; the
+"needs a human" framing below never materialized. Left for history, not to
+be acted on.
+
 ## ⚠ Correction (2026-08-01): "done, on `main`" below is NOT on the real `main`
 
 This session was harness-assigned to develop on `claude/peaceful-mccarthy-rwi2ql`
