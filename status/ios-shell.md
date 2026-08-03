@@ -122,6 +122,18 @@ _none_
   day, kept both, no factual conflict) before stopping. Stopping cleanly
   rather than inventing work or touching UX-owned paths.
 
+- [2026-08-03 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17 and #22, both `done`. The only other iOS-adjacent row, #27
+  (ios-ux, phase 5), needs #22 (done) + #24 (backend, still `blocked` on #23
+  — unstarted). Re-swept every `origin/claude/*` branch (`git rev-list
+  --count origin/ios-staging..<branch> -- <ios-shell-owned paths>`) per the
+  integrate-before-you-start rule: the only candidate is this session's own
+  fresh branch (`claude/wizardly-thompson-0d0ydb`), 0 commits ahead in any
+  owned path — nothing stranded to adopt. Merged `origin/main` into
+  `ios-staging` (fast-forward-style, no conflicts — just backend/UX session-
+  check commits) before stopping. Stopping cleanly rather than inventing
+  work or touching UX-owned paths.
+
 ## Abandoned
 
 _none_
