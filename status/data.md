@@ -2,6 +2,22 @@
 
 Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.md`
 
+## 2026-08-03 session: no ready row, housekeeping only
+
+Checked `status/BACKLOG.md`: every data-lane row is `done` (#12/#13/#14/#20/#34)
+or `blocked` upstream on backend #23/#24 (#25 needs 20+24, #26 needs 25, #29
+needs 26). Checked `git branch -r --list 'origin/claude/*'` for stranded data-lane
+work per the integrate-before-you-start rule — the only branch touching
+`src/lib/vocab.js` (`claude/hopeful-johnson-3xcwg7`) is byte-identical to what's
+already on `main`, nothing to adopt. Per protocol, did not invent work.
+
+This session was harness-assigned branch `claude/peaceful-mccarthy-9yq99y` (not
+`main`), so its one commit (annotating the stale rwi2ql warning below as
+resolved) lives only there for now — flagging per the rule below rather than
+assuming it landed. It's doc-only, not a `BACKLOG.md` item, so low urgency to
+fold in, but do check `git branch -r --list 'origin/claude/peaceful-mccarthy-9yq99y'`
+before deleting it.
+
 ## ✅ Resolved (2026-08-01, confirmed again 2026-08-03): the warning below is stale
 
 A backend lane session merged `claude/peaceful-mccarthy-rwi2ql` onto real
