@@ -8,6 +8,19 @@ _none_
 
 ## Done
 
+- [2026-08-03 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17 and #22, both `done`. `#27` (ios-ux, phase 5) needs #22 (done)
+  + #24 (backend, still `blocked` on #23, which is unstarted). Swept every
+  `origin/claude/*` branch (`git rev-list --count origin/ios-staging..<branch>
+  -- ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities} ios/project.yml`)
+  across all 27 candidates fetched fresh this session — every one shows `0`
+  commits ahead in this lane's owned paths, so nothing stranded to adopt.
+  Merged `origin/main` into `ios-staging` to pick up backend's session-check
+  commits; resolved one additive conflict in `status/backend.md` (two backend
+  session-check entries for the same UTC day) by keeping both, no factual
+  conflict. Stopping cleanly rather than inventing work or touching
+  UX-owned paths.
+
 - [2026-08-01 12:00 UTC] 22 Remote repository + SyncEngine + ImageStore + MutationOutbox — branch `ios-staging`
   - `Sources/Store/{SyncEngine,RemoteCoffeeRepository,MutationOutbox,ImageStore,PersistedSnapshot}.swift`,
     `Sources/API/Wire/{SnapshotWire,CoffeeDetailWire,CoffeeMapping,FlexibleDecoding}.swift`, plus edits to
