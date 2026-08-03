@@ -8,6 +8,16 @@ _none_
 
 ## Session notes
 
+- [2026-08-03 UTC] No-op session (second cycle same day). `BACKLOG.md`: `#27`
+  (needs 22, 24) still `blocked` — `#24` unchanged, still blocked on `#23`
+  (Vertex extension). `#28` (needs 22) stays `done`. Re-swept `git branch -r
+  --list 'origin/claude/*'` (now 32 branches) via `git rev-list --count
+  ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` — zero for every
+  branch, nothing stranded to adopt. Merged `origin/main` into `ios-staging`
+  (clean, only `status/backend.md` session notes, no code). Stopping cleanly
+  per the lane's documented no-op behaviour; no code changes this session.
+
 - [2026-08-03 UTC] No-op session. `BACKLOG.md`: `#27` (needs 22, 24) still
   `blocked` — backend's own 2026-08-03 session check confirms `#23`/`#24`
   remain `blocked` on purpose (the on-Mac 20-photo verification gate, PLAN.md
