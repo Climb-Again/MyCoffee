@@ -65,6 +65,28 @@ that isn't actually mergeable from here.
 ## Done
 
 - [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` — 34 `claude/*` branches (`origin/main`
+  even with this session's `HEAD` at `b39437c`). Swept every branch via
+  `git rev-list --count origin/main..<branch>` — same set as the immediately
+  prior sweep, no new non-zero branches: `hopeful-johnson-3xcwg7` (20 ahead)
+  is still 0 ahead of `origin/ios-staging`'s tip, not stranded, not
+  backend-owned; `peaceful-mccarthy-rwi2ql` (3 ahead) is the superseded #14
+  `vocab.js` attempt already on `main`; `peaceful-mccarthy-9yq99y` (2 ahead)
+  is data lane's own doc-only commits; the remaining ten single-commit
+  branches (`determined-thompson-{2c546d,4x4vo3,7z8a69,ekezl2,jwlcyu,ljny72,
+  nto1g8}`, `modest-newton-oxaddt`, `relaxed-thompson-ceai5p`,
+  `wizardly-thompson-eurlj6`) are prior lanes' own no-op status-note commits,
+  all previously inspected. Nothing backend-owned or actionable to
+  integrate. All backend-tagged rows remain `done` except `#23`/`#24`, which
+  stay `blocked` on purpose per `PLAN.md` §8 (Data's on-Mac 20-photo
+  verification gate still hasn't run — no Mac in any sandbox). Ran
+  `cd backend && npm ci && npm test` — 93/93 green, matching the last
+  recorded count, no drift. Live-verified `GET /health` →
+  `{"ok":true,"db":true,"service":"mycoffee-api"}` and `GET /api/status` →
+  `{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+  "ingestEvents":0}`. No code changes — stopping cleanly per the work loop
+  (do not invent work).
+- [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` — 34 `claude/*` branches (up from 31),
   `HEAD`/`origin/main` agree at `9f789e8`. Swept every branch via
   `git rev-list --count origin/main..<branch>`: the same eleven previously
