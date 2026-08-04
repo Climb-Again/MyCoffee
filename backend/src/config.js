@@ -80,6 +80,13 @@ export const config = {
     clientId: str('GOOGLE_CLIENT_ID'),
     region: str('VERTEX_AI_REGION', 'us-central1'),
     model: str('VERTEX_MODEL', 'gemini-2.5-pro'),
+    // Hard per-request ceiling. gaxios (via google-auth-library) defaults to NO
+    // timeout, so a request that is never answered hangs the caller forever —
+    // and in the extraction worker that means hanging while holding the
+    // `pg_advisory_lock`, which silently blocks every subsequent job with no
+    // error anywhere. Generous enough for a thinking-heavy 2.5-pro call on an
+    // image (those can run minutes), but finite.
+    timeoutMs: int('VERTEX_TIMEOUT_MS', 180000),
   },
 
   // Adjudication + worker tuning (PLAN.md §2). Kept here rather than in a

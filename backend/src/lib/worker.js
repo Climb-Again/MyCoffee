@@ -543,7 +543,22 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
       config.extraction.worker.advisoryLockKey,
     ]);
     locked = lockRows[0]?.ok === true;
-    if (!locked) return { started: false, reason: 'already_running' };
+    if (!locked) {
+      // Close the job row out instead of leaving it at status='running'
+      // forever. A refused worker used to return silently here, so a job whose
+      // lock was held by an earlier (hung) worker looked identical to a job
+      // that was actively working: 'running', photos_done 0, last_error null.
+      // 'done' + last_error is the same shape markJobFailed() uses, and the
+      // status CHECK constraint allows no 'failed' value.
+      if (jobId) {
+        await query(
+          `UPDATE extraction_jobs SET status = 'done', finished_at = now(), last_error = $2
+           WHERE id = $1 AND status = 'running'`,
+          [jobId, 'not started: another worker holds the extraction advisory lock'],
+        ).catch(() => {});
+      }
+      return { started: false, reason: 'already_running' };
+    }
 
     const resolvedVoters = voters ?? (await defaultVoters());
     const sharedCtx = await loadSharedContext();

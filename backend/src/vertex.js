@@ -192,7 +192,11 @@ export async function generateContent(opts = {}) {
   const body = buildRequestBody(opts);
 
   const client = await getAuthClient();
-  const res = await client.request({ url, method: 'POST', data: body });
+  // `timeout` is mandatory here, not defensive: gaxios' default is 0 (wait
+  // forever). Without it a stalled Vertex call hangs the extraction worker
+  // indefinitely while it holds the advisory lock — every later job then gets
+  // refused the lock and sits at status='running' with no error to look at.
+  const res = await client.request({ url, method: 'POST', data: body, timeout: config.vertex.timeoutMs });
 
   return parseResponse(res.data);
 }

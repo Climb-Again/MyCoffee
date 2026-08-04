@@ -31,3 +31,18 @@ test('trailing-newline key is recovered, empty clean key is not preferred', asyn
   }
   process.env = saved;
 });
+
+// The Vertex request timeout is load-bearing, not cosmetic: gaxios defaults to
+// 0 (wait forever), and a stalled Vertex call hangs the extraction worker while
+// it holds the pg advisory lock — which makes every later job silently sit at
+// status='running'. Guard the value so a typo (NaN) or a removal can't
+// reintroduce the unbounded wait.
+test('config.vertex.timeoutMs is a finite positive default and env-overridable', async () => {
+  const { config } = await freshConfig({});
+  assert.ok(Number.isFinite(config.vertex.timeoutMs), 'timeoutMs must be finite');
+  assert.ok(config.vertex.timeoutMs > 0, 'timeoutMs must be positive');
+  assert.equal(config.vertex.timeoutMs, 180000);
+
+  const { config: overridden } = await freshConfig({ VERTEX_TIMEOUT_MS: '45000' });
+  assert.equal(overridden.vertex.timeoutMs, 45000);
+});
