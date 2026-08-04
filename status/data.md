@@ -31,7 +31,132 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-04 — #26's 5-photo sample RAN against production. Findings for tuning.
+
+Job 7: `voterSet:'full'`, `limit:5`, `includeImages:false` (text-only, Radu's
+call), **5/5 photos, $0.2154** — under the ~$0.35 estimate. First LLM extraction
+this project has ever completed. Four defects had to be fixed first (see
+`status/backend.md` / git log `cdf3086`, `adafb7f`, `29116ad`), the real one
+being that `generateContent` ignored the per-voter model, so the "flash" voters
+ran on 2.5-pro with `thinkingBudget: 0` — which pro rejects outright.
+
+**What came out right** (spot-checked against the raw captions):
+- Roasters resolved via vocab: DAK Coffee Roasters, Manhattan Coffee Roasters,
+  Concept Coffee Roasters.
+- Origins: Colombia (×3), Brazil (×1).
+- Ratings: 4.0 / 4.2 / 4.3 from `4/5`, `4.2/5`, `4.3/5`.
+- Prices: 75.00 / 60.00 / 140.00 RON. Weights: 250 g where `250gr` appeared.
+- Altitude 1800 m from `Altitude: 1800 masl`.
+- `roasted_on` = 2026-06-08 parsed from the Romanian `Data de prăjire: 8 Iunie
+  2026` — the localized date path works.
+- A caption containing only `4.3/5` yielded exactly one field and adjudicated
+  `clean`. Correct restraint, no invention.
+
+**Accuracy gaps worth fixing in the tuning pass — do not treat as done:**
+1. **`is_decaf` missed.** The Manhattan record is titled `El Vergel (Decaf)`,
+   lists `Procesare: Anaerob, Decaf` and `DECAFFEINATED`, yet `is_decaf` is
+   `false`. Decaf is tracked orthogonally to `profile` (PLAN.md pushback #3), so
+   this is a prompt/field gap, not a vocabulary one.
+2. **`profile` never resolved (all 5).** The seeded profiles are Washed /
+   Natural / Anaerobic / Co-fermented / Experimental, but the corpus says
+   **Honey** (×2), `Double Anaerobic`, `Co-Fermentata cu fructe`, `Experimental
+   Washed`. **`Honey` is missing from the vocabulary entirely** and the
+   multi-value cases ("Co-fermented *and* Honey") don't fit one `profile_id`.
+   Decide: add `Honey` (+ maybe `Honey/Anaerobic` combinations) to `profiles`,
+   or model process as multi-valued.
+3. **`price_eur` is NULL on every priced record**, so price filters/insights
+   will be blank in the app. Cause is *not* the extraction: `fx_rates` is
+   **empty in production**. `ops/fx_rates_seed.sql` is deliberately applied by
+   hand (`psql -f`) and is not in the migration chain — and it has never been
+   run against Railway. The 1510-row seed was only ever verified against a
+   local Postgres. Fix is one of: promote the seed to a migration (the
+   direction is anchor-verified, so the original "don't let a wrong guess reach
+   price_eur silently" concern is largely addressed), or run the psql by hand
+   against Railway.
+4. **`Radical Coffee` didn't resolve** even though the vocabulary *does* contain
+   `Radical Coffee` and the caption says `Radical Coffee Roasters` — the
+   longer "… Roasters" form appears not to match the seeded alias. Worth an
+   alias pass over `roaster_aliases` for the `X` / `X Roasters` pattern.
+5. `roaster_country_id` is NULL on all resolved roasters — the seeded roasters
+   have no `country_id`, so the denormalization has nothing to copy.
+6. `origin_farm_id` is `no_candidates` ×4 — expected (farm vocab is seeded from
+   review, not up front), listed so it isn't mistaken for a regression.
+
+23 review items were opened across the 5 records, which is the
+vocabulary-confirmation queue #25 was built to produce.
+
+**Next step is Radu's, not a lane's:** he judges accuracy, then the 25-record
+tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
+
 ## Done
+
+- [2026-08-04] #25 — **`backend/src/lib/deterministic.js` (P3 "rules" voter) +
+  `test/deterministic.test.js`** (180/180 green, up from 178). Implements the
+  `{agent:'rules', provider:'rules', run(ctx)}` contract `agents.js`'s
+  `loadRulesVoter()` already expected. Two strategies, matching how
+  `adjudicate.js`'s `canonicalize()` re-derives a value from whatever raw
+  string a voter proposes:
+  - **altitude/price/weight/rating/profile** — `normalize.js`'s parsers
+    already scan arbitrary free text for their own markers, and
+    `canonicalize()` re-runs the identical parser on this voter's raw value,
+    so this module only decides *whether* a field fired (by calling the
+    parser once itself) and hands the raw caption straight through when it did.
+    **Found and fixed a real bug in this pass, not a pre-existing one**:
+    `parsePrice`/`parseRating` both have a low-confidence *bare-number*
+    fallback branch ("never silent" per PLAN.md §2) designed for a
+    narrowly-scoped value a caller already believes is a price/rating —
+    scanning a *whole caption* with that fallback grabs the first unrelated
+    digit it finds (a date, an altitude) as a fake price/rating. Fixed by
+    gating price/rating proposals on the field's own explicit marker
+    (currency symbol/code, or "/5"/"⭐") before ever calling the parser;
+    caught by an end-to-end run against a real local Postgres 16 (see below),
+    not by the unit tests alone — regression cases now in
+    `deterministic.test.js`.
+  - **roaster_id/origin_country_ids/origin_farm_id** — `canonicalize()`
+    resolves these via `resolveVocab()`, an EXACT `alias_norm` lookup on the
+    *whole* raw value, not a substring scan. So this module scans the caption
+    itself (`findAliasMentions`, diacritic-folded, word-boundary-safe even for
+    3-letter aliases like `DAK`) and proposes only the matched substring.
+    Origin is multi-valued (joins every distinct *is_origin* mention,
+    `"Colombia / Brazil"`, for `resolveOriginCountries` to re-split
+    downstream); roaster is single-valued and refuses to guess when two
+    *different* roasters tie at the same match specificity (mirrors the
+    mandatory `Kofio`/`Kolibri` and `Father's Coffee Roastery`/`Father
+    Carpenter` negative cases, now also covered at this text-scanning layer).
+    Farms have no seed vocabulary at all (PLAN.md §1: "derived from the data,
+    approved in review") — `extractFarmField` still proposes a candidate
+    whenever a `parseFarm`-recognised prefix (`Finca …`, `Producer: …`, …) is
+    present, so Phase 0 also seeds the *farm* review queue from $0, not just
+    roaster/country.
+  - **Verified end-to-end against a real local Postgres 16** (all 11
+    migrations applied cleanly), not just unit tests: ran `runWorker({voters:
+    [rulesVoter]})` (the same `voterSet: 'rules_only'` path
+    `POST /api/admin/jobs` already exposes, per `routes/admin.js`) against two
+    hand-inserted photos. Confirmed (a) a clean roaster+origin mention lands
+    in `review_items` with reason `below_threshold` and clean candidate values
+    (`"Kolibri"`, `"Ethiopia"`) — the actual vocabulary-confirmation UX #25
+    asks for; (b) a `Finca …` mention correctly seeds `origin_farm_id` as
+    `no_candidates` (farm vocab is empty, as expected, not a bug); (c) after
+    the price/rating fix, a caption with a date and an altitude range but no
+    real price/rating proposes neither, while one with a real `"lei"`/`"/5"`
+    marker still resolves correctly alongside those same unrelated digits.
+  - **Not run against production.** `/api/admin/jobs` on the live Railway
+    backend shows zero jobs and `GET /api/coffees` shows `total: 0` — the
+    worker has never run against the 28 real photos #20 uploaded, so this
+    genuinely would be the first-ever Phase 0 pass over real data once it
+    ships. It hasn't shipped: **this branch (`claude/peaceful-mccarthy-kix48i`)
+    is not `main`**, same structural issue this file's own 2026-08-01
+    correction above describes for `rwi2ql` — the outer harness restricts
+    this session's `git push` to its own assigned branch, so `main`
+    (`origin/main` at `0ad0023`, dated 2026-07-29) does not move until an
+    authorized session merges this branch in. Until that happens, **`#25`
+    stays `claimed`, not `done`, in `BACKLOG.md`** (`status/README.md`: "done
+    means on the shared branch") and `#26` stays `blocked` — running the real
+    5-photo LLM sample (#26) needs this code live on Railway first, and no
+    LLM spend happens in this session regardless (Radu's spend gate: rules is
+    free, the 5-photo sample needs his go-ahead after seeing #25 confirmed on
+    real data, which requires the merge first). — branch
+    `claude/peaceful-mccarthy-kix48i`, HEAD after this work.
 
 - [2026-07-31 07:30 UTC] #12 + #13 + #34 — **consolidated onto `main`** from three
   stranded fired-session branches that each redid the same work in isolation because

@@ -161,3 +161,35 @@ test('parseResponse() handles a missing candidate/usage gracefully', () => {
     thoughtsTokenCount: undefined,
   });
 });
+
+// Regression: the first real extraction run failed on every photo with
+// "The model does not support setting thinking_budget to 0". Cause was that
+// generateContent ignored the caller's model and always used
+// config.vertex.model (2.5-pro), so the voters labelled 2.5-flash — the only
+// ones allowed to disable thinking — were actually sent to pro with
+// thinkingBudget: 0. buildRequestBody must keep honouring an explicit 0 (it is
+// a real cost saver on flash); the model selection and the pro guard live in
+// generateContent, which needs the network. What is assertable here is that a
+// 0 budget is still expressed faithfully for the flash case.
+test('buildRequestBody keeps an explicit thinkingBudget of 0 (valid on flash)', () => {
+  const body = buildRequestBody({ prompt: 'x', thinkingBudget: 0 });
+  const cfg = body.generationConfig ?? {};
+  assert.ok('thinkingConfig' in cfg, 'thinkingConfig should be present for an explicit 0');
+  assert.equal(cfg.thinkingConfig.thinkingBudget, 0);
+});
+
+test('buildRequestBody omits thinkingConfig when no budget is given', () => {
+  const body = buildRequestBody({ prompt: 'x' });
+  const cfg = body.generationConfig ?? {};
+  assert.ok(!('thinkingConfig' in cfg), 'no thinkingConfig unless asked for');
+});
+
+// Text-only mode (no image part) must still produce a valid request: the
+// sample run extracts from the caption alone.
+test('buildRequestBody with no images produces a text-only parts array', () => {
+  const body = buildRequestBody({ prompt: 'caption text', images: [] });
+  const parts = body.contents[0].parts;
+  assert.equal(parts.length, 1);
+  assert.ok(parts[0].text.includes('caption text'));
+  assert.ok(!parts.some((p) => p.inlineData), 'no inlineData without images');
+});

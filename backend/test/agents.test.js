@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FIELD_KEY_MAP,
+  PROMPT_VERSION,
   EXTRACT_RESPONSE_SCHEMA,
   buildExtractPrompt,
   buildCriticPrompt,
@@ -115,4 +116,21 @@ test('estimateCostUsd uses per-model rates and counts thinking tokens as output'
   assert.equal(pro, 1.25 + 10); // 1M input @ $1.25/MTok + 1M "output" (thinking) @ $10/MTok
   assert.equal(estimateCostUsd('unknown-model', { promptTokenCount: 1000 }), 0);
   assert.equal(estimateCostUsd('gemini-2.5-pro', null), 0);
+});
+
+// The #26 sample showed `profile` being filled with the roast type ("Filtru")
+// or the tasting notes ("Ciocolata Neagra, Visine") because the checklist only
+// said "- profile: the value as written". The prompt must state which of the
+// caption's three "profil"-ish labels it means.
+test('the extract prompt defines profile as the processing method, not roast type or notes', () => {
+  const { prompt } = buildExtractPrompt('extract_a', { rawText: 'x', vocabShortlist: [] });
+  assert.match(prompt, /PROCESSING METHOD/i);
+  assert.match(prompt, /Procesare/, 'names the Romanian source label');
+  assert.match(prompt, /NOT the roast type/i);
+  assert.match(prompt, /Profil Prajire/, 'names the roast-type label it must not use');
+  assert.match(prompt, /tasting notes/i);
+});
+
+test('PROMPT_VERSION is past v1 so v1-cached extractions are not reused', () => {
+  assert.notEqual(PROMPT_VERSION, 'v1');
 });

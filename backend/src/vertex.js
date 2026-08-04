@@ -183,16 +183,38 @@ export function parseResponse(data) {
 export async function generateContent(opts = {}) {
   const { projectId } = loadCredentials();
   const region = config.vertex.region || 'us-central1';
-  const model = config.vertex.model || 'gemini-2.5-pro';
+  // Honour the caller's model. This used to always use config.vertex.model, so
+  // every extraction voter ran on 2.5-pro even though agents.js labels
+  // extract_b/critic as 2.5-flash — and because only *flash* can disable
+  // thinking, their `thinkingBudget: 0` made Vertex reject the request with
+  // "The model does not support setting thinking_budget to 0", failing every
+  // photo. The per-voter model was being recorded for bookkeeping but never
+  // actually requested.
+  const model = opts.model || config.vertex.model || 'gemini-2.5-pro';
+
+  // Belt and braces: a 2.5-pro model cannot disable thinking at all, so a
+  // budget of 0 is a hard 400 rather than a hint. Drop it instead of failing,
+  // so a VERTEX_MODEL override can't resurrect that exact outage.
+  const effectiveOpts =
+    opts.thinkingBudget === 0 && /pro/i.test(model) ? { ...opts, thinkingBudget: undefined } : opts;
 
   const url =
     `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}` +
     `/locations/${region}/publishers/google/models/${model}:generateContent`;
 
-  const body = buildRequestBody(opts);
+  const body = buildRequestBody(effectiveOpts);
 
   const client = await getAuthClient();
-  const res = await client.request({ url, method: 'POST', data: body });
+  // `timeout` is mandatory here, not defensive: gaxios' default is 0 (wait
+  // forever). Without it a stalled Vertex call hangs the extraction worker
+  // indefinitely while it holds the advisory lock — every later job then gets
+  // refused the lock and sits at status='running' with no error to look at.
+  const res = await client.request({
+    url,
+    method: 'POST',
+    data: body,
+    timeout: opts.timeoutMs ?? config.vertex.timeoutMs,
+  });
 
   return parseResponse(res.data);
 }

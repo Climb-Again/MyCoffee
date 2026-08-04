@@ -30,8 +30,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 22 | ios-shell | 2 | done    | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox — `RemoteCoffeeRepository` is `CoffeeStore`'s default; found and fixed two real wire-format bugs (`Country`'s `iso2`/`kind` columns, `NUMERIC` columns arriving as JSON strings). See `status/ios-shell.md` for detail + two flagged follow-ups (UX view-wiring for the heart tap / detail-fetch / `ImageStore`; a backend batch-media-URL endpoint for bulk thumbnail prefetch) |
 | 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
 | 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
-| 25 | data      | 3 | ready   | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
-| 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
+| 25 | data      | 3 | done    | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation — `src/lib/deterministic.js` + tests **MERGED to `main` 2026-08-04** (180/180 green). Includes the `parsePrice`/`parseRating` bare-number-fallback fix (see `status/data.md`) |
+| 26 | data      | 4 | human   | 25 | **5-photo sample RAN 2026-08-04** (job 7, text-only, 5/5 photos, **$0.2154**) — fields reported to Radu. **Awaiting his accuracy verdict before the 25-record tuning run**; per the spend gate no lane may proceed to tuning/backfill without it. Findings in `status/data.md` |
 | 27 | ios-ux    | 5 | done    | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules — see `status/ios-ux.md`. Runs against a local sample fixture; the real `GET /api/review` feed needs a `CoffeeStore`/`APIClient` surface the shell lane hasn't added yet (flagged in both lane files) |
 | 28 | ios-ux    | 5 | done    | 22 | Insights (with statistical gates) + roaster and country pages — see `status/ios-ux.md` |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
@@ -44,6 +44,16 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🔀 2026-08-04 (ios-shell lane, merging `main` into `ios-staging`) — reconciled a
+second branch-divergence, same shape as the `#27` one below.** `ios-staging` had
+`#22`/`#27`/`#28` (iOS) done but only knew `main`'s older state for `#25`/`#26`
+(showed `ready`/`blocked`); `main` had `#25` done and `#26` promoted to `human`
+(Radu's 5-photo verdict pending) but only knew `#22` as `ready` and `#27`/`#28` as
+`blocked` (ios-staging doesn't push to `main`, so `main` never saw the iOS lane's
+work land). The table above now reflects both halves: `22/25/27/28` done, `26`
+human. No new code in this reconciliation — same "each branch is stale about the
+other's lane" pattern `status/README.md` calls out, not a regression.
 
 **🟢 2026-08-04 (ios-ux lane, later same session) — `#27` is DONE.** Review
 queue built in full against a local sample fixture (`ReviewSampleData`):
@@ -92,6 +102,36 @@ Two follow-ups flagged, not done in this session because they're outside
   media-URL endpoint doesn't exist. `ImageStore` is built and ready once one
   does; not guessing its shape here, same as the backend lane's own note
   below about this exact gap.
+
+**✅ 2026-08-04 (authorized session) — `claude/peaceful-mccarthy-kix48i` is MERGED.**
+The stranded #25 work below is now on `main` (clean fast-forward, `npm test`
+180/180 re-verified post-merge). `#25`→`done`, `#26`→`ready`. Radu explicitly
+authorized the 5-photo LLM sample (spend-gate step 2), so the Phase-0 rules pass
+($0) and then the 5-photo sample are being run against the real 28 photos in this
+session. The "needs an authorized session to merge" ask below is now SATISFIED —
+don't act on it again.
+
+**🟡 2026-08-04 (data lane) — #25's code is done, but not yet on `main`.**
+`backend/src/lib/deterministic.js` (the P3 "rules" voter) + tests landed and
+were verified end-to-end against a real local Postgres 16 — see
+`status/data.md` for the full writeup, including a real bug this pass found
+and fixed (`parsePrice`/`parseRating`'s bare-number fallback grabbing an
+unrelated digit — a date, an altitude — out of free text when nothing else in
+the caption looked like a price or rating). **Left `#25` at `claimed`, not
+`done`** — this session's `git push` is restricted to its own branch
+(`claude/peaceful-mccarthy-kix48i`), which is not `main` (`origin/main` is
+still `0ad0023`, from 2026-07-29, well behind even this file's own account of
+what's landed). Per `status/README.md`'s "done means on the shared branch"
+rule, `#25` can't be marked `done` and `#26` can't unblock until an authorized
+session merges `claude/peaceful-mccarthy-kix48i` into `main` — the same
+structural gap `status/data.md`'s 2026-08-01 correction already documented for
+`rwi2ql`. **Nothing has been run against production**: the live Railway
+backend's `/api/admin/jobs` is empty and `GET /api/coffees` reports
+`total: 0` — the worker has genuinely never touched the 28 real photos #20
+uploaded, so the actual Phase 0 pass over real data — and any LLM spend under
+#26 — waits on this merge. Whoever can push to `main`: fast-forward/merge
+`claude/peaceful-mccarthy-kix48i`, confirm `npm test` (180/180) and the
+Railway deploy, then flip `#25`'s row to `done` and `#26` to `ready`.
 
 **🟢 2026-08-04 (later same day, backend lane) — #24 is DONE.** Migrations
 `010_extractions`/`011_resolutions` + `src/lib/adjudicate.js` (pure

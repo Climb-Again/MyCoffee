@@ -67,15 +67,34 @@ export function findRateForDate(rows, currency, dateStr) {
 // { amount, currency, date } -> EUR, using the rate that applied when the
 // coffee was actually bought — never today's rate (PLAN.md §1: a flat rate
 // misprices a 2015 RON purchase by ~11%).
+// Last-resort rates, used only when no dated ECB row covers the purchase.
+// Radu's call: a price that exists must convert, so an approximate EUR figure
+// beats a NULL that blanks out every price filter and insight in the app. RON
+// at 5.2/EUR is his stated fallback. `fxRatePeriod: null` is the tell that a
+// row was converted this way rather than from a dated rate — real rates always
+// carry their period — so these are findable later if the seed lands.
+export const FALLBACK_RATES_TO_EUR = {
+  RON: 1 / 5.2,
+};
+
 export function toEur({ amount, currency, date }, rows) {
   if (typeof amount !== 'number') return null;
   if (currency === 'EUR') return { priceEur: amount, fxRate: 1, fxRatePeriod: null };
 
   const match = findRateForDate(rows, currency, date);
-  if (!match) return null;
+  if (match) {
+    return {
+      priceEur: Math.round(amount * match.rateToEur * 100) / 100,
+      fxRate: match.rateToEur,
+      fxRatePeriod: match.period,
+    };
+  }
+
+  const fallback = FALLBACK_RATES_TO_EUR[currency];
+  if (fallback == null) return null;
   return {
-    priceEur: Math.round(amount * match.rateToEur * 100) / 100,
-    fxRate: match.rateToEur,
-    fxRatePeriod: match.period,
+    priceEur: Math.round(amount * fallback * 100) / 100,
+    fxRate: fallback,
+    fxRatePeriod: null,
   };
 }
