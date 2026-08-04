@@ -81,6 +81,51 @@ export const config = {
     region: str('VERTEX_AI_REGION', 'us-central1'),
     model: str('VERTEX_MODEL', 'gemini-2.5-pro'),
   },
+
+  // Adjudication + worker tuning (PLAN.md §2). Kept here rather than in a
+  // migration so thresholds are "tunable without a migration" —
+  // re-adjudicating the whole corpus after a tweak costs $0 (adjudicate.js
+  // reads only stored `field_candidates` rows).
+  extraction: {
+    // Per-field acceptance threshold on the *decided* confidence — below
+    // this, a field goes to the review queue even if voters agreed
+    // unanimously.
+    fieldThresholds: {
+      profile: 0.90,
+      price: 0.90,
+      weight_g: 0.90,
+      rating: 0.90,
+      roaster_id: 0.85,
+      origin_country_ids: 0.85,
+      origin_farm_id: 0.80,
+      altitude: 0.75,
+      roasted_on: 0.70,
+      desc_farm_lot: 0,
+      desc_brew_guide: 0,
+      desc_roaster_copy: 0,
+    },
+    defaultThreshold: 0.85,
+    // P3 (rules) carries 1.5x weight on numeric/unit fields -- it's better
+    // than any LLM at exactly these -- and 0 on prose, which it never attempts.
+    ruleVoterWeight: 1.5,
+    ruleVoterWeightedFields: ['altitude', 'price', 'weight_g', 'rating', 'roasted_on'],
+    ruleVoterProseFields: ['desc_farm_lot', 'desc_brew_guide', 'desc_roaster_copy'],
+    singleVoterPenalty: 0.7,
+    unanimousMinConfidence: 0.75,
+    acceptShareThreshold: 0.60,
+    // A prose cluster's boundary spread wider than this forces review even
+    // when voters otherwise agree (PLAN.md §2 point 6).
+    proseSpreadReviewChars: 80,
+    // Bumped by the data lane when the vocabulary changes meaningfully
+    // enough that a stored extraction should be treated as a new question.
+    vocabVersion: int('EXTRACTION_VOCAB_VERSION', 1),
+    worker: {
+      advisoryLockKey: 48201976,
+      leaseMinutes: 10,
+      concurrency: 2,
+      backoffSeconds: [2, 5, 15, 45, 120],
+    },
+  },
 };
 
 export function isProd() {
