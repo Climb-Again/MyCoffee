@@ -99,24 +99,88 @@ export function isConfigured() {
 }
 
 /**
- * Generate content with a Vertex Gemini model.
+ * Build the Vertex `generateContent` request body. Pure — no network, no auth —
+ * so request shaping is unit-testable on its own.
  *
  * @param {object} opts
  * @param {string} opts.prompt   - user prompt text
  * @param {string} [opts.system] - optional system instruction
+ * @param {Array<{mimeType: string, dataBase64: string}>} [opts.images] - inline images,
+ *   appended as `inlineData` parts after the text part
  * @param {number} [opts.maxOutputTokens] - default 8192. Gemini 2.5 is a *thinking*
  *   model; too-low a cap yields empty output, so keep this >= 8192.
  * @param {number} [opts.temperature] - default 0.7
  * @param {boolean} [opts.json] - request application/json responses
- * @returns {Promise<{ text: string, raw: object }>}
+ * @param {object} [opts.responseSchema] - JSON Schema for schema-constrained output.
+ *   Implies `responseMimeType: 'application/json'`. Vertex rejects `minimum`/
+ *   `maximum`/`minLength`/recursive schemas — range validation stays in
+ *   `src/lib/normalize.js`; enums are enforceable and should be used.
+ * @param {number} [opts.thinkingBudget] - 0 disables thinking (a cost lever for
+ *   the flash extractor); omit to use the model default.
+ * @returns {object}
  */
-export async function generateContent({
+export function buildRequestBody({
   prompt,
   system,
+  images = [],
   maxOutputTokens = 8192,
   temperature = 0.7,
   json = false,
+  responseSchema,
+  thinkingBudget,
 } = {}) {
+  const parts = [
+    { text: prompt },
+    ...images.map(({ mimeType, dataBase64 }) => ({
+      inlineData: { mimeType, data: dataBase64 },
+    })),
+  ];
+
+  const body = {
+    contents: [{ role: 'user', parts }],
+    generationConfig: {
+      maxOutputTokens,
+      temperature,
+      ...(json || responseSchema ? { responseMimeType: 'application/json' } : {}),
+      ...(responseSchema ? { responseSchema } : {}),
+      ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
+    },
+  };
+  if (system) {
+    body.systemInstruction = { parts: [{ text: system }] };
+  }
+  return body;
+}
+
+/**
+ * Parse a Vertex `generateContent` response into the shape callers need.
+ * Pure — no network — so response parsing is unit-testable on its own.
+ *
+ * @param {object} data - the raw response body
+ * @returns {{ text: string, usage: object, finishReason: string|undefined, raw: object }}
+ */
+export function parseResponse(data) {
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+  const finishReason = data?.candidates?.[0]?.finishReason;
+  const { promptTokenCount, candidatesTokenCount, thoughtsTokenCount } =
+    data?.usageMetadata || {};
+
+  return {
+    text,
+    usage: { promptTokenCount, candidatesTokenCount, thoughtsTokenCount },
+    finishReason,
+    raw: data,
+  };
+}
+
+/**
+ * Generate content with a Vertex Gemini model. See `buildRequestBody` for the
+ * request options this accepts.
+ *
+ * @returns {Promise<{ text: string, usage: object, finishReason: string|undefined, raw: object }>}
+ */
+export async function generateContent(opts = {}) {
   const { projectId } = loadCredentials();
   const region = config.vertex.region || 'us-central1';
   const model = config.vertex.model || 'gemini-2.5-pro';
@@ -125,24 +189,10 @@ export async function generateContent({
     `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}` +
     `/locations/${region}/publishers/google/models/${model}:generateContent`;
 
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      maxOutputTokens,
-      temperature,
-      ...(json ? { responseMimeType: 'application/json' } : {}),
-    },
-  };
-  if (system) {
-    body.systemInstruction = { parts: [{ text: system }] };
-  }
+  const body = buildRequestBody(opts);
 
   const client = await getAuthClient();
   const res = await client.request({ url, method: 'POST', data: body });
-  const data = res.data;
 
-  const text =
-    data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
-
-  return { text, raw: data };
+  return parseResponse(res.data);
 }

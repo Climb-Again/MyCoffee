@@ -25,14 +25,14 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **merged to `main`, compile-green** (run #18, `29c1def`) |
 | 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **merged to `main`, compile-green** (run #18) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
-| 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — implemented + unit-tested (29/29); the on-Mac 20-photo gate (PLAN.md §8) is still owed, no Mac in this sandbox |
+| 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — unit-tested (29/29) **AND the on-Mac §8 gate PASSED 2026-08-04**: Radu ran it on the real "coffees" album, 28 photos uploaded, dedupe-on-rerun verified (`0 need an image upload`). Backfill continues as iCloud originals finish downloading |
 | 21 | backend   | 2 | done    | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` — verified end-to-end against a local Postgres (insert → generated columns → `GET /api/snapshot`/`/api/coffees/:id`/`top-filters`/favorite all 200 with real data) |
 | 22 | ios-shell | 2 | done    | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox — `RemoteCoffeeRepository` is `CoffeeStore`'s default; found and fixed two real wire-format bugs (`Country`'s `iso2`/`kind` columns, `NUMERIC` columns arriving as JSON strings). See `status/ios-shell.md` for detail + two flagged follow-ups (UX view-wiring for the heart tap / detail-fetch / `ImageStore`; a backend batch-media-URL endpoint for bulk thumbnail prefetch) |
-| 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
-| 24 | backend   | 3 | blocked | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
-| 25 | data      | 3 | blocked | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
+| 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
+| 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
+| 25 | data      | 3 | ready   | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
-| 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
+| 27 | ios-ux    | 5 | ready   | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules — unblocked: `#22` (ios-shell) and `#24` (backend) both landed on their respective branches; merging `main` into `ios-staging` is what surfaces this |
 | 28 | ios-ux    | 5 | done    | 22 | Insights (with statistical gates) + roaster and country pages — see `status/ios-ux.md` |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
 | 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
@@ -45,6 +45,14 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
+**🟢 2026-08-04 (ios-ux lane, merging `main` into `ios-staging`) — `#27` flipped `blocked`→`ready`.**
+Each branch only knew half the picture: `ios-staging` had `#22` (ios-shell) done
+but still carried a stale `blocked` for backend's `#23`/`#24`/`#25`; `main` had
+`#23`/`#24` done but still showed `#22` as merely `ready` (ios-shell doesn't push
+to `main`, so `main` never saw it land). `#27`'s `needs` are `22, 24` — both are
+in fact done once the two branches are reconciled — so this merge is what
+surfaces `#27` as this lane's next row, not new work by either lane individually.
+
 **#22 is DONE (2026-08-01, ios-shell session)** — `RemoteCoffeeRepository` +
 `SyncEngine` + `MutationOutbox` + `ImageStore` land, delta-syncing
 `/api/snapshot` and persisting to disk; `CoffeeStore`'s default repository is
@@ -52,7 +60,9 @@ now the real one, not `SampleCoffeeRepository`. Full detail + two real
 wire-format bugs found and fixed (`Country`'s `iso2`/`kind` columns vs.
 `isoCode`/`isPseudo`; Postgres `NUMERIC` columns arriving as JSON strings, not
 bare numbers) in `status/ios-shell.md`. Unblocks **#28** (ios-ux), flipped
-`blocked`→`ready` above; **#27** stays `blocked` (still needs #24).
+`blocked`→`ready` above; **#27** stayed `blocked` at the time (still needed
+`#24`, which was only `blocked` on `main` as of this ios-shell session — see
+the 2026-08-04 note at the top of this section for the merge that resolved it).
 
 Two follow-ups flagged, not done in this session because they're outside
 `ios-shell`'s owned paths or backend-owned:
@@ -62,11 +72,42 @@ Two follow-ups flagged, not done in this session because they're outside
   in `CoffeeRowView.swift` has no tap gesture, and `CoffeeDetailView.swift`
   never fetches the detail payload that carries real notes/images (the
   compact snapshot doesn't). Both store methods exist and are ready to call.
+  **Resolved** in the 2026-08-02 ios-ux session below (`Thumbnail.swift` now
+  uses `ImageStore`, the heart has a tap target, detail fetches on appear).
 - **Backend**: the compact snapshot has no per-row image URL, so bulk
   thumbnail prefetch (PLAN.md §5) has nothing to prefetch from yet — a batch
   media-URL endpoint doesn't exist. `ImageStore` is built and ready once one
   does; not guessing its shape here, same as the backend lane's own note
   below about this exact gap.
+
+**🟢 2026-08-04 (later same day, backend lane) — #24 is DONE.** Migrations
+`010_extractions`/`011_resolutions` + `src/lib/adjudicate.js` (pure
+deterministic adjudication) + `src/lib/agents.js` (the 4 LLM voters) +
+`src/lib/worker.js` (the SIGTERM-safe claim-with-lease loop) +
+`routes/review.js` + `routes/admin.js` all landed on `main`, verified
+end-to-end against a real local Postgres using fake no-network voters (no
+live Vertex spend -- that stays gated behind the data lane's spend protocol
+below). See `status/backend.md` for full detail, including the one deliberate
+scope gap (the "provisional pass while still awaiting_text" nuance from
+PLAN.md §3 isn't implemented yet -- only `text_received`/deadline-passed
+photos are claimed). **`#25` (data) flipped `blocked`→`ready`** — its own gate
+(Radu's spend protocol below) still applies before any real LLM run.
+P3 (rules) is intentionally absent: `agents.js`'s `loadRulesVoter()` dynamically
+imports the data lane's `src/lib/deterministic.js` and simply runs without it
+if that file doesn't exist yet, so `#25` can add it without any backend-side
+coordination -- the only contract is a `{agent:'rules', provider:'rules',
+run(ctx) => Promise<{fields, usage, costUsd}>}` voter object.
+
+**🟢 2026-08-04 — the on-Mac §8 photo gate has RUN AND PASSED (Radu, real Mac).**
+The exporter ran against the real "coffees" Photos album: 28 originals uploaded to
+`POST /api/photos/manifest` + `PUT /api/photos/:sourceId/image`, and a second run
+returned `0 need an image upload` (dedupe verified). This is the gate the backend
+lane had been holding `#23`/`#24` on ("blocked on purpose per §8"). **That block is
+now lifted: `#23` flipped `blocked`→`ready`.** Backend lane: `#23` (extend
+`vertex.js`) is your next row; finishing it unblocks `#24` (worker/agents), which
+unblocks `#25` (the first extraction pass — which has its own 5-photo spend gate in
+`#26` before any real spend). More photos keep arriving as Radu's iCloud originals
+finish downloading and he re-runs the exporter (idempotent).
 
 **#20 is DONE** (2026-08-02, data lane session) — `ops/mycoffee_export.py`, the
 two-phase Mac exporter + uploader against `POST /api/photos/manifest` +
