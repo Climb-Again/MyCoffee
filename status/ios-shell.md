@@ -8,6 +8,19 @@ _none_
 
 ## Done
 
+- [2026-08-04 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17 and #22, both `done`. The only other iOS-adjacent row, #27
+  (ios-ux, phase 5), needs #22 (done) + #24 (backend, still `blocked` on #23
+  — unstarted). Fetched all `origin/claude/*` branches (34 candidates,
+  including this session's own `claude/wizardly-thompson-0g9i90`) and swept
+  each with `git rev-list --count origin/ios-staging..<branch> --
+  ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities} ios/project.yml`
+  per the integrate-before-you-start rule: every one shows `0` commits ahead
+  in this lane's owned paths — nothing stranded to adopt. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts — just backend's
+  latest session-check commit) before stopping. Stopping cleanly rather
+  than inventing work or touching UX-owned paths.
+
 - [2026-08-03 UTC] Session check — no ready `ios-shell` row. Only ios-shell
   rows are #17 and #22, both `done`. `#27` (ios-ux, phase 5) needs #22 (done)
   + #24 (backend, still `blocked` on #23, which is unstarted). Swept every
