@@ -86,6 +86,9 @@ export default async function adminRoutes(app) {
     const spendCapUsd = req.body?.spendCapUsd != null ? Number(req.body.spendCapUsd) : null;
     const limit = req.body?.limit != null ? Math.max(1, Math.min(1000, Number(req.body.limit))) : 20;
     const voterSet = req.body?.voterSet === 'rules_only' ? 'rules_only' : 'full';
+    // Text-only pass: skip the image part entirely and extract from the caption.
+    // Defaults to including images, so this only happens when asked for.
+    const includeImages = req.body?.includeImages === false ? false : true;
 
     const { rows } = await query(
       `INSERT INTO extraction_jobs (status, voter_set, spend_cap_usd) VALUES ('running', $1, $2) RETURNING *`,
@@ -97,7 +100,7 @@ export default async function adminRoutes(app) {
 
     // Fire-and-forget: a full run is up to ~5 hours (PLAN.md §2). The route
     // returns immediately; poll GET /api/admin/jobs for progress.
-    runWorker({ voters, limit, spendCapUsd, jobId: job.id, log: req.log }).catch((err) => markJobFailed(job.id, err));
+    runWorker({ voters, limit, spendCapUsd, jobId: job.id, includeImages, log: req.log }).catch((err) => markJobFailed(job.id, err));
 
     return reply.code(202).send(toJobJson(job));
   });

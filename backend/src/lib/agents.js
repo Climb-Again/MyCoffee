@@ -227,6 +227,7 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
   const model = 'gemini-2.5-pro';
   const { system, prompt } = buildExtractPrompt('extract_a', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
+    model,
     system,
     prompt,
     images,
@@ -248,6 +249,7 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
   const model = 'gemini-2.5-flash';
   const { system, prompt } = buildExtractPrompt('extract_b', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
+    model,
     system,
     prompt,
     images,
@@ -273,6 +275,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
   const model = 'gemini-2.5-flash';
   const { system, prompt } = buildCriticPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
+    model,
     system,
     prompt,
     images,
@@ -295,6 +298,7 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
   const model = 'gemini-2.5-pro';
   const { system, prompt } = buildReconcilerPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
+    model,
     system,
     prompt,
     images,

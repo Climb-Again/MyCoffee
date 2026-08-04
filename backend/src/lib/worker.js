@@ -474,10 +474,16 @@ export async function adjudicateAndApply(photo, photoText, sharedCtx) {
 
 // One photo, start to finish: run every voter (reusing any already-paid-for
 // extraction by input_sha), then hand off to adjudicateAndApply().
-export async function processPhoto(photo, voters, sharedCtx) {
+// `includeImages: false` runs the voters on the caption text alone, with no
+// image part in the request. The captions scraped into photo_texts already
+// carry roaster/origin/process/altitude/price for most records, so a text-only
+// pass is much cheaper and is the right shape for a sample run. It changes
+// `input_sha` (imageSha drops out), so a text-only extraction is never confused
+// with a cached vision one.
+export async function processPhoto(photo, voters, sharedCtx, { includeImages = true } = {}) {
   const photoText = await fetchLatestText(photo.id);
   const rawText = buildRawText(photo, photoText);
-  const image = await fetchImageBuffer(photo);
+  const image = includeImages ? await fetchImageBuffer(photo) : null;
   const vocabShortlist = (sharedCtx.vocab.roasters.candidates ?? []).slice(0, 50).map((r) => r.name);
 
   let spentUsd = 0;
@@ -535,7 +541,7 @@ export async function processPhoto(photo, voters, sharedCtx) {
 // redeploy overlap never runs two workers at once; `jobId` (an
 // `extraction_jobs` row) is optional and only used for progress/pause
 // tracking from `POST /api/admin/jobs`.
-export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, workerId, log = console } = {}) {
+export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, workerId, includeImages = true, log = console } = {}) {
   const lockClient = await pool.connect();
   let locked = false;
   try {
@@ -589,7 +595,7 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
 
       const results = await runWithConcurrency(batch, config.extraction.worker.concurrency, async (photo) => {
         try {
-          return await processPhoto(photo, resolvedVoters, sharedCtx);
+          return await processPhoto(photo, resolvedVoters, sharedCtx, { includeImages });
         } catch (err) {
           log.error?.(`[worker] photo ${photo.id} failed: ${err.message}`);
           // Also persist it: a per-photo failure used to exist ONLY in the
