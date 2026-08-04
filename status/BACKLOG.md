@@ -25,10 +25,10 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 17 | ios-shell | 0 | done    | — | Models, `CoffeeIndex`, filters/facets/bands, sample repo — **merged to `main`, compile-green** (run #18, `29c1def`) |
 | 18 | ios-ux    | 0 | done    | 17 | Design system + listing + filter sheet + sort + detail — **merged to `main`, compile-green** (run #18) |
 | 19 | backend   | 1 | done    | 11 | Migration 007 + images/media libs + `routes/photos.js` |
-| 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — implemented + unit-tested (29/29); the on-Mac 20-photo gate (PLAN.md §8) is still owed, no Mac in this sandbox |
+| 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — unit-tested (29/29) **AND the on-Mac §8 gate PASSED 2026-08-04**: Radu ran it on the real "coffees" album, 28 photos uploaded, dedupe-on-rerun verified (`0 need an image upload`). Backfill continues as iCloud originals finish downloading |
 | 21 | backend   | 2 | done    | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` — verified end-to-end against a local Postgres (insert → generated columns → `GET /api/snapshot`/`/api/coffees/:id`/`top-filters`/favorite all 200 with real data) |
 | 22 | ios-shell | 2 | ready   | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
-| 23 | backend   | 3 | blocked | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage |
+| 23 | backend   | 3 | ready   | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage. **Unblocked 2026-08-04:** the backend lane held this `blocked` "per §8 until the on-Mac photo gate runs" — that gate has now PASSED (#20), so its only stated blocker is lifted. No formal `needs`. |
 | 24 | backend   | 3 | blocked | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
 | 25 | data      | 3 | blocked | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
@@ -44,6 +44,17 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟢 2026-08-04 — the on-Mac §8 photo gate has RUN AND PASSED (Radu, real Mac).**
+The exporter ran against the real "coffees" Photos album: 28 originals uploaded to
+`POST /api/photos/manifest` + `PUT /api/photos/:sourceId/image`, and a second run
+returned `0 need an image upload` (dedupe verified). This is the gate the backend
+lane had been holding `#23`/`#24` on ("blocked on purpose per §8"). **That block is
+now lifted: `#23` flipped `blocked`→`ready`.** Backend lane: `#23` (extend
+`vertex.js`) is your next row; finishing it unblocks `#24` (worker/agents), which
+unblocks `#25` (the first extraction pass — which has its own 5-photo spend gate in
+`#26` before any real spend). More photos keep arriving as Radu's iCloud originals
+finish downloading and he re-runs the exporter (idempotent).
 
 **#20 is DONE** (2026-08-02, data lane session) — `ops/mycoffee_export.py`, the
 two-phase Mac exporter + uploader against `POST /api/photos/manifest` +
