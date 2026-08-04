@@ -31,6 +31,23 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## Session check (2026-08-04): no ready row, branch restarted
+
+This session's assigned branch (`claude/peaceful-mccarthy-pf55bh`) had already
+been fast-forward-merged into `origin/main` and deleted upstream — confirmed
+via `git fetch`, which showed `origin/main` moving to exactly this branch's
+tip (`b39437c`) and the remote feature branch gone. Per the "merged PR" rule,
+restarted the branch fresh from `origin/main` (`git checkout -B
+claude/peaceful-mccarthy-pf55bh origin/main`) rather than stacking on
+already-merged history.
+
+Checked `status/BACKLOG.md` against this fresh `main`: every data-lane row is
+`done` (#12, #13, #14, #20, #34) or `blocked` on backend (#25 needs 20+24, 24
+itself blocked on backend #23; #26 needs 25; #29 needs 26). No row is `ready`
+for `data`. Ran `cd backend && npm ci && npm test` as a sanity check — 93/93
+green, unaffected by the branch restart. Not inventing work; stopping cleanly
+per the work-loop instructions.
+
 ## Done
 
 - [2026-07-31 07:30 UTC] #12 + #13 + #34 — **consolidated onto `main`** from three
