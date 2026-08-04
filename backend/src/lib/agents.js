@@ -9,7 +9,12 @@
 // `runExtractA`/`runExtractB`/`runCritic`/`runReconciler` touch the network.
 import { generateContent } from '../vertex.js';
 
-export const PROMPT_VERSION = 'v1';
+// v2 (2026-08-04): added FIELD_GUIDANCE below, which changes what the model is
+// asked for on `profile` (and rating/weight/price). Bumping this is required,
+// not cosmetic — computeInputSha() folds promptVersion in, so leaving it at v1
+// would let every stored v1 extraction be reused and the new prompt would never
+// actually run.
+export const PROMPT_VERSION = 'v2';
 
 // camelCase (wire/schema) <-> snake_case (adjudicate.js field key).
 export const FIELD_KEY_MAP = {
@@ -89,13 +94,41 @@ function renderVocabBlock(vocabShortlist, agent) {
   return ordered.join(', ');
 }
 
+// Per-field semantics for the genuinely ambiguous keys. Without these the
+// checklist only ever said "- profile: the value as written", and the #26
+// sample showed the model filling `profile` with whatever the caption happened
+// to label "Profil": extract_a returned "Filtru", extract_b "Espresso, Filtru",
+// and the reconciler the tasting notes "Ciocolata Neagra, Visine, Prune uscate".
+// Romanian shop copy carries three different "profil"-ish labels — "Profil
+// Prajire" (roast type), "Profil Note" (flavour notes) and "Procesare" (the
+// actual process) — and this schema's `profile` means only the last one. The
+// voters therefore never clustered, so the field sat in review as split /
+// below_threshold on every record. Naming the source label and the allowed
+// values is the fix; loosening the threshold would merely have accepted the
+// tasting notes as the process.
+const FIELD_GUIDANCE = {
+  profile: [
+    'the COFFEE PROCESSING METHOD only, taken from a "Procesare" / "Process" / "Processing" label',
+    '(e.g. Washed, Natural, Anaerobic, Co-fermented, Honey, Experimental Washed, Wet Hulled).',
+    'This is NOT the roast type ("Profil Prajire", Espresso/Filtru/Omni) and NOT the flavour or',
+    'tasting notes ("Profil Note", e.g. chocolate/cherry). Omit it if no processing method is stated.',
+  ].join(' '),
+  rating: 'the reviewer\'s own score, usually written as "4/5", "4.2/5" or "4,2/5" — not a cupping score out of 100.',
+  weightG: 'the bag net weight (e.g. "250gr", "1kg") — not the dose in a brew recipe.',
+  price: 'the price actually paid for the bag, with its currency as written (e.g. "45.00 lei") — not a price per kg.',
+};
+
 function fieldChecklist() {
   return Object.keys(FIELD_KEY_MAP)
-    .map((key) =>
-      PROSE_KEYS.includes(key)
-        ? `- ${key}: character offsets {start, end} into RAW_TEXT for the span covering this, or omit if absent`
-        : `- ${key}: the value as written, verbatim where possible, or omit if absent`,
-    )
+    .map((key) => {
+      if (PROSE_KEYS.includes(key)) {
+        return `- ${key}: character offsets {start, end} into RAW_TEXT for the span covering this, or omit if absent`;
+      }
+      const guide = FIELD_GUIDANCE[key];
+      return guide
+        ? `- ${key}: ${guide} Give it verbatim where possible.`
+        : `- ${key}: the value as written, verbatim where possible, or omit if absent`;
+    })
     .join('\n');
 }
 
