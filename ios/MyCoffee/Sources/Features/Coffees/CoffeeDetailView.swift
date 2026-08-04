@@ -299,7 +299,7 @@ struct CoffeeDetailView: View {
 
         if let roaster = coffee.roaster(vocabulary: vocabulary) {
             var filter = CoffeeFilter()
-            filter.roasterIDs = [coffee.roasterId]
+            filter.roasterIDs = [roaster.id]
             let matching = index.coffees(matching: filter, sortedBy: .rating).filter { $0.id != coffee.id }
             if matching.count >= 2 {
                 result.append(CoffeeRail(

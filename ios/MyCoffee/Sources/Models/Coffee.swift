@@ -26,7 +26,11 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
 
     let purchasedOn: PlainDate
 
-    let roasterId: Int
+    // Optional: a coffee exists before its roaster is resolved/confirmed, so the
+    // compact snapshot legitimately sends `roasterId: null`. Decoding it as a
+    // required Int threw on every such row and — because the snapshot decodes the
+    // coffees array all-or-nothing — dropped ALL coffees, leaving the shell empty.
+    let roasterId: Int?
     let roasterCountryId: Int?
 
     let originCountryIds: [Int]

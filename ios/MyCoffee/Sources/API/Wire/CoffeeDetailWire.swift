@@ -51,7 +51,7 @@ struct CoffeeDetailDTO: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         purchasedOn = try container.decode(PlainDate.self, forKey: .purchasedOn)
-        roasterId = try container.decode(Int.self, forKey: .roasterId)
+        roasterId = try container.decodeIfPresent(Int.self, forKey: .roasterId)
         roasterCountryId = try container.decodeIfPresent(Int.self, forKey: .roasterCountryId)
         originCountryIds = try container.decodeIfPresent([Int].self, forKey: .originCountryIds) ?? []
         originCountryId = try container.decodeIfPresent(Int.self, forKey: .originCountryId)

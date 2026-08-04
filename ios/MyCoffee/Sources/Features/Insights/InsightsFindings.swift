@@ -50,7 +50,9 @@ enum InsightsFindings {
         // Capped to the 15 best-represented roasters — with n ≥ 5 already
         // gating every comparison, testing all ~100 roasters would mostly
         // waste cycles on groups too thin to ever pass.
-        let roasterCounts = Dictionary(grouping: scored, by: { $0.coffee.roasterId }).mapValues(\.count)
+        // A coffee with no resolved roaster can't count toward a roaster stat.
+        let roasterCounts = Dictionary(grouping: scored.filter { $0.coffee.roasterId != nil },
+                                       by: { $0.coffee.roasterId! }).mapValues(\.count)
         let topRoasterIDs = roasterCounts.sorted { $0.value > $1.value }.prefix(15).map(\.key)
         for roasterID in topRoasterIDs {
             guard let roaster = vocabulary.roasters[roasterID] else { continue }

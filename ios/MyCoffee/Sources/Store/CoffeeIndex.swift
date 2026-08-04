@@ -226,7 +226,7 @@ struct CoffeeIndex: Sendable {
 
     private static func searchKey(for coffee: Coffee, vocabulary: Vocabulary, searchTexts: [String: String]) -> String {
         var parts: [String] = []
-        if let roaster = vocabulary.roasters[coffee.roasterId] { parts.append(roaster.name) }
+        if let roasterID = coffee.roasterId, let roaster = vocabulary.roasters[roasterID] { parts.append(roaster.name) }
         for countryID in coffee.originCountryIds {
             if let country = vocabulary.countries[countryID] { parts.append(country.name) }
         }
@@ -251,7 +251,7 @@ struct CoffeeIndex: Sendable {
         }
 
         for (index, coffee) in coffees.enumerated() {
-            add(.roaster, .vocabID(coffee.roasterId), index)
+            if let roasterID = coffee.roasterId { add(.roaster, .vocabID(roasterID), index) }
 
             if let roasterCountryID = coffee.roasterCountryId {
                 add(.roasterCountry, .vocabID(roasterCountryID), index)

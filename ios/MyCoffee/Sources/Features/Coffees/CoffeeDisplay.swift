@@ -15,7 +15,7 @@ extension Coffee {
         return "Unlabeled coffee"
     }
 
-    func roaster(vocabulary: Vocabulary) -> Roaster? { vocabulary.roasters[roasterId] }
+    func roaster(vocabulary: Vocabulary) -> Roaster? { roasterId.flatMap { vocabulary.roasters[$0] } }
     func roasterCountry(vocabulary: Vocabulary) -> Country? { roasterCountryId.flatMap { vocabulary.countries[$0] } }
     func primaryOriginCountry(vocabulary: Vocabulary) -> Country? { originCountryId.flatMap { vocabulary.countries[$0] } }
     func originFarm(vocabulary: Vocabulary) -> Farm? { originFarmId.flatMap { vocabulary.farms[$0] } }
