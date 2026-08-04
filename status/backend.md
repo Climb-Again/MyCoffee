@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-04 12:00 UTC] #23 Extend `src/vertex.js` — inline images, responseSchema, thinkingConfig, usage, finishReason — branch `main`
 
 ## ✅ Resolved (2026-08-01, later same-day session): the audit finding below is merged
 
