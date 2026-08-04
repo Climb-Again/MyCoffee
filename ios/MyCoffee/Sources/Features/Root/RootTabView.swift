@@ -12,7 +12,7 @@ struct RootTabView: View {
             CoffeesListView()
                 .tabItem { Label("Coffees", systemImage: Symbols.tabCoffees) }
 
-            InsightsPlaceholderView()
+            InsightsView()
                 .tabItem { Label("Insights", systemImage: Symbols.tabInsights) }
 
             ReviewPlaceholderView()

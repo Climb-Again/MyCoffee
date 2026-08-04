@@ -4,13 +4,48 @@ import Foundation
 /// block. `Coffee` rows reference these by integer id — dictionary-encoding is
 /// what keeps the whole snapshot in the tens of KB (PLAN.md §4).
 
-struct Country: Identifiable, Codable, Hashable, Sendable {
+struct Country: Identifiable, Hashable, Sendable {
     let id: Int
     let isoCode: String          // ISO-3166 alpha-2, e.g. "ET"; drives the flag emoji in DesignSystem
     let name: String
     let isOrigin: Bool
     let isRoaster: Bool
     let isPseudo: Bool          // true only for the synthetic "Blend" row
+}
+
+extension Country: Codable {
+    // The wire shape (`loadCountryVocab` in the backend's `vocab.js`) is a raw
+    // `SELECT id, name, iso2, is_origin, is_roaster, kind FROM countries` row,
+    // not this struct's field names: the ISO column is `iso2`, and there is no
+    // `is_pseudo` boolean at all — "pseudo" is one value of the string `kind`
+    // column (the others being "origin"/"roaster"). Custom coding translates
+    // between the two so every other call site can keep using `isoCode`/
+    // `isPseudo` as if the wire matched — `Roaster`/`Farm` don't need this,
+    // their columns already line up under `.convertFromSnakeCase`.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, isOrigin, isRoaster, kind
+        case isoCode = "iso2"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        isoCode = try container.decode(String.self, forKey: .isoCode)
+        name = try container.decode(String.self, forKey: .name)
+        isOrigin = try container.decode(Bool.self, forKey: .isOrigin)
+        isRoaster = try container.decode(Bool.self, forKey: .isRoaster)
+        isPseudo = try container.decodeIfPresent(String.self, forKey: .kind) == "pseudo"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(isoCode, forKey: .isoCode)
+        try container.encode(name, forKey: .name)
+        try container.encode(isOrigin, forKey: .isOrigin)
+        try container.encode(isRoaster, forKey: .isRoaster)
+        try container.encode(isPseudo ? "pseudo" : "regular", forKey: .kind)
+    }
 }
 
 struct Roaster: Identifiable, Codable, Hashable, Sendable {

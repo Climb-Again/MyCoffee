@@ -18,6 +18,14 @@ struct CoffeeIndex: Sendable {
     let postings: [FilterDimension: [FacetKey: IndexSet]]
     let vocabulary: Vocabulary
 
+    /// Folded free-text blobs from `/api/snapshot/text`, keyed by coffee id
+    /// (PLAN.md §4) — the compact snapshot row omits raw captions/descriptions
+    /// to stay near its ~140 B/row budget, so search over that text needs this
+    /// separately-fetched supplement merged into `searchKeys` at build time.
+    /// Retained (not just consumed) so a favorite-toggle rebuild
+    /// (`SyncEngine`) can reconstruct the index without re-fetching it.
+    let searchTexts: [String: String]
+
     /// Shared bucket widths for the two money dimensions, computed once from
     /// the whole dataset (PriceBand.swift) — `nil` when no coffee has that value.
     let priceWidthCents: Int?
@@ -25,12 +33,13 @@ struct CoffeeIndex: Sendable {
 
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
-    init(coffees rawCoffees: [Coffee], vocabulary: Vocabulary) {
+    init(coffees rawCoffees: [Coffee], vocabulary: Vocabulary, searchTexts: [String: String] = [:]) {
         let sorted = rawCoffees.sorted { $0.purchasedOn > $1.purchasedOn }
         self.coffees = sorted
         self.byID = Dictionary(uniqueKeysWithValues: sorted.enumerated().map { ($1.id, $0) })
         self.vocabulary = vocabulary
-        self.searchKeys = sorted.map { Self.searchKey(for: $0, vocabulary: vocabulary) }
+        self.searchTexts = searchTexts
+        self.searchKeys = sorted.map { Self.searchKey(for: $0, vocabulary: vocabulary, searchTexts: searchTexts) }
 
         let priceWidth = PriceBand.widthCents(forEUR: sorted.compactMap { $0.priceEur })
         let ppgWidth = PriceBand.widthCents(forEUR: sorted.compactMap { $0.pricePer100gEur })
@@ -43,6 +52,16 @@ struct CoffeeIndex: Sendable {
 
     func coffee(id: Coffee.ID) -> Coffee? {
         byID[id].map { coffees[$0] }
+    }
+
+    /// A full rebuild with one row swapped in — used after a detail fetch
+    /// enriches a single coffee (PLAN.md §4). Cheap enough to do on every
+    /// such fetch at ~900 rows (PLAN.md §5), same as every other mutation
+    /// here; no partial-postings-update path exists on purpose.
+    func replacingCoffee(_ updated: Coffee) -> CoffeeIndex {
+        guard byID[updated.id] != nil else { return self }
+        let replaced = coffees.map { $0.id == updated.id ? updated : $0 }
+        return CoffeeIndex(coffees: replaced, vocabulary: vocabulary, searchTexts: searchTexts)
     }
 
     func roaster(_ id: Int) -> Roaster? { vocabulary.roasters[id] }
@@ -205,7 +224,7 @@ struct CoffeeIndex: Sendable {
 
     // MARK: - Building
 
-    private static func searchKey(for coffee: Coffee, vocabulary: Vocabulary) -> String {
+    private static func searchKey(for coffee: Coffee, vocabulary: Vocabulary, searchTexts: [String: String]) -> String {
         var parts: [String] = []
         if let roaster = vocabulary.roasters[coffee.roasterId] { parts.append(roaster.name) }
         for countryID in coffee.originCountryIds {
@@ -216,6 +235,7 @@ struct CoffeeIndex: Sendable {
         for note in [coffee.profileDetail, coffee.farmLotNote, coffee.rawTitle, coffee.rawCaption, coffee.rawDescription] {
             if let note { parts.append(note) }
         }
+        if let text = searchTexts[coffee.id] { parts.append(text) }
         return parts.joined(separator: " ").foldedForSearch
     }
 

@@ -7,7 +7,7 @@ import Foundation
 struct CoffeeImageURLs: Codable, Hashable, Sendable {
     let thumb: String
     let display: String
-    let ocr: String
+    let ocr: String?             // nil until the review lane (#27) needs it; the detail route doesn't send one today
 }
 
 /// Mirrors the `coffees` row shape from PLAN.md §1. One row per bag; `photos`
@@ -88,4 +88,25 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
     }
 
     var hasOpenReview: Bool { reviewState != "clean" }
+
+    /// A copy with `isFavorite` flipped — `Coffee` stays a fully immutable
+    /// value type (every field `let`) so it's trivially `Sendable` across the
+    /// actor boundaries the sync engine and outbox cross; this is how
+    /// `CoffeeStore.toggleFavorite` and `SyncEngine`'s "pending mutation wins"
+    /// rule (PLAN.md §5) both apply an optimistic edit without widening any
+    /// field to `var`.
+    func withFavorite(_ isFavorite: Bool, setBy: String) -> Coffee {
+        Coffee(
+            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
+            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
+            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
+            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
+            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
+            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
+            rating: rating, isFavorite: isFavorite, favoriteSetBy: setBy,
+            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
+            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
+            reviewState: reviewState, minFieldConfidence: minFieldConfidence, images: images
+        )
+    }
 }

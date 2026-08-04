@@ -7,9 +7,18 @@ import UIKit
 /// an inset thumbnail, roaster row, title, pill row, process, fact rows,
 /// note blocks, then rating-ordered rails.
 struct CoffeeDetailView: View {
-    let coffee: Coffee
+    private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
     @Environment(\.dismiss) private var dismiss
+
+    init(coffee: Coffee) {
+        self.initialCoffee = coffee
+    }
+
+    /// The compact snapshot doesn't carry notes/images (PLAN.md §4) — reads
+    /// through `store.index` so the `.task` below's `loadDetail` merge shows
+    /// up here without every call site needing to re-fetch by hand.
+    private var coffee: Coffee { store.index.coffee(id: initialCoffee.id) ?? initialCoffee }
 
     private var vocabulary: Vocabulary { store.index.vocabulary }
 
@@ -21,6 +30,9 @@ struct CoffeeDetailView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .task {
+            await store.loadDetail(for: initialCoffee)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -146,9 +158,33 @@ struct CoffeeDetailView: View {
         return Group {
             if let roaster {
                 HStack {
-                    FlagView(isoCode: roasterCountry?.isoCode)
-                    Text(roaster.name)
-                        .font(.subheadline.weight(.medium))
+                    // Pushback #7: the flag beside the roaster is a *country*
+                    // flag, so it opens the roaster's country page; the name
+                    // opens the roaster page. Two separate tap targets, not one.
+                    if FeatureFlags.tapNavigatesToEntityPages, let roasterCountry {
+                        NavigationLink {
+                            CountryPageView(countryID: roasterCountry.id, role: .roaster)
+                        } label: {
+                            FlagView(isoCode: roasterCountry.isoCode)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        FlagView(isoCode: roasterCountry?.isoCode)
+                    }
+
+                    if FeatureFlags.tapNavigatesToEntityPages {
+                        NavigationLink {
+                            RoasterPageView(roasterID: roaster.id)
+                        } label: {
+                            Text(roaster.name)
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(roaster.name)
+                            .font(.subheadline.weight(.medium))
+                    }
+
                     Spacer()
                     if FeatureFlags.tapNavigatesToEntityPages {
                         Image(systemName: Symbols.chevronRight)
@@ -171,7 +207,18 @@ struct CoffeeDetailView: View {
             if coffee.isBlend {
                 InfoPill(icon: nil, text: "🏳️ Blend")
             } else if let country = coffee.primaryOriginCountry(vocabulary: vocabulary) {
-                InfoPill(icon: nil, text: (country.isoCode.flagEmoji ?? "🏳️") + " " + country.name)
+                // Pushback #7: the origin flag (folded into this pill's text)
+                // opens the origin-country page.
+                if FeatureFlags.tapNavigatesToEntityPages {
+                    NavigationLink {
+                        CountryPageView(countryID: country.id, role: .origin)
+                    } label: {
+                        InfoPill(icon: nil, text: (country.isoCode.flagEmoji ?? "🏳️") + " " + country.name)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    InfoPill(icon: nil, text: (country.isoCode.flagEmoji ?? "🏳️") + " " + country.name)
+                }
             }
             if let altitude = coffee.altitudeLabel {
                 InfoPill(icon: Symbols.mountain, text: altitude)
@@ -255,7 +302,10 @@ struct CoffeeDetailView: View {
             filter.roasterIDs = [coffee.roasterId]
             let matching = index.coffees(matching: filter, sortedBy: .rating).filter { $0.id != coffee.id }
             if matching.count >= 2 {
-                result.append(CoffeeRail(id: "roaster", title: "More from \(roaster.name)", coffees: matching, moreFilter: filter))
+                result.append(CoffeeRail(
+                    id: "roaster", title: "More from \(roaster.name)", coffees: matching,
+                    moreFilter: filter, moreDestination: .roaster(id: roaster.id)
+                ))
             }
         }
 
@@ -264,7 +314,10 @@ struct CoffeeDetailView: View {
             filter.originCountryIDs = [country.id]
             let matching = index.coffees(matching: filter, sortedBy: .rating).filter { $0.id != coffee.id }
             if matching.count >= 2 {
-                result.append(CoffeeRail(id: "origin", title: "More from \(country.name)", coffees: matching, moreFilter: filter))
+                result.append(CoffeeRail(
+                    id: "origin", title: "More from \(country.name)", coffees: matching,
+                    moreFilter: filter, moreDestination: .country(id: country.id, role: .origin)
+                ))
             }
         }
 
@@ -273,7 +326,10 @@ struct CoffeeDetailView: View {
             filter.profiles = [profile]
             let matching = index.coffees(matching: filter, sortedBy: .rating).filter { $0.id != coffee.id }
             if matching.count >= 2 {
-                result.append(CoffeeRail(id: "profile", title: "More \(profile.displayName.lowercased())", coffees: matching, moreFilter: filter))
+                result.append(CoffeeRail(
+                    id: "profile", title: "More \(profile.displayName.lowercased())", coffees: matching,
+                    moreFilter: filter, moreDestination: .filteredList
+                ))
             }
         }
 
