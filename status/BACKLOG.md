@@ -31,7 +31,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
 | 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
 | 25 | data      | 3 | done    | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation — `src/lib/deterministic.js` + tests **MERGED to `main` 2026-08-04** (180/180 green). Includes the `parsePrice`/`parseRating` bare-number-fallback fix (see `status/data.md`) |
-| 26 | data      | 4 | ready   | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill. **Radu explicitly authorized the 5-photo sample 2026-08-04** (spend-gate step 2, ~$0.35) |
+| 26 | data      | 4 | human   | 25 | **5-photo sample RAN 2026-08-04** (job 7, text-only, 5/5 photos, **$0.2154**) — fields reported to Radu. **Awaiting his accuracy verdict before the 25-record tuning run**; per the spend gate no lane may proceed to tuning/backfill without it. Findings in `status/data.md` |
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |

@@ -31,6 +31,63 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-04 — #26's 5-photo sample RAN against production. Findings for tuning.
+
+Job 7: `voterSet:'full'`, `limit:5`, `includeImages:false` (text-only, Radu's
+call), **5/5 photos, $0.2154** — under the ~$0.35 estimate. First LLM extraction
+this project has ever completed. Four defects had to be fixed first (see
+`status/backend.md` / git log `cdf3086`, `adafb7f`, `29116ad`), the real one
+being that `generateContent` ignored the per-voter model, so the "flash" voters
+ran on 2.5-pro with `thinkingBudget: 0` — which pro rejects outright.
+
+**What came out right** (spot-checked against the raw captions):
+- Roasters resolved via vocab: DAK Coffee Roasters, Manhattan Coffee Roasters,
+  Concept Coffee Roasters.
+- Origins: Colombia (×3), Brazil (×1).
+- Ratings: 4.0 / 4.2 / 4.3 from `4/5`, `4.2/5`, `4.3/5`.
+- Prices: 75.00 / 60.00 / 140.00 RON. Weights: 250 g where `250gr` appeared.
+- Altitude 1800 m from `Altitude: 1800 masl`.
+- `roasted_on` = 2026-06-08 parsed from the Romanian `Data de prăjire: 8 Iunie
+  2026` — the localized date path works.
+- A caption containing only `4.3/5` yielded exactly one field and adjudicated
+  `clean`. Correct restraint, no invention.
+
+**Accuracy gaps worth fixing in the tuning pass — do not treat as done:**
+1. **`is_decaf` missed.** The Manhattan record is titled `El Vergel (Decaf)`,
+   lists `Procesare: Anaerob, Decaf` and `DECAFFEINATED`, yet `is_decaf` is
+   `false`. Decaf is tracked orthogonally to `profile` (PLAN.md pushback #3), so
+   this is a prompt/field gap, not a vocabulary one.
+2. **`profile` never resolved (all 5).** The seeded profiles are Washed /
+   Natural / Anaerobic / Co-fermented / Experimental, but the corpus says
+   **Honey** (×2), `Double Anaerobic`, `Co-Fermentata cu fructe`, `Experimental
+   Washed`. **`Honey` is missing from the vocabulary entirely** and the
+   multi-value cases ("Co-fermented *and* Honey") don't fit one `profile_id`.
+   Decide: add `Honey` (+ maybe `Honey/Anaerobic` combinations) to `profiles`,
+   or model process as multi-valued.
+3. **`price_eur` is NULL on every priced record**, so price filters/insights
+   will be blank in the app. Cause is *not* the extraction: `fx_rates` is
+   **empty in production**. `ops/fx_rates_seed.sql` is deliberately applied by
+   hand (`psql -f`) and is not in the migration chain — and it has never been
+   run against Railway. The 1510-row seed was only ever verified against a
+   local Postgres. Fix is one of: promote the seed to a migration (the
+   direction is anchor-verified, so the original "don't let a wrong guess reach
+   price_eur silently" concern is largely addressed), or run the psql by hand
+   against Railway.
+4. **`Radical Coffee` didn't resolve** even though the vocabulary *does* contain
+   `Radical Coffee` and the caption says `Radical Coffee Roasters` — the
+   longer "… Roasters" form appears not to match the seeded alias. Worth an
+   alias pass over `roaster_aliases` for the `X` / `X Roasters` pattern.
+5. `roaster_country_id` is NULL on all resolved roasters — the seeded roasters
+   have no `country_id`, so the denormalization has nothing to copy.
+6. `origin_farm_id` is `no_candidates` ×4 — expected (farm vocab is seeded from
+   review, not up front), listed so it isn't mistaken for a regression.
+
+23 review items were opened across the 5 records, which is the
+vocabulary-confirmation queue #25 was built to produce.
+
+**Next step is Radu's, not a lane's:** he judges accuracy, then the 25-record
+tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
+
 ## Done
 
 - [2026-08-04] #25 — **`backend/src/lib/deterministic.js` (P3 "rules" voter) +
