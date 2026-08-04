@@ -6,12 +6,18 @@
 //   POST /api/admin/jobs/:id/resume
 //   POST /api/admin/adjudicate       re-run adjudication over stored
 //                                    field_candidates -- $0, no voter runs
+//   GET  /api/admin/vertex-check     one minimal text-only Vertex call, to tell
+//                                    "the model provider is unreachable" apart
+//                                    from "the worker is broken" without needing
+//                                    platform log access
 //
 // All ingest-token-gated: these are write/spend-triggering operations, same
 // tier as every other mutation in the API.
 import { requireIngestToken } from '../auth.js';
+import { config } from '../config.js';
 import { query } from '../db.js';
 import { runWorker, defaultVoters, readjudicateAll } from '../lib/worker.js';
+import { generateContent } from '../vertex.js';
 
 function toJobJson(r) {
   return {
@@ -36,6 +42,37 @@ async function markJobFailed(jobId, err) {
 }
 
 export default async function adminRoutes(app) {
+  // Smallest possible real Vertex round-trip: no image, tiny token budget, an
+  // explicit short timeout. Exists because a stalled extraction run is
+  // indistinguishable from a broken one through the rest of this API, and the
+  // platform log stream is not reachable from a lane session. Reports the
+  // failure shape (message/code/status) rather than a bare 500 so the caller
+  // learns *why* -- unreachable host, bad credentials, wrong model name.
+  app.get('/api/admin/vertex-check', { preHandler: requireIngestToken }, async (req, reply) => {
+    const timeoutMs = req.query?.timeoutMs != null ? Math.max(1000, Math.min(120000, Number(req.query.timeoutMs))) : 20000;
+    const startedAt = Date.now();
+    try {
+      const res = await generateContent({
+        prompt: 'Reply with the single word: pong',
+        maxOutputTokens: 8192,
+        timeoutMs,
+      });
+      return { ok: true, ms: Date.now() - startedAt, model: config.vertex.model, text: res?.text ?? null, usage: res?.usage ?? null };
+    } catch (err) {
+      return reply.code(200).send({
+        ok: false,
+        ms: Date.now() - startedAt,
+        model: config.vertex.model,
+        region: config.vertex.region,
+        error: err?.message ?? String(err),
+        code: err?.code ?? null,
+        httpStatus: err?.response?.status ?? err?.status ?? null,
+        // Vertex puts the useful detail in the response body, not the message.
+        detail: typeof err?.response?.data === 'object' ? JSON.stringify(err.response.data).slice(0, 800) : null,
+      });
+    }
+  });
+
   app.get('/api/admin/jobs', { preHandler: requireIngestToken }, async (req) => {
     const id = req.query?.id != null ? Number.parseInt(req.query.id, 10) : null;
     const { rows } = await query(

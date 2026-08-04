@@ -196,7 +196,12 @@ export async function generateContent(opts = {}) {
   // forever). Without it a stalled Vertex call hangs the extraction worker
   // indefinitely while it holds the advisory lock — every later job then gets
   // refused the lock and sits at status='running' with no error to look at.
-  const res = await client.request({ url, method: 'POST', data: body, timeout: config.vertex.timeoutMs });
+  const res = await client.request({
+    url,
+    method: 'POST',
+    data: body,
+    timeout: opts.timeoutMs ?? config.vertex.timeoutMs,
+  });
 
   return parseResponse(res.data);
 }

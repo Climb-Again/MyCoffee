@@ -592,6 +592,17 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
           return await processPhoto(photo, resolvedVoters, sharedCtx);
         } catch (err) {
           log.error?.(`[worker] photo ${photo.id} failed: ${err.message}`);
+          // Also persist it: a per-photo failure used to exist ONLY in the
+          // platform log stream, so from the API a job burning through photos
+          // that all fail looked exactly like a job doing nothing
+          // (photos_done 0, spent 0, last_error null). Anyone without log
+          // access — including every lane session — had no way to see why.
+          if (jobId) {
+            await query(
+              `UPDATE extraction_jobs SET last_error = $2 WHERE id = $1`,
+              [jobId, `photo ${photo.id}: ${err.message}`.slice(0, 2000)],
+            ).catch(() => {});
+          }
           await releaseLease(photo.id);
           return null;
         }
