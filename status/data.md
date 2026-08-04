@@ -33,6 +33,74 @@ _none_
 
 ## Done
 
+- [2026-08-04] #25 — **`backend/src/lib/deterministic.js` (P3 "rules" voter) +
+  `test/deterministic.test.js`** (180/180 green, up from 178). Implements the
+  `{agent:'rules', provider:'rules', run(ctx)}` contract `agents.js`'s
+  `loadRulesVoter()` already expected. Two strategies, matching how
+  `adjudicate.js`'s `canonicalize()` re-derives a value from whatever raw
+  string a voter proposes:
+  - **altitude/price/weight/rating/profile** — `normalize.js`'s parsers
+    already scan arbitrary free text for their own markers, and
+    `canonicalize()` re-runs the identical parser on this voter's raw value,
+    so this module only decides *whether* a field fired (by calling the
+    parser once itself) and hands the raw caption straight through when it did.
+    **Found and fixed a real bug in this pass, not a pre-existing one**:
+    `parsePrice`/`parseRating` both have a low-confidence *bare-number*
+    fallback branch ("never silent" per PLAN.md §2) designed for a
+    narrowly-scoped value a caller already believes is a price/rating —
+    scanning a *whole caption* with that fallback grabs the first unrelated
+    digit it finds (a date, an altitude) as a fake price/rating. Fixed by
+    gating price/rating proposals on the field's own explicit marker
+    (currency symbol/code, or "/5"/"⭐") before ever calling the parser;
+    caught by an end-to-end run against a real local Postgres 16 (see below),
+    not by the unit tests alone — regression cases now in
+    `deterministic.test.js`.
+  - **roaster_id/origin_country_ids/origin_farm_id** — `canonicalize()`
+    resolves these via `resolveVocab()`, an EXACT `alias_norm` lookup on the
+    *whole* raw value, not a substring scan. So this module scans the caption
+    itself (`findAliasMentions`, diacritic-folded, word-boundary-safe even for
+    3-letter aliases like `DAK`) and proposes only the matched substring.
+    Origin is multi-valued (joins every distinct *is_origin* mention,
+    `"Colombia / Brazil"`, for `resolveOriginCountries` to re-split
+    downstream); roaster is single-valued and refuses to guess when two
+    *different* roasters tie at the same match specificity (mirrors the
+    mandatory `Kofio`/`Kolibri` and `Father's Coffee Roastery`/`Father
+    Carpenter` negative cases, now also covered at this text-scanning layer).
+    Farms have no seed vocabulary at all (PLAN.md §1: "derived from the data,
+    approved in review") — `extractFarmField` still proposes a candidate
+    whenever a `parseFarm`-recognised prefix (`Finca …`, `Producer: …`, …) is
+    present, so Phase 0 also seeds the *farm* review queue from $0, not just
+    roaster/country.
+  - **Verified end-to-end against a real local Postgres 16** (all 11
+    migrations applied cleanly), not just unit tests: ran `runWorker({voters:
+    [rulesVoter]})` (the same `voterSet: 'rules_only'` path
+    `POST /api/admin/jobs` already exposes, per `routes/admin.js`) against two
+    hand-inserted photos. Confirmed (a) a clean roaster+origin mention lands
+    in `review_items` with reason `below_threshold` and clean candidate values
+    (`"Kolibri"`, `"Ethiopia"`) — the actual vocabulary-confirmation UX #25
+    asks for; (b) a `Finca …` mention correctly seeds `origin_farm_id` as
+    `no_candidates` (farm vocab is empty, as expected, not a bug); (c) after
+    the price/rating fix, a caption with a date and an altitude range but no
+    real price/rating proposes neither, while one with a real `"lei"`/`"/5"`
+    marker still resolves correctly alongside those same unrelated digits.
+  - **Not run against production.** `/api/admin/jobs` on the live Railway
+    backend shows zero jobs and `GET /api/coffees` shows `total: 0` — the
+    worker has never run against the 28 real photos #20 uploaded, so this
+    genuinely would be the first-ever Phase 0 pass over real data once it
+    ships. It hasn't shipped: **this branch (`claude/peaceful-mccarthy-kix48i`)
+    is not `main`**, same structural issue this file's own 2026-08-01
+    correction above describes for `rwi2ql` — the outer harness restricts
+    this session's `git push` to its own assigned branch, so `main`
+    (`origin/main` at `0ad0023`, dated 2026-07-29) does not move until an
+    authorized session merges this branch in. Until that happens, **`#25`
+    stays `claimed`, not `done`, in `BACKLOG.md`** (`status/README.md`: "done
+    means on the shared branch") and `#26` stays `blocked` — running the real
+    5-photo LLM sample (#26) needs this code live on Railway first, and no
+    LLM spend happens in this session regardless (Radu's spend gate: rules is
+    free, the 5-photo sample needs his go-ahead after seeing #25 confirmed on
+    real data, which requires the merge first). — branch
+    `claude/peaceful-mccarthy-kix48i`, HEAD after this work.
+
 - [2026-07-31 07:30 UTC] #12 + #13 + #34 — **consolidated onto `main`** from three
   stranded fired-session branches that each redid the same work in isolation because
   `main` never advanced (see the "un-integrated prior work" rule in `status/README.md`).

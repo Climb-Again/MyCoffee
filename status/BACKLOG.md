@@ -30,7 +30,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 22 | ios-shell | 2 | ready   | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
 | 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
-| 25 | data      | 3 | ready   | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
+| 25 | data      | 3 | claimed | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation — **code done + verified against a real local Postgres, stranded on `claude/peaceful-mccarthy-kix48i` pending merge to `main`** (see `status/data.md`) |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
@@ -44,6 +44,28 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟡 2026-08-04 (data lane) — #25's code is done, but not yet on `main`.**
+`backend/src/lib/deterministic.js` (the P3 "rules" voter) + tests landed and
+were verified end-to-end against a real local Postgres 16 — see
+`status/data.md` for the full writeup, including a real bug this pass found
+and fixed (`parsePrice`/`parseRating`'s bare-number fallback grabbing an
+unrelated digit — a date, an altitude — out of free text when nothing else in
+the caption looked like a price or rating). **Left `#25` at `claimed`, not
+`done`** — this session's `git push` is restricted to its own branch
+(`claude/peaceful-mccarthy-kix48i`), which is not `main` (`origin/main` is
+still `0ad0023`, from 2026-07-29, well behind even this file's own account of
+what's landed). Per `status/README.md`'s "done means on the shared branch"
+rule, `#25` can't be marked `done` and `#26` can't unblock until an authorized
+session merges `claude/peaceful-mccarthy-kix48i` into `main` — the same
+structural gap `status/data.md`'s 2026-08-01 correction already documented for
+`rwi2ql`. **Nothing has been run against production**: the live Railway
+backend's `/api/admin/jobs` is empty and `GET /api/coffees` reports
+`total: 0` — the worker has genuinely never touched the 28 real photos #20
+uploaded, so the actual Phase 0 pass over real data — and any LLM spend under
+#26 — waits on this merge. Whoever can push to `main`: fast-forward/merge
+`claude/peaceful-mccarthy-kix48i`, confirm `npm test` (180/180) and the
+Railway deploy, then flip `#25`'s row to `done` and `#26` to `ready`.
 
 **🟢 2026-08-04 (later same day, backend lane) — #24 is DONE.** Migrations
 `010_extractions`/`011_resolutions` + `src/lib/adjudicate.js` (pure
