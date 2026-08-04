@@ -64,6 +64,34 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-04 UTC] Session check: re-verified no `ready` backend row exists.
+  All backend-tagged rows in `BACKLOG.md` (#11, #15, #16, #19, #21, #23, #24,
+  #33) are `done`. The only `ready` rows belong to other lanes (#22
+  ios-shell); #27/#28 (ios-ux) and #29 (data) stay `blocked`; #26 (data) is
+  `human`, awaiting Radu's accuracy verdict on the 5-photo sample per the
+  spend gate. Fresh unscoped `git fetch origin` (41 `claude/*` branches) —
+  this session's own branch (`claude/confident-cerf-k31mzh`) already sits
+  exactly on `origin/main`'s tip (`9105916`), no divergence. Swept every
+  `origin/claude/*` branch via `git rev-list --count origin/main..<branch>`:
+  the only non-trivial ones are `hopeful-johnson-3xcwg7` (20 ahead — the
+  `ios-staging` lineage, already merged there, not backend-owned),
+  `peaceful-mccarthy-rwi2ql` (3 ahead — the superseded #14 `vocab.js`
+  attempt already on `main` via a different route), `peaceful-mccarthy-9yq99y`
+  (2 ahead — data lane's own doc-only commits), `coffee-app-plan-9jdh0c` /
+  `new-app-infrastructure-setup-h3r3wz` / `wizardly-thompson-0g9i90` (35
+  ahead each — pre-lane-split scaffold history with content already folded
+  into `main` under different commit hashes, not new stranded work), and a
+  dozen single-commit no-op status-note commits from backend/data/publish/
+  compile/ios-shell sessions (inspected via `git log --stat`, each touching
+  only its own `status/<lane>.md`). Nothing backend-owned or actionable to
+  integrate. Ran `cd backend && npm ci && npm test` — **184/184 green**
+  (up from the last recorded 152, reflecting #26's work landing since).
+  Live-verified `GET /health` → `{"ok":true,"db":true,"service":
+  "mycoffee-api"}`, `GET /api/status` → `{"ok":true,"service":"mycoffee-api",
+  "db":true,"vertex":true,"ingestEvents":0}`, and `GET /api/admin/jobs` —
+  no job in `running` state (job 7 `done`, the rest `paused`), so a
+  `backend/**` push would have been safe if there had been one. No code
+  changes — stopping cleanly per the work loop (do not invent work).
 - [2026-08-04 UTC] #24 — Migrations `010_extractions`/`011_resolutions` (extractions,
   field_candidates, field_resolutions, review_items, extraction_jobs, plus a
   lease pair on `photos`) + `src/lib/adjudicate.js` (the pure
