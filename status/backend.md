@@ -64,6 +64,63 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-04 UTC] #24 — Migrations `010_extractions`/`011_resolutions` (extractions,
+  field_candidates, field_resolutions, review_items, extraction_jobs, plus a
+  lease pair on `photos`) + `src/lib/adjudicate.js` (the pure
+  canonicalize→cluster→weight→decide function from PLAN.md §2) +
+  `src/lib/agents.js` (the 4 LLM voters -- extract-A/B, critic, reconciler --
+  wrapping `vertex.js`, pure prompt-building/response-parsing) +
+  `src/lib/worker.js` (the SIGTERM-safe claim-with-lease loop: advisory lock
+  `48201976` distinct from `migrate.js`'s `4820_1975`, 10-min reaper,
+  concurrency 2, `[2,5,15,45,120]s` backoff, `input_sha` idempotency) +
+  `routes/review.js` (`GET /api/review`, `POST /api/review/:id`, `/bulk`,
+  `/rules`) + `routes/admin.js` (`GET/POST /api/admin/jobs`, `:id/pause`,
+  `:id/resume`, `POST /api/admin/adjudicate`).
+  P3 (rules) is the data lane's `src/lib/deterministic.js` (#25) and doesn't
+  exist yet -- `agents.js`'s `loadRulesVoter()` dynamically imports it and
+  resolves to `null` (worker just runs without it) rather than requiring it
+  to exist, so neither lane blocks on the other; when #25 adds it, `run` on a
+  `{agent:'rules', ...}` voter object is the only contract it needs to satisfy.
+  Critic (P4) never contributes a value -- its verdicts are stored too
+  (`field_candidates` rows with `agent='critic'`) so a later $0
+  re-adjudication can recover them without re-running the critic, but they're
+  split out of the normal candidate clustering and instead discount every
+  non-`rules` candidate's confidence for a refuted field.
+  **Verified end-to-end against a real local Postgres 16** (all 11 migrations
+  applied cleanly) using fake no-network voters standing in for Vertex (no
+  live LLM call was made -- this respects the data lane's spend gates, which
+  govern real extraction runs, not this infra): a full record with 4 voters
+  adjudicates to a correct `coffees` row (roaster_id resolved via
+  `vocab.resolveVocab`, `roaster_country_id` denormalized, origin resolved to
+  Ethiopia's id, price converted to EUR via the dated `fx_rates` row -- not a
+  flat rate --, weight snapped to 250g, rating 4.5, altitude range, profile_id
+  via slug lookup, `review_state='clean'`); re-running the identical voters
+  against the same photo added zero new `extractions` rows and cost $0
+  (`input_sha` idempotency); a genuinely split field (an unresolvable roaster
+  name) produced an open `review_items` row and left `coffees.roaster_id`
+  NULL rather than silently writing something; resolving that review item via
+  the real `POST /api/review/:id` route locked the field
+  (`field_resolutions.locked=true`) and applied the value to `coffees`; a
+  subsequent `POST /api/admin/adjudicate`-equivalent re-adjudication pass left
+  the locked field untouched (PLAN.md §1's invariant); and a second concurrent
+  `runWorker()` call was correctly refused the advisory lock while one held
+  it. 152/152 `npm test` green (91 prior + 61 new: `adjudicate.test.js` (17),
+  `agents.test.js` (12), `worker.test.js` (11, pure helpers only -- no DB, same
+  as every other committed test here since CI has no `DATABASE_URL`),
+  `review.test.js` (4) + `admin.test.js` (5) auth-guard smoke tests).
+  Flipped `#25` (data, needs 20+24 -- both now done) `blocked`→`ready` in
+  `BACKLOG.md` in the same push.
+  Scope note for whoever picks up #25/#26: `coffees.purchased_at`/`purchased_on`
+  and `is_favorite` are set from the photo's own `captured_at`/`favorite` at
+  first extraction (not voted/adjudicated) -- deliberate, since the brief gives
+  no field-level signal for "when was this bought" independent of when the
+  photo was taken. The worker's eligibility query does NOT yet implement
+  PLAN.md §3's "provisional flash-only pass while still awaiting_text" nuance
+  (run P3+flash immediately on a caption-less new photo, full pass once text
+  arrives or the 10-day deadline passes) -- it only claims photos that are
+  `text_received` or past the `awaiting_text` deadline. Extending the
+  eligibility bucket for a provisional pass is a small, contained addition to
+  `claimBatch()`/`processPhoto()` if #25/#26 need it. — branch `main` — SHA: `4b292f8`
 - [2026-08-04 UTC] #23 — Extended `src/vertex.js` additively per the issue spec,
   keeping `generateContent()`'s existing signature working (it's still called
   from nowhere; only `isConfigured()` has a caller today, unchanged):

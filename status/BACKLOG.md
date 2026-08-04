@@ -29,8 +29,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 21 | backend   | 2 | done    | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` — verified end-to-end against a local Postgres (insert → generated columns → `GET /api/snapshot`/`/api/coffees/:id`/`top-filters`/favorite all 200 with real data) |
 | 22 | ios-shell | 2 | ready   | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
 | 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
-| 24 | backend   | 3 | ready   | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
-| 25 | data      | 3 | blocked | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
+| 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
+| 25 | data      | 3 | ready   | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |
 | 28 | ios-ux    | 5 | blocked | 22 | Insights (with statistical gates) + roaster and country pages |
@@ -44,6 +44,24 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟢 2026-08-04 (later same day, backend lane) — #24 is DONE.** Migrations
+`010_extractions`/`011_resolutions` + `src/lib/adjudicate.js` (pure
+deterministic adjudication) + `src/lib/agents.js` (the 4 LLM voters) +
+`src/lib/worker.js` (the SIGTERM-safe claim-with-lease loop) +
+`routes/review.js` + `routes/admin.js` all landed on `main`, verified
+end-to-end against a real local Postgres using fake no-network voters (no
+live Vertex spend -- that stays gated behind the data lane's spend protocol
+below). See `status/backend.md` for full detail, including the one deliberate
+scope gap (the "provisional pass while still awaiting_text" nuance from
+PLAN.md §3 isn't implemented yet -- only `text_received`/deadline-passed
+photos are claimed). **`#25` (data) flipped `blocked`→`ready`** — its own gate
+(Radu's spend protocol below) still applies before any real LLM run.
+P3 (rules) is intentionally absent: `agents.js`'s `loadRulesVoter()` dynamically
+imports the data lane's `src/lib/deterministic.js` and simply runs without it
+if that file doesn't exist yet, so `#25` can add it without any backend-side
+coordination -- the only contract is a `{agent:'rules', provider:'rules',
+run(ctx) => Promise<{fields, usage, costUsd}>}` voter object.
 
 **🟢 2026-08-04 — the on-Mac §8 photo gate has RUN AND PASSED (Radu, real Mac).**
 The exporter ran against the real "coffees" Photos album: 28 originals uploaded to
