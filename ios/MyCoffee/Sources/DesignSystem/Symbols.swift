@@ -45,4 +45,16 @@ enum Symbols {
     static let dataQuality = "checkmark.seal"
     static let zscoreToggle = "chart.line.uptrend.xyaxis"
     static let insightsEmpty = "chart.bar.xaxis"
+
+    // Review queue (#27)
+    static let reviewCountry = "globe"
+    static let reviewRoaster = "storefront"
+    static let reviewFarm = "leaf"
+    static let reviewAccept = "checkmark.circle.fill"
+    static let reviewUndo = "arrow.uturn.backward.circle"
+    static let reviewRule = "link"
+    static let reviewOther = "square.and.pencil"
+    static let reviewZoom = "arrow.up.left.and.arrow.down.right"
+    static let reviewPhotoMissing = "photo"
+    static let reviewEmpty = "checkmark.circle"
 }

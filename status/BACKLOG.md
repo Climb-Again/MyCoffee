@@ -32,7 +32,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
 | 25 | data      | 3 | ready   | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
-| 27 | ios-ux    | 5 | ready   | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules — unblocked: `#22` (ios-shell) and `#24` (backend) both landed on their respective branches; merging `main` into `ios-staging` is what surfaces this |
+| 27 | ios-ux    | 5 | done    | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules — see `status/ios-ux.md`. Runs against a local sample fixture; the real `GET /api/review` feed needs a `CoffeeStore`/`APIClient` surface the shell lane hasn't added yet (flagged in both lane files) |
 | 28 | ios-ux    | 5 | done    | 22 | Insights (with statistical gates) + roaster and country pages — see `status/ios-ux.md` |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
 | 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
@@ -44,6 +44,19 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟢 2026-08-04 (ios-ux lane, later same session) — `#27` is DONE.** Review
+queue built in full against a local sample fixture (`ReviewSampleData`):
+batch-card collapsing at the ≥8 threshold, per-coffee singles ordered by
+fewest-open-fields-first, all five gestures (tap/long-press/swipe
+right/left/down), a 20-deep undo stack with a 5 s toast, and an "Other…"
+free-text fallback. **One real gap, flagged rather than guessed around** (see
+`status/ios-ux.md`): the real `GET /api/review` / `POST /api/review/:id` /
+`POST /api/review/rules` feed has no `CoffeeStore`/`APIClient` surface yet —
+same class of gap as #28's flagged `loadBrief()` — so every action today only
+mutates local state, nothing round-trips through the mutation outbox. Claimed
+in both `status/ios-ux.md` and `status/ios-shell.md` per the seam rule in
+`status/README.md`.
 
 **🟢 2026-08-04 (ios-ux lane, merging `main` into `ios-staging`) — `#27` flipped `blocked`→`ready`.**
 Each branch only knew half the picture: `ios-staging` had `#22` (ios-shell) done

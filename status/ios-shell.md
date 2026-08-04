@@ -4,7 +4,17 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-04 UTC] Cross-lane request from `ios-ux`, not a shell claim on `#27` itself (that row is `done` — see
+  `status/ios-ux.md` and `status/BACKLOG.md`): the review queue built for `#27` runs entirely against a local
+  `ReviewSampleData` fixture because `CoffeeStore`/`APIClient` expose no review-fetching surface yet. If a shell
+  session picks this up, the ask is an `APIClient` method per backend route (`backend/src/routes/review.js`) —
+  `reviewItems(limit:offset:) async throws`, `resolveReview(id:value:) async throws`, `dismissReview(id:) async
+  throws`, `createReviewRule(kind:canonicalId:alias:) async throws` — plus a `CoffeeStore`-level wrapper mirroring
+  `loadDetail`'s shape, and ideally a `.reviewResolution(taskId:value:)` case on `MutationOutbox`'s `PendingMutation`
+  enum (its own doc comment already reserves room for this: "leaves room for the review lane (#27) to add its own
+  without a new outbox"). Not a blocking claim — `ios-ux` isn't waiting on this before other work, just flagging the
+  seam per `status/README.md`'s rule that changing the `CoffeeStore`/`CoffeeIndex` surface needs a claim in both
+  lane files.
 
 ## Done
 

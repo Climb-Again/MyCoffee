@@ -70,6 +70,62 @@ _none_
 
 ## Done
 
+- [2026-08-04 00:00 UTC] 27 Review queue — batch cards, photo auto-zoom, mapping rules — branch `ios-staging`
+  - Unblocked by merging `origin/main` into `ios-staging`: each branch only knew half the picture (`ios-staging` had
+    `#22` done but a stale `blocked` for backend's `#23`/`#24`/`#25`; `main` had `#23`/`#24` done but still showed
+    `#22` as merely `ready`, since the shell lane never pushes to `main`). Reconciling the two is what surfaced `#27`
+    as `ready` — recorded at the top of `status/BACKLOG.md`'s "Right now".
+  - `Sources/Features/Review/{ReviewModels,ReviewSampleData,ReviewQueueEngine,ReviewCardView,ReviewBatchCardView,
+    ReviewQueueView}.swift`, replacing `ReviewPlaceholderView.swift` (deleted) in `RootTabView`. New
+    `DesignSystem/Symbols.swift` entries under "Review queue (#27)".
+  - **Batch cards** (PLAN.md §6.5): tasks sharing `(field, rawValue)` across ≥8 collapse into one card ("N coffees
+    say X → Y? [Accept all N] [Review individually]"); "Accept all" bulk-resolves and creates a mapping rule in one
+    step, "Review individually" permanently un-collapses that group for the session via `expandedGroupKeys`.
+  - **Queue order**: batch cards first (largest first), then remaining tasks grouped by coffee (`coffeeId ?? photoId`
+    — a review item can predate coffee resolution, per the backend's own `LEFT JOIN coffees`) and ordered by fewest
+    open fields first, then anything skipped-to-back at the very end. All computed fresh from `openTasks` on every
+    read, same "plain computed property, not `@Published`" pattern as `CoffeeStore.filteredCoffees`.
+  - **All five gestures** (PLAN.md §6.5's table): tap a chip or swipe right → accept, advance immediately; long-press
+    a chip → accept **and** create a mapping rule applied to every *remaining* task with the same `(field, rawValue)`
+    — not just the ones visibly batched, since a pair below the ≥8 threshold still benefits; swipe left → defer to
+    the very back of the whole queue (`deferredIDs`, not just its own coffee group); swipe down → not-present,
+    removed for the session; a 20-deep undo stack (`ReviewQueueEngine`'s private `undoStack`) with a 5 s auto-dismiss
+    toast, plus a toolbar undo button so the 20-deep history stays reachable past the 5 s window.
+  - **`ReviewField.aliasKind`** gates the long-press-creates-a-rule behaviour to the four fields the backend's
+    `ALIAS_TABLES` actually persists (`originCountry`/`roasterCountry` → `country`, `roaster`, `farm`,
+    `routes/review.js`) — long-pressing a profile/altitude/weight/price chip just accepts, matching what
+    `POST /api/review/rules` can actually store.
+  - **"Other…"** reveals a `TextField` only on demand, per PLAN.md §6.5's "the keyboard is the enemy of the budget."
+  - **Flags from ISO codes** and **Every SF Symbol in `Symbols.swift`** conventions both followed; picked
+    deliberately safe/common symbol names (`globe`, `storefront`, `leaf`, `link`, `square.and.pencil`,
+    `arrow.up.left.and.arrow.down.right`) over exotic ones, given there's no local Xcode to catch a typo.
+  - **One real gap, flagged rather than worked around: no real backend feed.** `CoffeeStore`/`APIClient`
+    (shell-owned) expose no `GET /api/review`, `POST /api/review/:id`, `POST /api/review/bulk`, or
+    `POST /api/review/rules` methods today — same gap class as #28's flagged `loadBrief()`. Built and ran the whole
+    feature against `ReviewSampleData` (a local fixture built to exercise both queue-order rules: two batch groups of
+    exactly the brief's own quoted examples, `Etiopia → Ethiopia` at 11 tasks and `DAK → DAK Coffee Roasters` at 9,
+    plus per-coffee singles with 1/2/3 open fields to make "fewest-open-fields-first" visible) per the work loop's
+    "build against `BundledSampleRepository`, zero backend dependency" instruction. Every engine action today only
+    mutates local `@Published` state; nothing round-trips through `MutationOutbox` yet.
+  - **What the shell lane would need to add, if picked up** (claimed here and in `status/ios-shell.md` per the seam
+    rule in `status/README.md`): an `APIClient` method per backend route (`reviewItems(limit:offset:) async throws`,
+    `resolveReview(id:value:) async throws`, `dismissReview(id:) async throws`, `createReviewRule(kind:canonicalId:
+    alias:) async throws`) plus a `CoffeeStore`-level wrapper, mirroring `loadDetail`'s shape. `MutationOutbox`
+    (`Store/MutationOutbox.swift`) already left room for this in its own doc comment ("leaves room for the review
+    lane (#27) to add its own [`PendingMutation`] case without a new outbox") — a `.reviewResolution(taskId:value:)`
+    case would let resolutions survive app restart/offline the same way favorites do. Not guessing the exact
+    signatures further than that; flagging rather than reaching into shell-owned files.
+  - **Also not done, deliberately out of scope**: no photo/OCR bounding-box auto-zoom, since no real photo URL or
+    focus rect exists anywhere in the data yet (`Coffee.images.ocr` is nil for every sample row on purpose,
+    `Models/Coffee.swift`'s own comment). Built `ReviewPhotoPlaceholder` as a fully pinch-zoomable, double-tap-to-reset
+    component ready to swap an `AsyncImage`/`ImageStore` load into once that field exists, rather than faking image
+    content into a public repo.
+  - Not locally compiled (no Xcode in this environment) — flag the compile lane to `Features/Review/**` and the new
+    `Symbols.swift` entries specifically if the next compile check goes red; the two most likely first things to
+    check are the stacked `.onTapGesture`/`.onLongPressGesture` on `ReviewChip` and the `WrapLayout()` trailing-closure
+    call syntax (matched exactly to the existing `CoffeeDetailView` usage).
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-02 00:00 UTC] No open `ios-ux` backlog row (`#27` still blocked on
   backend `#24`) — instead closed the UX-wiring gap the shell lane flagged in
   `status/ios-shell.md` after `#22` landed: `Thumbnail.swift` was still a plain

@@ -15,7 +15,7 @@ struct RootTabView: View {
             InsightsView()
                 .tabItem { Label("Insights", systemImage: Symbols.tabInsights) }
 
-            ReviewPlaceholderView()
+            ReviewQueueView()
                 .tabItem { Label("Review", systemImage: Symbols.tabReview) }
                 .badge(pendingReviewCount)
         }
