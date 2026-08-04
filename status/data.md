@@ -85,6 +85,24 @@ _none_
   93/93 green (unaffected — this lane touched only `ops/**`). — branch
   `claude/peaceful-mccarthy-3f480y`
 
+- [2026-08-04 UTC] Session check: no `ready` data row exists. `status/BACKLOG.md`
+  on this branch is fully in sync with `origin/main` (`git fetch origin main` →
+  `d9f5440`, identical to `HEAD` — no stranded-branch confusion this cycle).
+  #12/#13/#14/#20/#34 all `done`; the only other data rows are #25 (needs 20, 24 —
+  20 done, **24 still `ready` not `done`**, so blocked), #26 (needs 25), #29 (needs
+  26) — none qualify. Swept `git branch -r --list 'origin/claude/*'` (9 branches)
+  for stranded data-lane work before concluding: `3f480y` (#20's origin branch) —
+  zero commits ahead of `origin/main`, fully consolidated already; `9yq99y` and
+  `pf55bh` — doc-only "session check, no ready row" commits from prior data-lane
+  sessions, no code; `rwi2ql` (#14's origin branch) — `git diff origin/main
+  origin/claude/peaceful-mccarthy-rwi2ql -- backend/src/lib/vocab.js
+  backend/test/vocab.test.js` is empty, i.e. already byte-identical to what's on
+  `main`. Nothing to adopt. `cd backend && npm ci && npm test` — 103/103 green.
+  Live-verified `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`
+  and `GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+  "vertex":true,"ingestEvents":0}`. No code changes — stopping cleanly per the
+  work loop (do not invent work). Next data row unblocks once backend closes #24.
+
 - [2026-08-01 ebfce55] #14 — **`backend/src/lib/vocab.js`** + 24 new tests
   (`test/vocab.test.js`, 86/86 green). Resolution against the `004_vocab.sql`
   tables: `resolveVocab` (exact `alias_norm` lookup, fuzzy fallback via
