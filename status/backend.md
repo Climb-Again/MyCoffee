@@ -64,6 +64,35 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-04 UTC] Session check: re-verified no `ready` backend row exists.
+  Fresh unscoped `git fetch origin` — 39 `claude/*` branches (up from 34),
+  `HEAD`/`origin/main` agree at `b39437c`. Swept every branch via
+  `git rev-list --count origin/main..<branch>`: 17 non-zero. Two were new
+  and large enough to warrant a real look rather than a name-pattern match —
+  `wizardly-thompson-0g9i90` (35 ahead) and `hopeful-johnson-3xcwg7`
+  (20 ahead, previously audited). Checked both properly this time:
+  `hopeful-johnson-3xcwg7` is 0 ahead of / 22 behind `origin/ios-staging` —
+  fully contained, not stranded. `wizardly-thompson-0g9i90` is 2 ahead of /
+  0 behind `origin/ios-staging` (the 2 extra are no-op session-check/merge
+  commits) — also fully contained, and `git diff --stat
+  origin/main...origin/claude/wizardly-thompson-0g9i90 -- backend/
+  status/backend.md` is empty, confirming zero backend-owned changes on it
+  (all 38 changed files are `ios/**`/`status/{BACKLOG,compile,ios-shell,
+  ios-ux}.md`). The remaining 15 branches
+  (`determined-thompson-{2c546d,4x4vo3,7z8a69,ekezl2,jwlcyu,ljny72,nto1g8,
+  uh2dyn,yjymsr}`, `peaceful-mccarthy-{9yq99y,pf55bh,rwi2ql}`,
+  `modest-newton-oxaddt`, `relaxed-thompson-ceai5p`,
+  `wizardly-thompson-eurlj6`) are single/few-commit no-op status notes or
+  the long-superseded #14 `vocab.js` attempt, all previously identified.
+  Nothing backend-owned or actionable to integrate. All backend-tagged
+  `BACKLOG.md` rows are `done` except `#23`/`#24`, which stay `blocked` on
+  purpose — Data lane's on-Mac 20-photo verification gate (`PLAN.md` §8)
+  still hasn't run (no Mac in any sandbox). Ran `cd backend && npm ci &&
+  npm test` — 93/93 green, matching the last recorded count, no drift.
+  Live-verified `GET /health` → `{"ok":true,"db":true,"service":
+  "mycoffee-api"}` and `GET /api/status` → `{"ok":true,"service":
+  "mycoffee-api","db":true,"vertex":true,"ingestEvents":0}`. No code
+  changes — stopping cleanly per the work loop (do not invent work).
 - [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` — 34 `claude/*` branches (up from 31),
   `HEAD`/`origin/main` agree at `9f789e8`. Swept every branch via
