@@ -170,6 +170,15 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
   check commits) before stopping. Stopping cleanly rather than inventing
   work or touching UX-owned paths.
 
+- [2026-08-04 00:00 UTC] No open backlog row for `ios-shell` (only #17/#22 exist for this
+  lane and both are `done`). Merged `origin/main` into `ios-staging` to pick up backend
+  #23/#24/#25 and resolve a `status/BACKLOG.md` divergence: `ios-staging` didn't know
+  `main` had promoted #25→`done`/#26→`human`; `main` didn't know `ios-staging` already
+  had #22/#27/#28 done. Reconciled the table + prose (no code conflicts — the only
+  conflicting file was `status/BACKLOG.md`) and pushed to `ios-staging`. No new
+  `ios-shell`-owned code this session — not inventing work per the loop's own rule.
+  - Commit: `5dec242` (merge), on `ios-staging`
+
 ## Abandoned
 
 _none_
