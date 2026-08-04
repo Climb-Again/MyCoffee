@@ -8,6 +8,21 @@ _none_
 
 ## Session notes
 
+- [2026-08-04 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`. The two flagged seam gaps from `#27`/`#28`
+  (shell adding `CoffeeStore.loadBrief()` for the Insights "This month"
+  section, and `APIClient`/`CoffeeStore` methods for `GET /api/review` /
+  `POST /api/review/:id` / `POST /api/review/rules` so the review queue can
+  round-trip through `MutationOutbox` instead of only mutating local state)
+  are still unclaimed — confirmed via `status/ios-shell.md`'s own 2026-08-04
+  entry, which merged `main` but added no new `ios-shell`-owned code. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  (`claude/hopeful-johnson-0fzb9o`) exists, 0 commits ahead of `ios-staging`
+  in any owned path, nothing stranded to adopt. `git merge origin/main` into
+  `ios-staging` was already up to date (no divergence to reconcile). Stopping
+  cleanly per the lane's documented no-op behaviour; no code changes this
+  session.
+
 - [2026-08-03 UTC] No-op session (second cycle same day). `BACKLOG.md`: `#27`
   (needs 22, 24) still `blocked` — `#24` unchanged, still blocked on `#23`
   (Vertex extension). `#28` (needs 22) stays `done`. Re-swept `git branch -r
