@@ -28,8 +28,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 20 | data      | 1 | done    | 19 | `ops/` Mac exporter + uploader (osxphotos + sips) — unit-tested (29/29) **AND the on-Mac §8 gate PASSED 2026-08-04**: Radu ran it on the real "coffees" album, 28 photos uploaded, dedupe-on-rerun verified (`0 need an image upload`). Backfill continues as iCloud originals finish downloading |
 | 21 | backend   | 2 | done    | 11, 14 | Migrations 008–009 + snapshot + `routes/coffees.js` — verified end-to-end against a local Postgres (insert → generated columns → `GET /api/snapshot`/`/api/coffees/:id`/`top-filters`/favorite all 200 with real data) |
 | 22 | ios-shell | 2 | ready   | 21 | Remote repository + SyncEngine + ImageStore + MutationOutbox |
-| 23 | backend   | 3 | ready   | — | Extend `src/vertex.js` — images, responseSchema, thinkingConfig, usage. **Unblocked 2026-08-04:** the backend lane held this `blocked` "per §8 until the on-Mac photo gate runs" — that gate has now PASSED (#20), so its only stated blocker is lifted. No formal `needs`. |
-| 24 | backend   | 3 | blocked | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
+| 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
+| 24 | backend   | 3 | ready   | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes |
 | 25 | data      | 3 | blocked | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation |
 | 26 | data      | 4 | blocked | 25 | **5-photo sample → stop and report**, then 25-record tuning, then ask before the full backfill |
 | 27 | ios-ux    | 5 | blocked | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules |

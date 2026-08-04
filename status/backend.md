@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-04 12:00 UTC] #23 Extend `src/vertex.js` — inline images, responseSchema, thinkingConfig, usage, finishReason — branch `main`
+_none_
 
 ## ✅ Resolved (2026-08-01, later same-day session): the audit finding below is merged
 
@@ -64,6 +64,37 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-04 UTC] #23 — Extended `src/vertex.js` additively per the issue spec,
+  keeping `generateContent()`'s existing signature working (it's still called
+  from nowhere; only `isConfigured()` has a caller today, unchanged):
+  `images: [{mimeType, dataBase64}]` appended as `inlineData` parts after the
+  text part; `responseSchema` alongside `responseMimeType: 'application/json'`
+  (also implied by a bare `json: true`, unchanged from before); `thinkingConfig:
+  {thinkingBudget}` only emitted when `thinkingBudget` is passed, so `0`
+  (thinking off, the flash-extractor cost lever) is honoured and not confused
+  with "omitted"; `usage` now returned from `usageMetadata`
+  (`promptTokenCount`/`candidatesTokenCount`/`thoughtsTokenCount`); `finishReason`
+  now returned from the first candidate so a `MAX_TOKENS`/`SAFETY` truncation
+  surfaces instead of silently parsing a partial record. `maxOutputTokens`
+  still defaults to 8192 per the thinking-model floor.
+  Split the request/response shaping into two new pure exports —
+  `buildRequestBody()` and `parseResponse()` — so #23's "add unit tests for
+  request-body shaping (no network)" is testable directly rather than by
+  mocking `GoogleAuth`/network. Added 12 new tests in `test/vertex.test.js`
+  covering: default text-only shape, system instruction, image-part ordering
+  (text first, then images in call order), `responseSchema` attachment,
+  `json:true` without a schema, `thinkingBudget` at `0`/nonzero/omitted,
+  `maxOutputTokens`/`temperature` overrides, usage+finishReason parsing
+  (including `MAX_TOKENS`) and the empty-response edge case. 103/103 `npm test`
+  green (93 prior + 10 new — two of the twelve exercise multiple assertions in
+  one `test()` block). No DB/network touched by this change, so no live-verify
+  beyond the existing `/health`/`/api/status` smoke checks. Flipped `#24`
+  (needs 21, 23 — both now done) `blocked`→`ready` in `BACKLOG.md` in the same
+  push. `#24` (migrations 010–011 + worker + agents + adjudicate + review
+  routes) is a large multi-file build — deliberately not attempted in this
+  session; leaving it for a dedicated backend session per the "keep it small"
+  batching rule, especially given the data lane's spend-gate protocol once
+  extraction actually runs.
 - [2026-08-03 UTC] Session check: re-verified no `ready` backend row exists.
   Fresh unscoped `git fetch origin` — 34 `claude/*` branches (up from 31),
   `HEAD`/`origin/main` agree at `9f789e8`. Swept every branch via
