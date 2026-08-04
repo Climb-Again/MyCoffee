@@ -221,3 +221,43 @@ test('resolveCityCountry: resolves an unambiguous city, refuses an ambiguous one
   assert.equal(resolveCityCountry('Cambridge', cities), null); // ambiguous -> never auto-accepts
   assert.equal(resolveCityCountry('Nowhereville', cities), null);
 });
+
+// --- Profile/decaf rules derived from the real 5-photo sample (#26) ---
+// Radu's rule: if at least one profile can be structured, allocate to that;
+// otherwise file it under Experimental.
+test('parseProfile: a structured process wins over Honey, keeping Honey as detail', () => {
+  const r = parseProfile('Procesare: Co-Fermentata cu fructe, Honey');
+  assert.equal(r.profileId, 'co_fermented');
+  assert.equal(r.detail, 'Honey');
+});
+
+test('parseProfile: the distinguishing process beats the generic one', () => {
+  // Sample record read as plain "washed" before this, losing the co-fermentation.
+  assert.equal(parseProfile('Procesare: Co-Fermentata cu fructe, Washed').profileId, 'co_fermented');
+  // ...but "Experimental Washed" is a real washed process, not the catch-all.
+  assert.equal(parseProfile('Processing: Experimental Washed').profileId, 'washed');
+});
+
+test('parseProfile: Romanian process spellings resolve', () => {
+  // "Anaerob" does not substring-match "anaerobic" — this was a live miss.
+  assert.equal(parseProfile('Procesare: Anaerob, Decaf').profileId, 'anaerobic');
+  assert.equal(parseProfile('Procesare: Double Anaerobic').profileId, 'anaerobic');
+});
+
+test('parseProfile: decaf is detected from the corpus spellings', () => {
+  assert.equal(parseProfile('El Vergel (Decaf) ANAEROBIC FERMENTED AND DECAFFEINATED').isDecaf, true);
+  assert.equal(parseProfile('Procesare: Anaerob, Decaf').isDecaf, true);
+  assert.equal(parseProfile('cafea decofeinizata').isDecaf, true);
+});
+
+test('parseProfile: Romanian "ea" is not read as the ethyl-acetate decaf process', () => {
+  // A bare 'ea' term made every Romanian caption a false-positive decaf.
+  assert.equal(parseProfile('O cafea buna, ea este delicioasa').isDecaf, false);
+  assert.equal(parseProfile('Decaf via ethyl acetate').isDecaf, true);
+});
+
+test('parseProfile: an unmodelled process falls back to experimental, silence stays null', () => {
+  assert.equal(parseProfile('Procesare: Wet Hulled Giling Basah').profileId, 'experimental');
+  // No process mentioned at all -> never guess (and never default to Washed).
+  assert.equal(parseProfile('Origine: Brazilia | Varietal: Paraiso').profileId, null);
+});

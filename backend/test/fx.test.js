@@ -120,6 +120,33 @@ test('toEur is a no-op passthrough for EUR', () => {
   });
 });
 
-test('toEur returns null rather than guessing when no rate covers the date', () => {
-  assert.equal(toEur({ amount: 100, currency: 'RON', date: '2010-01-01' }, FX_ROWS), null);
+// Superseded 2026-08-04 by Radu's explicit instruction after the #26 sample:
+// RON must always convert, falling back to 5.2 RON/EUR, because a NULL
+// price_eur blanks out every price filter and insight in the app. The
+// "don't guess" principle still holds for any currency without a stated
+// fallback — see the JPY case below.
+test('toEur uses the stated RON fallback when no dated rate covers the date', () => {
+  const r = toEur({ amount: 100, currency: 'RON', date: '2010-01-01' }, FX_ROWS);
+  assert.equal(r.priceEur, 19.23); // 100 / 5.2
+  assert.equal(r.fxRatePeriod, null, 'null period marks a fallback conversion');
+});
+
+// The 5-photo sample produced NULL price_eur on every priced record because
+// production's fx_rates was empty. Radu's call: an approximate EUR figure beats
+// a NULL that blanks out every price filter, with RON at 5.2/EUR as the floor.
+test('toEur falls back to 5.2 RON/EUR when no dated rate covers the purchase', () => {
+  const r = toEur({ amount: 75, currency: 'RON', date: '2026-03-10' }, []);
+  assert.equal(r.priceEur, 14.42); // 75 / 5.2
+  assert.equal(r.fxRatePeriod, null, 'null period is the marker for a fallback conversion');
+});
+
+test('toEur still prefers a real dated rate over the fallback', () => {
+  const rows = [{ currency: 'RON', period: '2024-06-01', rateToEur: 0.200935 }];
+  const r = toEur({ amount: 75, currency: 'RON', date: '2024-06-15' }, rows);
+  assert.equal(r.priceEur, 15.07);
+  assert.equal(r.fxRatePeriod, '2024-06-01', 'a dated conversion carries its period');
+});
+
+test('toEur returns null for a currency with neither a rate nor a fallback', () => {
+  assert.equal(toEur({ amount: 100, currency: 'JPY', date: '2026-03-10' }, []), null);
 });

@@ -224,20 +224,53 @@ export function parseDate(text, { photoDate } = {}) {
 
 // ---- Roast profile + decaf (orthogonal) ----
 
+// Order matters: a caption often names two processes at once ("Co-Fermentata cu
+// fructe, Washed", "Experimental Washed"), and the first match wins. The
+// distinguishing process is checked before the generic one, so a co-fermented
+// washed coffee reads as co-fermented rather than plain washed. `experimental`
+// stays last so it acts as the catch-all rather than swallowing "Experimental
+// Washed", which is a real washed process.
+// Romanian forms are first-class here: the corpus is a Romanian shop's copy
+// ("Procesare: Anaerob", "Co-Fermentata cu fructe"), and 'anaerobic' does not
+// substring-match 'anaerob'.
 const PROFILE_ALIASES = [
-  ['washed', ['lavado', 'spalat', 'fully washed', 'washed']],
+  ['co_fermented', ['co-fermented', 'co-ferment', 'cofermented', 'co-fermentata', 'cofermentata', 'infused']],
+  ['anaerobic', ['anaerobic', 'anaerob', 'carbonic maceration', 'cm']],
   ['natural', ['natural', 'dry process', 'uscat']],
-  ['anaerobic', ['anaerobic', 'carbonic maceration', 'cm']],
-  ['co_fermented', ['co-fermented', 'co-ferment', 'cofermented', 'infused']],
+  ['washed', ['lavado', 'spalat', 'spalata', 'fully washed', 'washed']],
   ['experimental', ['thermal shock', 'double fermentation', 'yeast', 'lactic']],
 ];
+
+// Process is clearly being described, but by a name we don't model. Radu's
+// rule: structure it if at least one known profile matches, otherwise file it
+// under Experimental — but only when the text actually talks about processing,
+// so a caption that never mentions it stays NULL instead of being mislabelled.
+// Deliberately a *labelled* pattern ("Procesare: …", "Process: …") or an
+// explicit fermentation word, not the bare noun: prose like "a bag with no
+// process mentioned" must not label the coffee Experimental.
+const PROCESS_LABEL_RE = /\b(procesare|processing|process|proces)\s*[:=]/i;
+const FERMENT_RE = /\bfermenta/i;
 
 // Checked in order, most specific phrase first, so the literal preserved in
 // profile_detail is the fullest term actually present ("Yellow Honey", not
 // just "Honey").
 const HONEY_TERMS = ['yellow honey', 'black honey', 'pulped natural', 'honey'];
 
-const DECAF_TERMS = ['decaf', 'swiss water', 'co2 process', 'co2', 'fara cofeina', 'ea'];
+// 'decaf' substring-matches 'decaffeinated'/'decafeinizata' too, which is how
+// the corpus usually spells it. NOT a bare 'ea': the captions are Romanian,
+// where "ea" is an ordinary word ("she"), so the ethyl-acetate process has to
+// be named explicitly or every other record would come out decaf.
+const DECAF_TERMS = [
+  'decaf',
+  'decofeinizat',
+  'swiss water',
+  'co2 process',
+  'fara cofeina',
+  'ethyl acetate',
+  'ea process',
+  'ea decaf',
+  'sugarcane ea',
+];
 
 function findLiteral(text, term) {
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -257,21 +290,40 @@ export function parseProfile(text) {
     }
   }
 
-  for (const term of HONEY_TERMS) {
-    if (includesTerm(norm, term)) {
-      return { profileId: 'experimental', isDecaf, detail: findLiteral(text, term) };
-    }
-  }
-
+  const honeyTerm = HONEY_TERMS.find((h) => includesTerm(norm, h));
+  let structured = null;
   for (const [profileId, terms] of PROFILE_ALIASES) {
-    for (const term of terms) {
-      if (includesTerm(norm, term)) {
-        return { profileId, isDecaf, detail: null };
-      }
+    const hit = terms.find((t) => includesTerm(norm, t));
+    if (hit) {
+      structured = { profileId, term: hit };
+      break;
     }
   }
 
-  // No match — never default to Washed, even though it's the modal class.
+  // A structured profile wins over Honey ("Co-Fermentata cu fructe, Honey" is
+  // co-fermented, with Honey kept in `detail`) — *unless* the structured term is
+  // merely a fragment of the honey phrase itself. "Pulped natural" is a honey
+  // process, not a natural one, and the word "natural" inside it must not
+  // hijack the classification.
+  if (structured && !(honeyTerm && honeyTerm.includes(structured.term))) {
+    return { profileId: structured.profileId, isDecaf, detail: honeyTerm ? findLiteral(text, honeyTerm) : null };
+  }
+
+  // Honey has no class of its own, so it files under Experimental, keeping the
+  // fullest literal ("Yellow Honey", not just "Honey") in profile_detail.
+  if (honeyTerm) {
+    return { profileId: 'experimental', isDecaf, detail: findLiteral(text, honeyTerm) };
+  }
+
+  // Processing is described but under a name we don't model -> Experimental,
+  // per Radu's rule. Requires a process *label* or an explicit fermentation
+  // word, so ordinary prose can't trigger it.
+  if (PROCESS_LABEL_RE.test(text) || FERMENT_RE.test(norm)) {
+    return { profileId: 'experimental', isDecaf, detail: null };
+  }
+
+  // Nothing about process at all — never default to Washed, even though it's
+  // the modal class.
   return { profileId: null, isDecaf, detail: null };
 }
 
