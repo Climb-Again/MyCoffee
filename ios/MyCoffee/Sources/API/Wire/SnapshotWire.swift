@@ -41,7 +41,7 @@ struct ProfileVocabDTO: Decodable {
 struct CompactCoffeeDTO: Decodable {
     let id: String
     let purchasedOn: PlainDate
-    let roasterId: Int
+    let roasterId: Int?
     let roasterCountryId: Int?
     let originCountryIds: [Int]
     let originCountryId: Int?
