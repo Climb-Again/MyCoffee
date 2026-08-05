@@ -11,6 +11,8 @@
 //                           future import inherits the correction for free.
 import { requireAnyToken, requireIngestToken } from '../auth.js';
 import { query } from '../db.js';
+import { buildMediaUrl } from '../media.js';
+import { canonicalize, denormalize } from '../lib/adjudicate.js';
 import { normalizeVocabString } from '../lib/normalize.js';
 import { loadSharedContext, applyResolutionsToCoffee } from '../lib/worker.js';
 
@@ -20,42 +22,121 @@ const ALIAS_TABLES = {
   farm: { table: 'farm_aliases', fk: 'farm_id' },
 };
 
+// Signed review thumbnails are one-shot deep links the reviewer taps within a
+// session, so a long TTL only avoids a needless mid-review 403; mirror the
+// detail route's 30-day window.
+const REVIEW_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+// The app's review UI (ReviewField, ios/.../Features/Review) only understands
+// these eight fields; map each DB field name onto the client enum's raw value.
+// DB fields with no client equivalent (rating, roasted_on, the desc_* prose
+// spans) are filtered out of the feed rather than sent as un-actionable cards.
+const FIELD_TO_CLIENT = {
+  origin_country_ids: 'originCountry',
+  roaster_country_id: 'roasterCountry',
+  roaster_id: 'roaster',
+  origin_farm_id: 'farm',
+  profile: 'profile',
+  altitude: 'altitude',
+  weight_g: 'weight',
+  price: 'price',
+};
+
+// Fields whose stored value is a structured/id shape, not a bare string: a
+// human's accepted value must be canonicalised back into that shape before it
+// can be written, or it would corrupt the coffees row.
+const STRUCTURED_FIELDS = new Set([
+  'roaster_id', 'origin_farm_id', 'origin_country_ids', 'roaster_country_id',
+  'altitude', 'price', 'weight_g', 'rating', 'roasted_on', 'profile',
+]);
+
+const REASON_LABELS = {
+  below_threshold: 'low confidence',
+  no_candidates: 'no clear value found',
+  disagreement: 'voters disagreed',
+};
+
+// The stored `candidates` are raw voter outputs: some are objects (prose
+// `{start,end}` spans), some are whole-caption dumps from the rules voter.
+// Keep only short, single-line, human-pickable strings, de-duplicated and
+// order-preserving (the extractor/reconciler values lead), capped at six.
+function cleanCandidates(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const c of raw ?? []) {
+    let v = c?.value;
+    if (v == null || typeof v === 'object') continue;
+    v = String(v).trim();
+    if (!v || v.length > 80 || v.includes('\n')) continue;
+    const key = v.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ value: v });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+function baseUrlFor(req) {
+  return `${req.protocol}://${req.hostname}`;
+}
+
 export default async function reviewRoutes(app) {
   app.get('/api/review', { preHandler: requireAnyToken }, async (req) => {
     const limit = Math.min(Math.max(Number.parseInt(req.query?.limit, 10) || 50, 1), 200);
     const offset = Math.max(Number.parseInt(req.query?.offset, 10) || 0, 0);
 
+    // Only fields the app can review, and only rows offset..offset+limit of
+    // that filtered set — the filtering happens in SQL so `total` and paging
+    // both count client-reviewable items, not the raw open set.
+    const clientFields = Object.keys(FIELD_TO_CLIENT);
     const [{ rows: items }, {
       rows: [{ count }],
     }] = await Promise.all([
       query(
         `SELECT ri.id, ri.field, ri.reason, ri.candidates, ri.created_at,
-                co.public_id AS coffee_public_id, p.public_id AS photo_public_id
+                co.public_id AS coffee_public_id,
+                co.raw_title, co.raw_caption, co.raw_description,
+                p.public_id AS photo_public_id
          FROM review_items ri
          JOIN photos p ON p.id = ri.photo_id
          LEFT JOIN coffees co ON co.photo_id = ri.photo_id
-         WHERE ri.status = 'open'
+         WHERE ri.status = 'open' AND ri.field = ANY($3)
          ORDER BY ri.created_at ASC
          LIMIT $1 OFFSET $2`,
-        [limit, offset],
+        [limit, offset, clientFields],
       ),
-      query(`SELECT count(*) FROM review_items WHERE status = 'open'`),
+      query(`SELECT count(*) FROM review_items WHERE status = 'open' AND field = ANY($1)`, [clientFields]),
     ]);
 
-    return {
-      total: Number(count),
-      limit,
-      offset,
-      items: items.map((r) => ({
-        id: r.id,
-        coffeeId: r.coffee_public_id,
-        photoId: r.photo_public_id,
-        field: r.field,
-        reason: r.reason,
-        candidates: r.candidates,
-        createdAt: r.created_at,
-      })),
-    };
+    const baseUrl = baseUrlFor(req);
+    const mapped = items
+      .map((r) => {
+        const candidates = cleanCandidates(r.candidates);
+        // A row whose candidates were all dumps/spans has nothing pickable —
+        // drop it rather than show an empty card (the human can still find the
+        // coffee via the "needs review" badge and edit it there).
+        if (candidates.length === 0) return null;
+        return {
+          id: String(r.id),
+          coffeeId: r.coffee_public_id,
+          photoId: r.photo_public_id,
+          field: FIELD_TO_CLIENT[r.field],
+          reason: REASON_LABELS[r.reason] ?? r.reason,
+          candidates,
+          // Full scraped context so the reviewer can adjudicate from the source
+          // text, not just the extracted candidate values.
+          rawTitle: r.raw_title,
+          rawCaption: r.raw_caption,
+          rawDescription: r.raw_description,
+          // Signed thumbnail of the source photo (the OCR/caption came from it).
+          thumbUrl: buildMediaUrl(baseUrl, r.photo_public_id, 'thumb', REVIEW_URL_TTL_SECONDS),
+          createdAt: r.created_at,
+        };
+      })
+      .filter(Boolean);
+
+    return { total: Number(count), limit, offset, items: mapped };
   });
 
   app.post('/api/review/:id', { preHandler: requireIngestToken }, async (req, reply) => {
@@ -72,7 +153,26 @@ export default async function reviewRoutes(app) {
     }
 
     if (!('value' in (req.body ?? {}))) return reply.code(400).send({ error: 'missing_value' });
-    const value = req.body.value;
+
+    // The app sends the human's raw picked/typed string. For id/structured
+    // fields that string must be canonicalised into the exact shape the
+    // extraction pipeline stores (roaster_id -> int, price -> {amount,currency},
+    // ...) before it can be written -- storing the bare string would corrupt
+    // the coffees row. Canonicalise with the SAME machinery adjudication uses.
+    const { rows: photoRows } = await query(`SELECT captured_on FROM photos WHERE id = $1`, [item.photo_id]);
+    const photoDate = photoRows[0]?.captured_on;
+    const sharedCtx = await loadSharedContext();
+    const canonicalCtx = { ...sharedCtx, photoDate };
+
+    let value = req.body.value;
+    if (STRUCTURED_FIELDS.has(item.field)) {
+      const canonical = canonicalize(item.field, value, canonicalCtx);
+      // e.g. a roaster/farm name that isn't in the vocabulary yet can't be
+      // turned into an id -- refuse rather than write a broken value. The item
+      // stays open; the reviewer can pick a different candidate or dismiss.
+      if (!canonical) return reply.code(422).send({ error: 'unresolvable_value', field: item.field, value });
+      value = denormalize(item.field, canonical);
+    }
 
     // `locked = true`, `decided_by = 'human'` -- PLAN.md §1's single most
     // important invariant: no later adjudication pass touches this field again.
@@ -90,17 +190,16 @@ export default async function reviewRoutes(app) {
     ]);
 
     const { rows: coffeeRows } = await query(
-      `SELECT co.id AS coffee_id, p.captured_on FROM coffees co JOIN photos p ON p.id = co.photo_id WHERE co.photo_id = $1`,
+      `SELECT id AS coffee_id FROM coffees WHERE photo_id = $1`,
       [item.photo_id],
     );
     const coffee = coffeeRows[0];
     if (coffee) {
-      const sharedCtx = await loadSharedContext();
       await applyResolutionsToCoffee(
         coffee.coffee_id,
         item.photo_id,
         { [item.field]: { decision: 'accepted', value } },
-        { ...sharedCtx, photoDate: coffee.captured_on },
+        canonicalCtx,
       );
     }
 
