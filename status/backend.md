@@ -6,6 +6,47 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-05 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agreed at `55031b9` after fast-forwarding a stale local ref
+(local `main` was 95 commits behind; `origin/main` itself was already current —
+this session's own designated branch `claude/confident-cerf-0cy1fk` was 0 ahead
+of it). All backend-tagged rows in `status/BACKLOG.md` are `done`
+(11/15/16/19/21/23/24/33). `#26` (data) is `human` — awaiting Radu's accuracy
+verdict on the 5-photo sample per the spend gate — and `#29` stays `blocked` on
+it; neither unblocks a backend row.
+
+Swept all 44 `origin/claude/*` branches (`git rev-list --count
+origin/main..<branch>`). Two large ones stood out at 35 commits ahead each
+(`new-app-infrastructure-setup-h3r3wz`, `coffee-app-plan-9jdh0c`) — inspected
+both: they fork from the very first scaffold commit (`9aee099` "Add files via
+upload"), predating the lane split entirely, and their diff against current
+`main` is net-deletions only (backend/src/**, all current lib/routes/tests
+missing) — old pre-lane snapshots, not stranded work to adopt. The rest were
+1–3 commits ahead, all inspected and confirmed to be other lanes' own no-op
+session-check commits to their own `status/*.md` files or the
+long-since-superseded `peaceful-mccarthy-rwi2ql` #14 attempt. Nothing
+backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green** (up from the 152
+recorded at `#24`'s landing; the difference is `#25`'s `deterministic.test.js`
++ `#23`'s `vertex.test.js` growth already merged to `main` since). No code
+changes needed to make this pass.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` (with `INGEST_TOKEN`,
+since `APP_TOKEN` alone 403s that route) → 10 jobs, all `done` or `paused`,
+**none `running`** — safe to push `backend/**` this session per the hard rule,
+though there was no code to push. Jobs 7–10 are the data lane's 5-photo
+spend-gate sample runs (`#26`), all `done`, ~$1.16 total spent. Job 6's
+`lastError` ("model does not support setting thinking_budget to 0") is already
+documented by the data lane in `status/data.md` (line 41) as a known,
+already-worked-around issue — not a new finding, not reflagging it.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## ✅ Resolved (2026-08-01, later same-day session): the audit finding below is merged
 
 A fresh session re-ran the same audit, got the same result (86/86 green on
