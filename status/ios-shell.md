@@ -18,6 +18,25 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Done
 
+- [2026-08-05 UTC, later same day] Session check — unchanged from the check
+  below. Still no ready `ios-shell` row: #17/#22 done, #27/#28 (ios-ux) done,
+  #29 (data, phase 6) still `blocked` on #26, which is still `human`
+  (awaiting Radu's accuracy verdict on the 5-photo sample per the spend
+  gate). Re-swept all `origin/claude/*` branches (49 candidates) for
+  stranded work in this lane's owned paths — same four candidates as the
+  prior check (`coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`,
+  `confident-cerf-yylzob`, `wizardly-thompson-0g9i90`), and confirmed by tree
+  diff (not just commit-ancestry count) that none carry new work: the first
+  two are pre-#17 scaffolding superseded by later commits, `wizardly-
+  thompson-0g9i90` is a pre-`roasterId`-fix snapshot, and `confident-cerf-
+  yylzob` is tree-identical to `ios-staging` (its commit already landed
+  there under a different SHA). `git merge origin/main` pulled in
+  `deb313c`/`de55557` (backend's session check + the same empty-shell fix,
+  already present on `ios-staging` since `f43e4c4` — tree-identical, no
+  conflict) — pure history reconciliation, no new file changes. Stopping
+  cleanly; not re-litigating the leniency follow-up flagged below, still
+  unclaimed and still not blocking anything.
+
 - [2026-08-05 UTC] Session check — no ready `ios-shell` row. #17/#22 are
   `done`; #27/#28 (ios-ux, needing #22/#24) are now also `done`; #29 (data,
   phase 6) needs #26, still `human`. Re-fetched all `origin/claude/*`
