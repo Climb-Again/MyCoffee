@@ -6,6 +6,41 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-05 UTC (later session): session check — no ready row this cycle
+
+`main`/`origin/main` agree at `de55557` (this session's own designated branch,
+`claude/confident-cerf-6cjla8`, sits exactly on that tip — 0 ahead, 0 behind).
+All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33); `#26` (data) is still `human` — awaiting Radu's
+accuracy verdict on the 5-photo sample per the spend gate — and `#29` stays
+`blocked` on it. Neither unblocks a backend row.
+
+Swept all 47 `origin/claude/*` branches (`git rev-list --count
+origin/main..<branch>`). The two 35-ahead branches
+(`coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`) are the
+same pre-lane-split scaffolding forks already inspected in the prior
+session-check note — net-deletions only against current `main`, not stranded
+work. `peaceful-mccarthy-rwi2ql` (3 ahead) is the long-superseded #14
+`vocab.js` attempt already on `main`. `peaceful-mccarthy-9yq99y` (2 ahead) is
+data lane's own doc-only commits. The remaining ~20 single-commit-ahead
+branches are all other lanes' own no-op "session check"/status-note commits
+to their own `status/*.md` files (spot-checked ten of the newest via
+`git log --stat`, all single-file, no code). Nothing backend-owned or
+actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push (jobs 7–10 are the data
+lane's #26 spend-gate samples, ~$1.16 total, unchanged since the last sweep).
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-05 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agreed at `55031b9` after fast-forwarding a stale local ref
