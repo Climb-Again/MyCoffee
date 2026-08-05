@@ -64,6 +64,44 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-05 UTC] Session check: no `ready` backend row exists. Fresh unscoped
+  `git fetch origin` (this session's designated branch, `claude/confident-cerf-w9vkha`,
+  already sits exactly on `origin/main`'s tip `55031b9` — no divergence). Swept every
+  `origin/claude/*` branch via `git rev-list --count origin/main..<branch>`: the two
+  35-ahead branches (`coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`)
+  are pre-lane-split scaffold branches with a large *negative* diff against current
+  `main` (they predate #12/#13/#19/#21/#23/#24/etc., not stranded new work); every
+  other non-zero branch (1–3 commits ahead) is a prior session's own no-op
+  "session check" status commit on a now-stale base, already superseded. Nothing
+  backend-owned or actionable to integrate. All backend-tagged `BACKLOG.md` rows
+  (#11/#15/#16/#19/#21/#23/#24/#33) are `done`; no other row is tagged `backend`.
+  `#26` (data) is still `human` and `#29` (data) still `blocked` on it — neither
+  unblocks backend.
+  Ran `cd backend && npm ci && npm test` — **195/195 green** (up from the 152 last
+  recorded here). The jump is real, previously-unlogged backend work: commits
+  `cdf3086`/`adafb7f`/`29116ad`/`89fa611` (bounded the unbounded Vertex request that
+  was hanging the worker under the pg advisory lock, persisted per-photo errors +
+  added `GET /api/admin/vertex-check`, fixed `generateContent()` ignoring the
+  per-voter model — the actual cause of every LLM voter call failing — and taught
+  the prompt what `profile` means) plus migrations `012_fx_rates_seed`/
+  `013_roaster_suffix_aliases` from `dbfb6ea`, all already on `main` but never
+  given a `## Done` entry in this file. Recording them now for continuity — no
+  code change in this session, just closing the documentation gap.
+  Live-verified `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`,
+  `GET /api/status` → `vertex:true`, `db:true`. **Flag, not fixed (out of backend's
+  lane):** `GET /api/admin/jobs` on production shows jobs #8/#9/#10 — three more
+  `voterSet:'full'` 5-photo runs (`$0.2436`, `$0.3343`, `$0.3665`) fired *after*
+  job #7's sample and after `dbfb6ea`'s "act on Radu's verdict" fixes, all same day
+  (2026-08-04). Radu's spend gate (`BACKLOG.md` "Spend gates") only authorized a
+  single 5-photo sample before his verdict, then a "re-adjudicate for $0" tuning
+  step — jobs #8–10 are paid re-*extraction*, not free re-adjudication, roughly
+  **$0.90 of additional spend** beyond the authorized sample with no matching
+  entry in `status/data.md` (whose latest note there still only covers job #7).
+  Still far under the $80 cap and nowhere near the $62 backfill, but it's a real
+  gap between the spend-gate log and what production shows, so flagging rather
+  than silently letting `status/data.md` speak for state it doesn't actually
+  describe. Not backend's file to edit — the Data lane owns it.
+  No code changes — stopping cleanly per the work loop (do not invent work).
 - [2026-08-04 UTC] #24 — Migrations `010_extractions`/`011_resolutions` (extractions,
   field_candidates, field_resolutions, review_items, extraction_jobs, plus a
   lease pair on `photos`) + `src/lib/adjudicate.js` (the pure
