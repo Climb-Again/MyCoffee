@@ -6,6 +6,42 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-05 UTC (later session): session check — no ready row this cycle
+
+Fresh unscoped `git fetch origin` picked up several new branches since the
+last sweep (`main`/`HEAD`/this session's designated branch
+`claude/confident-cerf-yylzob` all agree at `de55557` — the two most recent
+commits on top of the prior session's `55031b9` are iOS-shell fixes, not
+backend). Swept every `origin/claude/*` branch via `git rev-list --count
+origin/main..<branch>`: the two 35-ahead branches
+(`coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`) remain
+pre-lane-split scaffold forks (net-deletions only, previously confirmed);
+`peaceful-mccarthy-rwi2ql` (3 ahead) remains the superseded `#14` attempt;
+`peaceful-mccarthy-9yq99y` (2 ahead) is data lane's own doc commits; every
+other non-zero branch (`confident-cerf-{k31mzh,w9vkha}`,
+`determined-thompson-{2c546d,4x4vo3,7z8a69,ekezl2,jwlcyu,ljny72,nto1g8,
+s66jso,uh2dyn,yjymsr}`, `modest-newton-oxaddt`, `peaceful-mccarthy-{8uji4p,
+pf55bh,uorzva}`, `relaxed-thompson-ceai5p`, `wizardly-thompson-{0g9i90,
+eurlj6}`) is a 1–2-commit no-op status note from another lane's own file,
+inspected via `git log --stat`. Nothing backend-owned or actionable to
+integrate.
+
+All backend-tagged `BACKLOG.md` rows are `done` (11/15/16/19/21/23/24/33).
+`#26` (data) is still `human` — Radu's accuracy verdict on the 5-photo
+sample hasn't landed yet — and `#29` stays `blocked` on it; neither unblocks
+a backend row.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the
+prior session's count, no drift. Live-verified: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+"ingestEvents":0}`; `GET /api/admin/jobs` (with `INGEST_TOKEN`) → jobs
+1–10, all `done` or `paused`, **none `running`** — safe to push `backend/**`
+this session per the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-05 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agreed at `55031b9` after fast-forwarding a stale local ref
