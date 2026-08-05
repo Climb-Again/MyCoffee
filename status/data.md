@@ -2,7 +2,16 @@
 
 Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.md`
 
-## ⚠ Correction (2026-08-01): "done, on `main`" below is NOT on the real `main`
+## ⚠ Correction (2026-08-01, now HISTORICAL as of 2026-08-05): "done, on `main`" below was NOT on the real `main` at the time — it is now
+
+`claude/peaceful-mccarthy-kix48i` was merged 2026-08-04 (see `BACKLOG.md`'s
+"Right now" section) and `origin/main` has since moved well past `0ad0023` —
+confirmed this session: `origin/main` HEAD is `55031b9`, which is also the tip
+of this session's assigned branch (`claude/peaceful-mccarthy-uorzva`), and
+`BACKLOG.md` on that commit already shows #12/#13/#14/#20/#25/#34 as `done`
+and #26 as `human`. The branch-name confusion this note originally flagged is
+resolved; don't act on the "someone needs to merge this in" ask below — it's
+already been done. Left the original text below for the historical record.
 
 This session was harness-assigned to develop on `claude/peaceful-mccarthy-rwi2ql`
 (a fixed branch name for this session, not something this lane chose). Verified
@@ -230,6 +239,23 @@ tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
   backend #21 (needs 11, 14 — both now done; flipped `blocked`→`ready` in the same
   commit). — branch `claude/peaceful-mccarthy-rwi2ql` (not `main` — see correction
   above)
+
+- [2026-08-05 00:00 UTC] No `ready` row for `data` this cycle — checked
+  `status/BACKLOG.md`: #12/#13/#14/#20/#25/#34 are `done`, #26 is `human`
+  (Radu's 5-photo accuracy verdict, needed before the 25-record tuning run
+  and #29's `29` is `blocked` on it — the only two open `data` rows). Checked
+  GitHub issue #26 directly (`get_comments` — this session has GitHub MCP
+  access, unlike a typical routine firing) for a verdict: zero comments, last
+  updated 2026-07-28, i.e. before the 5-photo sample even ran — no verdict has
+  landed anywhere, not just in the status files. Also swept
+  `git branch -r --list 'origin/claude/*'` for stranded unmerged data-owned
+  work per `status/README.md`'s "Integrate before you start" rule: only
+  `claude/peaceful-mccarthy-rwi2ql` touches data-owned paths ahead of
+  `origin/main`, and its one commit (`ebfce55`, #14) is stale/superseded —
+  diffing it against `origin/main` shows `main`'s `fx.js`/`normalize.js` are
+  *ahead* (the `FALLBACK_RATES_TO_EUR` guess-a-rate path was since removed),
+  not behind. Nothing to adopt. Stopping cleanly per the loop's own rule
+  rather than inventing work — no code changed this session.
 
 ## Superseded / to delete
 
