@@ -213,11 +213,11 @@ struct CoffeeDetailView: View {
                     NavigationLink {
                         CountryPageView(countryID: country.id, role: .origin)
                     } label: {
-                        InfoPill(icon: nil, text: (country.isoCode.flagEmoji ?? "🏳️") + " " + country.name)
+                        InfoPill(icon: nil, text: (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    InfoPill(icon: nil, text: (country.isoCode.flagEmoji ?? "🏳️") + " " + country.name)
+                    InfoPill(icon: nil, text: (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name)
                 }
             }
             if let altitude = coffee.altitudeLabel {
