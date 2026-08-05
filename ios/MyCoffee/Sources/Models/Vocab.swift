@@ -6,7 +6,7 @@ import Foundation
 
 struct Country: Identifiable, Hashable, Sendable {
     let id: Int
-    let isoCode: String          // ISO-3166 alpha-2, e.g. "ET"; drives the flag emoji in DesignSystem
+    let isoCode: String?         // ISO-3166 alpha-2, e.g. "ET"; nil for the synthetic "Blend" row (iso2 is NULL). Drives the flag emoji.
     let name: String
     let isOrigin: Bool
     let isRoaster: Bool
@@ -30,7 +30,10 @@ extension Country: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
-        isoCode = try container.decode(String.self, forKey: .isoCode)
+        // nil for the "Blend" pseudo-country (iso2 is NULL). Decoding this as a
+        // required String threw on Blend — which is in EVERY snapshot — failing
+        // the whole vocab array and blanking the entire app.
+        isoCode = try container.decodeIfPresent(String.self, forKey: .isoCode)
         name = try container.decode(String.self, forKey: .name)
         isOrigin = try container.decode(Bool.self, forKey: .isOrigin)
         isRoaster = try container.decode(Bool.self, forKey: .isRoaster)

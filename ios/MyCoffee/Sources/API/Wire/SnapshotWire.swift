@@ -9,6 +9,21 @@ struct SnapshotResponseDTO: Decodable {
     let vocab: VocabDTO
     let coffees: [CompactCoffeeDTO]
     let deleted: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case version, generatedAt, vocab, coffees, deleted
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decode(Int.self, forKey: .version)
+        generatedAt = try c.decode(Date.self, forKey: .generatedAt)
+        vocab = try c.decode(VocabDTO.self, forKey: .vocab)
+        // Lenient: skip any coffee row that fails to decode rather than losing
+        // the whole list. One malformed row must never blank the app again.
+        coffees = try c.decode([FailableDecodable<CompactCoffeeDTO>].self, forKey: .coffees).compactMap(\.value)
+        deleted = try c.decodeIfPresent([String].self, forKey: .deleted) ?? []
+    }
 }
 
 struct SnapshotTextResponseDTO: Decodable {
@@ -27,6 +42,20 @@ struct VocabDTO: Decodable {
     let roasters: [Roaster]
     let farms: [Farm]
     let profiles: [ProfileVocabDTO]
+
+    private enum CodingKeys: String, CodingKey {
+        case countries, roasters, farms, profiles
+    }
+
+    // Lenient element decoding: one bad vocab row (e.g. the null-`iso2` Blend
+    // row that used to throw) is skipped, not fatal to the whole snapshot.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        countries = try c.decode([FailableDecodable<Country>].self, forKey: .countries).compactMap(\.value)
+        roasters = try c.decode([FailableDecodable<Roaster>].self, forKey: .roasters).compactMap(\.value)
+        farms = try (c.decodeIfPresent([FailableDecodable<Farm>].self, forKey: .farms) ?? []).compactMap(\.value)
+        profiles = try c.decode([FailableDecodable<ProfileVocabDTO>].self, forKey: .profiles).compactMap(\.value)
+    }
 }
 
 struct ProfileVocabDTO: Decodable {
