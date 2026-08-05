@@ -19,12 +19,13 @@ struct ReviewCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ReviewPhotoPlaceholder()
+            ReviewPhoto(urlString: task.thumbUrl)
             snippetBlock
             candidateChips
             if showOtherField {
                 otherField
             }
+            fullTextDisclosure
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -106,6 +107,28 @@ struct ReviewCardView: View {
         }
     }
 
+    /// The whole scraped caption/description behind this task — collapsed by
+    /// default so the card stays a single decision, expandable when the short
+    /// snippet isn't enough to decide from.
+    @ViewBuilder
+    private var fullTextDisclosure: some View {
+        if let fullText = task.fullText, fullText != task.rawSnippet {
+            DisclosureGroup {
+                Text(fullText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 6)
+            } label: {
+                Text("Full text")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     @ViewBuilder
     private var swipeHint: some View {
         if dragOffset.width > 40 {
@@ -174,29 +197,33 @@ private struct ReviewChip: View {
     }
 }
 
-/// Pinch-zoomable photo area (PLAN.md §6.5's "killer feature": the source
-/// photo, auto-zoomed to the OCR bounding box). No photo backend exists yet
-/// in this offline build — `Coffee.images.ocr` is nil for every fixture row
-/// on purpose (`Models/Coffee.swift`'s own comment: "nil until the review
-/// lane needs it") — so this renders a placeholder that's already fully
-/// zoomable, ready to swap an `AsyncImage`/`ImageStore` load in once that
-/// field exists.
-private struct ReviewPhotoPlaceholder: View {
+/// Pinch-zoomable source photo (PLAN.md §6.5's "killer feature": the source
+/// photo the extracted values came from). Loads the signed `thumbUrl` the
+/// review feed now carries; falls back to a placeholder when a row has no
+/// photo URL (or while it's loading), staying zoomable in both states.
+private struct ReviewPhoto: View {
+    let urlString: String?
+
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
 
     var body: some View {
         ZStack {
             Rectangle().fill(Color.black.opacity(0.85))
-            VStack(spacing: 8) {
-                Image(systemName: Symbols.reviewPhotoMissing)
-                    .font(.system(size: 40))
-                Text("Source photo unavailable in this preview build")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+            if let url = urlString.flatMap(URL.init(string:)) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image.resizable().scaledToFit()
+                    case .failure:
+                        placeholderContent
+                    default:
+                        ProgressView().tint(.white)
+                    }
+                }
+            } else {
+                placeholderContent
             }
-            .foregroundStyle(.white.opacity(0.7))
         }
         .frame(height: 260)
         .frame(maxWidth: .infinity)
@@ -217,5 +244,17 @@ private struct ReviewPhotoPlaceholder: View {
                 .background(.thinMaterial, in: Circle())
                 .padding(10)
         }
+    }
+
+    private var placeholderContent: some View {
+        VStack(spacing: 8) {
+            Image(systemName: Symbols.reviewPhotoMissing)
+                .font(.system(size: 40))
+            Text("Source photo unavailable")
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .foregroundStyle(.white.opacity(0.7))
     }
 }

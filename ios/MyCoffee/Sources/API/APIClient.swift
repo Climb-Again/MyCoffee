@@ -127,6 +127,39 @@ struct APIClient: Sendable {
         _ = try await send(req)
         return true
     }
+
+    // GET /api/review — the open review queue (backend maps DB fields onto the
+    // app's `ReviewField` and cleans candidates; PLAN.md §6.5).
+    func reviewFeed(limit: Int = 200) async throws -> ReviewFeedDTO {
+        let req = try makeRequest(path: "/api/review?limit=\(limit)", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(ReviewFeedDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/review/:id — accept a value. The backend canonicalises the raw
+    // string into the field's stored shape and writes a locked, human-decided
+    // resolution; a value it can't resolve (e.g. an unknown roaster) comes back
+    // as HTTP 422 and the item stays open (never a corrupt write).
+    @discardableResult
+    func resolveReview(id: String, value: String) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["value": value])
+        let req = try makeRequest(path: "/api/review/\(id)", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
+    // POST /api/review/:id — dismiss ("not on the bag"), no resolution written.
+    @discardableResult
+    func dismissReview(id: String) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["dismiss": true])
+        let req = try makeRequest(path: "/api/review/\(id)", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
 }
 
 struct StatusResponse: Codable {

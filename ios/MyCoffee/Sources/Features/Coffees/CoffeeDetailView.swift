@@ -101,6 +101,7 @@ struct CoffeeDetailView: View {
                 FactRowsCard(rows: factRows)
             }
             notesSection
+            fullTextSection
             railsSection
         }
         .padding(20)
@@ -278,6 +279,52 @@ struct CoffeeDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
+                }
+            }
+        }
+    }
+
+    /// The raw scraped text (title / caption / description) exactly as ingested.
+    /// The curated `desc_*` note blocks above are empty on the freshly-extracted
+    /// "probe" coffees — this section is what actually shows their full content.
+    /// Selectable so a lot number or link can be copied straight out.
+    private var fullTextSection: some View {
+        let blocks: [(label: String, text: String)] = [
+            ("Title", coffee.rawTitle),
+            ("Caption", coffee.rawCaption),
+            ("Description", coffee.rawDescription)
+        ].compactMap { label, value in
+            guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return (label, value)
+        }
+
+        return Group {
+            if !blocks.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(blocks, id: \.label) { block in
+                            VStack(alignment: .leading, spacing: 4) {
+                                // Only tag each block when more than one is present,
+                                // so a lone caption reads as plain body text.
+                                if blocks.count > 1 {
+                                    Text(block.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(block.text)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                } label: {
+                    Text("Full text")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
                 }
             }
         }

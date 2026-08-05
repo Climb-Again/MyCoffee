@@ -22,6 +22,74 @@ struct ReviewTask: Identifiable, Hashable {
     /// Correction options, top pick first.
     let candidates: [ReviewCandidate]
     let createdAt: Date
+    /// Signed thumbnail of the source photo, if the backend sent one.
+    let thumbUrl: String?
+    /// The full scraped title/caption/description — the whole source context
+    /// the extracted values came from, shown on demand under the card.
+    let rawTitle: String?
+    let rawCaption: String?
+    let rawDescription: String?
+
+    /// The four raw/thumb fields default to nil so the sample-data fixtures
+    /// (`ReviewSampleData`) — written before the real feed carried them — keep
+    /// compiling unchanged; the real feed populates them via `init(dto:)`.
+    init(
+        id: Int, coffeeId: String?, photoId: String, field: ReviewField,
+        rawValue: String, reason: String?, rawSnippet: String?,
+        candidates: [ReviewCandidate], createdAt: Date,
+        thumbUrl: String? = nil, rawTitle: String? = nil,
+        rawCaption: String? = nil, rawDescription: String? = nil
+    ) {
+        self.id = id
+        self.coffeeId = coffeeId
+        self.photoId = photoId
+        self.field = field
+        self.rawValue = rawValue
+        self.reason = reason
+        self.rawSnippet = rawSnippet
+        self.candidates = candidates
+        self.createdAt = createdAt
+        self.thumbUrl = thumbUrl
+        self.rawTitle = rawTitle
+        self.rawCaption = rawCaption
+        self.rawDescription = rawDescription
+    }
+
+    /// The fullest available source text — what the "Full text" disclosure on
+    /// the review card shows so the reviewer can decide from the whole caption.
+    var fullText: String? {
+        for candidate in [rawDescription, rawCaption, rawTitle] {
+            if let candidate, !candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    /// Maps one `GET /api/review` row onto a task. Returns nil for a row whose
+    /// id doesn't parse or whose `field` this build's `ReviewField` doesn't
+    /// know (the backend already filters to reviewable fields, but staying
+    /// defensive means a vocabulary the app predates just drops one card).
+    init?(dto: ReviewItemDTO) {
+        guard let id = Int(dto.id), let field = ReviewField(rawValue: dto.field) else { return nil }
+        let candidates = dto.candidates.map { ReviewCandidate(value: $0.value, hint: $0.hint) }
+        self.init(
+            id: id,
+            coffeeId: dto.coffeeId,
+            photoId: dto.photoId,
+            field: field,
+            // Batch grouping + snippet highlight anchor on the top candidate.
+            rawValue: candidates.first?.value ?? "",
+            reason: dto.reason,
+            rawSnippet: dto.rawCaption ?? dto.rawTitle ?? dto.rawDescription,
+            candidates: candidates,
+            createdAt: dto.createdAt,
+            thumbUrl: dto.thumbUrl,
+            rawTitle: dto.rawTitle,
+            rawCaption: dto.rawCaption,
+            rawDescription: dto.rawDescription
+        )
+    }
 }
 
 struct ReviewCandidate: Identifiable, Hashable {

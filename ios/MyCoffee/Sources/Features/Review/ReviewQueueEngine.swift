@@ -21,14 +21,12 @@ struct ReviewToast: Equatable {
 }
 
 /// Drives the review queue's ordering and gestures against a plain
-/// `[ReviewTask]` (PLAN.md §6.5). **Not wired to the real backend yet** —
-/// `CoffeeStore`/`APIClient` (shell-owned) expose no `GET /api/review` /
-/// `POST /api/review/:id` / `POST /api/review/rules` methods today (same gap
-/// class as #28's flagged `loadBrief()`), so every action here only mutates
-/// local state; nothing round-trips through the mutation outbox. Flagged in
-/// `status/ios-ux.md` and claimed in both lane files rather than duplicating
-/// networking plumbing inside `Features` — see that file for the exact
-/// surface being requested.
+/// `[ReviewTask]` (PLAN.md §6.5). Wired to the real backend by `ReviewQueueView`:
+/// it `load()`s the tasks from `GET /api/review` and sets `onAccept`/`onDismiss`
+/// so an accept (`POST /api/review/:id` with the picked value) and a "not on the
+/// bag" dismiss both round-trip. Ordering/undo/defer stay purely local — the
+/// backend records the resolution the moment it's accepted; undo only restores
+/// the card locally within the 5 s window and does not un-resolve server-side.
 @MainActor
 final class ReviewQueueEngine: ObservableObject {
     @Published private(set) var openTasks: [ReviewTask]
@@ -39,11 +37,30 @@ final class ReviewQueueEngine: ObservableObject {
 
     private var undoStack: [UndoSnapshot] = []
     private var toastToken = 0
-    let initialTotal: Int
+    private(set) var initialTotal: Int
+
+    /// Persistence hooks, injected by the view once it has an `APIClient`.
+    /// Fire-and-forget: the queue advances optimistically, the network call
+    /// trails behind (a 422 from an unresolvable value is swallowed — the row
+    /// simply stays open server-side for a later pass).
+    var onAccept: ((ReviewTask, String) -> Void)?
+    var onDismiss: ((ReviewTask) -> Void)?
 
     init(tasks: [ReviewTask] = ReviewSampleData.tasks) {
         self.openTasks = tasks
         self.initialTotal = tasks.count
+    }
+
+    /// Replace the queue with a freshly-fetched set of tasks, resetting the
+    /// progress denominator and clearing any prior session's undo/defer state.
+    func load(_ tasks: [ReviewTask]) {
+        openTasks = tasks
+        initialTotal = tasks.count
+        deferredIDs = []
+        expandedGroupKeys = []
+        createdRules = []
+        undoStack = []
+        toast = nil
     }
 
     var progressDone: Int { initialTotal - openTasks.count }
@@ -104,6 +121,7 @@ final class ReviewQueueEngine: ObservableObject {
         openTasks.remove(at: index)
         deferredIDs.removeAll { $0 == task.id }
         pushUndo(UndoSnapshot(tasks: [task], indices: [index], createdRule: nil))
+        onAccept?(task, value)
         showToast("\(task.field.label) → \(value)")
     }
 
@@ -144,6 +162,7 @@ final class ReviewQueueEngine: ObservableObject {
         openTasks.remove(at: index)
         deferredIDs.removeAll { $0 == task.id }
         pushUndo(UndoSnapshot(tasks: [task], indices: [index], createdRule: nil))
+        onDismiss?(task)
         showToast("Marked not present")
     }
 
@@ -170,6 +189,12 @@ final class ReviewQueueEngine: ObservableObject {
         }
         let removedIDs = Set(removedTasks.map(\.id))
         deferredIDs.removeAll { removedIDs.contains($0) }
+
+        // Each accepted task resolves independently server-side (the rule is a
+        // client-side convenience; the backend has no bulk-rule endpoint wired).
+        for removed in removedTasks {
+            onAccept?(removed, value)
+        }
 
         var createdRule: ReviewRule?
         if let kind = field.aliasKind {
