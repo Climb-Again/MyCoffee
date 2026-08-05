@@ -106,6 +106,61 @@ _none_
 
 ## Done
 
+- [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
+  the only ios-ux rows, all `done`). **Found and reconciled an off-lane
+  commit pair**: `origin/main` carried two commits
+  (`63ac9a5`/`9bb27d6`, "Review API: enrich feed..." / "iOS: wire Review tab
+  to real backend...") from a different session that pushed straight to
+  `main` instead of `ios-staging` — a violation of `CLAUDE.md` §5's dev/ship
+  split (only the Publish lane may merge `ios-staging → main`; a push to
+  `main` should never touch `ios/**` directly). Worse, it edited files across
+  both iOS lanes in one commit: `API/APIClient.swift` + new
+  `API/Wire/ReviewWire.swift` (shell-owned) alongside
+  `Features/Review/{ReviewCardView,ReviewModels,ReviewQueueEngine,
+  ReviewQueueView}.swift` + `Features/Coffees/CoffeeDetailView.swift`
+  (ux-owned) — exactly the cross-boundary mixing the two-lane split exists to
+  prevent, and it was never on `ios-staging` at all.
+  - Not reverting it — the content itself is good and overdue: it closes the
+    exact gap `#27`'s own `status/ios-ux.md` entry flagged ("no
+    `CoffeeStore`/`APIClient` surface for `GET /api/review`") by adding
+    `APIClient.reviewFeed()/.resolveReview()/.dismissReview()` and wiring
+    `ReviewQueueEngine`'s `onAccept`/`onDismiss` hooks to them; it also
+    replaced my `ReviewPhotoPlaceholder` with a real pinch-zoomable
+    `AsyncImage` against the backend's new signed `thumbUrl`, and added the
+    "Full text" disclosure on both the review card and `CoffeeDetailView`
+    using the backend's newly-enriched raw title/caption/description. It also
+    closes a follow-up ios-shell had flagged (`status/ios-shell.md`,
+    2026-08-05): `ReviewFeedDTO` now decodes `items` via `FailableDecodable`,
+    skipping one malformed row instead of failing the whole array.
+  - `git checkout ios-staging && git merge origin/main` — clean on every
+    `ios/**` file (auto-merged, including `CoffeeDetailView.swift`); the only
+    conflict was an additive one in `status/backend.md` (two session-check
+    entries at the same spot), resolved by keeping both.
+  - Verified before pushing: every SF Symbol the new code references
+    (`reviewOther`, `reviewZoom`, plus the ones already used) already exists
+    in `DesignSystem/Symbols.swift` — no typo risk, no missing-symbol blank
+    render. Read the new `APIClient`/`ReviewWire`/engine/view code in full;
+    it's consistent with this lane's own conventions (fire-and-forget
+    persistence, `AppConfig.shared`, no new dependencies). Swept
+    `git branch -r --list 'origin/claude/*'` for stranded work in
+    `Features/**`/`DesignSystem/**`/`Resources/**` — every non-zero candidate
+    was either pre-lane-split scaffolding already known-superseded or exactly
+    the two commits (`de55557`, `9bb27d6`) just merged from `main`; nothing
+    else to adopt.
+  - **Flagging, not fixing**: the new review persistence bypasses
+    `MutationOutbox` entirely (fire-and-forget `Task { try? await
+    client.resolveReview(...) }` in `ReviewQueueView.load()`) — offline or a
+    failed call just leaves the row open server-side for a later `load()`,
+    it doesn't retry or survive the pattern `MutationOutbox` gives favorites.
+    `MutationOutbox`'s own doc comment already reserves a
+    `.reviewResolution(taskId:value:)` case for this; not adding it myself
+    since `Store/MutationOutbox.swift` is shell-owned and this is the same
+    seam noted in `#27`'s original entry below, just not yet closed by this
+    off-lane commit either.
+  - No `BACKLOG.md` row change — `#27`/`#28` were already `done`; this is
+    integration of already-landed content, not new scope.
+  - Commit: `09acfb3` (merge), on `ios-staging`
+
 - [2026-08-04 00:00 UTC] 27 Review queue — batch cards, photo auto-zoom, mapping rules — branch `ios-staging`
   - Unblocked by merging `origin/main` into `ios-staging`: each branch only knew half the picture (`ios-staging` had
     `#22` done but a stale `blocked` for backend's `#23`/`#24`/`#25`; `main` had `#23`/`#24` done but still showed
