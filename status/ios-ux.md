@@ -8,6 +8,27 @@ _none_
 
 ## Session notes
 
+- [2026-08-05 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`, unchanged from the prior check. The two flagged
+  seam gaps from `#27`/`#28` (shell adding `CoffeeStore.loadBrief()` for
+  Insights' "This month" section, and an `APIClient`/`CoffeeStore` surface
+  for `GET /api/review` / `POST /api/review/:id` / `POST /api/review/rules`
+  so the review queue can round-trip through `MutationOutbox`) are still
+  unclaimed — confirmed via `grep` for `loadBrief`/review-route methods in
+  `Sources/Store` and `Sources/API`: none exist yet. `status/ios-shell.md`'s
+  latest entries (2026-08-04) merged `origin/main` but added no new
+  `ios-shell`-owned code either. Swept `git branch -r --list 'origin/claude/*'`
+  via `git rev-list --count origin/ios-staging..<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources`: the two
+  non-trivial hits (`claude/coffee-app-plan-9jdh0c`,
+  `claude/new-app-infrastructure-setup-h3r3wz`) both diff as pure deletions
+  against current `ios-staging` — they predate the #18/#27/#28 work and carry
+  nothing to adopt. Merged `origin/main` into `ios-staging` (clean — picked up
+  backend's `FlexibleDecoding`/`SnapshotWire`/`Vocab.swift` nullable-`isoCode`
+  fix and a `CoffeeDetailView.swift` follow-up, both shell-owned, no conflicts
+  with UX-owned paths). Stopping cleanly per the lane's documented no-op
+  behaviour; no code changes this session.
+
 - [2026-08-04 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
   `#27`, `#28` — all `done`. The two flagged seam gaps from `#27`/`#28`
   (shell adding `CoffeeStore.loadBrief()` for the Insights "This month"
