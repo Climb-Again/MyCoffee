@@ -18,6 +18,38 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Done
 
+- [2026-08-05 UTC] Session check — no ready `ios-shell` row. #17/#22 are
+  `done`; #27/#28 (ios-ux, needing #22/#24) are now also `done`; #29 (data,
+  phase 6) needs #26, still `human`. Re-fetched all `origin/claude/*`
+  branches (45 candidates) and swept each with `git rev-list --count
+  origin/ios-staging..<branch> -- <ios-shell-owned paths>` per the
+  integrate-before-you-start rule: `coffee-app-plan-9jdh0c` and
+  `new-app-infrastructure-setup-h3r3wz` both diff as pure deletions (they
+  scaffold the same files #17 later superseded); `wizardly-thompson-0g9i90`
+  is a stale pre-fix snapshot of `Coffee.swift`/wire files predating the
+  `roasterId` fix below. Nothing stranded to adopt. `git merge origin/main`
+  into `ios-staging` was a no-op (already up to date).
+  - **Documentation gap closed, not new code**: commits `16814c3` ("Fix empty
+    Coffees shell: roasterId is nullable, was decoded as required") and
+    `55031b9` ("Fix build: make the DTO roasterId properties optional too")
+    are already on `origin/ios-staging` (Radu's first real-data build showed
+    zero coffees because `CompactCoffeeDTO`/`CoffeeDetailDTO` decoded
+    `roasterId` as a required `Int`, and the compact snapshot legitimately
+    sends `roasterId: null` for coffees whose roaster isn't resolved yet —
+    one null row threw and dropped the whole all-or-nothing array decode).
+    That prior ios-shell session (`session_01JLFd9wZxpbWRZ959RrcSM3`) never
+    recorded it here, so this file understated what's landed. Recording it
+    now for the next session's accuracy, per `status/README.md`'s
+    "correcting a task means correcting this file" rule.
+  - **Follow-up flagged in that commit's own message, not done here** (no
+    backlog row, and this session found no other ios-shell work to bundle it
+    with): decode the `coffees` array in `SnapshotWire`/`CoffeeDetailWire`
+    leniently — skip a single malformed row instead of failing the whole
+    array — so no future nullable/malformed field can blank the entire app
+    again. Flagging rather than guessing scope for an unclaimed hardening
+    task.
+  - No commit needed for the sweep itself; the fix above is already merged.
+
 - [2026-08-04 UTC] Session check — no ready `ios-shell` row. Only ios-shell
   rows are #17 and #22, both `done`. The only other iOS-adjacent row, #27
   (ios-ux, phase 5), needs #22 (done) + #24 (backend, still `blocked` on #23
