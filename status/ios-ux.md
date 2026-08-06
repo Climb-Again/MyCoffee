@@ -8,6 +8,42 @@ _none_
 
 ## Session notes
 
+- [2026-08-05 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`, unchanged from the prior check. The two flagged
+  seam gaps from `#27`/`#28` (shell adding `CoffeeStore.loadBrief()` for
+  Insights' "This month" section, and an `APIClient`/`CoffeeStore` surface
+  for `GET /api/review` / `POST /api/review/:id` / `POST /api/review/rules`
+  so the review queue can round-trip through `MutationOutbox`) are still
+  unclaimed — confirmed via `grep` for `loadBrief`/review-route methods in
+  `Sources/Store` and `Sources/API`: none exist yet. `status/ios-shell.md`'s
+  latest entries (2026-08-04) merged `origin/main` but added no new
+  `ios-shell`-owned code either. Swept `git branch -r --list 'origin/claude/*'`
+  via `git rev-list --count origin/ios-staging..<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources`: the two
+  non-trivial hits (`claude/coffee-app-plan-9jdh0c`,
+  `claude/new-app-infrastructure-setup-h3r3wz`) both diff as pure deletions
+  against current `ios-staging` — they predate the #18/#27/#28 work and carry
+  nothing to adopt. Merged `origin/main` into `ios-staging` (clean — picked up
+  backend's `FlexibleDecoding`/`SnapshotWire`/`Vocab.swift` nullable-`isoCode`
+  fix and a `CoffeeDetailView.swift` follow-up, both shell-owned, no conflicts
+  with UX-owned paths). Stopping cleanly per the lane's documented no-op
+  behaviour; no code changes this session.
+
+- [2026-08-04 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`. The two flagged seam gaps from `#27`/`#28`
+  (shell adding `CoffeeStore.loadBrief()` for the Insights "This month"
+  section, and `APIClient`/`CoffeeStore` methods for `GET /api/review` /
+  `POST /api/review/:id` / `POST /api/review/rules` so the review queue can
+  round-trip through `MutationOutbox` instead of only mutating local state)
+  are still unclaimed — confirmed via `status/ios-shell.md`'s own 2026-08-04
+  entry, which merged `main` but added no new `ios-shell`-owned code. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  (`claude/hopeful-johnson-0fzb9o`) exists, 0 commits ahead of `ios-staging`
+  in any owned path, nothing stranded to adopt. `git merge origin/main` into
+  `ios-staging` was already up to date (no divergence to reconcile). Stopping
+  cleanly per the lane's documented no-op behaviour; no code changes this
+  session.
+
 - [2026-08-03 UTC] No-op session (second cycle same day). `BACKLOG.md`: `#27`
   (needs 22, 24) still `blocked` — `#24` unchanged, still blocked on `#23`
   (Vertex extension). `#28` (needs 22) stays `done`. Re-swept `git branch -r
@@ -69,6 +105,61 @@ _none_
   documented no-op behaviour.
 
 ## Done
+
+- [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
+  the only ios-ux rows, all `done`). **Found and reconciled an off-lane
+  commit pair**: `origin/main` carried two commits
+  (`63ac9a5`/`9bb27d6`, "Review API: enrich feed..." / "iOS: wire Review tab
+  to real backend...") from a different session that pushed straight to
+  `main` instead of `ios-staging` — a violation of `CLAUDE.md` §5's dev/ship
+  split (only the Publish lane may merge `ios-staging → main`; a push to
+  `main` should never touch `ios/**` directly). Worse, it edited files across
+  both iOS lanes in one commit: `API/APIClient.swift` + new
+  `API/Wire/ReviewWire.swift` (shell-owned) alongside
+  `Features/Review/{ReviewCardView,ReviewModels,ReviewQueueEngine,
+  ReviewQueueView}.swift` + `Features/Coffees/CoffeeDetailView.swift`
+  (ux-owned) — exactly the cross-boundary mixing the two-lane split exists to
+  prevent, and it was never on `ios-staging` at all.
+  - Not reverting it — the content itself is good and overdue: it closes the
+    exact gap `#27`'s own `status/ios-ux.md` entry flagged ("no
+    `CoffeeStore`/`APIClient` surface for `GET /api/review`") by adding
+    `APIClient.reviewFeed()/.resolveReview()/.dismissReview()` and wiring
+    `ReviewQueueEngine`'s `onAccept`/`onDismiss` hooks to them; it also
+    replaced my `ReviewPhotoPlaceholder` with a real pinch-zoomable
+    `AsyncImage` against the backend's new signed `thumbUrl`, and added the
+    "Full text" disclosure on both the review card and `CoffeeDetailView`
+    using the backend's newly-enriched raw title/caption/description. It also
+    closes a follow-up ios-shell had flagged (`status/ios-shell.md`,
+    2026-08-05): `ReviewFeedDTO` now decodes `items` via `FailableDecodable`,
+    skipping one malformed row instead of failing the whole array.
+  - `git checkout ios-staging && git merge origin/main` — clean on every
+    `ios/**` file (auto-merged, including `CoffeeDetailView.swift`); the only
+    conflict was an additive one in `status/backend.md` (two session-check
+    entries at the same spot), resolved by keeping both.
+  - Verified before pushing: every SF Symbol the new code references
+    (`reviewOther`, `reviewZoom`, plus the ones already used) already exists
+    in `DesignSystem/Symbols.swift` — no typo risk, no missing-symbol blank
+    render. Read the new `APIClient`/`ReviewWire`/engine/view code in full;
+    it's consistent with this lane's own conventions (fire-and-forget
+    persistence, `AppConfig.shared`, no new dependencies). Swept
+    `git branch -r --list 'origin/claude/*'` for stranded work in
+    `Features/**`/`DesignSystem/**`/`Resources/**` — every non-zero candidate
+    was either pre-lane-split scaffolding already known-superseded or exactly
+    the two commits (`de55557`, `9bb27d6`) just merged from `main`; nothing
+    else to adopt.
+  - **Flagging, not fixing**: the new review persistence bypasses
+    `MutationOutbox` entirely (fire-and-forget `Task { try? await
+    client.resolveReview(...) }` in `ReviewQueueView.load()`) — offline or a
+    failed call just leaves the row open server-side for a later `load()`,
+    it doesn't retry or survive the pattern `MutationOutbox` gives favorites.
+    `MutationOutbox`'s own doc comment already reserves a
+    `.reviewResolution(taskId:value:)` case for this; not adding it myself
+    since `Store/MutationOutbox.swift` is shell-owned and this is the same
+    seam noted in `#27`'s original entry below, just not yet closed by this
+    off-lane commit either.
+  - No `BACKLOG.md` row change — `#27`/`#28` were already `done`; this is
+    integration of already-landed content, not new scope.
+  - Commit: `09acfb3` (merge), on `ios-staging`
 
 - [2026-08-04 00:00 UTC] 27 Review queue — batch cards, photo auto-zoom, mapping rules — branch `ios-staging`
   - Unblocked by merging `origin/main` into `ios-staging`: each branch only knew half the picture (`ios-staging` had

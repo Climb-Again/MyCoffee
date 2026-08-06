@@ -107,6 +107,24 @@ actor SyncEngine {
         return currentIndex()
     }
 
+    /// Queues a review-task resolution and flushes immediately if online —
+    /// same shape as `setFavorite`, but a review task isn't part of the
+    /// coffee index, so there's no local state to mutate here beyond the
+    /// outbox itself.
+    func resolveReview(taskId: Int, value: String, client: APIClient?) async {
+        await outbox.enqueueReviewResolve(taskId: taskId, value: value)
+        if let client {
+            await outbox.flush(using: client)
+        }
+    }
+
+    func dismissReview(taskId: Int, client: APIClient?) async {
+        await outbox.enqueueReviewDismiss(taskId: taskId)
+        if let client {
+            await outbox.flush(using: client)
+        }
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,
