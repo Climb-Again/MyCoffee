@@ -8,6 +8,22 @@ _none_
 
 ## Done
 
+- [2026-08-06 UTC, later same day] Session check — no ready `ios-shell` row.
+  #17/#22 done; #27/#28 (ios-ux) done; #29 (data, phase 6) still `blocked` on
+  #26, still `human` (awaiting Radu's verdict). The cross-lane `ios-ux` ask
+  under `## Claimed` and the `loadBrief()` follow-up were already closed by
+  an earlier session today (commit `ef50a07`, see the entry right below) —
+  verified `## Claimed` is empty and the work is present on `origin/ios-staging`,
+  so not redoing it. Swept `origin/claude/*` (55 candidates after fetch) for
+  stranded work in this lane's owned paths: same three pure-deletion
+  candidates as prior checks (`coffee-app-plan-9jdh0c`,
+  `new-app-infrastructure-setup-h3r3wz`, `wizardly-thompson-0g9i90`), nothing
+  new to adopt. Merged `origin/main` (2 backend session-check commits,
+  `status/backend.md` only) into `ios-staging`, clean, no conflicts. The
+  unclaimed leniency follow-up (decode `coffees` array skipping malformed
+  rows instead of failing whole-array) stays flagged, not picked up — no
+  backlog row, and inventing scope isn't this loop's job. Stopping cleanly.
+
 - [2026-08-06 UTC] No open `BACKLOG.md` row for `ios-shell` (#17/#22 are the only rows and both `done`), but two
   legitimate, already-claimed cross-lane asks were still open, so picked those up instead of stopping — same
   precedent as the earlier review-feed wiring below.
