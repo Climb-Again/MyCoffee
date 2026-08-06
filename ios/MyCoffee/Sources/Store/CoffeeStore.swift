@@ -61,6 +61,26 @@ final class CoffeeStore: ObservableObject {
         return detailed
     }
 
+    /// Accept a review task's value — durable through the same offline outbox
+    /// favorites use (PLAN.md §5), unlike a raw `APIClient.resolveReview` call:
+    /// this survives app restart or a dropped connection instead of leaving a
+    /// failed write to be silently forgotten.
+    func resolveReview(taskId: Int, value: String) {
+        Task { await repository.resolveReview(taskId: taskId, value: value) }
+    }
+
+    /// Dismiss a review task ("not on the bag"), same durability.
+    func dismissReview(taskId: Int) {
+        Task { await repository.dismissReview(taskId: taskId) }
+    }
+
+    /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
+    /// Insights screen. A once-a-day read, not part of the coffee snapshot —
+    /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.
+    func loadBrief() async -> Brief? {
+        try? await APIClient(config: AppConfig.shared).brief()
+    }
+
     var filteredCoffees: [Coffee] {
         index.coffees(matching: filter, sortedBy: sort)
     }

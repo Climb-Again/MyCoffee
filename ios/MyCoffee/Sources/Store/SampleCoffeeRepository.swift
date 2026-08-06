@@ -28,4 +28,10 @@ actor SampleCoffeeRepository: CoffeeRepository {
         }
         return coffee
     }
+
+    // No live backend to enqueue against in previews — the sample fixture
+    // has no review-task feed at all, so these are deliberate no-ops.
+    func resolveReview(taskId: Int, value: String) async {}
+
+    func dismissReview(taskId: Int) async {}
 }

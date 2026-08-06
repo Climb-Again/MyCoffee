@@ -160,6 +160,32 @@ struct APIClient: Sendable {
         _ = try await send(req)
         return true
     }
+
+    // POST /api/review/rules — remember a raw->canonical mapping (an
+    // "accept and remember" long-press, PLAN.md §6.5) for one of the alias
+    // tables `routes/review.js`'s `ALIAS_TABLES` knows (`kind`, e.g.
+    // "roaster"). `alias` is the raw string being aliased.
+    @discardableResult
+    func createReviewRule(kind: String, canonicalId: Int, alias: String) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "kind": kind, "canonicalId": canonicalId, "alias": alias,
+        ])
+        let req = try makeRequest(path: "/api/review/rules", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
+    // GET /api/brief — the editorial "This month" section (PLAN.md §6.4);
+    // `nil` until the backend has generated one.
+    func brief() async throws -> Brief? {
+        let req = try makeRequest(path: "/api/brief", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BriefResponseDTO.self, from: data).brief
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
 }
 
 struct StatusResponse: Codable {

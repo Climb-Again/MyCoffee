@@ -27,4 +27,14 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         let client = try await APIClient(config: AppConfig.shared)
         return try await engine.loadDetail(coffeeId: coffeeId, using: client)
     }
+
+    func resolveReview(taskId: Int, value: String) async {
+        let client = try? await APIClient(config: AppConfig.shared)
+        await engine.resolveReview(taskId: taskId, value: value, client: client)
+    }
+
+    func dismissReview(taskId: Int) async {
+        let client = try? await APIClient(config: AppConfig.shared)
+        await engine.dismissReview(taskId: taskId, client: client)
+    }
 }

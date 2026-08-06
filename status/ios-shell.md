@@ -4,19 +4,60 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-04 UTC] Cross-lane request from `ios-ux`, not a shell claim on `#27` itself (that row is `done` — see
-  `status/ios-ux.md` and `status/BACKLOG.md`): the review queue built for `#27` runs entirely against a local
-  `ReviewSampleData` fixture because `CoffeeStore`/`APIClient` expose no review-fetching surface yet. If a shell
-  session picks this up, the ask is an `APIClient` method per backend route (`backend/src/routes/review.js`) —
-  `reviewItems(limit:offset:) async throws`, `resolveReview(id:value:) async throws`, `dismissReview(id:) async
-  throws`, `createReviewRule(kind:canonicalId:alias:) async throws` — plus a `CoffeeStore`-level wrapper mirroring
-  `loadDetail`'s shape, and ideally a `.reviewResolution(taskId:value:)` case on `MutationOutbox`'s `PendingMutation`
-  enum (its own doc comment already reserves room for this: "leaves room for the review lane (#27) to add its own
-  without a new outbox"). Not a blocking claim — `ios-ux` isn't waiting on this before other work, just flagging the
-  seam per `status/README.md`'s rule that changing the `CoffeeStore`/`CoffeeIndex` surface needs a claim in both
-  lane files.
+_none_
 
 ## Done
+
+- [2026-08-06 UTC] No open `BACKLOG.md` row for `ios-shell` (#17/#22 are the only rows and both `done`), but two
+  legitimate, already-claimed cross-lane asks were still open, so picked those up instead of stopping — same
+  precedent as the earlier review-feed wiring below.
+  - **Closes the "Cross-lane request from `ios-ux`" claim above** (the `reviewItems`/`resolveReview`/`dismissReview`
+    APIClient methods and the `CoffeeStore` wiring it also asked for already landed — see the off-lane-main-push
+    note right below). What was still missing: `createReviewRule(kind:canonicalId:alias:)` (`POST /api/review/rules`,
+    added to `APIClient.swift`) and the `.reviewResolve`/`.reviewDismiss` cases on `MutationOutbox`'s
+    `PendingMutation` its doc comment reserved room for. Added both, plus `CoffeeRepository.resolveReview(taskId:
+    value:)`/`.dismissReview(taskId:)` (both conformers — `RemoteCoffeeRepository` delegates to two new
+    `SyncEngine` methods that enqueue-then-flush exactly like `setFavorite` does; `SampleCoffeeRepository`'s are
+    no-ops, there's no review feed in the sample fixture) and `CoffeeStore.resolveReview(taskId:value:)`/
+    `.dismissReview(taskId:)`, fire-and-forget wrappers mirroring `toggleFavorite`'s shape.
+  - **One real bug caught while writing `MutationOutbox.flush`**: naively retrying every failed mutation forever
+    (the existing `favorite` behavior) is wrong for `reviewResolve` — a 422 (the backend's documented response for
+    a value it can't canonicalize) is a *terminal* rejection, not a transient one, and blind retry would hammer
+    `/api/review/:id` every sync forever without ever succeeding. `flush` now drops any 4xx response instead of
+    requeuing it (matches the fire-and-forget behavior it replaces: the item just stays open server-side for the
+    next `GET /api/review` load) and only keeps genuinely transient failures (offline, 5xx) queued. This changes
+    `favorite`'s retry behavior too (a 4xx there now also drops instead of retrying forever) — arguably a
+    correctness fix there as well, not just added for review.
+  - **UX lane: the wiring is one call-site swap, not new plumbing.** `Features/Review/ReviewQueueView.swift`'s
+    `load()` currently does `Task { try? await client.resolveReview(...) }`/`client.dismissReview(...)` directly
+    against `APIClient`, bypassing the outbox entirely (the exact gap flagged in `status/ios-ux.md`). Swap those two
+    calls for `store.resolveReview(taskId:value:)`/`store.dismissReview(taskId:)` on the shared `CoffeeStore`
+    instance (already available via `.environmentObject` per `RootTabView`) and persistence survives offline/app
+    restart. Not making this swap myself — `Features/Review/**` is UX-owned.
+  - Also added `CoffeeStore.loadBrief() async -> Brief?` (`Models/Brief.swift` + `API/Wire/BriefWire.swift` +
+    `APIClient.brief()`, decoding `GET /api/brief`'s `{ok, brief, message?}` envelope) — the ask `status/ios-ux.md`
+    flagged under `#28`'s Insights writeup for the "This month" editorial section PLAN.md §6.4 wants. No local
+    caching (mirrors `loadDetail`'s fetch-and-return shape, not `index`-published state, since a brief isn't part
+    of the coffee snapshot). `Brief`'s wire shape and domain model are identical today (no NUMERIC-string or
+    nullable-vs-required quirks to bridge), so `BriefResponseDTO` decodes straight onto `Brief` rather than adding
+    a parallel DTO type.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red, check `MutationOutbox.swift`'s
+    `shouldKeep` pattern-match on `APIClient.APIError.http` first; everything else is a straight mirror of
+    `setFavorite`'s existing shape.
+  - `ios/MyCoffee/Sources/{API/APIClient,API/Wire/BriefWire,Models/Brief,Store/CoffeeRepository,Store/CoffeeStore,
+    Store/MutationOutbox,Store/RemoteCoffeeRepository,Store/SampleCoffeeRepository,Store/SyncEngine}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-06 UTC] **Note on the off-lane push to `main`, not new work**: this session's designated branch
+  (`claude/wizardly-thompson-1zauox`) already carried two real commits pushed straight to `origin/main` from an
+  earlier turn in this same session (`de55557`/`63ac9a5`/`9bb27d6` — the Country.isoCode empty-shell fix and the
+  Review-tab wiring), crossing lane boundaries (one of the three touched `backend/src/routes/review.js`, backend-
+  owned) and bypassing the `ios-staging` dev/ship split entirely (CLAUDE.md §5, §12's "never push `ios/**` to
+  `main`"). **Already caught and reconciled by a later `ios-ux` session** (`status/ios-ux.md`'s 2026-08-05 entry,
+  commit `6d5bedc` on `ios-staging`) before this session started — verified tree-identical, nothing lost, nothing
+  to redo. Recording it here too since this branch is where it originated, for anyone auditing why `main`'s history
+  briefly had `ios/**` commits on it. Not repeating the mistake: this session's work above went straight to
+  `ios-staging`.
 
 - [2026-08-05 UTC, later same day] Session check — unchanged from the check
   below. Still no ready `ios-shell` row: #17/#22 done, #27/#28 (ios-ux) done,
