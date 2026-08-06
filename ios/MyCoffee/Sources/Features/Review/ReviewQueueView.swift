@@ -3,9 +3,11 @@ import SwiftUI
 /// The Review tab (PLAN.md §6.5), replacing `ReviewPlaceholderView` now that
 /// #22 (sync) and #24 (adjudication backend) have both landed. Loads the real
 /// queue from `GET /api/review` on appear and persists each accept/dismiss
-/// through the engine's injected hooks; the sample fixtures survive only as
-/// `#Preview` fodder.
+/// through `CoffeeStore.resolveReview`/`.dismissReview` (durable via
+/// `MutationOutbox` — survives offline/app restart, unlike a raw `APIClient`
+/// call); the sample fixtures survive only as `#Preview` fodder.
 struct ReviewQueueView: View {
+    @EnvironmentObject private var store: CoffeeStore
     @StateObject private var engine = ReviewQueueEngine(tasks: [])
     @State private var isLoading = true
     @State private var loadError: String?
@@ -52,13 +54,13 @@ struct ReviewQueueView: View {
             let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
             engine.load(feed.items.compactMap(ReviewTask.init(dto:)))
-            // Fire-and-forget persistence; a failed call leaves the row open
-            // server-side, which the next `load()` will surface again.
+            // Durable through the outbox — survives offline/app restart,
+            // unlike a raw fire-and-forget `APIClient` call.
             engine.onAccept = { task, value in
-                Task { try? await client.resolveReview(id: "\(task.id)", value: value) }
+                store.resolveReview(taskId: task.id, value: value)
             }
             engine.onDismiss = { task in
-                Task { try? await client.dismissReview(id: "\(task.id)") }
+                store.dismissReview(taskId: task.id)
             }
         } catch {
             loadError = error.localizedDescription

@@ -1,19 +1,16 @@
 import SwiftUI
 
-/// The Insights tab (PLAN.md §6.4): Data quality card, gated correlation
-/// findings, then the four yearly charts. Everything runs on-device against
-/// the already-synced index — recomputation after any edit is instant and
-/// offline, and templated sentences are deterministic where an LLM would add
-/// hallucination risk and per-render cost.
-///
-/// The brief's own `/api/brief` "This month" editorial section is not wired
-/// in here: `CoffeeStore` (shell-owned) exposes no brief-fetching method
-/// today, and this lane can't add one without touching `Store`/`API`. Flagged
-/// in `status/ios-ux.md` for a cross-lane claim rather than duplicating
-/// networking plumbing in `Features`.
+/// The Insights tab (PLAN.md §6.4): Data quality card, the editorial "This
+/// month" brief, gated correlation findings, then the four yearly charts.
+/// The findings/charts run on-device against the already-synced index —
+/// recomputation after any edit is instant and offline, and templated
+/// sentences are deterministic where an LLM would add hallucination risk and
+/// per-render cost. The brief is the one exception: server-generated copy,
+/// fetched fresh each time the tab appears via `CoffeeStore.loadBrief()`.
 struct InsightsView: View {
     @EnvironmentObject private var store: CoffeeStore
     @State private var useZScore = false
+    @State private var brief: Brief?
 
     private var coffees: [Coffee] { store.index.coffees }
     private var vocabulary: Vocabulary { store.index.vocabulary }
@@ -31,6 +28,7 @@ struct InsightsView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 24) {
                         DataQualityCard(fields: InsightsAggregation.dataQuality(coffees: coffees))
+                        BriefCard(brief: brief)
                         findingsSection
                         chartsSection
                     }
@@ -38,6 +36,7 @@ struct InsightsView: View {
                 }
             }
             .navigationTitle("Insights")
+            .task { brief = await store.loadBrief() }
         }
     }
 

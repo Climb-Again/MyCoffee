@@ -4,18 +4,44 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-06 UTC] Closing two seam gaps the shell lane's `ef50a07` just landed
-  (`CoffeeStore.resolveReview`/`.dismissReview`/`.loadBrief()`), both explicitly
-  flagged "for the UX lane to call": (1) wire `ReviewQueueView` to the durable
-  `CoffeeStore` methods instead of hitting `APIClient.resolveReview`/
-  `.dismissReview` directly, so accepts/dismisses survive offline via
-  `MutationOutbox`; (2) add the Insights "This month" editorial section
-  (PLAN.md §6.4) via `store.loadBrief()`. No open `BACKLOG.md` row (#18/#27/#28
-  all `done`) — same precedent as the 2026-08-02 UX-wiring-gap entry below: not
-  new scope, just finishing already-claimed cross-lane asks in owned files.
-  — branch `ios-staging`
+_none_
 
 ## Session notes
+
+- [2026-08-06 UTC, ios-ux lane] Closed two cross-lane seam gaps the shell
+  lane's `ef50a07` landed today, both explicitly flagged in that commit "for
+  the UX lane to call" — no open `BACKLOG.md` row (#18/#27/#28 all `done`),
+  same precedent as the 2026-08-02 UX-wiring-gap entry below.
+  - **`Features/Review/ReviewQueueView.swift`**: swapped the direct
+    `client.resolveReview(id:value:)`/`client.dismissReview(id:)` calls in
+    `load()`'s `engine.onAccept`/`.onDismiss` hooks for
+    `store.resolveReview(taskId:value:)`/`store.dismissReview(taskId:)` on the
+    `CoffeeStore` already available via `.environmentObject` (`RootTabView`).
+    Accepts/dismisses now persist through `MutationOutbox` — durable across
+    offline/app restart — instead of a fire-and-forget network call that
+    silently dropped on failure. `client.reviewFeed()` (the GET, unaffected)
+    stays as-is; only the two mutating calls moved.
+  - **`Features/Insights/{InsightsView,BriefCard}.swift`**: added the
+    editorial "This month" section PLAN.md §6.4 asks for, reusing
+    `GET /api/brief` via the new `CoffeeStore.loadBrief()`. New
+    `BriefCard.swift` (title + body, omitted entirely when `nil` — same
+    "missing fields omit their row, never N/A" convention as `DataQualityCard`
+    right above it), fetched in a `.task` on `InsightsView`'s `NavigationStack`
+    and placed between the Data quality card and the findings section. New
+    `Symbols.brief = "newspaper"` in `DesignSystem/Symbols.swift`.
+  - **Not wired, flagged rather than guessed**: the shell lane's same
+    `ef50a07`-era work also added `APIClient.createReviewRule(kind:
+    canonicalId:alias:)` (`POST /api/review/rules`), but `ReviewQueueEngine`'s
+    long-press/"Accept all" rule creation only has a display-string
+    `ReviewCandidate.value` to work with — no canonical vocabulary `Int` id
+    anywhere in ux-owned models — so there's no way to call it durably without
+    guessing at an id lookup that doesn't exist yet. `ReviewRule` stays a
+    client-side-only convenience for this session, same as before.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red,
+    check `ReviewQueueView.swift`'s new `@EnvironmentObject` (unused `client`
+    var is still needed for `reviewFeed()`, just not for the two mutations
+    anymore) and `BriefCard.swift`'s `if let brief` self-conditional body.
+  - Commit: (see `git log` on `ios-staging`)
 
 - [2026-08-05 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
   `#27`, `#28` — all `done`, unchanged from the prior check. The two flagged
