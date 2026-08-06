@@ -6,6 +6,43 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-06 UTC (later session): session check — no ready row this cycle
+
+`main`/`origin/main` agree at `8614f95`. Found and pushed 4 commits (two backend
+"no ready row" checks, plus `9bb27d6`/`63ac9a5` iOS Review-tab work from other
+lanes) that were sitting committed-but-unpushed in this local clone from a prior
+session — a violation of `CLAUDE.md` §3's "end every session with
+`git push -u origin HEAD`" rule. They turned out to already be on `origin/main`
+(a stale local fetch cache made them look unpushed); no actual push was needed,
+confirmed via a fresh `git fetch origin`.
+
+All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33); `#26` (data) is still `human` — awaiting Radu's
+accuracy verdict on the 5-photo sample per the spend gate — and `#29` stays
+`blocked` on it. Neither unblocks a backend row.
+
+Fresh unscoped `git fetch origin` — 53 `origin/claude/*` branches (up from 51 at
+the last sweep). Swept every one via `git rev-list --count origin/main..<branch>`.
+One new branch worth naming: `hopeful-johnson-icvqmr` (15 ahead) is real iOS-ux
+work (wires `CoffeeStore.loadBrief()`, durable review resolve/dismiss via
+`MutationOutbox`) — not backend-owned, not integrated into this sweep, flagging
+only for the record. Every other non-zero branch (the `confident-cerf-*`,
+`determined-thompson-*`, `peaceful-mccarthy-*` singles/doubles, plus the two
+35-ahead pre-lane-split scaffolds) is net-deletions-only against current `main`
+— the same shape every prior sweep has found, not stranded work to adopt.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-06 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agree at `9bb27d6` (this session's own designated branch,
