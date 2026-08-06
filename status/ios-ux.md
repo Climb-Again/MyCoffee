@@ -106,6 +106,55 @@ _none_
 
 ## Done
 
+- [2026-08-06 UTC] No ready `ios-ux` backlog row (`#18`/`#27`/`#28` all `done`) —
+  instead closed the `#28` "This month" gap this lane flagged (see the entry
+  below dated 2026-08-01/`#28`): shell's `ef50a07` (this session, merged
+  `origin/ios-staging` into the working branch first) added
+  `CoffeeStore.loadBrief()` + `APIClient.brief()` + `Models/Brief.swift` /
+  `API/Wire/BriefWire.swift`, closing the cross-lane ask. Wired it into
+  `InsightsView`:
+  - New `Sources/Features/Insights/EditorialBriefCard.swift` — a visually
+    distinct card (accent-tinted background, not the neutral gray
+    `DataQualityCard` uses) for the Vertex-authored title/body, deliberately
+    separate from the statistical findings section per PLAN.md §6.4's
+    "clearly separated". Renders nothing when passed `nil` upstream — same
+    "missing omits the row" convention as `FactRowsCard`/rails — since
+    `backend/src/routes/brief.js` returns `brief: null` until Vertex brief
+    generation exists (not built by any lane yet; out of scope here).
+  - `InsightsView.swift` — added `@State private var brief: Brief?` and a
+    `.task { brief = await store.loadBrief() }` on the root `NavigationStack`
+    (mirrors `CoffeeDetailView`'s `loadDetail` `.task` pattern), and renders
+    `EditorialBriefCard` above the Data Quality card when non-nil. Removed
+    the stale doc-comment that said the brief section wasn't wired in.
+  - Added `Symbols.editorialBrief = "newspaper"` to `DesignSystem/Symbols.swift`
+    — a common, safe SF Symbol name given there's no local Xcode to catch a
+    typo.
+  - Verified the auth defect PLAN.md §106 flags for this exact endpoint
+    (`GET /api/brief` 401s because the app only holds an ingest token) is
+    already fixed: `routes/brief.js` uses `requireAnyToken` (backend's #16),
+    and `APIClient` sends the ingest token on every request, which
+    `requireAnyToken` accepts. No live brief exists yet (`briefs` table is
+    empty in production — confirmed by reading `routes/brief.js`'s own
+    "No brief generated yet" fallback), so this will render nothing in
+    practice until a lane wires up Vertex brief generation; the card is
+    ready for whenever it does.
+  - No `BACKLOG.md` row for this — not new scope, just closing a flagged gap
+    in already-owned files, same precedent as the 2026-08-02 `Thumbnail`/
+    heart-tap/`loadDetail` session below.
+  - Built against `SampleCoffeeRepository`'s fixture; `loadBrief()` throws
+    `.notConfigured` there (no Keychain token in that mode), caught by the
+    existing `try?` in `CoffeeStore.loadBrief()`, so the card just doesn't
+    render — no crash, zero backend dependency preserved.
+  - Not locally compiled (no Xcode in this environment) — flag the compile
+    lane to `EditorialBriefCard.swift`, the `InsightsView.swift` diff, and the
+    new `Symbols.editorialBrief` entry specifically if the next compile check
+    goes red.
+  - Also swept `git branch -r --list 'origin/claude/*'` for stranded work
+    touching `Sources/Features/**`/`Sources/DesignSystem/**`/`Resources/**`
+    (`git rev-list --count origin/ios-staging..<branch> -- ...`) — none
+    non-zero, nothing to adopt.
+  - Commit: (see `git log`)
+
 - [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
   the only ios-ux rows, all `done`). **Found and reconciled an off-lane
   commit pair**: `origin/main` carried two commits

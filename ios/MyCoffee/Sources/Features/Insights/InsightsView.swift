@@ -1,19 +1,17 @@
 import SwiftUI
 
-/// The Insights tab (PLAN.md §6.4): Data quality card, gated correlation
-/// findings, then the four yearly charts. Everything runs on-device against
-/// the already-synced index — recomputation after any edit is instant and
-/// offline, and templated sentences are deterministic where an LLM would add
-/// hallucination risk and per-render cost.
-///
-/// The brief's own `/api/brief` "This month" editorial section is not wired
-/// in here: `CoffeeStore` (shell-owned) exposes no brief-fetching method
-/// today, and this lane can't add one without touching `Store`/`API`. Flagged
-/// in `status/ios-ux.md` for a cross-lane claim rather than duplicating
-/// networking plumbing in `Features`.
+/// The Insights tab (PLAN.md §6.4): the editorial "This month" brief, a data
+/// quality card, gated correlation findings, then the four yearly charts.
+/// The charts/findings run on-device against the already-synced index —
+/// recomputation after any edit is instant and offline, and templated
+/// sentences are deterministic where an LLM would add hallucination risk and
+/// per-render cost. The brief itself is the one exception: it's fetched from
+/// `GET /api/brief` (Vertex-authored, reused rather than duplicated) via
+/// `CoffeeStore.loadBrief()`, now that the shell lane has added it.
 struct InsightsView: View {
     @EnvironmentObject private var store: CoffeeStore
     @State private var useZScore = false
+    @State private var brief: Brief?
 
     private var coffees: [Coffee] { store.index.coffees }
     private var vocabulary: Vocabulary { store.index.vocabulary }
@@ -30,6 +28,9 @@ struct InsightsView: View {
                     .padding(.top, 60)
                 } else {
                     VStack(alignment: .leading, spacing: 24) {
+                        if let brief {
+                            EditorialBriefCard(brief: brief)
+                        }
                         DataQualityCard(fields: InsightsAggregation.dataQuality(coffees: coffees))
                         findingsSection
                         chartsSection
@@ -38,6 +39,7 @@ struct InsightsView: View {
                 }
             }
             .navigationTitle("Insights")
+            .task { brief = await store.loadBrief() }
         }
     }
 

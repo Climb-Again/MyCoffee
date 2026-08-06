@@ -45,6 +45,7 @@ enum Symbols {
     static let dataQuality = "checkmark.seal"
     static let zscoreToggle = "chart.line.uptrend.xyaxis"
     static let insightsEmpty = "chart.bar.xaxis"
+    static let editorialBrief = "newspaper"
 
     // Review queue (#27)
     static let reviewCountry = "globe"
