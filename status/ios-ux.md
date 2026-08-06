@@ -153,7 +153,17 @@ _none_
     touching `Sources/Features/**`/`Sources/DesignSystem/**`/`Resources/**`
     (`git rev-list --count origin/ios-staging..<branch> -- ...`) — none
     non-zero, nothing to adopt.
-  - Commit: (see `git log`)
+  - **Branch note**: this session's harness pinned it to `claude/hopeful-johnson-icvqmr`
+    rather than `ios-staging` (a session-level constraint, not a lane choice).
+    Merged `origin/ios-staging` (tip `ef50a07`) into that branch first, so this
+    commit sits on top of everything `ios-staging` already had — landing it is
+    a clean fast-forward of `ios-staging`, not a merge. Per `CLAUDE.md`'s own
+    "a CCR routine commits to its own branch" gotcha: this is exactly that
+    shape, flagged rather than silently assumed integrated. Whoever can push
+    to `ios-staging`: `git merge --ff-only origin/claude/hopeful-johnson-icvqmr`
+    (or fast-forward the ref) lands both this change and the merge-forward of
+    `ios-staging` cleanly.
+  - Commit: (see `git log` on `claude/hopeful-johnson-icvqmr`)
 
 - [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
   the only ios-ux rows, all `done`). **Found and reconciled an off-lane
