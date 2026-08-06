@@ -56,3 +56,25 @@ _none_
 - First `publish=true` TestFlight ship green (run #14). Fixes: MCP-app dispatch,
   team-from-profile (`635a822`), `CFBundleExecutable` (`d601a2c`); retained
   legacy-dir profile mirror (`526d34e`).
+
+- **2026-08-06 (autopilot session) — routine ship, still green, no fixes needed.**
+  Before dispatching, checked `ios-staging` for unmerged work per CLAUDE.md §5 and
+  found one real commit not yet on `main`: `ef50a07` (`CoffeeStore.loadBrief()` +
+  durable `resolveReview`/`dismissReview` via `MutationOutbox`, dropping 4xx
+  responses instead of retrying them forever — a real bug fix, not just plumbing).
+  The other two commits in `origin/main..origin/ios-staging` (`aa7997a`, `f43e4c4`)
+  were byte-identical diffs to commits already on `main` under different hashes
+  (verified via `git diff <rev>^ <rev> | git hash-object --stdin` on both sides) —
+  an artifact of the "off-lane push to main" incident `status/ios-shell.md`
+  documents, not new work. Cherry-picked `ef50a07` onto `main` (one conflict, in
+  `status/ios-shell.md`'s own `## Done` log — a documentation-only concurrent
+  append, resolved by keeping both sides' notes) → pushed as `2cbab7e`.
+  Dispatched `publish=true` on `main@2cbab7e`: GH Actions run **`31127443352`**
+  completed **success** in ~2 min (`match` 3s, `build_app` 40s,
+  `upload_to_testflight` 40s) — log-verified real archive + sign + upload to ASC
+  app `6795523219`, not a skipped step. First dispatch this session was green, so
+  the loop's fix-and-retry path was never needed. Processing (~20 min, async,
+  `skip_waiting_for_build_processing`) unconfirmed — check TestFlight/email.
+  Also corrected `BUILD_STATUS.md`'s "Blocking, do first" section, which still
+  described the first `publish=true` dispatch as pending — it had been green for
+  several cycles (runs on 8/4, 8/5, confirmed real via job logs, and now 8/6).
