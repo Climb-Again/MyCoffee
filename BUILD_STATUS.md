@@ -19,12 +19,11 @@ by the phased breakdown in `PLAN.md` §8 and the GitHub issues.
       independently verified 1024×1024, RGB colour type 2, **no alpha**;
       `Contents.json` carries the `filename`). This was the blocker on the first
       TestFlight upload. Replace with real brand art later — tracked as issue #9.
-- [ ] **First `publish=true` dispatch** (issue #10) — **now unblocked, do this
-      next.** `match` has never run, there is no distribution certificate under
-      team `PH2NNQ47UB`, and the private repo's `match` branch is still empty. Run it **by
-      hand** on the current placeholder app, while a red ship is cheap to
-      diagnose (`PLAN.md` §8). The Compile and Publish routines stay **disabled**
-      until it passes.
+- [x] **First `publish=true` dispatch** (issue #10) — done, `match` created the
+      distribution cert under `PH2NNQ47UB` on an early run and TestFlight uploads
+      have been routinely green since (most recently GH Actions run `31127443352`,
+      2026-08-06, `main@2cbab7e` — see `status/publish.md`). The Compile and
+      Publish routines are live on their normal cron cadence.
 
 > The other three items that used to sit here (`POST /api/ingest` event types,
 > real `GET /api/brief` generation, replacing the placeholder `ContentView`) all
