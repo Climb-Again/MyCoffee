@@ -31,6 +31,18 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-06 — session check, no ready row this cycle
+
+Checked `status/BACKLOG.md`: the only two data-lane rows are `#26` (`human`,
+needs `25`) and `#29` (`blocked`, needs `26`) — nothing `ready`. Confirmed via
+`mcp__github__issue_read` that issue #26 has **zero comments**, so Radu's
+accuracy verdict on the 2026-08-04 5-photo sample (findings above) hasn't
+landed yet — the spend gate (rules pass free, 5-photo sample done, 25-record
+tuning run needs his go-ahead) is still open. Also checked
+`git branch -r --list 'origin/claude/*'` for stranded prior data-lane work per
+`status/README.md`'s integration rule — only this session's own branch exists,
+nothing to adopt. No work invented; stopping per the work-loop rule.
+
 ## 2026-08-04 — #26's 5-photo sample RAN against production. Findings for tuning.
 
 Job 7: `voterSet:'full'`, `limit:5`, `includeImages:false` (text-only, Radu's
