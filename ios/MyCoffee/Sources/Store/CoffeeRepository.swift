@@ -18,4 +18,11 @@ protocol CoffeeRepository: Sendable {
     /// Fetches and merges one coffee's detail payload (notes, raw text,
     /// signed image URLs) without a full resync.
     func loadDetail(coffeeId: String) async throws -> Coffee
+
+    /// Records a review-task resolution for the outbox to flush when online,
+    /// the same offline-durable pattern `setFavorite` uses (PLAN.md §5).
+    func resolveReview(taskId: Int, value: String) async
+
+    /// Records a review-task dismissal ("not on the bag") the same way.
+    func dismissReview(taskId: Int) async
 }
