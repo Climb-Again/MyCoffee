@@ -4,7 +4,16 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-06 UTC] Closing two seam gaps the shell lane's `ef50a07` just landed
+  (`CoffeeStore.resolveReview`/`.dismissReview`/`.loadBrief()`), both explicitly
+  flagged "for the UX lane to call": (1) wire `ReviewQueueView` to the durable
+  `CoffeeStore` methods instead of hitting `APIClient.resolveReview`/
+  `.dismissReview` directly, so accepts/dismisses survive offline via
+  `MutationOutbox`; (2) add the Insights "This month" editorial section
+  (PLAN.md §6.4) via `store.loadBrief()`. No open `BACKLOG.md` row (#18/#27/#28
+  all `done`) — same precedent as the 2026-08-02 UX-wiring-gap entry below: not
+  new scope, just finishing already-claimed cross-lane asks in owned files.
+  — branch `ios-staging`
 
 ## Session notes
 
