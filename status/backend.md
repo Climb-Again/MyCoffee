@@ -6,6 +6,54 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-06 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `9bb27d6`, and this session's own designated
+branch (`claude/confident-cerf-4itq5a`) sits exactly on that tip — 0 ahead,
+0 behind. All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33). `#26` (data) is still `human` — `status/data.md`'s
+newest entry is still the 2026-08-04 5-photo-sample writeup, no newer verdict
+from Radu recorded — and `#29` stays `blocked` on it. Neither unblocks a
+backend row.
+
+`origin/main` had moved two commits past this file's last recorded tip
+(`de55557` → `9bb27d6`): `63ac9a5` (Review API — enrich `GET /api/review`
+with source-photo thumbnail + full raw text, canonicalize `POST /api/review/:id`
+accepts) and `9bb27d6` (iOS — wire the Review tab to the real backend). Both
+are already merged to `main`, real feature work extending the done `#27`
+row, not new backlog items — nothing left for this session to land.
+
+Swept all 49 `origin/claude/*` branches (`git rev-list --count
+origin/main..<branch>`). The two 35-ahead branches
+(`coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`) are the
+same pre-lane-split scaffolding forks prior sessions already inspected —
+net-deletions only against current `main`, not stranded work. Every other
+non-zero branch (`peaceful-mccarthy-rwi2ql` 3 ahead — long-superseded #14
+attempt; `peaceful-mccarthy-9yq99y` 2 ahead — data lane's own doc-only
+commits; ~20 single-commit branches including several newly-appeared ones
+this sweep — `confident-cerf-{yylzob,w9vkha,k31mzh}`,
+`determined-thompson-{yjymsr,uh2dyn,s66jso,ekezl2}`,
+`peaceful-mccarthy-{uorzva,pf55bh,8uji4p}`, `wizardly-thompson-0g9i90`,
+`relaxed-thompson-wrqfk0`) diff against `origin/main` as **pure deletions**
+— each forked from an earlier point in history before later work landed and
+never got a new commit, so by construction none can hold un-integrated
+work. Nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, up from the 195
+recorded (already up from earlier 152 count via #23/#25 growth already
+merged), no drift this session.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `{"ok":true,"service":"mycoffee-api",
+"db":true,"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs,
+all `done` or `paused`, **none `running`** — safe to push `backend/**` this
+session per the hard rule, though there was no code to push (jobs 7–10 are
+the data lane's #26 spend-gate samples, ~$1.15 total, unchanged since the
+last sweep).
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-05 UTC (later session): session check — no ready row this cycle
 
 `main`/`origin/main` agree at `de55557` (this session's own designated branch,
