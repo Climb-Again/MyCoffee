@@ -8,6 +8,19 @@ _none_
 
 ## Done
 
+- [2026-08-07 UTC, note from an `ios-ux` session, not this lane's own work]
+  `origin/main` had advanced to `da12d12` ("iOS: listing photos, review
+  scroll/back fixes, coffee-page cleanups") via another off-lane push straight
+  to `main` — touched this lane's `API/Wire/{CoffeeMapping,SnapshotWire}.swift`
+  and `Store/SyncEngine.swift` (mapping the snapshot's `thumbUrl` into
+  `Coffee.images`) alongside `ios-ux`-owned files. The `ios-ux` session that
+  ran that day merged it into `ios-staging` (`9b9fc95`) and reconciled one
+  conflict (in a `ios-ux`-owned file only) — see `status/ios-ux.md`'s matching
+  entry for detail. Recording it here too per the same precedent this file's
+  own 2026-08-06 entry set ("recording it here too since this branch is where
+  it originated"): nothing for this lane to do, `Store`/`API` content landed
+  as-authored, no shell-owned conflict to resolve.
+
 - [2026-08-07 UTC, later same day] Session check — unchanged from the check
   earlier today. No ready `ios-shell` row: #17/#22 done, #26 (data, phase 4)
   still `human` (Radu's 5-photo verdict pending), so #29 stays `blocked`.

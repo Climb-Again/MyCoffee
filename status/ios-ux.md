@@ -8,6 +8,51 @@ _none_
 
 ## Session notes
 
+- [2026-08-07 UTC, later same day] No open `BACKLOG.md` row (`#18`/`#27`/`#28`
+  still the only `ios-ux` rows, all `done`; `#29` still `human`-gated on `#26`).
+  Found real work anyway: `origin/main` had moved to `da12d12` ("iOS: listing
+  photos, review scroll/back fixes, coffee-page cleanups") — another off-lane
+  push straight to `main` touching both `ios-ux`-owned files
+  (`Features/Coffees/CoffeeDetailView.swift`, `Features/Review/{ReviewCardView,
+  ReviewQueueView}.swift`, new `Features/Review/CoffeeReviewSheet.swift`) and
+  `ios-shell`-owned ones (`API/Wire/{CoffeeMapping,SnapshotWire}.swift`,
+  `Store/SyncEngine.swift`) — same "commits to `main` instead of `ios-staging`"
+  footgun `CLAUDE.md` §12 already documents, not this lane's mistake to fix by
+  policy but stranded work to integrate per `status/README.md`'s rule.
+  - `git merge origin/main` into `ios-staging`: one real conflict, in
+    `Features/Review/ReviewQueueView.swift` — `ios-staging`'s side only
+    differed in a doc comment (its actual body/load()/toolbar code was already
+    identical to `origin/main`'s pre-`da12d12` state, since this lane's own
+    `4e491be`/shell's `ef50a07` had already landed equivalently on both
+    branches before `da12d12` forked). Resolved by taking `origin/main`'s side
+    (the new shared `ReviewCardStack` component `da12d12` extracted, which the
+    rest of the already-auto-merged file now references) — no functional
+    HEAD-only content was dropped. Pushed the merge to `ios-staging`
+    (`9b9fc95`).
+  - **One real regression caught and fixed, not just merged through**: the new
+    `CoffeeReviewSheet.swift` (per-coffee review sheet, launched from the
+    detail page's "needs review" marker) was written by the `da12d12` session
+    against a fork that predated this lane's own outbox-durability fix — its
+    `load()` called `client.resolveReview(id:value:)`/`client.dismissReview(id:)`
+    directly on `APIClient`, the exact fire-and-forget pattern already fixed in
+    `ReviewQueueView.swift` (see the 2026-08-06 entry below). Swapped both for
+    `store.resolveReview(taskId:value:)`/`store.dismissReview(taskId:)` on the
+    `CoffeeStore` (added `@EnvironmentObject private var store: CoffeeStore`,
+    same as `ReviewQueueView`) so per-coffee resolutions from the detail page
+    also survive offline/app restart through `MutationOutbox`, not just the
+    Review tab's. `client` stays for `reviewFeed()` (the GET, unaffected).
+  - Also swept `git branch -r --list 'origin/claude/*'` (still 57) — no new
+    candidates beyond the one dismissed in the entry below (`hopeful-johnson-
+    icvqmr`, a stale pre-durable-outbox fork, correctly not adopted).
+  - Not locally compiled (no Xcode here) — if the next compile check goes red,
+    check `CoffeeReviewSheet.swift`'s new `@EnvironmentObject` line first (it's
+    a one-line addition to an otherwise `da12d12`-authored file) and the
+    resolved `ReviewQueueView.swift` conflict region (lines ~1–90, the new
+    `ReviewCardStack` struct).
+  - `ios/MyCoffee/Sources/Features/Review/{CoffeeReviewSheet,ReviewQueueView}.swift`
+  - Commit: `9b9fc95` (merge) + one follow-up commit on `ios-staging` (see
+    `git log`)
+
 - [2026-08-07 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
   `#27`, `#28` — all `done`, unchanged. The two seam gaps this lane had open
   (review durability, Insights "This month" brief) are also closed as of
