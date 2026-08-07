@@ -6,6 +6,45 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-07 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `e0cfea2` (Publish lane's routine green ship,
+`main@2cbab7e`; this session's own designated branch,
+`claude/confident-cerf-1ak3tt`, sits exactly on that tip — 0 ahead, 0 behind).
+All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33); `#26` (data) is still `human` — awaiting Radu's
+accuracy verdict on the 5-photo sample per the spend gate — and `#29` stays
+`blocked` on it. Neither unblocks a backend row.
+
+Fresh unscoped `git fetch origin` — 59 `origin/claude/*` branches (up from 53
+at the last sweep). Swept every one via `git rev-list --count
+origin/main..<branch>`. New/grown branches this cycle, all inspected via
+`git diff --stat`: `confident-cerf-{3aavqw,7taeti,dgkpsd}` (1 ahead each) are
+other backend sessions' own no-op status-note commits to this file;
+`confident-cerf-fw2dgc` (1 ahead) touches iOS/status files but is net-deletions
+against current `main` (a stale fork), not stranded work; `peaceful-mccarthy-
+04rnye` (1 ahead) is the data lane's own status-note commit
+(`status/BACKLOG.md`/`status/data.md`); `modest-newton-oxaddt` and
+`relaxed-thompson-ceai5p` both grew from 1 to 7 ahead but remain
+net-deletions-only (17271 deletions vs 141-157 insertions each) — stale forks
+from an old `main` tip, same shape as every prior sweep, not stranded work to
+adopt. `hopeful-johnson-icvqmr` (15 ahead, iOS-ux `CoffeeStore.loadBrief()` +
+review outbox work) and `mycoffee-publish-autopilot-rv8cve` (11 ahead) were
+already flagged in a prior sweep as real but not backend-owned. Nothing
+backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-06 UTC (later session): session check — no ready row this cycle
 
 `main`/`origin/main` agree at `8614f95`. Found and pushed 4 commits (two backend
