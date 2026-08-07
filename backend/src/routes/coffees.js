@@ -23,7 +23,7 @@ import {
 // or the vocab dictionary changes, so the client knows to drop a cached file
 // rather than mis-decode it (PLAN.md §5: "schemaVersion mismatch -> drop and
 // full-resync").
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 
 // Long-lived: the client caches thumbnails for a ten-year archive, not for one
 // session (PLAN.md §5), so a 1-hour default (media.js's default, meant for an
@@ -36,13 +36,16 @@ function baseUrlFor(req) {
 }
 
 // Compact row for the snapshot: ids only, no resolved names (those live once
-// in `vocab{}`) and no per-row media URL (PLAN.md §4's ~140 B/row budget has
-// no room for a ~100-byte signed URL on every one of ~900 rows). The client
-// fetches an image URL when it actually needs one, via the detail route.
-function toCompactCoffee(row) {
+// in `vocab{}`). It DOES carry a signed `thumbUrl` so the listing can show
+// photos without an N-fetch detail round-trip per visible row — and, crucially,
+// so a background re-sync (which overwrites each coffee wholesale) doesn't wipe
+// a thumbnail that a detail visit had merged in. The URL is ~120 B/row; at the
+// current corpus that's a few KB, well within the snapshot budget.
+function toCompactCoffee(row, baseUrl) {
   return {
     id: row.public_id,
     photoId: row.photo_public_id,
+    thumbUrl: buildMediaUrl(baseUrl, row.photo_public_id, 'thumb', THUMB_URL_TTL_SECONDS),
     purchasedOn: row.purchased_on,
     purchasedYear: row.purchased_year,
     purchasedMonth: row.purchased_month,
@@ -107,11 +110,12 @@ export default async function coffeesRoutes(app) {
         : { rows: [] },
     ]);
 
+    const baseUrl = baseUrlFor(req);
     return {
       version: SNAPSHOT_VERSION,
       generatedAt: new Date().toISOString(),
       vocab,
-      coffees: coffeesResult.rows.map(toCompactCoffee),
+      coffees: coffeesResult.rows.map((row) => toCompactCoffee(row, baseUrl)),
       deleted: deletedResult.rows.map((r) => r.public_id),
     };
   });

@@ -9,7 +9,7 @@ import UIKit
 struct CoffeeDetailView: View {
     private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
-    @Environment(\.dismiss) private var dismiss
+    @State private var showReview = false
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -34,15 +34,9 @@ struct CoffeeDetailView: View {
             await store.loadDetail(for: initialCoffee)
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: Symbols.chevronBackward)
-                        .padding(10)
-                        .background(.thinMaterial, in: Circle())
-                }
-            }
+            // Only the trailing Share button is custom — the system back button
+            // stays (one arrow, and it keeps edge-swipe-back working). A second
+            // custom back button here is what produced the duplicate arrow.
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
                     Image(systemName: Symbols.share)
@@ -54,6 +48,11 @@ struct CoffeeDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
+        .sheet(isPresented: $showReview) {
+            CoffeeReviewSheet(coffeeId: coffee.id) {
+                Task { await store.loadDetail(for: initialCoffee) }
+            }
+        }
     }
 
     // MARK: - Hero
@@ -92,7 +91,6 @@ struct CoffeeDetailView: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: 20) {
             ratingHeader
-            inlineThumbnail
             roasterRow
             titleBlock
             pillRow
@@ -129,9 +127,19 @@ struct CoffeeDetailView: View {
             }
             Spacer()
             if coffee.hasOpenReview {
-                Label("Needs review", systemImage: Symbols.needsReview)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
+                // Tappable: the marker isn't just a status, it launches the
+                // review for this coffee's open fields (PLAN.md §6.5).
+                Button {
+                    showReview = true
+                } label: {
+                    Label("Review", systemImage: Symbols.needsReview)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -144,12 +152,6 @@ struct CoffeeDetailView: View {
                     .font(.caption)
             }
         }
-    }
-
-    private var inlineThumbnail: some View {
-        Thumbnail(urlString: coffee.images?.thumb, size: 64, cornerRadius: 12)
-            .offset(y: -48)
-            .padding(.bottom, -48)
     }
 
     private var roasterRow: some View {
@@ -300,32 +302,29 @@ struct CoffeeDetailView: View {
 
         return Group {
             if !blocks.isEmpty {
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(blocks, id: \.label) { block in
-                            VStack(alignment: .leading, spacing: 4) {
-                                // Only tag each block when more than one is present,
-                                // so a lone caption reads as plain body text.
-                                if blocks.count > 1 {
-                                    Text(block.label)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Text(block.text)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                } label: {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Shown expanded by default — this is the full content of the
+                    // coffee, not an optional extra to tap open.
                     Text("Full text")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
+                    ForEach(blocks, id: \.label) { block in
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Only tag each block when more than one is present,
+                            // so a lone caption reads as plain body text.
+                            if blocks.count > 1 {
+                                Text(block.label)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(block.text)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

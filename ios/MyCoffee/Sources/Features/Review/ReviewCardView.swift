@@ -2,10 +2,12 @@ import SwiftUI
 
 /// One field, one decision (PLAN.md §6.5): source photo up top, the raw
 /// snippet with the flagged value highlighted, the top candidate as one big
-/// chip, alternates below, an "Other…" field revealed on demand. Swipe right
-/// or tap a chip to accept; long-press a chip to accept **and** remember the
-/// correction for every remaining task with the same raw value; swipe left
-/// to defer to the back of the queue; swipe down for "not on the bag."
+/// chip, alternates below, an "Other…" field revealed on demand, then the full
+/// source text. Tap a chip to accept (long-press to accept **and** remember the
+/// correction for every remaining task with the same raw value); explicit
+/// "Skip" / "Not on the bag" buttons handle the other two outcomes. There is
+/// deliberately **no** swipe gesture — the card scrolls to show the full text,
+/// and a swipe-to-dismiss would fire every time you dragged to read it.
 struct ReviewCardView: View {
     let task: ReviewTask
     let onAccept: (String) -> Void
@@ -15,7 +17,6 @@ struct ReviewCardView: View {
 
     @State private var otherText = ""
     @State private var showOtherField = false
-    @State private var dragOffset: CGSize = .zero
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -25,15 +26,36 @@ struct ReviewCardView: View {
             if showOtherField {
                 otherField
             }
-            fullTextDisclosure
+            fullTextSection
+            actionRow
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(uiColor: .secondarySystemBackground)))
-        .overlay(alignment: .topTrailing) { swipeHint }
-        .offset(dragOffset)
-        .rotationEffect(.degrees(Double(dragOffset.width / 20)))
-        .gesture(dragGesture)
+    }
+
+    private var actionRow: some View {
+        HStack(spacing: 12) {
+            Button {
+                onSkip()
+            } label: {
+                Label("Skip", systemImage: Symbols.chevronRight)
+                    .font(.subheadline.weight(.medium))
+            }
+            .buttonStyle(.bordered)
+            .tint(.secondary)
+
+            Spacer(minLength: 0)
+
+            Button(role: .destructive) {
+                onNotPresent()
+            } label: {
+                Label("Not on the bag", systemImage: Symbols.reviewPhotoMissing)
+                    .font(.subheadline.weight(.medium))
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.top, 4)
     }
 
     private var snippetBlock: some View {
@@ -107,64 +129,24 @@ struct ReviewCardView: View {
         }
     }
 
-    /// The whole scraped caption/description behind this task — collapsed by
-    /// default so the card stays a single decision, expandable when the short
-    /// snippet isn't enough to decide from.
+    /// The whole scraped caption/description behind this task, shown expanded by
+    /// default — this is the context the reviewer actually needs to decide, so
+    /// it shouldn't be hidden behind a tap.
     @ViewBuilder
-    private var fullTextDisclosure: some View {
+    private var fullTextSection: some View {
         if let fullText = task.fullText, fullText != task.rawSnippet {
-            DisclosureGroup {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Full text")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Text(fullText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 6)
-            } label: {
-                Text("Full text")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
             }
         }
-    }
-
-    @ViewBuilder
-    private var swipeHint: some View {
-        if dragOffset.width > 40 {
-            swipeBadge(text: "Accept", color: .green)
-        } else if dragOffset.width < -40 {
-            swipeBadge(text: "Skip", color: .gray)
-        } else if dragOffset.height > 40 {
-            swipeBadge(text: "Not present", color: .red)
-        }
-    }
-
-    private func swipeBadge(text: String, color: Color) -> some View {
-        Text(text)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.white)
-            .padding(8)
-            .background(color.opacity(0.85), in: Capsule())
-            .padding(12)
-    }
-
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in dragOffset = value.translation }
-            .onEnded { value in
-                let width = value.translation.width
-                let height = value.translation.height
-                let horizontalWins = abs(width) > abs(height)
-                if horizontalWins, width > 100, let top = task.candidates.first {
-                    onAccept(top.value)
-                } else if horizontalWins, width < -100 {
-                    onSkip()
-                } else if !horizontalWins, height > 100 {
-                    onNotPresent()
-                }
-                dragOffset = .zero
-            }
     }
 }
 

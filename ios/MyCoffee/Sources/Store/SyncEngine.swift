@@ -5,7 +5,7 @@ import Foundation
 /// (`routes/coffees.js`) bumps in lockstep with a client update — see
 /// `SyncEngine.sync`'s schema-mismatch handling.
 enum SnapshotSchema {
-    static let currentVersion = 1
+    static let currentVersion = 2
 }
 
 /// Delta-syncs against `/api/snapshot` and persists the result to disk
