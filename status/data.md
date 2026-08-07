@@ -31,6 +31,58 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-07 (session check) — no ready row; documenting a gap this session found
+
+No `data`-lane row is `ready`: `#26` is still `human` (correctly — see below) and
+`#29` is `blocked` on it. Per the work loop, posting status and stopping rather
+than inventing work.
+
+**Found while orienting: the accuracy fixes below were already made and verified,
+but this file and `BACKLOG.md`'s `#26` note never said so.** Confirmed by reading
+git log (this branch, `claude/peaceful-mccarthy-04rnye`) past the "5-photo sample
+RAN" note dated below:
+
+- `dbfb6ea` (2026-08-04 14:44 UTC) — **"Act on Radu's #26 sample verdict"**: fixed
+  all four accuracy gaps the 5-photo sample surfaced — `is_decaf`/`profile`
+  (Romanian process terms, "Co-fermented" beating a generic term, Honey preserved
+  in `profile_detail`, decaf's false-positive `'ea'` token dropped), `price_eur`
+  (migration `012_fx_rates_seed.sql` loads the 1510-row seed into **production**
+  for the first time — it had been manual-only and had never actually been run
+  against Railway — plus a Radu-approved 5.2 RON/EUR fallback when no dated row
+  covers a purchase), and `Radical Coffee` (migration `013_roaster_suffix_aliases.sql`
+  generates the missing `"<name> Roasters"` alias class).
+- `89fa611` (2026-08-04 14:59 UTC) — found and fixed a second latent bug the
+  first fix's own re-run exposed: `profile` still wasn't resolving because the
+  extraction checklist never told the model what "profile" *means* — Romanian
+  shop copy has three different "Profil"-labelled fields (roast type, tasting
+  notes, and process), and the model was filling the schema's `profile` (=
+  process) with whichever one the caption happened to call "Profil". Added
+  `FIELD_GUIDANCE` text naming the source label and ruling out the other two,
+  bumped `PROMPT_VERSION` to `v2` (required, not cosmetic — `computeInputSha()`
+  folds it in, so extractions cache-hit and never re-run without the bump).
+- **Both fixes were verified by re-running jobs 8, 9, 10 against the same
+  approved 5 photos** (`GET /api/admin/jobs` on the live backend: ids 7/8/9/10,
+  all `voterSet:'full'`, `photosDone:5`, total spend across all four ≈ $1.16 —
+  still the "5 photos only" gate, re-run to validate a fix, not a new spend
+  tier). **Confirmed live just now**: `GET /api/coffees` shows a roaster named
+  exactly `Radical Coffee` — the fix holds in production, not just in tests.
+  `npm test` 195/195 green on this branch as of this session.
+
+**What this does NOT mean: it is not Radu's approval for the 25-record tuning
+run.** The commit message says he verdict-checked the 5 specific accuracy gaps
+found in the sample (matching the "Accuracy gaps worth fixing" list below
+point-for-point) — that's a narrower thing than approving the next spend tier.
+Checked GitHub issue `#26` itself for a recorded go-ahead: zero comments, and the
+issue body is actually the *full* ~$62 backfill spec (Phase 4), not a 5-photo or
+25-record checkpoint — those intermediate steps exist only in `BACKLOG.md`'s
+"Spend gates" section, not as separate GitHub issues. So there is no written
+record, here or on GitHub, of explicit approval to spend on the 25-record run.
+Per the non-negotiable spend gate, that approval has to be explicit and live —
+a scheduled session with no human in the loop cannot infer it from "the accuracy
+issues I flagged got fixed" and must not treat that as a green light. `#26` stays
+`human`; whoever next has Radu live should get an explicit yes/no on the
+25-record tuning run and record it here **and** in `BACKLOG.md`.
+
 ## 2026-08-04 — #26's 5-photo sample RAN against production. Findings for tuning.
 
 Job 7: `voterSet:'full'`, `limit:5`, `includeImages:false` (text-only, Radu's

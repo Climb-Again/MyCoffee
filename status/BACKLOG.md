@@ -31,7 +31,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 23 | backend   | 3 | done    | — | Extend `src/vertex.js` — inline `images`, `responseSchema` (+ `responseMimeType`), `thinkingConfig`, `usage`, `finishReason`. Additive — existing `generateContent()` signature unchanged. Unit-tested via new pure `buildRequestBody()`/`parseResponse()` helpers (no network) |
 | 24 | backend   | 3 | done    | 21, 23 | Migrations 010–011 + worker + agents + adjudicate + review routes — verified end-to-end against a real local Postgres with fake voters (no live LLM spend); P3 (rules) left as an optional dynamic import for #25 to add |
 | 25 | data      | 3 | done    | 20, 24 | Phase-0 rules-only pass ($0) + vocabulary confirmation — `src/lib/deterministic.js` + tests **MERGED to `main` 2026-08-04** (180/180 green). Includes the `parsePrice`/`parseRating` bare-number-fallback fix (see `status/data.md`) |
-| 26 | data      | 4 | human   | 25 | **5-photo sample RAN 2026-08-04** (job 7, text-only, 5/5 photos, **$0.2154**) — fields reported to Radu. **Awaiting his accuracy verdict before the 25-record tuning run**; per the spend gate no lane may proceed to tuning/backfill without it. Findings in `status/data.md` |
+| 26 | data      | 4 | human   | 25 | **5-photo sample RAN 2026-08-04** (job 7, text-only, 5/5 photos, **$0.2154**) — fields reported to Radu, and his feedback on those specific gaps (decaf/profile, price_eur, Radical alias) was already coded and verified via re-runs (jobs 8-10, `dbfb6ea`/`89fa611`, see `status/data.md`'s 2026-08-07 entry). **Still awaiting his explicit go-ahead for the 25-record tuning run itself** — no record of that approval exists here or on GitHub issue #26 (zero comments); per the spend gate this must be explicit and live, not inferred. |
 | 27 | ios-ux    | 5 | done    | 22, 24 | Review queue — batch cards, photo auto-zoom, mapping rules — see `status/ios-ux.md`. Runs against a local sample fixture; the real `GET /api/review` feed needs a `CoffeeStore`/`APIClient` surface the shell lane hasn't added yet (flagged in both lane files) |
 | 28 | ios-ux    | 5 | done    | 22 | Insights (with statistical gates) + roaster and country pages — see `status/ios-ux.md` |
 | 29 | data      | 6 | blocked | 26 | Harden the incremental path — launchd monthly, `awaiting_text` sweep, admin sync |
@@ -44,6 +44,16 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**⏸️ 2026-08-07 (data lane, session check) — no ready row, nothing invented.**
+`#26` stays `human`, `#29` stays `blocked`. Found and fixed a documentation gap
+instead: this file's `#26` note and `status/data.md` hadn't recorded that Radu's
+specific feedback on the 5-photo sample (decaf/profile, price_eur, Radical alias)
+was already coded and production-verified (`dbfb6ea`/`89fa611`, jobs 8-10 on the
+live backend). That is **not** the same as approval for the 25-record tuning run
+— checked GitHub issue #26 directly, zero comments, no recorded go-ahead. Left
+`#26` at `human` on purpose; see `status/data.md` for the full writeup. `npm test`
+195/195 green, no code changed this session.
 
 **🔀 2026-08-04 (ios-shell lane, merging `main` into `ios-staging`) — reconciled a
 second branch-divergence, same shape as the `#27` one below.** `ios-staging` had
