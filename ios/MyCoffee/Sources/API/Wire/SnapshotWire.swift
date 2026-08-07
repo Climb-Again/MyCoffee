@@ -69,6 +69,7 @@ struct ProfileVocabDTO: Decodable {
 /// media URL, no notes/raw text (those are detail-only, `CoffeeDetailDTO`).
 struct CompactCoffeeDTO: Decodable {
     let id: String
+    let thumbUrl: String?
     let purchasedOn: PlainDate
     let roasterId: Int?
     let roasterCountryId: Int?
@@ -91,7 +92,7 @@ struct CompactCoffeeDTO: Decodable {
     let reviewState: String
 
     private enum CodingKeys: String, CodingKey {
-        case id, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
+        case id, thumbUrl, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
     }
@@ -99,6 +100,7 @@ struct CompactCoffeeDTO: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
+        thumbUrl = try container.decodeIfPresent(String.self, forKey: .thumbUrl)
         purchasedOn = try container.decode(PlainDate.self, forKey: .purchasedOn)
         roasterId = try container.decodeIfPresent(Int.self, forKey: .roasterId)
         roasterCountryId = try container.decodeIfPresent(Int.self, forKey: .roasterCountryId)
