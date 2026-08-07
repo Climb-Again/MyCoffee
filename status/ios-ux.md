@@ -8,6 +8,42 @@ _none_
 
 ## Session notes
 
+- [2026-08-07 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`, unchanged. The two seam gaps this lane had open
+  (review durability, Insights "This month" brief) are also closed as of
+  yesterday's session (`4e491be`) — confirmed by reading `ReviewQueueView.swift`
+  and `InsightsView.swift` on `origin/ios-staging`: both call through
+  `CoffeeStore` (`resolveReview`/`dismissReview`/`loadBrief`), no direct
+  `APIClient` mutation calls left in UX-owned files. `#29` (data, phase 6)
+  stays `blocked` on `#26`, which is still `human` — not this lane's row
+  either way.
+  Full-fetched all `origin/claude/*` branches (57, up from 56) and swept every
+  one via `git rev-list --count origin/ios-staging..<branch> --
+  ios/MyCoffee/Sources/Features ios/MyCoffee/Sources/DesignSystem
+  ios/MyCoffee/Resources`. Seven non-zero hits, all inspected by tree diff, none
+  stranded to adopt:
+  - `coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`,
+    `mycoffee-publish-autopilot-rv8cve`, `relaxed-thompson-ceai5p`: pure
+    deletions against current `ios-staging` (pre-#27/#28 forks, same shape
+    every prior sweep has found).
+  - `modest-newton-oxaddt`: identical diff to the above (also a stale
+    pre-#27/#28 fork).
+  - `wizardly-thompson-0g9i90`: already inspected and dismissed by
+    `status/ios-shell.md`'s 2026-08-05 sweep (pre-`roasterId`-fix snapshot).
+  - `hopeful-johnson-icvqmr`: the one real candidate — flagged for the record
+    by backend's 2026-08-06 sweep as "not integrated." Diffed it directly
+    against `origin/ios-staging`: it wires the same "This month" brief
+    (renaming `BriefCard`→`EditorialBriefCard`) but its `ReviewQueueView.swift`
+    still calls `client.resolveReview`/`client.dismissReview` directly —
+    it forked from `ef50a07` *before* this lane's own `4e491be` added the
+    durable `CoffeeStore.resolveReview`/`.dismissReview` wiring. Adopting it
+    would be a **regression** (reintroducing fire-and-forget mutations over
+    the already-landed durable outbox path), not an integration. Not adopted;
+    its brief-card naming (`EditorialBriefCard` vs. the landed `BriefCard`) is
+    a cosmetic difference not worth cherry-picking alone.
+  No code changes this session — stopping cleanly per the work loop (do not
+  invent work).
+
 - [2026-08-06 UTC, ios-ux lane] Closed two cross-lane seam gaps the shell
   lane's `ef50a07` landed today, both explicitly flagged in that commit "for
   the UX lane to call" — no open `BACKLOG.md` row (#18/#27/#28 all `done`),
