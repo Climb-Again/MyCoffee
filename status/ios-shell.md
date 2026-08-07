@@ -8,6 +8,18 @@ _none_
 
 ## Done
 
+- [2026-08-07 UTC, later same day] Session check — unchanged from the check
+  earlier today. No ready `ios-shell` row: #17/#22 done, #26 (data, phase 4)
+  still `human` (Radu's 5-photo verdict pending), so #29 stays `blocked`.
+  `ios-staging` already at `90834f4` (ios-ux's later no-op session merged
+  `origin/main`'s `e0cfea2` in already) — nothing to merge. Re-swept all 59
+  `origin/claude/*` branches (3 more than the earlier check's 56): same 7
+  nonzero-diff candidates as before in this lane's owned paths
+  (`coffee-app-plan-9jdh0c`, `hopeful-johnson-icvqmr`, `modest-newton-oxaddt`,
+  `mycoffee-publish-autopilot-rv8cve`, `new-app-infrastructure-setup-h3r3wz`,
+  `relaxed-thompson-ceai5p`, `wizardly-thompson-0g9i90`) — no new branches
+  appeared since. Stopping cleanly rather than inventing work.
+
 - [2026-08-07 UTC] Session check — no ready `ios-shell` row. Only ios-shell
   rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
   (awaiting Radu's 5-photo accuracy verdict), so #29 (data, phase 6) stays
