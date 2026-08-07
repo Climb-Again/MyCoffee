@@ -31,9 +31,14 @@ const REVIEW_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 // these eight fields; map each DB field name onto the client enum's raw value.
 // DB fields with no client equivalent (rating, roasted_on, the desc_* prose
 // spans) are filtered out of the feed rather than sent as un-actionable cards.
+// `roaster_country_id` is intentionally absent: it's derived from the roaster
+// (worker sets it as a side-effect of resolving `roaster_id`), has no
+// canonicalize/denormalize case, and no standalone coffees-column update — so
+// exposing it as an independently resolvable review field would write a country
+// name string into an integer column. Review the roaster instead; the country
+// follows.
 const FIELD_TO_CLIENT = {
   origin_country_ids: 'originCountry',
-  roaster_country_id: 'roasterCountry',
   roaster_id: 'roaster',
   origin_farm_id: 'farm',
   profile: 'profile',
@@ -46,7 +51,7 @@ const FIELD_TO_CLIENT = {
 // human's accepted value must be canonicalised back into that shape before it
 // can be written, or it would corrupt the coffees row.
 const STRUCTURED_FIELDS = new Set([
-  'roaster_id', 'origin_farm_id', 'origin_country_ids', 'roaster_country_id',
+  'roaster_id', 'origin_farm_id', 'origin_country_ids',
   'altitude', 'price', 'weight_g', 'rating', 'roasted_on', 'profile',
 ]);
 
