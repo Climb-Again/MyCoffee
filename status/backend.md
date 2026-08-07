@@ -6,6 +6,39 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-07 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `e0cfea2` (this session's own designated branch,
+`claude/confident-cerf-3aavqw`, sits exactly on that tip — 0 ahead, 0 behind).
+All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33); `#26` (data) is still `human` — awaiting Radu's
+accuracy verdict on the 5-photo sample per the spend gate — and `#29` stays
+`blocked` on it. Neither unblocks a backend row.
+
+Fresh unscoped `git fetch origin` — 29 `origin/claude/*` branches. Swept every
+one via `git rev-list --count origin/main..<branch>`. Two changed shape since
+the last sweep — `modest-newton-oxaddt` and `relaxed-thompson-ceai5p` are now
+7 ahead (were 1) — inspected both via `git diff --stat origin/main <branch> --
+backend/`: both are net-deletions-only against current `main` (stale forks
+missing migrations 005/008–013 and every `src/lib`/`routes` file main already
+has), same shape as every prior sweep, not stranded work. `confident-cerf-fw2dgc`
+(1 ahead, new this cycle) touches nothing under `backend/`. The two 35-ahead
+pre-lane-split scaffolds and the remaining 1-ahead branches are the same
+no-op status-note / superseded shapes documented in every earlier sweep.
+Nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-06 UTC (later session): session check — no ready row this cycle
 
 `main`/`origin/main` agree at `8614f95`. Found and pushed 4 commits (two backend
