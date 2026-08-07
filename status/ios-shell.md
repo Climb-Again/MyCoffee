@@ -8,6 +8,26 @@ _none_
 
 ## Done
 
+- [2026-08-07 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
+  (awaiting Radu's 5-photo accuracy verdict), so #29 (data, phase 6) stays
+  `blocked`. `git merge origin/main` into `ios-staging` was a no-op (already
+  up to date — both at `e0cfea2`). Re-fetched and swept all 56
+  `origin/claude/*` branches for stranded work in this lane's owned paths
+  (`git rev-list --count origin/ios-staging..<branch> -- <ios-shell-owned
+  paths>`): 7 showed a nonzero count (`coffee-app-plan-9jdh0c`,
+  `hopeful-johnson-icvqmr`, `modest-newton-oxaddt`,
+  `mycoffee-publish-autopilot-rv8cve`, `new-app-infrastructure-setup-h3r3wz`,
+  `relaxed-thompson-ceai5p`, `wizardly-thompson-0g9i90`), but commit count is
+  misleading across diverged histories, so checked actual file content: the
+  same three pure-deletion/pre-fix-snapshot candidates as every prior check,
+  plus unrelated publish/compile-lane branches that predate `ios-staging`'s
+  creation, plus `hopeful-johnson-icvqmr` (an `ios-ux` branch) whose
+  Store/API/Models files are byte-identical to what's already on
+  `ios-staging` — its actual new content was `Features/Insights` wiring,
+  already landed via `4e491be`. Nothing stranded to adopt. Stopping cleanly
+  rather than inventing work or touching UX-owned paths.
+
 - [2026-08-06 UTC, later same day] Session check — no ready `ios-shell` row.
   #17/#22 done; #27/#28 (ios-ux) done; #29 (data, phase 6) still `blocked` on
   #26, still `human` (awaiting Radu's verdict). The cross-lane `ios-ux` ask
