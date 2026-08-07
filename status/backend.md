@@ -6,6 +6,52 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-07 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `e0cfea2` (this session's own designated branch,
+`claude/confident-cerf-dgkpsd`, sits exactly on that tip — 0 ahead, 0 behind).
+All backend-tagged rows in `status/BACKLOG.md` are still `done`
+(11/15/16/19/21/23/24/33); `#26` (data) is still `human` — awaiting Radu's
+accuracy verdict on the 5-photo sample per the spend gate — and `#29` stays
+`blocked` on it. Neither unblocks a backend row.
+
+Fresh unscoped `git fetch origin` — 55 `origin/claude/*` branches (up from 53
+at the last sweep; new ones this cycle: `confident-cerf-{fw2dgc,3aavqw}`,
+`determined-thompson-{tw8az2,4281b1,349x88,2mu3br,3tonjx}` show 0 ahead;
+`peaceful-mccarthy-{04rnye,8uji4p,pf55bh,uorzva,y9g1jq}` show 1 ahead each —
+other lanes' own no-op status commits). Swept every non-zero branch via
+`git rev-list --count origin/main..<branch>` and `git diff --stat` against
+current `main`. Two showed a larger delta than in past sweeps
+(`relaxed-thompson-ceai5p` and `modest-newton-oxaddt`, now 7 ahead each,
+up from 1) — inspected both: still **net-deletions-only** against current
+`main` (a stale fork whose own single commit removes files `main` has since
+grown, e.g. `ops/mycoffee_export.py`, `status/backend.md`'s full history,
+`ios/MyCoffee/Sources/Store/SyncEngine.swift`), the delta only *looks* bigger
+because `main` has grown since these forked, not because they contain new
+work. `mycoffee-publish-autopilot-rv8cve` (11 ahead) is the same shape —
+net-deletions against current `main`, an old publish-autopilot fork predating
+most of the current iOS Store/ tree. `hopeful-johnson-icvqmr` (15 ahead) is
+real iOS-ux work (`CoffeeStore.loadBrief()`, durable review resolve/dismiss
+via `MutationOutbox`) already flagged in the last sweep — not backend-owned,
+and per this session's own `git log`, already landed on `main` in `2cbab7e`
+(visible in this branch's own history above this note), so it's superseded,
+not stranded. The two 35-ahead pre-lane-split scaffolds are the same
+long-documented net-deletions forks every prior sweep has found. Nothing
+backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push (jobs 7–10 are the data
+lane's #26 spend-gate samples, ~$1.16 total, unchanged since the last sweep).
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-06 UTC (later session): session check — no ready row this cycle
 
 `main`/`origin/main` agree at `8614f95`. Found and pushed 4 commits (two backend
