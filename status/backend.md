@@ -88,11 +88,6 @@ verification above exercises the identical code path end-to-end; #36's live
 behavior will be provable the first time Radu (or a future review-tab
 action) accepts a real farm/roaster name.
 
-**Still to do in this same session, once this push deploys**: run the $0
-re-adjudication (`POST /api/admin/adjudicate`) against production, per #35's
-own instruction to verify the live queue collapses, and record the real
-before/after `GET /api/review` counts in a follow-up note below.
-
 Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
 "mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
 /api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe to
@@ -101,6 +96,72 @@ taken before this push: **30 open client-reviewable items**, reasons
 overwhelmingly `low confidence` (single-voter picks like the "69.00 lei"
 case) and `no clear value found` (fields simply absent) — exactly the two
 categories #35 targets.
+
+## 2026-08-08 UTC (same session, follow-up): live re-adjudication result + a real bug it found
+
+Deployed `5360121`, then ran `POST /api/admin/adjudicate` against production
+(the $0 re-adjudication #35 itself calls for) and it came back **500
+`numeric field overflow`**. Root cause, confirmed by reproducing it locally:
+`parseRating`'s last-resort fallback (`normalize.js`, Data-owned, not edited)
+matches *any* bare number in free text with no range check -- a known,
+previously-documented failure mode (see this file's `deterministic.js`
+history and `PLAN.md`'s own note on bare-number fallbacks grabbing an
+unrelated digit). Before this session, that garbage candidate was harmless:
+a single low-confidence vote got the 0.7x penalty, missed the 0.90 `rating`
+threshold, and was quietly routed to review -- never written to
+`coffees.rating` (`NUMERIC(2,1)`, `CHECK 0-5`). #35 deliberately removed that
+threshold gate, which also removed the accidental safety net, so the same
+garbage value went straight into the column and blew its precision.
+
+Fixed in `1360a14`: `canonicalize()`'s `rating` case now rejects anything
+outside `0-5` before it's treated as a candidate at all (same pattern
+`price` already uses to reject a currency-less bare number). While fixing
+this I found the same class of gap dormant in `altitude`:
+`parseAltitude`'s `needsReview` flag (implausible range / >800m span) was
+computed but never wired into any decision -- it only affected
+`confidence`, which no longer gates anything under #35. Wired it into the
+same review-but-still-applied "split" bucket the genuine-disagreement case
+uses, so an implausible altitude now correctly forces review again instead
+of being silently accepted. 202/202 tests green; reproduced the exact
+production crash locally first, confirmed the fix resolves it with no
+throw, before redeploying.
+
+Redeployed (`1360a14`), then re-ran `POST /api/admin/adjudicate` against
+production: **`{"photosReadjudicated":21}`, no error.**
+
+**Live before/after `GET /api/review?limit=200`:**
+- Before (pre-#35, this session's baseline): **30** open client-reviewable
+  items -- `low confidence` and `no clear value found` dominant.
+- After: **26** open items, and critically **every single one is now a
+  genuine disagreement** (`voters disagreed` / `implausible`) -- the
+  `low confidence`/`no clear value found` categories are completely gone,
+  exactly as #35 specifies. This is a smaller drop than the issue's "dozens
+  to a handful" framing hoped for, and that's worth reporting honestly
+  rather than rounding up: the remaining 26 splits skew heavily toward
+  `profile` (10) and `originCountry` (7), which is the *exact* systemic
+  labeling ambiguity `agents.js`'s own `FIELD_GUIDANCE` comment already
+  documents (Romanian listings carry three different "Profil"-ish labels --
+  roast type, tasting notes, and the actual process -- that early
+  extractions before that prompt guidance landed genuinely confused). That
+  guidance fixes *future* extractions; it can't retroactively un-confuse
+  `field_candidates` rows already stored from the pre-guidance 5-photo/
+  25-record sample runs. Re-running the voters (a real, non-$0 extraction
+  pass) would very likely shrink this further -- re-adjudication alone
+  can only re-cluster what's already stored. Flagging for whoever picks up
+  a future re-extraction pass; not claiming it as part of #35/#36.
+- Spot-verified `GET /api/coffees/:id` on a coffee with `minFieldConfidence:
+  0.50` (would have been forced to review pre-#35): `roasterId`, full
+  `originCountryIds`, `altitude`, `profileId`, `weightG` (250), and
+  `priceOriginalAmount` (105.00 RON, matching the raw caption's "105.00 lei"
+  exactly) are now all populated and correct -- the live confirmation of
+  Radu's own read ("if it says 69.00 lei in text and the engine picked
+  69.00 lei, that is definitely correct").
+
+Did not touch any farm/roaster data in production for #36 (see the note
+above on why) -- #36 stays verified against the local Postgres only.
+
+Marked `#35`/`#36` `done` in `BACKLOG.md`, flipped `#37` (ios-ux, needs
+35+36) `blocked` → `ready` in the same push.
 
 ## 2026-08-08 UTC: session check — no ready row this cycle
 
