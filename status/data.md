@@ -31,6 +31,31 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-08 UTC — session check: no ready row this cycle
+
+`main`/`origin/main` agree at `fc88d0e`; this session's assigned branch
+(`claude/peaceful-mccarthy-jmx3vu`) already matched it exactly (0 ahead, 0
+behind) — no stranded prior work of this session's own to integrate. Fresh
+`git fetch origin` found 59 `origin/claude/*` branches; swept every one
+non-zero-ahead of `main` that touches data-owned paths
+(`ops/**`, `005_vocab_seed.sql`,
+`src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js`, or this file).
+Six matched (`04rnye`, `8uji4p`, `9yq99y`, `pf55bh`, `uorzva`, `y9g1jq`) — all
+are prior "no ready row this cycle" session-check notes only (plus, in two
+cases, already-merged iOS/backend content picked up from an older fork point).
+None carry real unmerged data-lane code.
+
+Checked `BACKLOG.md`: all data-tagged rows are still settled — #12/#13/#14/
+#20/#25/#34 `done`, #26 `human`, #29 `blocked` (needs 26). Checked GitHub
+issue #26 directly (`get_comments` → empty) since this session happens to have
+GitHub access — no verdict from Radu posted anywhere visible. Per the spend
+gate, the 25-record tuning run may not start without his explicit
+go-ahead on the 5-photo sample, and that hasn't landed in `BACKLOG.md` or on
+the issue. No other row in the data lane's owned paths is `ready`.
+
+**No code changes this session — stopping per the "post a one-line status and
+stop, do not invent work" rule rather than picking unrelated cleanup.**
+
 ## 2026-08-04 — #26's 5-photo sample RAN against production. Findings for tuning.
 
 Job 7: `voterSet:'full'`, `limit:5`, `includeImages:false` (text-only, Radu's
