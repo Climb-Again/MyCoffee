@@ -8,6 +8,23 @@ _none_
 
 ## Session notes
 
+- [2026-08-08 UTC] No-op session. `BACKLOG.md`: still only `#18`/`#27`/`#28`
+  tagged `ios-ux`, all `done`. New row `#37` ("Needs review" reflects only
+  actionable items, PLAN.md §11) is `ios-ux` but `blocked` on `#35`/`#36`
+  (both backend, both `ready` — not done yet), so nothing to pick up; correct
+  no-op per the work loop's own instructions. Merged `origin/main`
+  (`aaacc88`, the accept-by-default policy doc + farm-accept + review-
+  affordance backend/iOS fixes) into `ios-staging` — clean, no conflicts
+  with `Features/`/`DesignSystem/`/`Resources/`. Swept
+  `git branch -r --list 'origin/claude/*'` (65 branches) for stranded work
+  touching `Sources/{Features,DesignSystem}/**` or `Resources/**`: several
+  non-zero hits (`determined-thompson-{3tonjx,4281b1,nto1g8,x99e3x}`,
+  `lanes-status-blockers-wws2lc`, `wizardly-thompson-eurlj6`,
+  `new-app-infrastructure-setup-h3r3wz`), all pre-`#18` scaffolding/design-
+  system commits already superseded by the landed `#18`/`#27`/`#28` work
+  (same commit SHAs as `ios-staging`'s own history in most cases) — nothing
+  to adopt. Stopping cleanly; no code changes this session.
+
 - [2026-08-07 UTC, later same day] No open `BACKLOG.md` row (`#18`/`#27`/`#28`
   still the only `ios-ux` rows, all `done`; `#29` still `human`-gated on `#26`).
   Found real work anyway: `origin/main` had moved to `da12d12` ("iOS: listing
