@@ -123,6 +123,7 @@ struct ReviewQueueView: View {
         do {
             let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
+            ReviewFeedCache.shared.adopt(feed)
             engine.load(feed.items.compactMap(ReviewTask.init(dto:)))
             // Durable through the outbox — survives offline/app restart,
             // unlike a raw fire-and-forget `APIClient` call.

@@ -6,6 +6,7 @@ import SwiftUI
 /// never conditionally inserted, which would reindex the bar.
 struct RootTabView: View {
     @StateObject private var store = CoffeeStore()
+    @ObservedObject private var reviewCache = ReviewFeedCache.shared
 
     var body: some View {
         TabView {
@@ -25,9 +26,15 @@ struct RootTabView: View {
                 await store.load()
             }
         }
+        .task {
+            await reviewCache.ensureLoaded()
+        }
     }
 
+    /// Counts only coffees with a client-reviewable open item (PLAN.md §11
+    /// #37) — same real-feed gate as the coffee-page Review button, so the
+    /// badge never promises more than the tab actually shows.
     private var pendingReviewCount: Int {
-        store.index.coffees.filter(\.hasOpenReview).count
+        store.index.coffees.filter { $0.hasOpenReview && reviewCache.hasReviewableTasks(for: $0.id) }.count
     }
 }

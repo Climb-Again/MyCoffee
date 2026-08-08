@@ -58,6 +58,7 @@ struct CoffeeReviewSheet: View {
         do {
             let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
+            ReviewFeedCache.shared.adopt(feed)
             let tasks = feed.items
                 .compactMap(ReviewTask.init(dto:))
                 .filter { $0.coffeeId == coffeeId }

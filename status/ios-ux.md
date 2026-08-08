@@ -239,6 +239,58 @@ _none_
 
 ## Done
 
+- [2026-08-08 UTC, later session] 37 "Needs review" reflects only actionable items — branch `ios-staging`
+  - Picked up as the only `ready` `ios-ux` row after merging `origin/main` into `ios-staging`
+    (backend's `#35`/`#36` landed and flipped this row `blocked`→`ready`, per `status/BACKLOG.md`).
+  - Root cause confirmed by reading `backend/src/routes/review.js`: `GET /api/review` already
+    filters `review_items` to `FIELD_TO_CLIENT`'s eight keys server-side (`WHERE ... field =
+    ANY($clientFields)`), so the real feed never contained the non-actionable `desc_*` splits in
+    the first place. The bug was purely client-side: the detail-page Review button and the Review
+    tab badge both gate on `Coffee.reviewState`/`hasOpenReview` — a coarse column that lights up
+    for *any* open `review_items` row, including the ones the feed itself already excludes. That
+    mismatch is exactly PLAN.md §11 #37's "empty All set sheet" bug, and the same root cause was
+    quietly inflating the tab badge too (not called out in the issue text, but same fix, same
+    files, so folded in here rather than left half-done).
+  - **New `Sources/Features/Review/ReviewFeedCache.swift`** — a small `@MainActor` shared cache
+    of `coffeeId`s that have at least one client-reviewable open item, sourced from the same
+    `GET /api/review` feed `ReviewQueueView`/`CoffeeReviewSheet` already fetch (`adopt(_:)` lets
+    them hand it their result instead of a second network round-trip; `ensureLoaded()`/`refresh()`
+    are for call sites — `CoffeeDetailView`, `RootTabView` — that don't otherwise fetch the feed).
+  - **Deliberately fails open, not closed**: `reviewableCoffeeIds` stays `nil` (→
+    `hasReviewableTasks` returns `true`, i.e. don't suppress) until a feed fetch actually
+    succeeds. A sample/demo run with no backend configured (`APIClient.APIError.notConfigured`)
+    or a transient network error never gets a positive answer, so it never wrongly *hides* a
+    real affordance — it just falls back to today's coarse `hasOpenReview` behavior. This was the
+    main risk in gating on network data at all, given the work loop's own "build against
+    `BundledSampleRepository`, zero backend dependency" instruction — verified by reading through
+    the fallback path rather than running it (no local Xcode).
+  - `CoffeeDetailView.swift`: the Review button now shows only when `coffee.hasOpenReview &&
+    reviewCache.hasReviewableTasks(for: coffee.id)`; added a second `.task` to prime the cache;
+    the review sheet's `onFinished` now calls `reviewCache.refresh()` before re-loading detail, so
+    finishing a review promptly re-hides the button if that was the coffee's last actionable item.
+  - `RootTabView.swift`: `pendingReviewCount` (the Review tab's `.badge()`) now applies the same
+    `hasReviewableTasks` gate, so the badge number matches what the tab's own feed-backed queue
+    actually contains instead of counting every `needs_review` coffee.
+  - `ReviewQueueView.swift` / `CoffeeReviewSheet.swift`: one-line `ReviewFeedCache.shared.adopt(feed)`
+    added right after each existing `client.reviewFeed()` fetch — no other change needed, since
+    accept/dismiss in both already route through `CoffeeStore.resolveReview(taskId:value:)`/
+    `.dismissReview(taskId:)` (the durable `MutationOutbox` path, already wired by an earlier
+    session — see the false-start note below for how that was confirmed rather than assumed).
+  - **False start, caught before pushing**: first pass was written against `origin/main`'s copy of
+    `CoffeeReviewSheet.swift`/`ReviewQueueView.swift`, which turned out to be stale — `main` hasn't
+    had `ios-staging`'s last publish-merge, so its copies still fire-and-forget through a raw
+    `APIClient` call instead of `store.resolveReview`/`.dismissReview`. Caught by diffing
+    `origin/main` against `origin/ios-staging` for these exact files before committing; re-did the
+    change against real `origin/ios-staging` content. Flagging because it's a live instance of the
+    exact "which branch is actually current" trap `CLAUDE.md`'s gotchas section warns about — not
+    a claim that `main`'s copy needs fixing (the Publish lane's normal merge replaces it).
+  - Not locally compiled (no Xcode in this environment) — flag the compile lane to
+    `Features/Review/ReviewFeedCache.swift` and the four call sites above specifically if the next
+    compile check goes red. `@MainActor final class ... ObservableObject` with a `static let
+    shared` singleton read via `@ObservedObject` is a pattern not used elsewhere in this codebase
+    yet, so it's the most likely first thing to check.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
   the only ios-ux rows, all `done`). **Found and reconciled an off-lane
   commit pair**: `origin/main` carried two commits
