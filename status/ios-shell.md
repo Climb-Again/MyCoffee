@@ -8,6 +8,20 @@ _none_
 
 ## Done
 
+- [2026-08-08 UTC, later same day] Session check — still no ready
+  `ios-shell` row. Since the earlier check below, Radu's accept-by-default
+  directive landed on `main` (`aaacc88`, merged in via `git merge origin/main`
+  — no conflicts) adding `BACKLOG.md` #35/#36 (backend, both `ready` not
+  `done` yet) and #37 (`ios-ux`, `blocked` on 35/36) — none of that is
+  ios-shell-owned or unblocked. Re-swept `origin/claude/*` for stranded work
+  in this lane's owned paths: only new candidate is this session's own branch
+  (`wizardly-thompson-ofd9vn`), zero prior commits, nothing to adopt.
+  Confirmed the 2026-08-05 "decode leniently" follow-up (skip a malformed
+  snapshot row instead of failing the whole array) is already resolved —
+  `de55557` added `FailableDecodable` and applied it to `SnapshotWire.swift`'s
+  `coffees`/vocab arrays. Stopping cleanly; pushing the merge to
+  `ios-staging`.
+
 - [2026-08-08 UTC] Session check — no ready `ios-shell` row. Only ios-shell
   rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
   (Radu's 5-photo accuracy verdict still pending — confirmed via today's
