@@ -20,13 +20,26 @@ extension Coffee {
     func primaryOriginCountry(vocabulary: Vocabulary) -> Country? { originCountryId.flatMap { vocabulary.countries[$0] } }
     func originFarm(vocabulary: Vocabulary) -> Farm? { originFarmId.flatMap { vocabulary.farms[$0] } }
 
+    /// Every resolved origin country, in stored order — a blend legitimately
+    /// has several (`origin_country_ids`). Falls back through the primary id so
+    /// a single-origin coffee still returns its one country here.
+    func allOriginCountries(vocabulary: Vocabulary) -> [Country] {
+        var ids = originCountryIds
+        if ids.isEmpty, let originCountryId { ids = [originCountryId] }
+        return ids.compactMap { vocabulary.countries[$0] }
+    }
+
     /// "Farm, Country" — either half may be missing; the whole line omits
-    /// itself (returns `nil`) only when both are.
+    /// itself (returns `nil`) only when both are. A blend lists **all** its
+    /// origins ("Kenya · Colombia · El Salvador"), not a bare "Blend".
     func originSubtitle(vocabulary: Vocabulary) -> String? {
         let farmName = originFarm(vocabulary: vocabulary)?.name
         let countryName: String? = {
-            if isBlend { return "Blend" }
-            return primaryOriginCountry(vocabulary: vocabulary)?.name
+            let origins = allOriginCountries(vocabulary: vocabulary)
+            if isBlend {
+                return origins.isEmpty ? "Blend" : origins.map(\.name).joined(separator: " · ")
+            }
+            return origins.first?.name
         }()
         switch (farmName, countryName) {
         case let (.some(f), .some(c)): return "\(f), \(c)"

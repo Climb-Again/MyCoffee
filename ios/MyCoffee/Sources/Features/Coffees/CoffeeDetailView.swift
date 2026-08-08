@@ -206,22 +206,20 @@ struct CoffeeDetailView: View {
     }
 
     private var pillRow: some View {
-        WrapLayout() {
+        let origins = coffee.allOriginCountries(vocabulary: vocabulary)
+        return WrapLayout() {
+            // A blend gets a "Blend" marker plus one pill per origin country; a
+            // single-origin coffee just gets its one country pill. Either way,
+            // every country pill is its own tap target into the origin page.
             if coffee.isBlend {
                 InfoPill(icon: nil, text: "🏳️ Blend")
-            } else if let country = coffee.primaryOriginCountry(vocabulary: vocabulary) {
-                // Pushback #7: the origin flag (folded into this pill's text)
-                // opens the origin-country page.
-                if FeatureFlags.tapNavigatesToEntityPages {
-                    NavigationLink {
-                        CountryPageView(countryID: country.id, role: .origin)
-                    } label: {
-                        InfoPill(icon: nil, text: (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    InfoPill(icon: nil, text: (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name)
+            }
+            if !origins.isEmpty {
+                ForEach(origins) { country in
+                    originPill(for: country)
                 }
+            } else if coffee.isBlend == false, let country = coffee.primaryOriginCountry(vocabulary: vocabulary) {
+                originPill(for: country)
             }
             if let altitude = coffee.altitudeLabel {
                 InfoPill(icon: Symbols.mountain, text: altitude)
@@ -229,6 +227,23 @@ struct CoffeeDetailView: View {
             if let weight = coffee.weightLabel {
                 InfoPill(icon: Symbols.scale, text: weight)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func originPill(for country: Country) -> some View {
+        let text = (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name
+        // Pushback #7: the origin flag (folded into this pill's text) opens the
+        // origin-country page.
+        if FeatureFlags.tapNavigatesToEntityPages {
+            NavigationLink {
+                CountryPageView(countryID: country.id, role: .origin)
+            } label: {
+                InfoPill(icon: nil, text: text)
+            }
+            .buttonStyle(.plain)
+        } else {
+            InfoPill(icon: nil, text: text)
         }
     }
 
