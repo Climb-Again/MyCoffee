@@ -186,11 +186,21 @@ function clusterCandidates(field, candidates) {
 
 // ---- Decide one field from its raw candidates ----
 //
+// PLAN.md §11 (2026-08-08, Radu's accept-by-default directive): the model's
+// self-reported confidence is not a reliable review trigger -- "if it says
+// 69.00 lei and the engine picked 69.00 lei, that is definitely correct."
+// So a field is only ever routed to review for a *structural* reason --
+// voters that actually carry weight landing on materially different values,
+// a prose boundary too wide to trust, or the critic explicitly refuting it --
+// never merely for having low or single-voter confidence. Every accepted
+// value is written to the coffees row regardless of confidence; a review-
+// bound value is still applied provisionally so the app always shows
+// something (PLAN.md §11 point 3), except prose_spread, where there is no
+// trustworthy pick to show.
+//
 // rawCandidates: [{ agent, value, confidence, evidence }] -- `value` is the
 // voter's raw (uncanonicalized) output for this field.
 export function adjudicateField(field, rawCandidates, ctx = {}) {
-  const threshold = ctx.thresholds?.[field] ?? ctx.defaultThreshold ?? 0.85;
-
   // Critic (P4) never contributes a value -- it only refutes. A refuted field
   // gets every LLM voter's confidence discounted before clustering; P3 (rules)
   // is untouched since it's not vision-dependent, which is exactly what the
@@ -208,50 +218,56 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     })
     .filter(Boolean);
 
+  // Absent, not review-worthy: the caption simply never mentioned this field.
+  // No field_resolutions caller sees this pushed into `reviews` (adjudicateRecord
+  // below only collects decision === 'review'), so no review_items row is
+  // written and the "needs review" badge doesn't light up for a coffee that's
+  // merely missing an optional field.
   if (candidates.length === 0) {
-    return {
-      field,
-      value: null,
-      confidence: 0,
-      agreement: 0,
-      voters: [],
-      decision: 'review',
-      reviewReason: 'no_candidates',
-      threshold,
-    };
+    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null };
   }
 
   const clusters = clusterCandidates(field, candidates).sort((a, b) => b.totalWeight - a.totalWeight);
-  const winner = clusters[0];
-  const totalWeight = clusters.reduce((s, cl) => s + cl.totalWeight, 0);
+  // Zero-weight candidates (P3/rules never attempts prose -- weightFor()
+  // returns 0 there) shouldn't count as a competing vote for split purposes;
+  // ignore them when deciding whether voters actually disagree.
+  const weighted = clusters.filter((cl) => cl.totalWeight > 0);
+
+  if (weighted.length === 0) {
+    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null };
+  }
+
+  const winner = weighted[0];
+  const totalWeight = weighted.reduce((s, cl) => s + cl.totalWeight, 0);
   const share = totalWeight > 0 ? winner.totalWeight / totalWeight : 0;
-  const distinctVoters = new Set(candidates.map((c) => c.agent));
   const winnerVoters = new Set(winner.members.map((m) => m.agent));
   const meanConfidence = winner.members.reduce((s, m) => s + m.confidence, 0) / winner.members.length;
 
-  let confidence = meanConfidence;
+  const confidence = meanConfidence;
   let decision;
   let reviewReason = null;
 
-  if (distinctVoters.size === 1) {
-    confidence *= ctx.singleVoterPenalty ?? 0.7;
-    decision = 'single_voter';
-  } else if (
-    clusters.length === 1 &&
-    winnerVoters.size >= 2 &&
-    Math.min(...winner.members.map((m) => m.confidence)) >= (ctx.unanimousMinConfidence ?? 0.75)
-  ) {
-    decision = 'unanimous';
-  } else if (share >= (ctx.acceptShareThreshold ?? 0.6)) {
-    decision = 'accept_flagged';
+  // Every weighted voter agrees on one value (whether there's one voter or
+  // several) -> accept it outright, regardless of confidence. Only a real
+  // split -- >=2 weighted voters landing on materially different values --
+  // is worth a human's time.
+  if (weighted.length === 1) {
+    decision = winnerVoters.size === 1 ? 'single_voter' : 'unanimous';
   } else {
     decision = 'review';
     reviewReason = 'split';
   }
 
+  // Prose "value" is the median boundary across the winning cluster, not any
+  // single voter's offsets -- lossless and non-hallucinatable per PLAN.md §2.
+  const chosenCanonical = isProseField(field) ? medianProse(winner.members) : winner.members[0].canonical;
+  let value = denormalize(field, chosenCanonical);
+
   // Prose is selected, not voted (PLAN.md §2 point 6): a wide boundary spread
   // in the winning cluster means real disagreement even if the sliced text
-  // happens to match closely enough to cluster.
+  // happens to match closely enough to cluster -- and unlike a split, there's
+  // no single trustworthy pick to show provisionally, so this is the one
+  // review reason that still nulls the value.
   if (isProseField(field) && winner.members.length > 1) {
     const starts = winner.members.map((m) => m.canonical.start);
     const ends = winner.members.map((m) => m.canonical.end);
@@ -259,27 +275,26 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     if (spread > (ctx.proseSpreadReviewChars ?? 80)) {
       decision = 'review';
       reviewReason = 'prose_spread';
+      value = null;
     }
   }
 
-  if (decision !== 'review' && confidence < threshold) {
+  // A critic refutation is a distinct, specialized signal -- not generic
+  // (dis)agreement -- so it still earns a review even when every regular
+  // voter agreed. The provisional pick stays visible, same as a split.
+  if (criticRefuted && decision !== 'review') {
     decision = 'review';
-    reviewReason = 'below_threshold';
+    reviewReason = 'critic_refuted';
   }
-
-  // Prose "value" is the median boundary across the winning cluster, not any
-  // single voter's offsets -- lossless and non-hallucinatable per PLAN.md §2.
-  const chosenCanonical = isProseField(field) ? medianProse(winner.members) : winner.members[0].canonical;
 
   return {
     field,
-    value: decision === 'review' ? null : denormalize(field, chosenCanonical),
+    value,
     confidence: round3(confidence),
     agreement: round3(share),
     voters: [...winnerVoters],
     decision,
     reviewReason,
-    threshold,
   };
 }
 

@@ -6,6 +6,118 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## ⚠ 2026-08-08 UTC (later session): #35 + #36 code-complete, verified, but stuck on `claude/confident-cerf-cuvy66` — needs a merge to `main`
+
+This session's write access is scoped to its own designated branch
+(`claude/confident-cerf-cuvy66`) — a constraint of this particular run, not a
+repo policy change — so a direct push to `main` is refused. Both `#35` and
+`#36` (PLAN.md §11, Radu's 2026-08-08 accept-by-default directive) are fully
+implemented and verified; this is the same "code done, not on the shared
+branch yet" shape as the `peaceful-mccarthy-rwi2ql` finding from 2026-08-01
+below — recording it the same way rather than marking the backlog rows
+`done` prematurely.
+
+**#35 — Accept-by-default adjudication** (`src/lib/adjudicate.js`,
+`src/lib/worker.js`, `src/config.js`):
+
+- `adjudicateField` no longer returns `decision: 'review'` for a field with
+  zero candidates — a new `'absent'` decision, which `adjudicateRecord`
+  doesn't collect into `reviews`, so no `review_items` row is written and the
+  "needs review" badge doesn't light up for a coffee merely missing an
+  optional field.
+- Dropped the single-voter confidence penalty (`* 0.7`) and the
+  below-threshold → review path entirely. A field is now accepted the moment
+  every candidate that carries nonzero vote weight agrees on one value —
+  whether that's one voter (`single_voter`) or several (`unanimous`) —
+  regardless of self-reported confidence. Weight-zero candidates (P3/rules on
+  a prose field, which it never actually attempts) are excluded from the
+  agreement check so its always-present-but-inert prose row can't manufacture
+  a false split.
+- The only thing left that still forces `review` is a genuine structural
+  disagreement: **≥2 weighted voters landing on materially different
+  canonical values** (`reviewReason: 'split'`), a prose boundary spread over
+  80 chars (`'prose_spread'`, the one case with no trustworthy pick to show,
+  so `value` stays `null`), or an explicit critic (P4) refutation
+  (`'critic_refuted'`) — kept as a distinct override since it's a specialized
+  hallucination-detection signal, not generic low confidence, and nothing in
+  the issue asked to remove it.
+- **The `split`/`critic_refuted` review reasons still apply their
+  top-weighted pick to the `coffees` row** (PLAN.md §11 point 3) —
+  `buildCoffeeColumnUpdates` in `worker.js` used to skip every
+  `decision === 'review'` field outright; it now only skips a field whose
+  `value` is actually `null` (absent, or the one `prose_spread` case), so a
+  provisional split value shows in the app while the review item stays open
+  for a human to correct it.
+- `config.js`: removed `fieldThresholds`, `defaultThreshold`,
+  `singleVoterPenalty`, `unanimousMinConfidence`, `acceptShareThreshold` —
+  all dead now that acceptance no longer depends on confidence. Kept
+  `ruleVoterWeight`/`ruleVoterWeightedFields`/`ruleVoterProseFields` (still
+  drive weighting) and `proseSpreadReviewChars` (still the one quality gate
+  left).
+- `routes/review.js`'s `REASON_LABELS` updated to the new reason vocabulary
+  (`split`/`critic_refuted`/`prose_spread`) — the old
+  `below_threshold`/`no_candidates`/`disagreement` keys are unreachable now.
+- Rewrote `test/adjudicate.test.js`'s decision-rule tests for the new
+  semantics (added a second roaster to the fixture vocab so a "genuine split"
+  test can actually resolve two different ids, not just fail to resolve a
+  second candidate) and added two `test/worker.test.js` cases for the
+  `buildCoffeeColumnUpdates` skip-condition change. **198/198 `npm test`
+  green** (up from 195).
+- **Verified beyond the committed suite, against a real local Postgres 16**
+  (fresh `initdb`, all 13 migrations applied clean): inserted `field_candidates`
+  rows for three fields on one photo — `roaster_id` with zero candidates,
+  `rating` with one low-confidence (0.2) candidate, `price` with two voters
+  disagreeing (45 lei vs. 60 lei) — then ran `adjudicateAndApply` directly.
+  Result: no `field_resolutions`/`review_items` row for `roaster_id` at all;
+  `rating` accepted and written to `coffees.rating` despite 0.2 confidence;
+  `price` got an open `review_items` row (`reason: 'split'`) *and*
+  `coffees.price_original_amount` was written to 45 (the top-weighted pick),
+  with `coffees.review_state` correctly `needs_review` because of the one
+  open item. Re-ran the equivalent of `POST /api/admin/adjudicate`
+  (`readjudicateAll()`) afterward: `extractions` row count unchanged
+  (2 before, 2 after) — confirms $0 re-adjudication — and the open `price`
+  review item stayed open, untouched.
+
+**#36 — Human accept creates vocab** (`routes/review.js`, get-or-create
+inline rather than a `src/lib/vocab.js` helper — the lower-coupling option
+the issue itself suggested, since this only needs a plain `INSERT` next to
+the alias table each kind already has, none of vocab.js's
+resolution/matching logic):
+
+- `POST /api/review/:id` now: if `canonicalize()` fails to resolve a
+  `roaster_id`/`origin_farm_id` value against the existing vocab, look it up
+  by normalized alias first (idempotency — a second human accepting the
+  same name reuses the row rather than duplicating it), and if still
+  nothing, `INSERT` a new `roasters`/`farms` row (roasters get a
+  collision-safe slug: `slugify(name)`, then `-2`/`-3`/… appended until a
+  free `slug` is found) plus a matching alias row, then proceed exactly as
+  if that had always been the canonical id. `origin_country_ids` has no
+  entry in the new `GET_OR_CREATE` map, so an unresolvable country still
+  422s — countries stay closed, per the issue.
+- **Verified against the same local Postgres, through the real
+  `POST /api/review/:id` route via `app.inject()`** (not just the auth-guard
+  smoke test already in `test/review.test.js`): accepting a review item with
+  farm name "Finca El Nuevo Mundo" (not in any seeded vocab) returned `200`
+  (previously `422`) with the newly created farm's id, wrote a `farms` row +
+  a `farm_aliases` row, and applied `origin_farm_id` to the `coffees` row
+  (`review_state` flipped to `clean`). A **second** review item accepting the
+  identical name on a different photo also returned `200` and resolved to
+  the *same* farm id — confirmed via `count(*) = 1` on the `farms` table —
+  so a human re-confirming the same name never creates a duplicate. A
+  roaster accept ("Brand New Roastery") behaved the same way for the
+  roasters table + slug. A review item for `origin_country_ids` with an
+  unknown country name ("Nowhereland") still returned `422` — confirms the
+  closed-vocab carve-out is intact.
+
+**Not done in this session, flagged rather than guessed at:** merging this
+branch to `main`. A PR was opened
+(`claude/confident-cerf-cuvy66` → `main`); if no PR merge automation picks it
+up, this needs the same human/authorized-session action the
+`peaceful-mccarthy-rwi2ql` finding below did. Once merged: re-run `npm test`
+(should stay 198/198), live-verify `GET /api/review`'s queue actually
+shrinks against the real corpus, and flip `#35`/`#36` → `done`, `#37` →
+`ready` in `BACKLOG.md`.
+
 ## 2026-08-08 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agree at `da12d12` (fast-forwarded a stale local clone —

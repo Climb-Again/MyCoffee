@@ -37,14 +37,9 @@ import { runExtractA, runExtractB, runCritic, runReconciler, loadRulesVoter, PRO
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
 const ADJUDICATE_CTX_DEFAULTS = {
-  thresholds: config.extraction.fieldThresholds,
-  defaultThreshold: config.extraction.defaultThreshold,
   ruleVoterWeight: config.extraction.ruleVoterWeight,
   ruleVoterWeightedFields: config.extraction.ruleVoterWeightedFields,
   ruleVoterProseFields: config.extraction.ruleVoterProseFields,
-  singleVoterPenalty: config.extraction.singleVoterPenalty,
-  unanimousMinConfidence: config.extraction.unanimousMinConfidence,
-  acceptShareThreshold: config.extraction.acceptShareThreshold,
   proseSpreadReviewChars: config.extraction.proseSpreadReviewChars,
 };
 
@@ -79,6 +74,9 @@ export function isDueForExtraction(photo, now = new Date()) {
 // Turns adjudicated field resolutions into the `coffees` column set to write.
 // Pure -- `ctx` carries the already-loaded vocab/profile/fx data, no queries
 // here -- so the field-to-column mapping is testable without a live Postgres.
+// A `review`-decided field with a non-null value is a genuine split's
+// provisional pick (PLAN.md §11 point 3, adjudicate.js) -- still written so
+// the app shows something while the field waits on a human to confirm it.
 export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
   const sets = [];
   const values = [];
@@ -89,7 +87,7 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
   };
 
   for (const [field, res] of Object.entries(resolutions ?? {})) {
-    if (res.decision === 'review' || res.value == null) continue;
+    if (res.value == null) continue;
     switch (field) {
       case 'roaster_id': {
         push('roaster_id', res.value);

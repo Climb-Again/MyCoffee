@@ -60,13 +60,22 @@ const vocabCtx = {
   photoDate: '2020-05-15',
 };
 
-test('buildCoffeeColumnUpdates skips fields whose decision is "review"', () => {
+test('buildCoffeeColumnUpdates skips a field with no value (absent, or a review with no trustworthy pick)', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
     { rating: { decision: 'review', value: null } },
     vocabCtx,
   );
   assert.deepEqual(sets, []);
   assert.deepEqual(values, []);
+});
+
+test('buildCoffeeColumnUpdates applies a provisional split pick even though the field still needs review (PLAN.md §11)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { roaster_id: { decision: 'review', reviewReason: 'split', value: 1 } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 5]);
 });
 
 test('buildCoffeeColumnUpdates: roaster_id also denormalizes the roaster\'s country', () => {

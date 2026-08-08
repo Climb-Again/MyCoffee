@@ -1,7 +1,7 @@
-// adjudicate.js is a pure function over stored candidate rows (PLAN.md §2) --
-// no DB, no network -- so every decision rule (unanimous accept, weighted
-// split, single-voter penalty, per-field threshold, prose median-boundary
-// selection) is exercised directly against fixed inputs.
+// adjudicate.js is a pure function over stored candidate rows (PLAN.md §2,
+// §11) -- no DB, no network -- so every decision rule (accept-by-default on
+// agreement regardless of confidence, weighted split, prose median-boundary
+// selection, critic refutation) is exercised directly against fixed inputs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -14,8 +14,14 @@ import {
 
 const roasterVocab = {
   roasters: {
-    candidates: [{ id: 1, name: 'DAK Coffee Roasters', country_id: 5 }],
-    aliasIndex: new Map([['dak', { id: 1, alias: 'DAK' }]]),
+    candidates: [
+      { id: 1, name: 'DAK Coffee Roasters', country_id: 5 },
+      { id: 2, name: 'Torch Coffee Roasters', country_id: 6 },
+    ],
+    aliasIndex: new Map([
+      ['dak', { id: 1, alias: 'DAK' }],
+      ['torch', { id: 2, alias: 'Torch' }],
+    ]),
   },
   countries: {
     candidates: [
@@ -28,7 +34,7 @@ const roasterVocab = {
   farms: { candidates: [{ id: 1, name: 'El Paraiso', country_id: 10 }], aliasIndex: new Map() },
 };
 
-const BASE_CTX = { vocab: roasterVocab, thresholds: { roaster_id: 0.85, price: 0.9 }, defaultThreshold: 0.85 };
+const BASE_CTX = { vocab: roasterVocab };
 
 // ---- canonicalize / fieldsEqual / denormalize ----
 
@@ -72,9 +78,9 @@ test('denormalize round-trips the shapes adjudicateField writes to field_resolut
   assert.deepEqual(denormalize('price', { amount: 10, currency: 'EUR' }), { amount: 10, currency: 'EUR' });
 });
 
-// ---- adjudicateField decision rules (PLAN.md §2 point 4) ----
+// ---- adjudicateField decision rules (PLAN.md §11: accept-by-default) ----
 
-test('unanimous (>=2 voters, min conf >=0.75) auto-accepts', () => {
+test('unanimous (>=2 voters agree) auto-accepts regardless of confidence', () => {
   const result = adjudicateField(
     'roaster_id',
     [
@@ -85,38 +91,45 @@ test('unanimous (>=2 voters, min conf >=0.75) auto-accepts', () => {
   );
   assert.equal(result.decision, 'unanimous');
   assert.equal(result.value, 1);
-  assert.ok(result.confidence >= 0.85);
 });
 
-test('a single voter is accepted at 0.7x confidence, and blocked if that drops it below threshold', () => {
-  const result = adjudicateField('roaster_id', [{ agent: 'extract_a', value: 'DAK', confidence: 0.95 }], BASE_CTX);
-  assert.equal(result.confidence, Math.round(0.95 * 0.7 * 1000) / 1000);
-  // 0.665 < the 0.85 roaster_id threshold -> forced to review despite being the only voter.
-  assert.equal(result.decision, 'review');
-  assert.equal(result.reviewReason, 'below_threshold');
+test('a single voter is accepted outright, even at low confidence -- no penalty, no threshold', () => {
+  const result = adjudicateField('roaster_id', [{ agent: 'extract_a', value: 'DAK', confidence: 0.1 }], BASE_CTX);
+  assert.equal(result.decision, 'single_voter');
+  assert.equal(result.value, 1);
+  assert.equal(result.confidence, 0.1); // stored as-is -- no 0.7x penalty applied
 });
 
-test('a genuine split (no cluster reaches the 0.60 share) goes to review', () => {
+test('an unresolvable second candidate still leaves the one resolvable candidate accepted', () => {
   const result = adjudicateField(
     'roaster_id',
     [
       { agent: 'extract_a', value: 'DAK', confidence: 0.9 },
-      { agent: 'extract_b', value: 'Some Other Roaster Entirely', confidence: 0.9 },
+      { agent: 'extract_b', value: 'Some Other Roaster Entirely', confidence: 0.9 }, // won't resolve against the vocab
     ],
     BASE_CTX,
   );
-  // "Some Other Roaster Entirely" won't resolve against the vocab at all, so
-  // only extract_a's candidate canonicalizes -- single voter, same as above.
+  assert.equal(result.decision, 'single_voter');
+  assert.equal(result.value, 1);
+});
+
+test('a genuine split (>=2 weighted voters resolve to materially different values) is flagged for review but still applies the top-weighted pick', () => {
+  const result = adjudicateField(
+    'roaster_id',
+    [
+      { agent: 'extract_a', value: 'DAK', confidence: 0.9 },
+      { agent: 'extract_b', value: 'Torch', confidence: 0.9 },
+    ],
+    BASE_CTX,
+  );
   assert.equal(result.decision, 'review');
+  assert.equal(result.reviewReason, 'split');
+  // 1-1 weight tie -- stable sort keeps the first-seen cluster (extract_a/DAK) on top.
+  assert.equal(result.value, 1);
 });
 
 test('P3 (rules) carries 1.5x weight on numeric fields, enough to win a 1-vs-1 weighted tie', () => {
-  const ctx = {
-    ...BASE_CTX,
-    ruleVoterWeight: 1.5,
-    ruleVoterWeightedFields: ['altitude'],
-    thresholds: { altitude: 0.75 },
-  };
+  const ctx = { ...BASE_CTX, ruleVoterWeight: 1.5, ruleVoterWeightedFields: ['altitude'] };
   const result = adjudicateField(
     'altitude',
     [
@@ -128,15 +141,16 @@ test('P3 (rules) carries 1.5x weight on numeric fields, enough to win a 1-vs-1 w
   );
   // rules alone: weight 1.5; extract_a+extract_b together: weight 2 -- rules
   // does NOT win outright, but its 1.5x share (1.5/3.5 = 0.43) is properly
-  // reflected rather than counted as a plain 1-of-3 vote (0.33).
-  const rulesCluster = result.agreement; // share of the *winning* cluster
-  assert.ok(rulesCluster > 0); // sanity: a decision was reached
-  assert.notEqual(result.decision, 'unanimous');
+  // reflected rather than counted as a plain 1-of-3 vote (0.33), and the
+  // genuine value disagreement is still a real split.
+  assert.equal(result.decision, 'review');
+  assert.equal(result.reviewReason, 'split');
+  assert.ok(result.agreement > 0);
 });
 
-test('P3 carries zero weight on prose fields', () => {
+test('P3 carries zero weight on prose fields, so its lone dissent never forces a split', () => {
   const rawText = 'Farm: El Paraiso, washed, 1600masl. Great cup with notes of stone fruit.';
-  const ctx = { ...BASE_CTX, ruleVoterProseFields: ['desc_farm_lot'], rawText, thresholds: { desc_farm_lot: 0 } };
+  const ctx = { ...BASE_CTX, ruleVoterProseFields: ['desc_farm_lot'], rawText };
   const result = adjudicateField(
     'desc_farm_lot',
     [
@@ -146,14 +160,14 @@ test('P3 carries zero weight on prose fields', () => {
     ctx,
   );
   // rules candidate contributes weight 0, so despite two voters technically
-  // disagreeing, extract_a's cluster carries the entire non-zero weight share.
-  assert.equal(result.decision, 'accept_flagged');
+  // disagreeing, extract_a is the only *weighted* voter -- a single voter, accepted.
+  assert.equal(result.decision, 'single_voter');
   assert.equal(result.value, rawText.slice(0, 27));
 });
 
-test('a prose cluster whose boundary spread exceeds 80 chars forces review even if it "agrees"', () => {
+test('a prose cluster whose boundary spread exceeds 80 chars forces review with no provisional value', () => {
   const rawText = 'x'.repeat(200);
-  const ctx = { ...BASE_CTX, rawText, thresholds: { desc_roaster_copy: 0 } };
+  const ctx = { ...BASE_CTX, rawText };
   // Both candidates slice to the *same substring* of x's (so fieldsEqual is
   // true and they cluster), but their offsets differ by >80 chars.
   const result = adjudicateField(
@@ -166,21 +180,18 @@ test('a prose cluster whose boundary spread exceeds 80 chars forces review even 
   );
   assert.equal(result.decision, 'review');
   assert.equal(result.reviewReason, 'prose_spread');
+  assert.equal(result.value, null); // unlike a split, no boundary here is trustworthy enough to show
 });
 
-test('no candidates at all -> review with reason no_candidates', () => {
+test('no candidates at all is absent, not a review item', () => {
   const result = adjudicateField('rating', [], BASE_CTX);
-  assert.equal(result.decision, 'review');
-  assert.equal(result.reviewReason, 'no_candidates');
+  assert.equal(result.decision, 'absent');
+  assert.equal(result.reviewReason, null);
+  assert.equal(result.value, null);
 });
 
-test('critic refutation discounts every non-rules candidate before thresholding', () => {
-  const ctx = {
-    ...BASE_CTX,
-    thresholds: { rating: 0.9 },
-    criticVerdicts: { rating: { refuted: true } },
-    criticPenalty: 0.5,
-  };
+test('critic refutation still forces review even when every regular voter agreed, but keeps the provisional value', () => {
+  const ctx = { ...BASE_CTX, criticVerdicts: { rating: { refuted: true } }, criticPenalty: 0.5 };
   const result = adjudicateField(
     'rating',
     [
@@ -189,10 +200,9 @@ test('critic refutation discounts every non-rules candidate before thresholding'
     ],
     ctx,
   );
-  // Would be unanimous at ~0.95 without the critic; halved to ~0.475, well
-  // under the 0.9 rating threshold.
   assert.equal(result.decision, 'review');
-  assert.equal(result.reviewReason, 'below_threshold');
+  assert.equal(result.reviewReason, 'critic_refuted');
+  assert.equal(result.value, 4.5); // still shown -- review just lets Radu correct it
 });
 
 // ---- adjudicateRecord: locked fields are skipped entirely ----
@@ -207,7 +217,6 @@ test('adjudicateRecord never re-adjudicates a locked field', () => {
   };
   const { resolutions, reviews } = adjudicateRecord(candidatesByField, {
     ...BASE_CTX,
-    thresholds: { roaster_id: 0.85, rating: 0.9 },
     locked: new Set(['roaster_id']),
   });
   assert.ok(!('roaster_id' in resolutions)); // locked -- untouched
@@ -215,12 +224,24 @@ test('adjudicateRecord never re-adjudicates a locked field', () => {
   assert.equal(reviews.length, 0);
 });
 
-test('adjudicateRecord collects every review-bound field with its reason', () => {
+test('adjudicateRecord does not collect an absent field as a review item', () => {
   const candidatesByField = {
     price: [{ agent: 'extract_a', value: '45', confidence: 0.9 }], // bare number, no currency
   };
+  const { resolutions, reviews } = adjudicateRecord(candidatesByField, BASE_CTX);
+  assert.equal(resolutions.price.decision, 'absent');
+  assert.equal(reviews.length, 0);
+});
+
+test('adjudicateRecord collects a genuine split with its reason', () => {
+  const candidatesByField = {
+    roaster_id: [
+      { agent: 'extract_a', value: 'DAK', confidence: 0.9 },
+      { agent: 'extract_b', value: 'Torch', confidence: 0.9 },
+    ],
+  };
   const { reviews } = adjudicateRecord(candidatesByField, BASE_CTX);
   assert.equal(reviews.length, 1);
-  assert.equal(reviews[0].field, 'price');
-  assert.equal(reviews[0].reason, 'no_candidates'); // parsePrice requires a currency marker
+  assert.equal(reviews[0].field, 'roaster_id');
+  assert.equal(reviews[0].reason, 'split');
 });
