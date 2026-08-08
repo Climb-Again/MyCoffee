@@ -892,3 +892,73 @@ Actions run status needs `curl` against the REST API rather than the MCP tools.
 (new cron table), §12 (add: don't ship `backend/**` during an extraction job).
 `BUILD_STATUS.md` → replace the Claims section with `status/<lane>.md` and close
 out the four stale queue items, all of which said "once the product brief lands".
+
+## 11. Addendum (2026-08-08) — accept-by-default review policy + review fixes
+
+Radu's directive after using the first live builds, verbatim intent: **"Most
+review proposals are clearly identified correctly … if it says 69.00 lei in text
+and the engine picked 69.00 lei, that is definitely correct. I'd rather push
+identified info and correct mistakes than review all info."** He has not found a
+single wrong auto-pick. So the design goal flips: **the review queue is an
+optional correction surface, not a gate.** Everything extracted is shown in the
+app; review exists only for genuine conflicts. Three backlog items (#35–#37)
+carry this out.
+
+### #35 — Accept-by-default adjudication (Backend; `src/lib/adjudicate.js`, `src/lib/worker.js`, `src/config.js`)
+
+Today `adjudicateField` routes far too much to `review`: the live queue is
+`low confidence` (single-voter / below-threshold picks that are actually right),
+`no clear value found` (the field is simply absent), and a few real `split`s.
+Change the policy so a field only becomes a `review_item` when voters **genuinely
+disagree** — and even then the top pick is still applied so the app shows a value:
+
+1. **`no_candidates` must NOT create a review item.** A field the caption never
+   mentions is just absent — leave the coffees column null and write no
+   `review_items` row. (Half the current queue is this.) The "needs review"
+   badge must not light up for a coffee merely missing optional fields.
+2. **A single candidate, or unanimous/agreeing candidates, is ACCEPTED**, not
+   flagged — regardless of the model's self-reported confidence. Drop the
+   single-voter penalty and the `below_threshold → review` path for the
+   agreeing case. (This is the "69.00 lei" case.)
+3. **Only a real cluster split** (≥2 voters landing on materially different
+   canonical values) becomes a review item — and it still **stores the
+   top-weighted pick as the field value** (provisional, `decided_by='auto'`,
+   not `locked`) so the app always shows something. Review just lets Radu
+   correct the minority case.
+4. Net: the queue should collapse from dozens to a handful. Re-adjudication is
+   $0 (`POST /api/admin/adjudicate` re-runs over stored `field_candidates`), so
+   this can be tuned against the existing corpus with no new LLM spend. Verify
+   live: after the change, `GET /api/review` should be a short list of true
+   ambiguities, and `GET /api/coffees` should show the previously-flagged values
+   populated.
+
+### #36 — Human accept must create the vocab entry (Backend; `routes/review.js` + get-or-create)
+
+Root cause of "I reviewed a farm name but it didn't change": there are **0 farms
+in the vocabulary**, so `canonicalize('origin_farm_id', <name>)` never resolves,
+the resolve endpoint returns **HTTP 422**, and the app (fire-and-forget) shows no
+change. Farms are inherently open-ended; roasters can be new too. Fix the resolve
+path so that when a human accepts a `origin_farm_id` / `roaster_id` value that
+doesn't match existing vocab, it **gets-or-creates** the row (insert farm/roaster
+by normalized name, return the new id) instead of 422 — a human explicitly
+confirming a name is authoritative. Countries stay a closed set (keep 422 / fuzzy
+for an unknown origin country). The get-or-create belongs next to the existing
+alias logic; `src/lib/vocab.js` is Data-owned, so either add a small helper there
+(coordinate in both lane files) or do the insert inline in `routes/review.js`
+(Backend-owned) — pick the lower-coupling option and note it.
+
+### #37 — "Needs review" affordance reflects only actionable items (iOS UX + Backend)
+
+The coffee-page **Review** button shows whenever `reviewState != "clean"`, but
+many open items are fields the app can't review (`desc_*`, or absent fields), so
+the per-coffee sheet opens **empty**. #35 fixes most of this at the source (those
+rows stop existing). Belt-and-braces on the client: don't present the Review
+affordance when a coffee has no client-reviewable open items — either gate the
+button on a per-coffee reviewable count (cheapest: the detail payload exposes an
+`openReviewCount` limited to reviewable fields) or, at minimum, keep today's
+"All set" empty state so it never looks broken. Depends on #35/#36.
+
+**Do not manually `publish=true` for these** — land them on `main` (backend) /
+`ios-staging` (UX) per the normal lane flow and let the Publish lane ship on its
+cron. The UI batch already on `main` (see `status/BACKLOG.md` "Right now") ships
+the same way.

@@ -38,12 +38,43 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
 | 34 | data      | 0 | done    | — | `fx_rates` seed (1510 rows) + `fx.js` — consolidated to `main`, inversion verified vs anchors |
 | 30 | ~~human~~ | — | dropped | — | ~~Set the Actions spending limit~~ **OBSOLETE** — repo is public, Actions free (CLAUDE.md §10). Nothing owed. |
+| 35 | backend   | 4 | ready   | — | **Accept-by-default adjudication** (PLAN.md §11). Stop routing confident/absent extractions to review: `no_candidates` writes no review row; a single/agreeing candidate is accepted regardless of self-confidence; only a real voter split becomes a review item, and even then the top pick is applied provisionally. Re-adjudicate for $0 (`POST /api/admin/adjudicate`) and verify the live queue collapses. `src/lib/adjudicate.js`, `worker.js`, `config.js` |
+| 36 | backend   | 4 | ready   | — | **Human accept creates vocab** (PLAN.md §11). Resolving an `origin_farm_id`/`roaster_id` review with a name not in vocab must get-or-create the row (there are 0 farms seeded, so every farm accept currently 422s and silently no-ops). Countries stay closed. `routes/review.js` (+ optional helper in Data-owned `src/lib/vocab.js` — coordinate) |
+| 37 | ios-ux    | 5 | blocked | 35, 36 | **"Needs review" reflects only actionable items** (PLAN.md §11). The coffee-page Review button opens an empty sheet when a coffee's open items are all non-reviewable fields. Gate the affordance on a per-coffee reviewable count (backend can expose `openReviewCount` on detail) / keep the "All set" empty state. Mostly resolved once #35 lands |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
 whose `needs` are now all `done` from `blocked` to `ready` in the same commit. If
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🧭 2026-08-08 (Radu directive) — accept-by-default; review is optional, not a gate.**
+After using the live builds Radu was explicit: the extractor's picks are
+essentially always right ("69.00 lei in text → 69.00 lei picked = definitely
+correct; haven't found a single miss"). He wants to **push identified info and
+correct the rare mistakes**, not review everything. New backlog rows **#35–#37**
+carry this out; full design is **PLAN.md §11**. #35 (accept-by-default
+adjudication) is the headline and is $0 to iterate — re-adjudication runs over
+stored `field_candidates`, no new LLM spend — so tune it against the existing
+corpus. Two concrete bugs feed the same theme: (a) **reviewing a farm name does
+nothing** because 0 farms are seeded and the resolve endpoint 422s (→ #36,
+get-or-create on accept); (b) **most "needs review" coffees open an empty review
+sheet** because their open items are non-reviewable fields (→ #35 removes those
+rows at the source; #37 is the client belt-and-braces).
+
+**📦 2026-08-08 — a batch of UI/review fixes is already on `main`, awaiting the Publish lane.**
+Do **not** re-implement these; they're landed (`main` `9bb27d6..2b3b0e1`) and
+compile-green, just not yet dispatched `publish=true`:
+real review feed wired to `GET/POST /api/review` (backend enrich: signed
+`thumbUrl` + raw text + field mapping + candidate cleaning; canonicalizing,
+corruption-safe resolve); full source text on the coffee page + review card
+(now a collapsible section, expanded by default); listing thumbnails carried in
+the snapshot (`SNAPSHOT_VERSION=2`, survives re-sync); per-coffee review sheet
+from the "needs review" marker; single back arrow + removed the overlapping
+inline thumbnail on the coffee page; review card swipe→buttons + Back (was
+dismissing on scroll); **multiple origins shown for blends**; and the
+**vertical-wrapped process-tag** fix (`lineLimit(1)` + `fixedSize`). Radu asked
+**not to manually publish** — the Publish lane ships `main` on its Thu/Sun cron.
 
 **🔀 2026-08-04 (ios-shell lane, merging `main` into `ios-staging`) — reconciled a
 second branch-divergence, same shape as the `#27` one below.** `ios-staging` had
