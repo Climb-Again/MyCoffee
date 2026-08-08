@@ -4,7 +4,205 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+_none_ (see `## Done` below — claimed and finished in the same session)
+
+## 2026-08-08 UTC (later session): #35 + #36 — accept-by-default adjudication + human-accept vocab creation
+
+Picked up the two new `ready` backend rows from Radu's same-day directive
+(PLAN.md §11): the live review queue was dominated by fields the extractor
+had actually gotten right (`69.00 lei` in text → `69.00 lei` picked, but
+routed to review anyway because a single voter's self-reported confidence
+sat below the field's threshold), plus every farm accept 422ing because 0
+farms are seeded.
+
+**#35 — `adjudicateField` (`src/lib/adjudicate.js`) now returns one of three
+decisions, replacing the old `unanimous`/`single_voter`/`accept_flagged`/
+`review` set:**
+- `absent` — no candidate canonicalized at all (the field is genuinely
+  missing from the source). No review item is created; the column stays null.
+- `accepted` — every candidate that *did* canonicalize landed in a single
+  cluster (one voter, or several agreeing). Applied regardless of
+  self-reported confidence — dropped the single-voter 0.7x penalty and the
+  per-field threshold table entirely (`config.js`'s `fieldThresholds`/
+  `defaultThreshold`/`singleVoterPenalty`/`unanimousMinConfidence`/
+  `acceptShareThreshold` are all gone, unused now that confidence doesn't
+  gate the decision).
+- `split` — >=2 clusters that carry real weight (a zero-weight cluster, e.g.
+  P3/rules voting on a prose field it's structurally excluded from, doesn't
+  count as a genuine disagreement — this matters for the P3-zero-weight-prose
+  test case, which used to read `accept_flagged` and now reads `accepted`).
+  A review item is still created, **but the top-weighted cluster's value is
+  now written to `field_resolutions`/`coffees` too** (`decided_by='auto'`,
+  `locked=false`) — `buildCoffeeColumnUpdates` (`worker.js`) now only skips a
+  field when its value is null, not when its decision is (the now-removed)
+  `'review'`, so a split's provisional pick actually reaches the app instead
+  of leaving the column empty until a human resolves it.
+
+The prose-boundary-spread rule (PLAN.md §2 point 6) is unchanged in spirit:
+a wide spread in an otherwise-agreeing prose cluster still forces `split`,
+and its median-boundary value is still applied provisionally.
+
+**#36 — `POST /api/review/:id` (`routes/review.js`) get-or-creates the vocab
+row** when a human accepts a `roaster_id`/`origin_farm_id` value
+`canonicalize()` can't resolve: inserts the `roasters`/`farms` row (a
+collision-safe incrementing slug for roasters, since `roasters.slug` is
+`UNIQUE`; farms have no such constraint) plus a `roaster_aliases`/
+`farm_aliases` row so every future import resolves the same name for free.
+Countries are untouched — `VOCAB_GET_OR_CREATE` only has `roaster_id`/
+`origin_farm_id` keys, so an unresolvable country value still 422s. Did this
+inline in `routes/review.js` (Backend-owned) rather than adding a helper to
+Data-owned `src/lib/vocab.js`, per the issue's own "pick the lower-coupling
+option" guidance — no cross-lane coordination needed. `slugify()` is
+exported and unit-tested (pure); the DB-touching get-or-create itself isn't
+unit-tested without a live Postgres, same as every other DB-writing helper
+in `worker.js`.
+
+**Verified beyond the committed test suite, against a real local Postgres 16
+(migrations 001–013 applied clean):**
+- A photo with a single very-low-confidence (`0.1`) `weight_g` candidate and
+  no `rating` candidate at all: `weight_g` came back `accepted` and was
+  written to `coffees.weight_g`; `rating` came back `absent` with **no**
+  `review_items` row created.
+- A photo with two voters resolving to two different real roasters: created
+  exactly one `review_items` row (`reason='split'`), and `coffees.roaster_id`
+  was set to the (tie-broken) top-weighted pick rather than left null —
+  confirms the "review-but-still-shows-a-value" behavior end to end.
+- `POST /api/review/:id` on an `origin_farm_id` review item with a name not
+  in the (0-row) `farms` table: created the farm, created its alias, applied
+  `origin_farm_id` to the coffee, and closed the review (`review_state`
+  flipped `needs_review` → `clean`). A second accept of the *same* name
+  resolved via the new alias (`canonicalize` succeeded) rather than creating
+  a duplicate farm — `farms` count stayed at 1.
+- Same get-or-create path exercised for `roaster_id` against an unseeded
+  roaster name — new row + slug + alias, applied correctly.
+
+`cd backend && npm ci && npm test` — **199/199 green** (195 prior + 4 new:
+the `split`/`accepted`/`absent` decision-rule rewrites in
+`adjudicate.test.js`, the decision-label updates in `worker.test.js`, and two
+new `slugify()` unit tests in `review.test.js`).
+
+**Did not run `POST /api/review/:id` against production** to exercise #36
+live — that would mean resolving a real open review item with fabricated
+test data, corrupting an actual coffee record. The local-Postgres
+verification above exercises the identical code path end-to-end; #36's live
+behavior will be provable the first time Radu (or a future review-tab
+action) accepts a real farm/roaster name.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe to
+push `backend/**` per the hard rule. Baseline `GET /api/review?limit=200`
+taken before this push: **30 open client-reviewable items**, reasons
+overwhelmingly `low confidence` (single-voter picks like the "69.00 lei"
+case) and `no clear value found` (fields simply absent) — exactly the two
+categories #35 targets.
+
+## 2026-08-08 UTC (same session, follow-up): live re-adjudication result + a real bug it found
+
+Deployed `5360121`, then ran `POST /api/admin/adjudicate` against production
+(the $0 re-adjudication #35 itself calls for) and it came back **500
+`numeric field overflow`**. Root cause, confirmed by reproducing it locally:
+`parseRating`'s last-resort fallback (`normalize.js`, Data-owned, not edited)
+matches *any* bare number in free text with no range check -- a known,
+previously-documented failure mode (see this file's `deterministic.js`
+history and `PLAN.md`'s own note on bare-number fallbacks grabbing an
+unrelated digit). Before this session, that garbage candidate was harmless:
+a single low-confidence vote got the 0.7x penalty, missed the 0.90 `rating`
+threshold, and was quietly routed to review -- never written to
+`coffees.rating` (`NUMERIC(2,1)`, `CHECK 0-5`). #35 deliberately removed that
+threshold gate, which also removed the accidental safety net, so the same
+garbage value went straight into the column and blew its precision.
+
+Fixed in `1360a14`: `canonicalize()`'s `rating` case now rejects anything
+outside `0-5` before it's treated as a candidate at all (same pattern
+`price` already uses to reject a currency-less bare number). While fixing
+this I found the same class of gap dormant in `altitude`:
+`parseAltitude`'s `needsReview` flag (implausible range / >800m span) was
+computed but never wired into any decision -- it only affected
+`confidence`, which no longer gates anything under #35. Wired it into the
+same review-but-still-applied "split" bucket the genuine-disagreement case
+uses, so an implausible altitude now correctly forces review again instead
+of being silently accepted. 202/202 tests green; reproduced the exact
+production crash locally first, confirmed the fix resolves it with no
+throw, before redeploying.
+
+Redeployed (`1360a14`), then re-ran `POST /api/admin/adjudicate` against
+production: **`{"photosReadjudicated":21}`, no error.**
+
+**Live before/after `GET /api/review?limit=200`:**
+- Before (pre-#35, this session's baseline): **30** open client-reviewable
+  items -- `low confidence` and `no clear value found` dominant.
+- After: **26** open items, and critically **every single one is now a
+  genuine disagreement** (`voters disagreed` / `implausible`) -- the
+  `low confidence`/`no clear value found` categories are completely gone,
+  exactly as #35 specifies. This is a smaller drop than the issue's "dozens
+  to a handful" framing hoped for, and that's worth reporting honestly
+  rather than rounding up: the remaining 26 splits skew heavily toward
+  `profile` (10) and `originCountry` (7), which is the *exact* systemic
+  labeling ambiguity `agents.js`'s own `FIELD_GUIDANCE` comment already
+  documents (Romanian listings carry three different "Profil"-ish labels --
+  roast type, tasting notes, and the actual process -- that early
+  extractions before that prompt guidance landed genuinely confused). That
+  guidance fixes *future* extractions; it can't retroactively un-confuse
+  `field_candidates` rows already stored from the pre-guidance 5-photo/
+  25-record sample runs. Re-running the voters (a real, non-$0 extraction
+  pass) would very likely shrink this further -- re-adjudication alone
+  can only re-cluster what's already stored. Flagging for whoever picks up
+  a future re-extraction pass; not claiming it as part of #35/#36.
+- Spot-verified `GET /api/coffees/:id` on a coffee with `minFieldConfidence:
+  0.50` (would have been forced to review pre-#35): `roasterId`, full
+  `originCountryIds`, `altitude`, `profileId`, `weightG` (250), and
+  `priceOriginalAmount` (105.00 RON, matching the raw caption's "105.00 lei"
+  exactly) are now all populated and correct -- the live confirmation of
+  Radu's own read ("if it says 69.00 lei in text and the engine picked
+  69.00 lei, that is definitely correct").
+
+Did not touch any farm/roaster data in production for #36 (see the note
+above on why) -- #36 stays verified against the local Postgres only.
+
+Marked `#35`/`#36` `done` in `BACKLOG.md`, flipped `#37` (ios-ux, needs
+35+36) `blocked` → `ready` in the same push.
+
+## 2026-08-08 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `da12d12` (fast-forwarded a stale local clone —
+`8614f95`-based — up 9 commits; this session's own designated branch,
+`claude/confident-cerf-1zj53f`, was 0 behind/0 ahead of that same tip, so
+nothing of this session's own was stranded). All backend-tagged rows in
+`status/BACKLOG.md` are still `done` (11/15/16/19/21/23/24/33); `#26` (data)
+is still `human` — awaiting Radu's accuracy verdict on the 5-photo sample per
+the spend gate — and `#29` stays `blocked` on it. Neither unblocks a backend
+row.
+
+Fresh unscoped `git fetch origin` — 60 `origin/claude/*` branches (up from 53
+at the last sweep). Swept every one via `git rev-list --count
+origin/main..<branch>`. One new one worth naming, `determined-thompson-4281b1`
+(13 ahead): inspected via `git diff --stat` against current `main` — like the
+two 35-ahead pre-lane-split scaffolds, it's a stale fork from a much older
+`main` tip (predates migrations 008–013 and every `src/lib/*`/route file that
+exists today) and its diff is net-deletions-only — not stranded work to adopt.
+Two previously single-commit branches grew this cycle
+(`modest-newton-oxaddt` 1→7, `relaxed-thompson-ceai5p` 1→7) — inspected both
+the same way, same shape: stale forks off the same old pre-#21/#23/#24 `main`
+tip (last shared commit `0ad0023`), net-deletions-only, not actionable.
+`hopeful-johnson-icvqmr` (still 15 ahead) is unchanged from the last sweep's
+finding — real iOS-ux work (`CoffeeStore.loadBrief()`, durable review
+resolve/dismiss), not backend-owned, not re-flagging further. Every other
+non-zero branch is the same shape every prior sweep has found (other lanes'
+own no-op status-note commits, or the long-superseded `peaceful-mccarthy-*`
+attempts) — nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
 
 ## 2026-08-08 UTC: session check — no ready row this cycle
 

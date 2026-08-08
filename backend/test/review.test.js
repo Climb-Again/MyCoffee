@@ -4,6 +4,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from '../src/server.js';
+import { slugify } from '../src/routes/review.js';
+
+// slugify() feeds the new-roaster get-or-create path (PLAN.md §11 #36) --
+// pure, so testable without a live Postgres the way the rest of that helper
+// (an INSERT + alias write) isn't.
+test('slugify: lowercases, strips punctuation, collapses to hyphens', () => {
+  assert.equal(slugify('DAK Coffee Roasters'), 'dak-coffee-roasters');
+  assert.equal(slugify("O'Hara's Café & Co."), 'o-hara-s-caf-co');
+});
+
+test('slugify: never returns empty, even for all-punctuation input', () => {
+  assert.equal(slugify('###'), 'roaster');
+  assert.equal(slugify(''), 'roaster');
+});
 
 test('GET /api/review requires a token', async () => {
   const app = await build();

@@ -37,14 +37,9 @@ import { runExtractA, runExtractB, runCritic, runReconciler, loadRulesVoter, PRO
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
 const ADJUDICATE_CTX_DEFAULTS = {
-  thresholds: config.extraction.fieldThresholds,
-  defaultThreshold: config.extraction.defaultThreshold,
   ruleVoterWeight: config.extraction.ruleVoterWeight,
   ruleVoterWeightedFields: config.extraction.ruleVoterWeightedFields,
   ruleVoterProseFields: config.extraction.ruleVoterProseFields,
-  singleVoterPenalty: config.extraction.singleVoterPenalty,
-  unanimousMinConfidence: config.extraction.unanimousMinConfidence,
-  acceptShareThreshold: config.extraction.acceptShareThreshold,
   proseSpreadReviewChars: config.extraction.proseSpreadReviewChars,
 };
 
@@ -89,7 +84,7 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
   };
 
   for (const [field, res] of Object.entries(resolutions ?? {})) {
-    if (res.decision === 'review' || res.value == null) continue;
+    if (res.value == null) continue;
     switch (field) {
       case 'roaster_id': {
         push('roaster_id', res.value);

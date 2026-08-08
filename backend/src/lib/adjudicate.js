@@ -1,8 +1,8 @@
-// Deterministic adjudication over stored candidate rows (PLAN.md §2). Pure —
-// no DB, no network: every input (candidate rows, the vocab dictionary, fx
-// rates, thresholds) is passed in, so re-adjudicating the whole corpus with a
-// new threshold is a few milliseconds and costs nothing. The model never
-// decides whether it was right; this module does.
+// Deterministic adjudication over stored candidate rows (PLAN.md §2, §11).
+// Pure — no DB, no network: every input (candidate rows, the vocab
+// dictionary, fx rates) is passed in, so re-adjudicating the whole corpus
+// after a rule tweak is a few milliseconds and costs nothing. The model
+// never decides whether it was right; this module does.
 //
 // Field value shapes, as returned by `canonicalize()`:
 //   roaster_id / origin_farm_id -> { id, confidenceFactor }
@@ -82,7 +82,14 @@ export function canonicalize(field, rawValue, ctx = {}) {
     }
     case 'rating': {
       const r = parseRating(rawValue);
-      return r ? { value: r.value, confidenceFactor: r.confidence } : null;
+      // parseRating's last-resort fallback matches ANY bare number in free
+      // text (PLAN.md's own note on this exact failure mode: a date or an
+      // altitude bleeding into an unrelated field) -- reject anything outside
+      // the domain range up front, matching the `coffees.rating` CHECK(0-5)
+      // constraint exactly, so a garbage candidate never reaches adjudication
+      // as if it were a real vote. Accept-by-default (PLAN.md §11) no longer
+      // has a confidence threshold to catch this downstream.
+      return r && r.value >= 0 && r.value <= 5 ? { value: r.value, confidenceFactor: r.confidence } : null;
     }
     case 'roasted_on': {
       const r = parseDate(rawValue, { photoDate: ctx.photoDate });
@@ -188,9 +195,15 @@ function clusterCandidates(field, candidates) {
 //
 // rawCandidates: [{ agent, value, confidence, evidence }] -- `value` is the
 // voter's raw (uncanonicalized) output for this field.
+//
+// Accept-by-default policy (PLAN.md §11, Radu's 2026-08-08 directive): a
+// field only goes to review when voters genuinely land on different
+// canonical values. Self-reported confidence no longer gates the decision --
+// in practice it has not once picked a wrong value -- so a single voter or a
+// fully agreeing cluster is ACCEPTED regardless of confidence. `no_candidates`
+// (the field is simply absent from the source) is its own decision, not a
+// review item: leave the column null and move on.
 export function adjudicateField(field, rawCandidates, ctx = {}) {
-  const threshold = ctx.thresholds?.[field] ?? ctx.defaultThreshold ?? 0.85;
-
   // Critic (P4) never contributes a value -- it only refutes. A refuted field
   // gets every LLM voter's confidence discounted before clustering; P3 (rules)
   // is untouched since it's not vision-dependent, which is exactly what the
@@ -209,45 +222,26 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     .filter(Boolean);
 
   if (candidates.length === 0) {
-    return {
-      field,
-      value: null,
-      confidence: 0,
-      agreement: 0,
-      voters: [],
-      decision: 'review',
-      reviewReason: 'no_candidates',
-      threshold,
-    };
+    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null };
   }
 
   const clusters = clusterCandidates(field, candidates).sort((a, b) => b.totalWeight - a.totalWeight);
   const winner = clusters[0];
   const totalWeight = clusters.reduce((s, cl) => s + cl.totalWeight, 0);
   const share = totalWeight > 0 ? winner.totalWeight / totalWeight : 0;
-  const distinctVoters = new Set(candidates.map((c) => c.agent));
   const winnerVoters = new Set(winner.members.map((m) => m.agent));
   const meanConfidence = winner.members.reduce((s, m) => s + m.confidence, 0) / winner.members.length;
 
-  let confidence = meanConfidence;
-  let decision;
-  let reviewReason = null;
-
-  if (distinctVoters.size === 1) {
-    confidence *= ctx.singleVoterPenalty ?? 0.7;
-    decision = 'single_voter';
-  } else if (
-    clusters.length === 1 &&
-    winnerVoters.size >= 2 &&
-    Math.min(...winner.members.map((m) => m.confidence)) >= (ctx.unanimousMinConfidence ?? 0.75)
-  ) {
-    decision = 'unanimous';
-  } else if (share >= (ctx.acceptShareThreshold ?? 0.6)) {
-    decision = 'accept_flagged';
-  } else {
-    decision = 'review';
-    reviewReason = 'split';
-  }
+  // A single candidate or a single agreeing cluster is accepted outright.
+  // Only a real cluster split -- >=2 materially different canonical values,
+  // each carrying actual weight -- becomes a review item, and even then the
+  // top-weighted pick below is still applied so the app always shows a
+  // value; review just lets a human correct the minority case. A zero-weight
+  // cluster (e.g. P3/rules voting on a prose field it's excluded from) isn't
+  // a real disagreement, so it doesn't count toward "genuine split".
+  const significantClusters = clusters.filter((cl) => cl.totalWeight > 0);
+  let decision = significantClusters.length > 1 ? 'split' : 'accepted';
+  let reviewReason = decision === 'split' ? 'split' : null;
 
   // Prose is selected, not voted (PLAN.md §2 point 6): a wide boundary spread
   // in the winning cluster means real disagreement even if the sliced text
@@ -257,29 +251,35 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     const ends = winner.members.map((m) => m.canonical.end);
     const spread = Math.max(...ends) - Math.min(...starts);
     if (spread > (ctx.proseSpreadReviewChars ?? 80)) {
-      decision = 'review';
+      decision = 'split';
       reviewReason = 'prose_spread';
     }
-  }
-
-  if (decision !== 'review' && confidence < threshold) {
-    decision = 'review';
-    reviewReason = 'below_threshold';
   }
 
   // Prose "value" is the median boundary across the winning cluster, not any
   // single voter's offsets -- lossless and non-hallucinatable per PLAN.md §2.
   const chosenCanonical = isProseField(field) ? medianProse(winner.members) : winner.members[0].canonical;
 
+  // An altitude range outside the plausible coffee-growing band (or an
+  // implausibly wide span -- normalize.js's own plausibility check) is a
+  // different kind of disagreement: not voters vs. voters, but the extracted
+  // value vs. known reality. Accept-by-default dropped the confidence
+  // threshold that used to catch this indirectly (a low-confidence implausible
+  // reading forced to review); this is the direct replacement, in the same
+  // review-but-still-applied "split" bucket used everywhere else.
+  if (field === 'altitude' && chosenCanonical?.needsReview) {
+    decision = 'split';
+    reviewReason = reviewReason ?? 'implausible';
+  }
+
   return {
     field,
-    value: decision === 'review' ? null : denormalize(field, chosenCanonical),
-    confidence: round3(confidence),
+    value: denormalize(field, chosenCanonical),
+    confidence: round3(meanConfidence),
     agreement: round3(share),
     voters: [...winnerVoters],
     decision,
     reviewReason,
-    threshold,
   };
 }
 
@@ -314,7 +314,7 @@ export function adjudicateRecord(candidatesByField, ctx = {}) {
     if (ctx.locked?.has(field)) continue;
     const result = adjudicateField(field, candidates, ctx);
     resolutions[field] = result;
-    if (result.decision === 'review') {
+    if (result.decision === 'split') {
       reviews.push({ field, reason: result.reviewReason, candidates });
     }
   }
