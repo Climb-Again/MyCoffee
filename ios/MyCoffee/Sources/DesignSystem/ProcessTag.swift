@@ -63,6 +63,10 @@ struct ProcessTag: View {
     var body: some View {
         Label(title, systemImage: style.symbol)
             .font(.caption.weight(.semibold))
+            // Keep the capsule on one line: without this, a narrow row column
+            // wraps the title one character per line into a tall vertical pill.
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(style.color.opacity(0.18), in: Capsule())
@@ -76,6 +80,8 @@ struct DecafBadge: View {
     var body: some View {
         Label("Decaf", systemImage: ProcessStyles.decaf.symbol)
             .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(ProcessStyles.decaf.color.opacity(0.18), in: Capsule())
