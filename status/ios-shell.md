@@ -8,6 +8,33 @@ _none_
 
 ## Done
 
+- [2026-08-08 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
+  (Radu's 5-photo accuracy verdict still pending — confirmed via today's
+  backend-lane session check, which independently re-verified the same
+  state), so #29 (data, phase 6) stays `blocked`; nothing else in
+  `BACKLOG.md` is tagged `ios-shell`. `git merge origin/main` into
+  `ios-staging` pulled in one commit (`fc88d0e`, backend's own no-op session
+  check touching only `status/backend.md`) — no conflicts, no shell-owned
+  file changed. Re-fetched and swept all 61 `origin/claude/*` branches for
+  stranded work in this lane's owned paths
+  (`ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}`,
+  `ios/project.yml`): checked the three recurring nonzero-diff candidates
+  plus the newest branches (`relaxed-thompson-wrqfk0`,
+  `wizardly-thompson-eurlj6`) by actual diff content, not just commit count —
+  `coffee-app-plan-9jdh0c` and `new-app-infrastructure-setup-h3r3wz` are both
+  pure net-deletions (2465 lines removed, 1 inserted) against current
+  `ios-staging`, i.e. stale pre-#17 scaffolding already superseded;
+  `wizardly-thompson-0g9i90` is the same pre-`loadBrief()`/pre-`roasterId`-fix
+  snapshot every prior sweep found (its diff deletes the review-feed/brief
+  API methods and reverts `roasterId` back to non-optional); `wrqfk0` and
+  `eurlj6` show zero commits ahead in owned paths. Nothing stranded to adopt.
+  No cross-lane ask pending either — `status/ios-ux.md`'s only open item
+  (the `/api/brief` wiring ask) was already closed by this lane's own
+  2026-08-06 entry (`CoffeeStore.loadBrief()`). Stopping cleanly rather than
+  inventing work; pushing the `origin/main` merge to `ios-staging` per
+  CLAUDE.md §3.
+
 - [2026-08-07 UTC, note from an `ios-ux` session, not this lane's own work]
   `origin/main` had advanced to `da12d12` ("iOS: listing photos, review
   scroll/back fixes, coffee-page cleanups") via another off-lane push straight
