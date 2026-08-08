@@ -4,7 +4,103 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+_none_ (see `## Done` below — claimed and finished in the same session)
+
+## 2026-08-08 UTC (later session): #35 + #36 — accept-by-default adjudication + human-accept vocab creation
+
+Picked up the two new `ready` backend rows from Radu's same-day directive
+(PLAN.md §11): the live review queue was dominated by fields the extractor
+had actually gotten right (`69.00 lei` in text → `69.00 lei` picked, but
+routed to review anyway because a single voter's self-reported confidence
+sat below the field's threshold), plus every farm accept 422ing because 0
+farms are seeded.
+
+**#35 — `adjudicateField` (`src/lib/adjudicate.js`) now returns one of three
+decisions, replacing the old `unanimous`/`single_voter`/`accept_flagged`/
+`review` set:**
+- `absent` — no candidate canonicalized at all (the field is genuinely
+  missing from the source). No review item is created; the column stays null.
+- `accepted` — every candidate that *did* canonicalize landed in a single
+  cluster (one voter, or several agreeing). Applied regardless of
+  self-reported confidence — dropped the single-voter 0.7x penalty and the
+  per-field threshold table entirely (`config.js`'s `fieldThresholds`/
+  `defaultThreshold`/`singleVoterPenalty`/`unanimousMinConfidence`/
+  `acceptShareThreshold` are all gone, unused now that confidence doesn't
+  gate the decision).
+- `split` — >=2 clusters that carry real weight (a zero-weight cluster, e.g.
+  P3/rules voting on a prose field it's structurally excluded from, doesn't
+  count as a genuine disagreement — this matters for the P3-zero-weight-prose
+  test case, which used to read `accept_flagged` and now reads `accepted`).
+  A review item is still created, **but the top-weighted cluster's value is
+  now written to `field_resolutions`/`coffees` too** (`decided_by='auto'`,
+  `locked=false`) — `buildCoffeeColumnUpdates` (`worker.js`) now only skips a
+  field when its value is null, not when its decision is (the now-removed)
+  `'review'`, so a split's provisional pick actually reaches the app instead
+  of leaving the column empty until a human resolves it.
+
+The prose-boundary-spread rule (PLAN.md §2 point 6) is unchanged in spirit:
+a wide spread in an otherwise-agreeing prose cluster still forces `split`,
+and its median-boundary value is still applied provisionally.
+
+**#36 — `POST /api/review/:id` (`routes/review.js`) get-or-creates the vocab
+row** when a human accepts a `roaster_id`/`origin_farm_id` value
+`canonicalize()` can't resolve: inserts the `roasters`/`farms` row (a
+collision-safe incrementing slug for roasters, since `roasters.slug` is
+`UNIQUE`; farms have no such constraint) plus a `roaster_aliases`/
+`farm_aliases` row so every future import resolves the same name for free.
+Countries are untouched — `VOCAB_GET_OR_CREATE` only has `roaster_id`/
+`origin_farm_id` keys, so an unresolvable country value still 422s. Did this
+inline in `routes/review.js` (Backend-owned) rather than adding a helper to
+Data-owned `src/lib/vocab.js`, per the issue's own "pick the lower-coupling
+option" guidance — no cross-lane coordination needed. `slugify()` is
+exported and unit-tested (pure); the DB-touching get-or-create itself isn't
+unit-tested without a live Postgres, same as every other DB-writing helper
+in `worker.js`.
+
+**Verified beyond the committed test suite, against a real local Postgres 16
+(migrations 001–013 applied clean):**
+- A photo with a single very-low-confidence (`0.1`) `weight_g` candidate and
+  no `rating` candidate at all: `weight_g` came back `accepted` and was
+  written to `coffees.weight_g`; `rating` came back `absent` with **no**
+  `review_items` row created.
+- A photo with two voters resolving to two different real roasters: created
+  exactly one `review_items` row (`reason='split'`), and `coffees.roaster_id`
+  was set to the (tie-broken) top-weighted pick rather than left null —
+  confirms the "review-but-still-shows-a-value" behavior end to end.
+- `POST /api/review/:id` on an `origin_farm_id` review item with a name not
+  in the (0-row) `farms` table: created the farm, created its alias, applied
+  `origin_farm_id` to the coffee, and closed the review (`review_state`
+  flipped `needs_review` → `clean`). A second accept of the *same* name
+  resolved via the new alias (`canonicalize` succeeded) rather than creating
+  a duplicate farm — `farms` count stayed at 1.
+- Same get-or-create path exercised for `roaster_id` against an unseeded
+  roaster name — new row + slug + alias, applied correctly.
+
+`cd backend && npm ci && npm test` — **199/199 green** (195 prior + 4 new:
+the `split`/`accepted`/`absent` decision-rule rewrites in
+`adjudicate.test.js`, the decision-label updates in `worker.test.js`, and two
+new `slugify()` unit tests in `review.test.js`).
+
+**Did not run `POST /api/review/:id` against production** to exercise #36
+live — that would mean resolving a real open review item with fabricated
+test data, corrupting an actual coffee record. The local-Postgres
+verification above exercises the identical code path end-to-end; #36's live
+behavior will be provable the first time Radu (or a future review-tab
+action) accepts a real farm/roaster name.
+
+**Still to do in this same session, once this push deploys**: run the $0
+re-adjudication (`POST /api/admin/adjudicate`) against production, per #35's
+own instruction to verify the live queue collapses, and record the real
+before/after `GET /api/review` counts in a follow-up note below.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe to
+push `backend/**` per the hard rule. Baseline `GET /api/review?limit=200`
+taken before this push: **30 open client-reviewable items**, reasons
+overwhelmingly `low confidence` (single-voter picks like the "69.00 lei"
+case) and `no clear value found` (fields simply absent) — exactly the two
+categories #35 targets.
 
 ## 2026-08-08 UTC: session check — no ready row this cycle
 

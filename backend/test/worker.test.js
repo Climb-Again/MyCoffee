@@ -60,24 +60,30 @@ const vocabCtx = {
   photoDate: '2020-05-15',
 };
 
-test('buildCoffeeColumnUpdates skips fields whose decision is "review"', () => {
+test('buildCoffeeColumnUpdates skips fields with no value (decision "absent")', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
-    { rating: { decision: 'review', value: null } },
+    { rating: { decision: 'absent', value: null } },
     vocabCtx,
   );
   assert.deepEqual(sets, []);
   assert.deepEqual(values, []);
 });
 
+test('buildCoffeeColumnUpdates applies a "split" decision\'s provisional value too -- it is not skipped', () => {
+  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'split', value: 1 } }, vocabCtx);
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 5]);
+});
+
 test('buildCoffeeColumnUpdates: roaster_id also denormalizes the roaster\'s country', () => {
-  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'unanimous', value: 1 } }, vocabCtx);
+  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'accepted', value: 1 } }, vocabCtx);
   assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
   assert.deepEqual(values, [1, 5]);
 });
 
 test('buildCoffeeColumnUpdates: origin_country_ids also computes is_blend and drops invalid ids', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
-    { origin_country_ids: { decision: 'unanimous', value: [10, 12345] } }, // 12345 isn't a real country id
+    { origin_country_ids: { decision: 'accepted', value: [10, 12345] } }, // 12345 isn't a real country id
     vocabCtx,
   );
   assert.deepEqual(sets, ['origin_country_ids = $1', 'is_blend = $2']);
@@ -87,7 +93,7 @@ test('buildCoffeeColumnUpdates: origin_country_ids also computes is_blend and dr
 
 test('buildCoffeeColumnUpdates: price converts to EUR using the purchase-date rate, not a flat rate', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
-    { price: { decision: 'unanimous', value: { amount: 45, currency: 'RON' } } },
+    { price: { decision: 'accepted', value: { amount: 45, currency: 'RON' } } },
     vocabCtx,
   );
   assert.deepEqual(sets, [
@@ -104,7 +110,7 @@ test('buildCoffeeColumnUpdates: price converts to EUR using the purchase-date ra
 
 test('buildCoffeeColumnUpdates: profile writes id (via slug lookup), detail, and is_decaf together', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
-    { profile: { decision: 'unanimous', value: { profileId: 'washed', isDecaf: false, detail: null } } },
+    { profile: { decision: 'accepted', value: { profileId: 'washed', isDecaf: false, detail: null } } },
     vocabCtx,
   );
   assert.deepEqual(sets, ['profile_id = $1', 'profile_detail = $2', 'is_decaf = $3']);
@@ -113,7 +119,7 @@ test('buildCoffeeColumnUpdates: profile writes id (via slug lookup), detail, and
 
 test('buildCoffeeColumnUpdates: altitude writes both min and max', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
-    { altitude: { decision: 'accept_flagged', value: { min: 1300, max: 1600 } } },
+    { altitude: { decision: 'accepted', value: { min: 1300, max: 1600 } } },
     vocabCtx,
   );
   assert.deepEqual(sets, ['altitude_min_m = $1', 'altitude_max_m = $2']);

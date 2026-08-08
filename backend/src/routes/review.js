@@ -56,10 +56,64 @@ const STRUCTURED_FIELDS = new Set([
 ]);
 
 const REASON_LABELS = {
+  split: 'voters disagreed',
+  prose_spread: 'ambiguous text selection',
+  // Legacy — pre-#35 review items could carry these; a re-adjudication pass
+  // closes them, but a stale open row from before that pass should still
+  // render a sane label rather than the raw reason string.
   below_threshold: 'low confidence',
   no_candidates: 'no clear value found',
-  disagreement: 'voters disagreed',
 };
+
+// Countries stay a closed set (PLAN.md §11 #36), but farms and roasters are
+// inherently open-ended -- 0 farms are seeded, and new roasters appear over a
+// ten-year corpus. When a human accepts a name `canonicalize()` can't resolve,
+// that's an explicit confirmation, so create the vocab row (plus an alias so
+// every future import resolves it for free) instead of 422ing on a value the
+// extractor already got right.
+const VOCAB_GET_OR_CREATE = {
+  roaster_id: { table: 'roasters', aliasTable: 'roaster_aliases', aliasFk: 'roaster_id', slugged: true },
+  origin_farm_id: { table: 'farms', aliasTable: 'farm_aliases', aliasFk: 'farm_id', slugged: false },
+};
+
+// Exported for tests only -- the rest of getOrCreateVocabEntry needs a live DB.
+export function slugify(name) {
+  return String(name).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'roaster';
+}
+
+async function insertAlias(spec, id, rawName, aliasNorm) {
+  await query(
+    `INSERT INTO ${spec.aliasTable} (${spec.aliasFk}, alias, alias_norm) VALUES ($1, $2, $3)
+     ON CONFLICT (alias_norm) DO NOTHING`,
+    [id, rawName, aliasNorm],
+  );
+}
+
+async function getOrCreateVocabEntry(field, rawName) {
+  const spec = VOCAB_GET_OR_CREATE[field];
+  const aliasNorm = normalizeVocabString(rawName);
+  if (!spec || !aliasNorm) return null;
+
+  if (!spec.slugged) {
+    const { rows } = await query(`INSERT INTO farms (name) VALUES ($1) RETURNING id`, [rawName]);
+    await insertAlias(spec, rows[0].id, rawName, aliasNorm);
+    return rows[0].id;
+  }
+
+  const slugBase = slugify(rawName);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const slug = attempt === 0 ? slugBase : `${slugBase}-${attempt + 1}`;
+    const { rows } = await query(
+      `INSERT INTO roasters (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING RETURNING id`,
+      [rawName, slug],
+    );
+    if (rows[0]) {
+      await insertAlias(spec, rows[0].id, rawName, aliasNorm);
+      return rows[0].id;
+    }
+  }
+  return null;
+}
 
 // The stored `candidates` are raw voter outputs: some are objects (prose
 // `{start,end}` spans), some are whole-caption dumps from the rules voter.
@@ -171,10 +225,18 @@ export default async function reviewRoutes(app) {
 
     let value = req.body.value;
     if (STRUCTURED_FIELDS.has(item.field)) {
-      const canonical = canonicalize(item.field, value, canonicalCtx);
-      // e.g. a roaster/farm name that isn't in the vocabulary yet can't be
-      // turned into an id -- refuse rather than write a broken value. The item
-      // stays open; the reviewer can pick a different candidate or dismiss.
+      let canonical = canonicalize(item.field, value, canonicalCtx);
+      if (!canonical && VOCAB_GET_OR_CREATE[item.field]) {
+        // A human explicitly accepting this name IS the confirmation --
+        // get-or-create instead of 422ing (PLAN.md §11 #36). Countries have no
+        // entry in VOCAB_GET_OR_CREATE, so an unknown country still 422s below.
+        const newId = await getOrCreateVocabEntry(item.field, String(value));
+        if (newId != null) canonical = { id: newId, confidenceFactor: 1 };
+      }
+      // Any other unresolvable structured value (an unknown country, an
+      // unparseable price/altitude/...) still refuses rather than writing a
+      // broken value. The item stays open; the reviewer can pick a different
+      // candidate or dismiss.
       if (!canonical) return reply.code(422).send({ error: 'unresolvable_value', field: item.field, value });
       value = denormalize(item.field, canonical);
     }
