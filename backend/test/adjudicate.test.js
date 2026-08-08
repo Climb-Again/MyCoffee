@@ -62,6 +62,16 @@ test('canonicalize price requires a recognizable currency', () => {
   assert.equal(c.currency, 'RON');
 });
 
+test('canonicalize rating rejects anything outside 0-5 -- parseRating\'s bare-number fallback has no range check', () => {
+  // Regression: a live production photo had a stray "45" reach parseRating's
+  // last-resort bare-number match, and with accept-by-default's confidence
+  // threshold gone, it was written straight to `coffees.rating` and crashed
+  // the NUMERIC(2,1)/CHECK(0-5) column with a live "numeric field overflow".
+  assert.equal(canonicalize('rating', '45', {}), null);
+  assert.equal(canonicalize('rating', '4.5/5', {}).value, 4.5);
+  assert.equal(canonicalize('rating', '5', {}).value, 5);
+});
+
 test('fieldsEqual: altitude agrees within 50m of midpoint', () => {
   assert.equal(fieldsEqual('altitude', { min: 1300, max: 1600 }, { min: 1350, max: 1600 }), true);
   assert.equal(fieldsEqual('altitude', { min: 1300, max: 1600 }, { min: 1000, max: 1200 }), false);
@@ -191,6 +201,24 @@ test('a prose cluster whose boundary spread exceeds 80 chars forces review even 
   assert.equal(result.decision, 'split');
   assert.equal(result.reviewReason, 'prose_spread');
   assert.ok(result.value); // still applied provisionally, not left null
+});
+
+test('an implausible altitude range still forces review, even as the lone candidate', () => {
+  // normalize.js flags ranges outside the 900-2200masl coffee-growing band (or
+  // a >800m-wide span) as needsReview -- accept-by-default dropped the
+  // confidence threshold that used to catch this indirectly, so it's now
+  // wired directly: implausible -> "split" bucket (review, value still
+  // applied), same as a genuine voter disagreement.
+  const result = adjudicateField('altitude', [{ agent: 'extract_a', value: '200 to 300 masl', confidence: 0.9 }], BASE_CTX);
+  assert.equal(result.decision, 'split');
+  assert.equal(result.reviewReason, 'implausible');
+  assert.deepEqual(result.value, { min: 200, max: 300 });
+});
+
+test('a plausible altitude range from a single voter is accepted, not flagged', () => {
+  const result = adjudicateField('altitude', [{ agent: 'extract_a', value: '1300 to 1600 masl', confidence: 0.9 }], BASE_CTX);
+  assert.equal(result.decision, 'accepted');
+  assert.equal(result.reviewReason, null);
 });
 
 test('no candidates at all -> "absent", not a review item', () => {

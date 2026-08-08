@@ -82,7 +82,14 @@ export function canonicalize(field, rawValue, ctx = {}) {
     }
     case 'rating': {
       const r = parseRating(rawValue);
-      return r ? { value: r.value, confidenceFactor: r.confidence } : null;
+      // parseRating's last-resort fallback matches ANY bare number in free
+      // text (PLAN.md's own note on this exact failure mode: a date or an
+      // altitude bleeding into an unrelated field) -- reject anything outside
+      // the domain range up front, matching the `coffees.rating` CHECK(0-5)
+      // constraint exactly, so a garbage candidate never reaches adjudication
+      // as if it were a real vote. Accept-by-default (PLAN.md §11) no longer
+      // has a confidence threshold to catch this downstream.
+      return r && r.value >= 0 && r.value <= 5 ? { value: r.value, confidenceFactor: r.confidence } : null;
     }
     case 'roasted_on': {
       const r = parseDate(rawValue, { photoDate: ctx.photoDate });
@@ -252,6 +259,18 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
   // Prose "value" is the median boundary across the winning cluster, not any
   // single voter's offsets -- lossless and non-hallucinatable per PLAN.md §2.
   const chosenCanonical = isProseField(field) ? medianProse(winner.members) : winner.members[0].canonical;
+
+  // An altitude range outside the plausible coffee-growing band (or an
+  // implausibly wide span -- normalize.js's own plausibility check) is a
+  // different kind of disagreement: not voters vs. voters, but the extracted
+  // value vs. known reality. Accept-by-default dropped the confidence
+  // threshold that used to catch this indirectly (a low-confidence implausible
+  // reading forced to review); this is the direct replacement, in the same
+  // review-but-still-applied "split" bucket used everywhere else.
+  if (field === 'altitude' && chosenCanonical?.needsReview) {
+    decision = 'split';
+    reviewReason = reviewReason ?? 'implausible';
+  }
 
   return {
     field,
