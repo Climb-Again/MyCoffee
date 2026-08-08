@@ -4,7 +4,8 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-08 12:43 UTC] #35 Accept-by-default adjudication (PLAN.md §11) — branch `main`
+- [2026-08-08 12:43 UTC] #36 Human accept creates vocab (get-or-create on farm/roaster resolve, PLAN.md §11) — branch `main`
 
 ## 2026-08-08 UTC: session check — no ready row this cycle
 
