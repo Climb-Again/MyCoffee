@@ -10,6 +10,7 @@ struct CoffeeDetailView: View {
     private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
     @State private var showReview = false
+    @State private var fullTextExpanded = true
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -317,29 +318,34 @@ struct CoffeeDetailView: View {
 
         return Group {
             if !blocks.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    // Shown expanded by default — this is the full content of the
-                    // coffee, not an optional extra to tap open.
-                    Text("Full text")
-                        .font(.subheadline.weight(.semibold))
-                    ForEach(blocks, id: \.label) { block in
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Only tag each block when more than one is present,
-                            // so a lone caption reads as plain body text.
-                            if blocks.count > 1 {
-                                Text(block.label)
-                                    .font(.caption.weight(.semibold))
+                // Expanded by default (this is the coffee's full content), but
+                // collapsible so a very long caption doesn't wall off the rails.
+                DisclosureGroup(isExpanded: $fullTextExpanded) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(blocks, id: \.label) { block in
+                            VStack(alignment: .leading, spacing: 4) {
+                                // Only tag each block when more than one is present,
+                                // so a lone caption reads as plain body text.
+                                if blocks.count > 1 {
+                                    Text(block.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(block.text)
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            Text(block.text)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                } label: {
+                    Text("Full text")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
