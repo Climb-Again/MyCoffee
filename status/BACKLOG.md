@@ -38,8 +38,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 33 | backend   | 0 | done    | — | `vertex:false` — newline in the env var *name*. Fixed `0b38388`; `/api/status` now `vertex:true` |
 | 34 | data      | 0 | done    | — | `fx_rates` seed (1510 rows) + `fx.js` — consolidated to `main`, inversion verified vs anchors |
 | 30 | ~~human~~ | — | dropped | — | ~~Set the Actions spending limit~~ **OBSOLETE** — repo is public, Actions free (CLAUDE.md §10). Nothing owed. |
-| 35 | backend   | 4 | ready   | — | **Accept-by-default adjudication** (PLAN.md §11). Stop routing confident/absent extractions to review: `no_candidates` writes no review row; a single/agreeing candidate is accepted regardless of self-confidence; only a real voter split becomes a review item, and even then the top pick is applied provisionally. Re-adjudicate for $0 (`POST /api/admin/adjudicate`) and verify the live queue collapses. `src/lib/adjudicate.js`, `worker.js`, `config.js` |
-| 36 | backend   | 4 | ready   | — | **Human accept creates vocab** (PLAN.md §11). Resolving an `origin_farm_id`/`roaster_id` review with a name not in vocab must get-or-create the row (there are 0 farms seeded, so every farm accept currently 422s and silently no-ops). Countries stay closed. `routes/review.js` (+ optional helper in Data-owned `src/lib/vocab.js` — coordinate) |
+| 35 | backend   | 4 | claimed | — | **Accept-by-default adjudication** (PLAN.md §11). Stop routing confident/absent extractions to review: `no_candidates` writes no review row; a single/agreeing candidate is accepted regardless of self-confidence; only a real voter split becomes a review item, and even then the top pick is applied provisionally. Re-adjudicate for $0 (`POST /api/admin/adjudicate`) and verify the live queue collapses. `src/lib/adjudicate.js`, `worker.js`, `config.js`. **Code-complete, verified against a local Postgres — see `status/backend.md` for detail. Not yet on `main`**, this session can only push to its own branch; needs a merge/PR before it's really `done` per `status/README.md`'s rule. |
+| 36 | backend   | 4 | claimed | — | **Human accept creates vocab** (PLAN.md §11). Resolving an `origin_farm_id`/`roaster_id` review with a name not in vocab must get-or-create the row (there are 0 farms seeded, so every farm accept currently 422s and silently no-ops). Countries stay closed. `routes/review.js` (+ optional helper in Data-owned `src/lib/vocab.js` — coordinate). **Code-complete, verified against a local Postgres — see `status/backend.md`. Not yet on `main`**, same branch-restriction note as #35. |
 | 37 | ios-ux    | 5 | blocked | 35, 36 | **"Needs review" reflects only actionable items** (PLAN.md §11). The coffee-page Review button opens an empty sheet when a coffee's open items are all non-reviewable fields. Gate the affordance on a per-coffee reviewable count (backend can expose `openReviewCount` on detail) / keep the "All set" empty state. Mostly resolved once #35 lands |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
@@ -47,6 +47,25 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟡 2026-08-08 (backend lane, later same day) — #35/#36 are code-complete and verified, but stuck on branch `claude/confident-cerf-cuvy66`, not `main`.**
+This session's write access is restricted to its own designated branch (a
+harness constraint on this run, not a repo policy change) — direct pushes to
+`main` are refused. Both items are fully implemented and verified end-to-end
+against a real local Postgres 16 (not just the committed no-DB smoke tests):
+198/198 `npm test` green. See `status/backend.md` for the full write-up,
+including the exact scenarios exercised (absent field → no review row; a
+single low-confidence voter → accepted anyway; a genuine 2-value split →
+`review_items` row *and* the top-weighted pick still written to the `coffees`
+row; a farm/roaster name with no vocab match → get-or-create, deduped on a
+second identical accept via the alias table; an unknown country → still 422,
+closed vocab unaffected; `POST /api/admin/adjudicate`-equivalent
+re-adjudication → $0, no new `extractions` rows). A PR was opened for the
+branch. **Whoever can push to `main` (or merge that PR): fast-forward/merge
+it, re-run `npm test` post-merge, then flip `#35`/`#36` to `done` here** (and
+`#37`, which needs both, from `blocked` to `ready`) — same shape as the
+`peaceful-mccarthy-rwi2ql` gap this file documented on 2026-08-01. Left `#35`/
+`#36` at `claimed`, not `done`, since neither is on the shared branch yet.
 
 **🧭 2026-08-08 (Radu directive) — accept-by-default; review is optional, not a gate.**
 After using the live builds Radu was explicit: the extractor's picks are

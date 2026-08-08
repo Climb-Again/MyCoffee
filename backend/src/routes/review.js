@@ -13,8 +13,66 @@ import { requireAnyToken, requireIngestToken } from '../auth.js';
 import { query } from '../db.js';
 import { buildMediaUrl } from '../media.js';
 import { canonicalize, denormalize } from '../lib/adjudicate.js';
-import { normalizeVocabString } from '../lib/normalize.js';
+import { normalizeVocabString, foldDiacritics } from '../lib/normalize.js';
 import { loadSharedContext, applyResolutionsToCoffee } from '../lib/worker.js';
+
+// Get-or-create for the two open-ended vocab kinds (PLAN.md §11 #36): a human
+// explicitly confirming a roaster/farm name that isn't in the vocabulary yet
+// is authoritative, so accept it rather than 422 (there are 0 seeded farms
+// today, so every farm accept used to silently no-op). Countries stay a
+// closed set -- deliberately not handled here.
+// Inline in this Backend-owned route rather than in Data-owned
+// `src/lib/vocab.js`, per the issue's own note to pick the lower-coupling
+// option: this only needs a plain INSERT next to the alias table each kind
+// already has, not any of vocab.js's resolution/matching logic.
+const GET_OR_CREATE = {
+  roaster_id: { table: 'roasters', aliasTable: 'roaster_aliases', fk: 'roaster_id', extraColumns: ['slug'] },
+  origin_farm_id: { table: 'farms', aliasTable: 'farm_aliases', fk: 'farm_id', extraColumns: [] },
+};
+
+function slugify(name) {
+  const base = foldDiacritics(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return base || 'roaster';
+}
+
+async function uniqueRoasterSlug(name) {
+  const base = slugify(name);
+  let slug = base;
+  for (let n = 2; ; n++) {
+    const { rows } = await query('SELECT 1 FROM roasters WHERE slug = $1', [slug]);
+    if (rows.length === 0) return slug;
+    slug = `${base}-${n}`;
+  }
+}
+
+async function getOrCreateVocabId(field, rawName) {
+  const spec = GET_OR_CREATE[field];
+  const name = String(rawName ?? '').trim();
+  if (!spec || !name) return null;
+
+  const aliasNorm = normalizeVocabString(name);
+  if (!aliasNorm) return null;
+
+  const { rows: existing } = await query(
+    `SELECT ${spec.fk} AS id FROM ${spec.aliasTable} WHERE alias_norm = $1`,
+    [aliasNorm],
+  );
+  if (existing[0]) return existing[0].id;
+
+  const { rows: created } = spec.extraColumns.includes('slug')
+    ? await query(`INSERT INTO ${spec.table} (name, slug) VALUES ($1, $2) RETURNING id`, [name, await uniqueRoasterSlug(name)])
+    : await query(`INSERT INTO ${spec.table} (name) VALUES ($1) RETURNING id`, [name]);
+  const id = created[0].id;
+
+  await query(
+    `INSERT INTO ${spec.aliasTable} (${spec.fk}, alias, alias_norm) VALUES ($1, $2, $3) ON CONFLICT (alias_norm) DO NOTHING`,
+    [id, name, aliasNorm],
+  );
+  return id;
+}
 
 const ALIAS_TABLES = {
   roaster: { table: 'roaster_aliases', fk: 'roaster_id' },
@@ -56,9 +114,9 @@ const STRUCTURED_FIELDS = new Set([
 ]);
 
 const REASON_LABELS = {
-  below_threshold: 'low confidence',
-  no_candidates: 'no clear value found',
-  disagreement: 'voters disagreed',
+  split: 'voters disagreed',
+  critic_refuted: 'flagged by quality check',
+  prose_spread: 'uncertain text boundaries',
 };
 
 // The stored `candidates` are raw voter outputs: some are objects (prose
@@ -171,8 +229,17 @@ export default async function reviewRoutes(app) {
 
     let value = req.body.value;
     if (STRUCTURED_FIELDS.has(item.field)) {
-      const canonical = canonicalize(item.field, value, canonicalCtx);
-      // e.g. a roaster/farm name that isn't in the vocabulary yet can't be
+      let canonical = canonicalize(item.field, value, canonicalCtx);
+      // Roasters and farms are open-ended: a human explicitly confirming a
+      // name that isn't in the vocabulary yet is authoritative, so create it
+      // rather than refuse (PLAN.md §11 #36). Countries stay a closed set --
+      // GET_OR_CREATE has no entry for origin_country_ids, so that field
+      // falls straight through to the 422 below, unchanged.
+      if (!canonical && GET_OR_CREATE[item.field]) {
+        const newId = await getOrCreateVocabId(item.field, value);
+        if (newId != null) canonical = { id: newId };
+      }
+      // e.g. a country name that isn't in the (closed) vocabulary can't be
       // turned into an id -- refuse rather than write a broken value. The item
       // stays open; the reviewer can pick a different candidate or dismiss.
       if (!canonical) return reply.code(422).send({ error: 'unresolvable_value', field: item.field, value });
