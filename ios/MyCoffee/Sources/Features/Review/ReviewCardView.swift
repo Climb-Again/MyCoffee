@@ -17,6 +17,7 @@ struct ReviewCardView: View {
 
     @State private var otherText = ""
     @State private var showOtherField = false
+    @State private var fullTextExpanded = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -129,22 +130,24 @@ struct ReviewCardView: View {
         }
     }
 
-    /// The whole scraped caption/description behind this task, shown expanded by
-    /// default — this is the context the reviewer actually needs to decide, so
-    /// it shouldn't be hidden behind a tap.
+    /// The whole scraped caption/description behind this task. Expanded by
+    /// default — it's the context the reviewer decides from — but collapsible
+    /// when the short snippet is enough.
     @ViewBuilder
     private var fullTextSection: some View {
         if let fullText = task.fullText, fullText != task.rawSnippet {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Full text")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            DisclosureGroup(isExpanded: $fullTextExpanded) {
                 Text(fullText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 6)
+            } label: {
+                Text("Full text")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
         }
     }
