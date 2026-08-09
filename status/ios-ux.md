@@ -8,6 +8,21 @@ _none_
 
 ## Session notes
 
+- [2026-08-09 UTC] No-op session. `BACKLOG.md`: all four `ios-ux` rows (#18,
+  #27, #28, #37) are `done`. Confirmed by reading `origin/ios-staging`'s copy
+  of `BACKLOG.md` directly (not just this file's own `## Done` section) —
+  `#37` landed in `57f6073` (2026-08-08, prior session) but `origin/main`'s
+  copy of `BACKLOG.md` still showed it `ready` (main hasn't had `ios-staging`
+  merged into it since). Merging `origin/main` into `ios-staging` surfaced
+  that exact conflict on the `#37` row (`done` vs `ready`) plus main's new
+  `#38` (data lane) addition — resolved keeping `ios-staging`'s `done` for
+  `#37` (it's real, verified against the landed code, not a stale claim) and
+  keeping main's new `#38` row (not ours; data lane). Swept `git branch -r
+  --list 'origin/claude/*'` — only this session's own branch remains, and it
+  touches none of `Sources/Features`, `Sources/DesignSystem`, or `Resources`
+  (`git rev-list --count` = 0), so nothing stranded to adopt. Stopping
+  cleanly per the lane's documented no-op behaviour; no feature code changed.
+
 - [2026-08-08 UTC] No-op session. `BACKLOG.md`: still only `#18`/`#27`/`#28`
   tagged `ios-ux`, all `done`. New row `#37` ("Needs review" reflects only
   actionable items, PLAN.md §11) is `ios-ux` but `blocked` on `#35`/`#36`
