@@ -6,6 +6,34 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-09 UTC (later session): session check — no ready row this cycle
+
+`main`/`origin/main` agree at `b466788` (this session's own designated branch,
+`claude/confident-cerf-pzkmzb`, was 0 ahead of that tip after a no-op rebase).
+All backend-tagged rows in `status/BACKLOG.md` remain `done`
+(11/15/16/19/21/23/24/33/35/36); the only `ready` rows are `#37` (ios-ux,
+not backend-owned) and `#38` (data — seed `roasters.country_id`, also not
+backend-owned); `#26` (data) is still `human`, `#29` stays `blocked` on it.
+Neither unblocks a backend row.
+
+Fresh unscoped `git branch -r --list 'origin/claude/*'` — **only this
+session's own branch exists remotely** (down from 63 at the last sweep, all
+prior stray branches have evidently been cleaned up/merged). Nothing
+backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session per the hard rule, though there was no
+code to push. `GET /api/review?limit=200` → **12** open items (down from
+22 at the last check), consistent with no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agreed at `f44cd76` after fast-forwarding a stale local
