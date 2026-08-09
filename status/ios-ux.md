@@ -8,6 +8,18 @@ _none_
 
 ## Session notes
 
+- [2026-08-09 UTC] No-op session (second check same day). `BACKLOG.md`: all
+  four `ios-ux` rows (#18, #27, #28, #37) still `done`; the only `ready` row
+  is `#38` (data lane). `origin/main` (`b466788`) is already an ancestor of
+  `ios-staging` HEAD (`501a587`), confirmed via `git merge-base
+  --is-ancestor` — no new merge needed, the prior session's reconciliation
+  already covers it. Briefly drafted a client-only fix for `#37` before
+  checking branch state and discovering it was already shipped in `57f6073`
+  with a more complete `ReviewFeedCache`-based approach (also gates the
+  Review tab badge, which a per-view fetch wouldn't have) — discarded the
+  draft rather than duplicate it. Stopping cleanly per the lane's documented
+  no-op behaviour; no feature code changed.
+
 - [2026-08-09 UTC] No-op session. `BACKLOG.md`: all four `ios-ux` rows (#18,
   #27, #28, #37) are `done`. Confirmed by reading `origin/ios-staging`'s copy
   of `BACKLOG.md` directly (not just this file's own `## Done` section) —
