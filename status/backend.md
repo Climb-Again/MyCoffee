@@ -6,6 +6,50 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-09 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agreed at `f44cd76` after fast-forwarding a stale local
+clone (was 16 commits behind). All backend-tagged rows in
+`status/BACKLOG.md` are `done` (11/15/16/19/21/23/24/33/35/36); `#37`
+(ios-ux, needs 35+36) is `ready` but not backend-owned; `#26` (data) is
+still `human`, `#29` (data) stays `blocked` on it — neither unblocks a
+backend row.
+
+Fresh unscoped `git fetch origin` — 63 `origin/claude/*` branches (up from
+60). Swept every one via `git rev-list --count main..<branch>`. Four newly
+20+ ahead: `hopeful-johnson-3hio6h` (32 ahead, empty `backend/` diff — pure
+iOS/ios-ux content, not backend-owned); `determined-thompson-{se6ru7,
+llrspt,3tonjx}` (26/24/23 ahead, identical `backend/` diffs to each other —
+net-deletions-only stale forks off an old pre-#21/#23/#24 `main` tip, same
+shape every prior sweep has found). `confident-cerf-cuvy66` (2 ahead) is a
+real but **superseded** #35/#36 attempt — predates the numeric-overflow fix
+(`1360a14`) already on `main`; its `adjudicate.js`/`review.js` diff is
+strictly older than what's landed, not stranded new work. `peaceful-
+mccarthy-{jmx3vu,04rnye}` (data lane doc-only session-check commits,
+1 commit each) show `backend/` diffs only because they forked from an
+older `main` tip — not new backend work themselves. `hopeful-johnson-
+icvqmr` (15 ahead, real ios-ux work — `loadBrief()`, durable review
+resolve/dismiss) unchanged from prior sweeps, not backend-owned. Every
+other non-zero branch matches the shape every prior sweep has documented
+(other lanes' own no-op status commits, or long-superseded `peaceful-
+mccarthy-rwi2ql`/`mycoffee-publish-autopilot-*`/pre-lane-split scaffolds).
+Nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the
+last recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session per the hard rule, though there was no
+code to push. `GET /api/review?limit=200` → **22** open items (down from
+the 26 recorded right after #35/#36 landed), all still genuine
+disagreements (`voters disagreed`/`implausible`), consistent with no new
+regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-08 UTC (later session): #35 + #36 — accept-by-default adjudication + human-accept vocab creation
 
 Picked up the two new `ready` backend rows from Radu's same-day directive
