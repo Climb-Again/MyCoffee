@@ -57,6 +57,29 @@ _none_
   team-from-profile (`635a822`), `CFBundleExecutable` (`d601a2c`); retained
   legacy-dir profile mirror (`526d34e`).
 
+- **2026-08-09 (autopilot session, Sun cron) — routine ship, still green, no fixes
+  needed.** Checked for an in-flight `ios-testflight` run first (none). Dispatched
+  `publish=true` on `main@b466788` via `mcp__github__actions_run_trigger` (the
+  MCP app's `actions=write` install remains the only working dispatch path — did
+  not re-probe the PAT env vars this session since publish.md already documents
+  none of them carry that permission). GH Actions run **`31333259849`** completed
+  **success** in ~95 s total job time (`match` 3s, `xcodegen generate` 0s,
+  `build_app` 39s, `upload_to_testflight` 29s). Log-verified, not just
+  green-badge: `Archive Succeeded` under team `PH2NNQ47UB` with profile
+  `match AppStore ro.climbagain.mycoffee`, then `Successfully uploaded package to
+  App Store Connect` (app `6795523219`) and `fastlane.tools finished successfully
+  🎉`. First dispatch this session was green, so the fix-and-retry loop was never
+  needed. This ship carries the 2026-08-08 UI/review batch (`9bb27d6..2b3b0e1`:
+  real review feed wiring, full-text collapsible section, blend origins, process-tag
+  wrap fix, listing thumbnails) plus the #35/#36 accept-by-default backend work —
+  all iOS-visible changes noted in `BACKLOG.md`'s "Right now" section as awaiting
+  this lane. Processing (~20 min, async, `skip_waiting_for_build_processing`)
+  unconfirmed — check TestFlight/email. Note: this session's harness restricts
+  pushes to its own branch (`claude/modest-newton-wiyziu`), not `main` — this
+  status update lands there and needs a merge to `main` by an authorized session,
+  per the "CCR routine commits to its own branch" gotcha in `CLAUDE.md` §12. No
+  code changes were needed (no red to fix), so nothing else is stranded.
+
 - **2026-08-06 (autopilot session) — routine ship, still green, no fixes needed.**
   Before dispatching, checked `ios-staging` for unmerged work per CLAUDE.md §5 and
   found one real commit not yet on `main`: `ef50a07` (`CoffeeStore.loadBrief()` +

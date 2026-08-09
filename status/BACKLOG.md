@@ -63,6 +63,13 @@ get-or-create on accept); (b) **most "needs review" coffees open an empty review
 sheet** because their open items are non-reviewable fields (→ #35 removes those
 rows at the source; #37 is the client belt-and-braces).
 
+**✅ 2026-08-09 (Publish lane, Sun cron) — the 2026-08-08 UI/review batch below IS NOW SHIPPED.**
+Dispatched `publish=true` on `main@b466788`, GH Actions run `31333259849`,
+log-verified real archive + upload (`fastlane.tools finished successfully 🎉`,
+ASC app `6795523219`). Full detail in `status/publish.md`. Processing (~20 min,
+async) unconfirmed — check TestFlight/email. Don't re-dispatch for this batch;
+the note below is now historical, not a pending action.
+
 **📦 2026-08-08 — a batch of UI/review fixes is already on `main`, awaiting the Publish lane.**
 Do **not** re-implement these; they're landed (`main` `9bb27d6..2b3b0e1`) and
 compile-green, just not yet dispatched `publish=true`:
