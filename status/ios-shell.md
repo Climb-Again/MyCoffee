@@ -8,6 +8,23 @@ _none_
 
 ## Done
 
+- [2026-08-09 UTC] Session check — no ready `ios-shell` row. #17/#22 are the
+  only rows tagged `ios-shell`, both `done`. #37 (ios-ux, needs 35/36 — both
+  `done`) is the only `ready` row in the whole backlog and is UX-owned, not
+  shell-owned; #29 (data, phase 6) still `blocked` on #26, still `human`.
+  Re-fetched all `origin/claude/*` branches (65 candidates) and swept each
+  with `git diff --stat origin/ios-staging..<branch> -- <ios-shell-owned
+  paths>` per the integrate-before-you-start rule: 17 candidates showed a
+  nonzero `rev-list --count`, but every one of those diffs as a **net
+  deletion** against current `ios-staging` (missing `SyncEngine.swift`/
+  `CoffeeCoding.swift`/`PlainDate.swift`/etc. that #22 later added, or
+  pre-rename shapes like `JSONDecoder+Coffee.swift`) — i.e. each is a stale
+  pre-#22 snapshot being diffed backwards, not new work ahead. Nothing
+  stranded to adopt. Merged `origin/main` into `ios-staging` (`52ddd23`,
+  clean — two other lanes' status-only session-check commits, no code)
+  before stopping. Stopping cleanly rather than inventing work or touching
+  UX-owned paths.
+
 - [2026-08-08 UTC, later same day] Session check — still no ready
   `ios-shell` row. Since the earlier check below, Radu's accept-by-default
   directive landed on `main` (`aaacc88`, merged in via `git merge origin/main`
