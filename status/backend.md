@@ -6,6 +6,43 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-09 UTC (later session): session check — no ready row this cycle
+
+`origin/main` advanced to `b466788` (data lane's plan/note for `#38` — seed
+roaster countries; no backend files touched). All backend-tagged rows in
+`status/BACKLOG.md` are still `done` (11/15/16/19/21/23/24/33/35/36). Two
+rows are `ready` but neither is backend-owned: `#37` (ios-ux, needs 35+36)
+and `#38` (data, seed roaster countries). `#26` stays `human`, `#29` stays
+`blocked` on it — neither unblocks a backend row.
+
+Fresh unscoped `git fetch origin` — 65 `origin/claude/*` branches. Swept
+every one via `git rev-list --count origin/main..<branch>`. Nothing new
+and backend-relevant: the two previously-unresolved branches this sweep
+finally pinned down, `determined-thompson-x99e3x` (16 ahead) and
+`lanes-status-blockers-wws2lc` (14 ahead), both show the identical
+net-deletions-only `backend/` diff (`32 files changed, 42 insertions(+),
+5918 deletions(-)`) as the long-documented stale forks off an old
+pre-#21/#23/#24 `main` tip — not stranded work to adopt. Every other
+non-zero branch matches a shape already documented in this file's prior
+sweeps (other lanes' own no-op status commits, superseded
+`peaceful-mccarthy-*`/`confident-cerf-cuvy66` attempts, or `ios-staging`
+content). Nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the
+last recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session per the hard rule, though there was no
+code to push. `GET /api/review?limit=200` → **16** open items (down from
+22 at the last check), consistent with re-adjudication/re-extraction
+continuing to shrink the queue — not backend-owned work, noted for the
+record only.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agreed at `f44cd76` after fast-forwarding a stale local
