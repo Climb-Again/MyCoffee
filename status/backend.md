@@ -6,6 +6,50 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-10 UTC (later session): session check — no ready row this cycle
+
+Local clone started 23 commits behind on this session's `claude/*` branch
+(`origin/main` had fast-forwarded to `f8863c6` since the last check —
+`#38`/`#39` plan notes plus an iOS ProcessTag fix landed). Fast-forwarded
+`main` to match; `git rev-parse main origin/main` now agree at `f8863c6`.
+
+All backend-tagged rows in `status/BACKLOG.md` are `done`
+(11/15/16/19/21/23/24/33/35/36); `#37` (ios-ux, needs 35+36) is `ready` but
+not backend-owned; `#38` (data, roaster countries) is now `done`; `#39`
+(data, altitude/weight/rating sanity envelopes in `normalize.js`) is `ready`
+but not backend-owned either. No row qualifies for this lane.
+
+Fresh unscoped `git fetch origin --prune` — 69 `origin/claude/*` branches
+(up from 70; some pruned). Swept every one via
+`git rev-list --count origin/main..<branch>`. Several grew substantially
+since the last sweep (`determined-thompson-0ivpqc` 33, `-1yhp32` 32,
+`-ij4ozz` 27, `-nto1g8`/`-llrspt` 24, `wizardly-thompson-eurlj6` 24,
+`-x99e3x` 16, `hopeful-johnson-3hio6h` 32) — inspected each `backend/` diff
+against current `main` and every one is **net-deletions-only** (stale forks
+off an older pre-#21/#23/#24 or pre-#38 `main` tip, same shape every prior
+sweep has found — the fork just falls further behind as `main` advances, it
+isn't new work). Two new single-commit branches
+(`modest-newton-wiyziu`, and `hopeful-johnson-3hio6h`'s smaller sibling)
+only diff `backend/migrations/014_roaster_countries.sql` as a deletion —
+forked before Data's `#38` landed, not stranded content.
+`confident-cerf-cuvy66` (still 2 ahead) re-confirmed as the same superseded
+#35/#36 attempt predating the numeric-overflow fix (`1360a14`) already on
+`main`. Nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the
+last recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **12** open items (down from 13 at the last
+session check), consistent with continued human review resolving items, no
+regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-10 UTC: session check — no ready row this cycle
 
 Local clone started 19 commits behind on this session's `claude/*` branch
