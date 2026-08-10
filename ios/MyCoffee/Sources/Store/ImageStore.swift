@@ -16,12 +16,11 @@ enum ImageStoreError: Error {
 /// ~48 MB bitmap in a scrolling list. In-flight requests for the same URL are
 /// coalesced so a fast scroll can't launch duplicate downloads.
 ///
-/// Not yet wired into `DesignSystem/Thumbnail.swift` (UX-owned) — that view
-/// still uses a plain `AsyncImage`, and the compact snapshot doesn't carry a
-/// per-row image URL at all today (only `GET /api/coffees/:publicId` does;
-/// see the batch-media-URL gap noted in `status/BACKLOG.md`). This actor is
-/// the reusable engine for whenever both land; flagged in
-/// `status/ios-shell.md` as follow-up wiring for the UX lane.
+/// Wired into `DesignSystem/Thumbnail.swift` (UX-owned), which calls
+/// `ImageStore.shared.thumbnail(for:maxPixelSize:)` directly. The compact
+/// snapshot row carries a signed `thumbUrl` (backend `toCompactCoffee`,
+/// `SNAPSHOT_VERSION=2`), so no separate batch media-URL endpoint was needed
+/// after all — the URL rides along in the row itself.
 actor ImageStore {
     static let shared = ImageStore()
 

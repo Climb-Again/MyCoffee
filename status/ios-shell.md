@@ -8,6 +8,27 @@ _none_
 
 ## Done
 
+- [2026-08-10 UTC, later session] Session check — no ready `ios-shell` row.
+  #17/#22 remain the only rows tagged `ios-shell`, both `done`; the only
+  `ready` row in the whole backlog is `#39` (data lane, `parseAltitude`/
+  `parseWeight`/`parseRating` sanity envelopes) — not shell-owned. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts). Swept
+  `git branch -r --list 'origin/claude/*'`: only this session's own branch
+  exists, touching no `ios-shell`-owned path — nothing stranded to adopt.
+  **One real, already-flagged fix picked up instead of inventing work**:
+  `status/ios-ux.md`'s 2026-08-06 entry flagged `Store/ImageStore.swift`'s
+  doc comment as stale (it said "Not yet wired into `Thumbnail.swift`" and
+  "no batch-media-URL endpoint exists yet"), left for this lane since the
+  file is shell-owned. Both premises are now false — `Thumbnail.swift` calls
+  `ImageStore.shared.thumbnail(for:maxPixelSize:)` directly, and the compact
+  snapshot row (`toCompactCoffee` in `backend/src/routes/coffees.js`) has
+  carried a signed `thumbUrl` since `SNAPSHOT_VERSION=2`, so no separate
+  batch endpoint was ever needed. Updated the comment to describe the real,
+  already-wired state instead of a stale gap. No compile risk — comment-only
+  change to a shell-owned file, no signature/behavior touched.
+  - `ios/MyCoffee/Sources/Store/ImageStore.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-10 UTC] Session check — no ready `ios-shell` row. #17/#22 remain the
   only rows tagged `ios-shell`, both `done`. Merging `origin/main` into
   `ios-staging` surfaced a real divergence, not just stale session-check
