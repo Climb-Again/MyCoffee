@@ -8,6 +8,22 @@ _none_
 
 ## Session notes
 
+- [2026-08-10 UTC] No-op session (second check same day). `BACKLOG.md`: still
+  only four `ios-ux` rows (#18, #27, #28, #37), all `done`. The lone `ready`
+  row is `#39` (data lane, altitude/weight/rating sanity envelopes in
+  `normalize.js`) — not ours. `#26` stays `human` (still awaiting Radu's
+  accuracy verdict) and `#29` stays `data`/`blocked` on it. Fetched and merged
+  `origin/main` (`310b49b`, backend's own session-check commit on top of
+  `#39`'s plan-doc addition and the process/decaf tag fix) into `ios-staging`
+  — merge was clean (one auto-merge each in `BACKLOG.md`/`status/backend.md`,
+  pure status-note unions) and the resulting tree is byte-identical to
+  `origin/ios-staging`'s, so this is bookkeeping only, no code changed.
+  Checked `git branch -r --list 'origin/claude/*'` — only this session's own
+  branch exists and it touches none of `Sources/Features`,
+  `Sources/DesignSystem`, or `Resources`, so nothing stranded to adopt.
+  Pushed the merge (`89f38d0`) to `ios-staging`. Stopping cleanly per the
+  lane's documented no-op behaviour.
+
 - [2026-08-10 UTC] No-op session. `BACKLOG.md`: all four `ios-ux` rows (#18,
   #27, #28, #37) are still `done`; `#29` (the only other row touching
   anything downstream of this lane) is `data`-owned and `blocked` on `#26`
