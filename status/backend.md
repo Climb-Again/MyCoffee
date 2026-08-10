@@ -6,6 +6,40 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-10 UTC (later session): session check — no ready row this cycle
+
+Local clone started on `origin/main`'s tip after a fresh `git fetch origin
+--prune` (`de55557` → `692c16b`, the data lane's #38 roaster-country commit).
+Fast-forwarded the local `main` ref to match; `main`/`origin/main`/`HEAD` all
+agree at `692c16b`.
+
+All backend-tagged rows in `status/BACKLOG.md` are `done`
+(11/15/16/19/21/23/24/33/35/36); `#37` (ios-ux, needs 35+36) is `ready` but
+not backend-owned; `#26` (data) is still `human`, `#29` (data) stays
+`blocked` on it. No row qualifies for this lane.
+
+Fresh unscoped `git fetch origin --prune` — 68 `origin/claude/*` branches.
+Spot-checked the highest-`ahead` ones not previously named verbatim
+(`determined-thompson-{ij4ozz,se6ru7,llrspt,nto1g8,x99e3x}`,
+`lanes-status-blockers-wws2lc`) via `git diff --stat origin/main
+origin/claude/<b> -- backend/` — all six show the identical net-deletions-only
+`backend/` diff (`42 insertions(+), 6055 deletions(-)`, same file list) as
+every prior sweep's stale pre-#21/#23/#24 forks. Nothing backend-owned or
+actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` (with `INGEST_TOKEN`) → 10 jobs, all `done`/`paused`,
+**none `running`** — safe to push `backend/**` this session, though there
+was no code to push. `GET /api/review?limit=200` → **13** open items, same
+count as the last session check, no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-10 UTC: session check — no ready row this cycle
 
 Local clone started 19 commits behind on this session's `claude/*` branch
