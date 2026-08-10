@@ -41,13 +41,25 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 35 | backend   | 4 | done    | — | **Accept-by-default adjudication** (PLAN.md §11) — `adjudicateField` now returns `absent` (no candidates, no review row), `accepted` (single/agreeing cluster, applied regardless of confidence), or `split` (>=2 materially-different weighted clusters, review item created but the top-weighted pick is still applied provisionally). See `status/backend.md` for the live before/after `GET /api/review` count from `POST /api/admin/adjudicate`. `src/lib/adjudicate.js`, `worker.js`, `config.js` |
 | 36 | backend   | 4 | done    | — | **Human accept creates vocab** (PLAN.md §11) — `POST /api/review/:id` now get-or-creates a `roasters`/`farms` row (+ alias) when a human accepts a name `canonicalize()` can't resolve, instead of 422ing. Countries unaffected (still closed). Done inline in `routes/review.js` (Backend-owned), no `vocab.js` change needed. Verified end-to-end against a real local Postgres (not production — this would mean resolving a real open review item with fabricated test data): an unresolvable farm accept created the row + alias, applied `origin_farm_id`, and closed the review; a second identical accept resolved via the new alias with no duplicate; same for a new roaster. |
 | 37 | ios-ux    | 5 | done    | 35, 36 | **"Needs review" reflects only actionable items** (PLAN.md §11) — the detail-page Review button and the Review tab badge both gated on the coarse `Coffee.reviewState` column, which lights up for any open item including the `desc_*` splits `GET /api/review` already excludes server-side. New `Features/Review/ReviewFeedCache.swift` cross-references the real feed (the same one `ReviewQueueView`/`CoffeeReviewSheet` already fetch) and gates both the button and the badge on it; fails open (doesn't suppress) until a fetch actually succeeds, so sample/demo runs with no backend are unaffected. See `status/ios-ux.md` for full detail. |
-| 38 | data      | 4 | ready   | — | **Roaster countries are all NULL** → every coffee shows an unidentified roaster country. `005_vocab_seed.sql` inserts roasters `(name, slug)` only, never `country_id`, so the derived `coffees.roaster_country_id` is NULL for all 21. Fix: seed `roasters.country_id` from the product brief (private repo) — e.g. DAK→Netherlands, Tim Wendelboe→Norway, Gardelli→Italy, Jonas Reindl→Austria, Concept Coffee→Romania, … — via a new forward migration, then backfill `UPDATE coffees SET roaster_country_id = roasters.country_id`. Deploys via Railway (no TestFlight publish needed); app shows it on next sync |
+| 38 | data      | 4 | done   | — | **Roaster countries** — `backend/migrations/014_roaster_countries.sql` populates `roasters.country_id` for 80/89 seeded roasters + backfills `coffees.roaster_country_id`. **Correction to this row's own premise**: the product brief has no roaster↔country pairing at all (verified against `word/document.xml`); sourced via live web search per roaster instead, one at a time, not from the brief. The row's own example "Concept Coffee Roasters→Romania" was wrong (actually Slovakia) — caught by verifying rather than trusting the note. 9 roasters left `NULL` on purpose (ambiguous/no confident source, incl. `Typika` which is genuinely dual Czech Republic+Poland) per Radu's "guess only very close matches" rule. 6 new countries added (Italy, Austria, Sweden, Finland, Slovenia, South Korea). Verified end-to-end against a real local Postgres 16, `npm test` 202/202. See `status/data.md` for the full roaster→country table and the negative/idempotency checks. Deploys via Railway on push; no TestFlight publish needed |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
 whose `needs` are now all `done` from `blocked` to `ready` in the same commit. If
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🌍 2026-08-10 (data lane) — #38 is DONE, and its own premise was wrong.**
+The row said to seed `roasters.country_id` "from the product brief" — verified
+directly against the docx's `word/document.xml` that it holds no such pairing
+at all (just a flat roaster-name list and two flat, already-known-swapped
+country tallies). Sourced live via web search per roaster instead of guessing
+from names; caught the row's own example ("Concept Coffee Roasters→Romania")
+being wrong (it's Slovakia) in the process. 80/89 roasters now have a country;
+9 left `NULL` on purpose per Radu's "guess only very close matches" brief line
+rather than pattern-matched. Full table + verification in `status/data.md`.
+No other `data` row was `ready` this cycle (`#26` still `human`, `#29` still
+blocked on it) — nothing else picked up.
 
 **🧭 2026-08-08 (Radu directive) — accept-by-default; review is optional, not a gate.**
 After using the live builds Radu was explicit: the extractor's picks are

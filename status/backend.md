@@ -6,6 +6,44 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-10 UTC: session check — no ready row this cycle
+
+Local clone started 19 commits behind on this session's `claude/*` branch
+(`origin/main` had already fast-forwarded to `b466788` mid-session — some
+other process merged the branch's earlier tip). Fast-forwarded `main` to
+match; `git rev-parse main origin/main` now agree at `b466788`.
+
+All backend-tagged rows in `status/BACKLOG.md` are `done`
+(11/15/16/19/21/23/24/33/35/36); `#37` (ios-ux, needs 35+36) is `ready` but
+not backend-owned; `#38` (data, roaster-country seed) is `ready` but not
+backend-owned either. No row qualifies for this lane.
+
+Fresh unscoped `git fetch origin --prune` — 70 `origin/claude/*` branches.
+Swept every one via `git rev-list --count main..<branch>`; four had not been
+checked in a prior sweep: `wizardly-thompson-eurlj6` (24 ahead) and
+`relaxed-thompson-ceai5p` (7 ahead) are both net-deletions-only stale forks
+off an old pre-#21/#23/#24 `main` tip (same shape every prior sweep has
+found — nothing new, just files that didn't exist yet at their fork point).
+`wizardly-thompson-0g9i90` (1 ahead) is an ios-shell session-check merge
+commit, same stale-fork diff. `relaxed-thompson-wrqfk0` (1 ahead) is a
+Compile-lane doc-only session-check commit; its `backend/` diff is only
+because it forked from an older `main` tip, not real content. Nothing
+backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` (with `INGEST_TOKEN` — `APP_TOKEN` gets `invalid_token` on
+this route) → 10 jobs, all `done`/`paused`, **none `running`** — safe to
+push `backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **13** open items (down from 22 at the last
+session check), consistent with continued human review resolving items, no
+regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agreed at `f44cd76` after fast-forwarding a stale local
