@@ -115,6 +115,50 @@ tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
 
 ## Done
 
+- [2026-08-10 02:00 UTC] #38 — **`backend/migrations/014_roaster_countries.sql`**
+  populates `roasters.country_id` (previously NULL for all 89 seeded roasters,
+  which made every coffee's roaster-country flag unidentified) and backfills
+  existing `coffees.roaster_country_id` rows.
+  **Important correction to the backlog row's own premise**: verified directly
+  against `word/document.xml` that the product brief does **not** pair roaster
+  names with countries at all — its "Roasters list" is flat `name (count)`
+  pairs, and the two "Countries list" sections (already known to be
+  heading-swapped, per `005_vocab_seed.sql`) are flat country tallies with no
+  per-roaster link. The backlog's own example mappings (Gardelli→Italy,
+  Jonas Reindl→Austria) turned out right, but "Concept Coffee Roasters→Romania"
+  was wrong (verified: Slovakia) — illustrating exactly why this needed
+  verification rather than being seeded from memory/the backlog note as-is.
+  Sourced instead via live web search against each roaster's own site or a
+  roaster directory, one roaster at a time — most of these turn out to be
+  small Central/Eastern-European microroasters carried by `kofio.co` (a Czech
+  specialty-coffee marketplace; explains why "Kofio" itself is also in the
+  roaster list). Per Radu's own brief text (para 21: "guess only very close
+  matches and prompt me to validate anything else"), **9 of the 89 were left
+  NULL** rather than guessed — genuinely ambiguous (same-brand-name roasters
+  in multiple countries) or no confident source found: `Roastlab coffee
+  roasters`, `September Coffee`, `Typika` (verified genuinely dual
+  Czech Republic **and** Poland — doesn't fit one `country_id`), `Hydrangea
+  Coffee Roasters`, `Punkt. coffee`, `Radical Coffee`, `Ahiya Roasters`,
+  `Kawa`, `Legendary Everyday`. These can still resolve per-coffee from a city
+  mention in caption text via `normalize.js`'s `resolveCityCountry` even with
+  `country_id` left NULL.
+  6 countries the docx's own (evidently incomplete) roaster-country tally
+  never seeded were added: Italy, Austria, Sweden, Finland, Slovenia, South
+  Korea — all `is_roaster: true`, `is_origin: false`.
+  **Verified end-to-end against a real local Postgres 16**: all 14 migrations
+  apply cleanly in order; 80/89 roasters got a `country_id`, the other 9 match
+  exactly the flagged-unmapped list; a hand-inserted coffee row confirmed the
+  backfill UPDATE (a) fills a NULL `roaster_country_id` from the roaster's new
+  `country_id`, (b) leaves it NULL when the roaster is one of the 9 unmapped
+  ones, (c) does **not** clobber a coffee row that already had a (deliberately
+  different, for the test) non-NULL `roaster_country_id` — the backfill is
+  additive, re-runnable, and won't fight a future per-coffee resolution.
+  `npm test` 202/202 green. Checked `GET /api/admin/jobs` first per the
+  "never push `backend/**` while a job is `running`" rule — all 10 historical
+  jobs are `done`/`paused`, none `running`, so this push is safe.
+  Deploys via `railway-deploy.yml` on push (`backend/**` changed); no
+  TestFlight publish needed. — branch `main`, this commit.
+
 - [2026-08-04] #25 — **`backend/src/lib/deterministic.js` (P3 "rules" voter) +
   `test/deterministic.test.js`** (180/180 green, up from 178). Implements the
   `{agent:'rules', provider:'rules', run(ctx)}` contract `agents.js`'s
