@@ -61,16 +61,22 @@ struct ProcessTag: View {
     private var title: String { profile?.displayName ?? "Unknown" }
 
     var body: some View {
-        Label(title, systemImage: style.symbol)
-            .font(.caption.weight(.semibold))
-            // Keep the capsule on one line: without this, a narrow row column
-            // wraps the title one character per line into a tall vertical pill.
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(style.color.opacity(0.18), in: Capsule())
-            .foregroundStyle(style.color)
+        // Explicit icon + text rather than `Label`: a `Label` under
+        // `fixedSize` in a width-constrained row collapsed to icon-only (the
+        // title vanished). An HStack of Image+Text always renders both, and
+        // `lineLimit(1)` + `fixedSize` keeps it a single-line pill (no
+        // character-per-line vertical wrap).
+        HStack(spacing: 4) {
+            Image(systemName: style.symbol)
+            Text(title)
+        }
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(style.color.opacity(0.18), in: Capsule())
+        .foregroundStyle(style.color)
     }
 }
 
@@ -78,13 +84,16 @@ struct ProcessTag: View {
 /// can be washed (PLAN.md pushback #3).
 struct DecafBadge: View {
     var body: some View {
-        Label("Decaf", systemImage: ProcessStyles.decaf.symbol)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(ProcessStyles.decaf.color.opacity(0.18), in: Capsule())
-            .foregroundStyle(ProcessStyles.decaf.color)
+        HStack(spacing: 4) {
+            Image(systemName: ProcessStyles.decaf.symbol)
+            Text("Decaf")
+        }
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(ProcessStyles.decaf.color.opacity(0.18), in: Capsule())
+        .foregroundStyle(ProcessStyles.decaf.color)
     }
 }
