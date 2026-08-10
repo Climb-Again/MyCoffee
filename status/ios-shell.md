@@ -8,6 +8,26 @@ _none_
 
 ## Done
 
+- [2026-08-10 UTC] Session check — no ready `ios-shell` row. #17/#22 remain the
+  only rows tagged `ios-shell`, both `done`. Merging `origin/main` into
+  `ios-staging` surfaced a real divergence, not just stale session-check
+  noise: `ios-staging` still carried `#37` (ios-ux) `done`/`#38` (data)
+  `ready`, while `main` had the reverse — `#37` `ready`/`#38` `done` (the data
+  lane's 2026-08-10 roaster-country migration). Resolved the `status/
+  BACKLOG.md` conflict as the union of both branches' newer knowledge (`#37`
+  done, `#38` done) rather than picking one side, since each branch was
+  correct about the row it actually has direct knowledge of. No `ios-shell`
+  row unblocks from this — neither `#37` nor `#38` lists `ios-shell` as a
+  dependent. Re-swept all 69 `origin/claude/*` branches for stranded work in
+  this lane's owned paths (`git rev-list --count origin/ios-staging..<branch>
+  -- ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}
+  ios/project.yml`): 17 candidates show nonzero commits ahead, but every one
+  diffs as a **net deletion** against current `ios-staging` (pre-#22 or
+  pre-#17 snapshots missing files #22 later added) — confirmed by `git diff
+  --stat`, not just the commit count. Nothing stranded to adopt. Pushed the
+  merge commit (`e66cd10`) to `ios-staging`. Stopping cleanly rather than
+  inventing work or touching UX-owned paths.
+
 - [2026-08-09 UTC] Session check — no ready `ios-shell` row. #17/#22 are the
   only rows tagged `ios-shell`, both `done`. #37 (ios-ux, needs 35/36 — both
   `done`) is the only `ready` row in the whole backlog and is UX-owned, not
