@@ -986,3 +986,68 @@ and confirm the bad altitude drops to empty while real ones stay.
 `ios-staging` (UX) per the normal lane flow and let the Publish lane ship on its
 cron. The UI batch already on `main` (see `status/BACKLOG.md` "Right now") ships
 the same way.
+
+## 12. Addendum (2026-08-10) — edit any core field, with consistency dropdowns
+
+Radu: **"Make core structured data editable with fix dropdowns to keep data
+consistent."** Today the only way to change a coffee's field is the review queue,
+and only for extraction-flagged items. He wants to edit **any** core field of
+**any** coffee on demand — and the vocab-backed fields must be **pick-from-canonical**
+(dropdowns), never free text, so edits can't spawn inconsistent variants
+("Ethiopia" vs "Etiopia" vs "ethiopa"). This reuses the review resolution
+machinery — an edit is just a human decision applied outside the review flow —
+so it inherits #35's provisional/`locked` model and #36's get-or-create. Three
+rows: #40 (backend), #41 (iOS shell), #42 (iOS UX).
+
+### #40 — Generic per-field edit endpoint (Backend; `routes/coffees.js` + shared resolve helper)
+
+`POST /api/coffees/:publicId/edit` (`requireIngestToken`), body
+`{ field: <clientField>, value: <raw string | structured> }` (accept a batch
+`{ edits: [...] }` too). It does exactly what `POST /api/review/:id`'s resolve
+branch does, minus the review-item lookup:
+1. Map `clientField` → DB field (reuse review.js's `FIELD_TO_CLIENT`, inverted).
+2. Canonicalize the raw value (same `canonicalize`/`denormalize` + the #36
+   get-or-create for `roaster_id`/`origin_farm_id`); **add the missing
+   `roaster_country_id` case** (resolve a country name → id) since editing the
+   roaster country directly is now a first-class action, not just a derived
+   side-effect — and a matching `buildCoffeeColumnUpdates` case so it actually
+   writes the column.
+3. Write a **`locked`, `decided_by='human'`** `field_resolutions` row and
+   `applyResolutionsToCoffee` — same invariant as review: no later adjudication
+   pass overwrites a human edit.
+4. Close any open `review_items` for that (photo, field).
+**Refactor** the resolve body in `routes/review.js` into one shared
+`resolveField(photoId, field, rawValue, ctx)` helper both routes call — don't
+copy-paste the canonicalize+lock+apply logic. Countries stay closed (unknown
+origin/roaster country → 422, surfaced in the UI as "not a known country").
+
+### #41 — Edit API surface (iOS shell; `APIClient`, `CoffeeRepository`, `CoffeeStore`)
+
+`APIClient.editCoffeeField(publicId:field:value:)` → `POST /api/coffees/:id/edit`;
+a `CoffeeRepository.editField(...)` that routes through the mutation outbox
+(durable, like the review-resolve path the shell already added) and re-fetches
+detail on success; `CoffeeStore.editField(...)` for the UX layer. The vocab
+lists the dropdowns need are **already on the client** — `store.index.vocabulary`
+(countries/roasters/farms) and the fixed `Profile` enum — so no new read endpoint.
+
+### #42 — Edit sheet with per-field controls (iOS UX; `Features/Coffees`)
+
+An **Edit** button on `CoffeeDetailView` opens a `Form` sheet, one row per core
+field, each with the control that keeps it consistent:
+- **Origin country** — multi-select `Picker` over `is_origin` countries (a blend
+  is just >1 selected → sets `origin_country_ids` + `is_blend`).
+- **Roaster country** — `Picker` over `is_roaster` countries.
+- **Roaster / Farm** — searchable list of the vocab + an **"Add new…"** row
+  (free text only here, routed through #40's get-or-create so a genuinely new
+  name is created canonically and reused next time).
+- **Process** — `Picker` over the fixed `Profile` enum + a **Decaf** toggle.
+- **Altitude** — min/max steppers (respect #39's plausibility envelope; reject
+  nonsense inline). **Weight** — grams stepper. **Price** — amount field +
+  currency `Picker`. **Rating** — 0–5. **Roasted on** — `DatePicker`.
+Save applies each changed field via #41, then reloads detail; an edited field
+shows as clean (the badge clears). Only vocab/profile use dropdowns — that's the
+"fix dropdowns to keep data consistent" ask; numbers/dates use bounded inputs.
+
+Depends on #40 → #41 → #42 in order. Same **no manual `publish=true`** rule as
+§11: land backend on `main` (auto-deploys via Railway), iOS on `ios-staging`, and
+let the Publish lane ship the iOS half.
