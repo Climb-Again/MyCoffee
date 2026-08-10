@@ -6,6 +6,52 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_ (see `## Done` below — claimed and finished in the same session)
 
+## 2026-08-10 UTC (yet another session): session check — no ready row this cycle
+
+Local clone's `main` ref was stale at `de55557`; `origin/main` had
+fast-forwarded to `310b49b` (this session's own designated branch,
+`claude/confident-cerf-dvmxm6`, already sat on that tip — 0 ahead/0 behind).
+Fast-forwarded local `main` to match.
+
+All backend-tagged rows in `status/BACKLOG.md` are `done`
+(11/15/16/19/21/23/24/33/35/36); `#37` (ios-ux, needs 35+36) and `#39` (data,
+altitude/weight/rating sanity envelopes) are both `ready` but neither is
+backend-owned. No row qualifies for this lane.
+
+Fresh unscoped `git fetch origin --prune` — 69 `origin/claude/*` branches.
+Swept every one via `git rev-list --count origin/main..<branch>`. Ten
+previously-uncatalogued single-commit `confident-cerf-*` branches
+(`vh230a`, `pzkmzb`, `joftat`, `fw2dgc`, `dgkpsd`, `7taeti`, `3acapb`,
+`3aavqw`, `290hiw`, `1ak3tt`) inspected via `git diff --stat` against
+`backend/`: all are net-deletions-only against current `main` (stale forks
+from a `main` tip that predates #35/#36's `review.js`/`adjudicate.test.js`/
+`worker.test.js` changes, or predates `014_roaster_countries.sql`) — not
+stranded work. Every other non-zero branch
+(`new-app-infrastructure-setup-h3r3wz`/`coffee-app-plan-9jdh0c` at 35,
+`determined-thompson-{0ivpqc,1yhp32,ij4ozz,se6ru7,nto1g8,llrspt,3tonjx,
+x99e3x,4281b1}`, `hopeful-johnson-{3hio6h,icvqmr}`,
+`wizardly-thompson-eurlj6`, `peaceful-mccarthy-rwi2ql`,
+`lanes-status-blockers-wws2lc`, `mycoffee-publish-autopilot-rv8cve`,
+`relaxed-thompson-ceai5p`, `modest-newton-oxaddt`, `confident-cerf-cuvy66`,
+`peaceful-mccarthy-9yq99y`) matches the shape every prior sweep in this file
+has already documented (net-deletions-only stale forks, other lanes' own
+no-op status commits, or long-superseded attempts) — re-confirmed rather
+than assumed, nothing new or backend-owned to integrate.
+
+Ran `cd backend && npm ci && npm test` — **202/202 green**, matching the
+last recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **13** open items (up from 12 at the last session
+check — normal fluctuation, not a regression signal by itself), still the
+same `voters disagreed`/`implausible` shape as before.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-10 UTC (later session): session check — no ready row this cycle
 
 Local clone started 23 commits behind on this session's `claude/*` branch
