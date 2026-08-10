@@ -958,6 +958,30 @@ button on a per-coffee reviewable count (cheapest: the detail payload exposes an
 `openReviewCount` limited to reviewable fields) or, at minimum, keep today's
 "All set" empty state so it never looks broken. Depends on #35/#36.
 
+### #39 — Accept-by-default needs field sanity envelopes (Data; `src/lib/normalize.js`)
+
+Radu's refinement of #35, verbatim intent: *"I know I said accept all guesses, but
+altitude 1–5 m does not make sense and defeats the logic of identifying
+altitude."* Accept-by-default (#35) applies the top pick **regardless of
+confidence** — so a mis-parse like `1–5 m` (the extractor grabbing a roast-level
+scale / a count, not an elevation) now gets stored and shown. The confidence flag
+alone no longer gates it. Fix: give the numeric parsers a **hard plausibility
+envelope** that returns `null` (→ the field reads as *absent*, not a bogus value)
+when the parse can't be the real quantity — distinct from the existing soft
+`needsReview` band:
+
+- **Altitude** (`parseAltitude`): coffee grows ~200–3000 m. Today it already
+  computes `plausible = min>=900 && max<=2200` but only lowers `confidence`/sets
+  `needsReview`. Add a hard reject: `max < 200` or `min > 4000` → `return null`.
+  Keep the soft 900–2200 band for "real but unusual." `1–5 m` → null → absent.
+- Apply the same "obviously-not-this-quantity → null" guard to the other numeric
+  parsers while here (e.g. `parseWeight` rejecting sub-gram / >5 kg bag weights,
+  `parseRating` staying within its scale) so accept-by-default can't surface a
+  nonsense number in any numeric field.
+
+$0 to validate — re-adjudicate over stored candidates (`POST /api/admin/adjudicate`)
+and confirm the bad altitude drops to empty while real ones stay.
+
 **Do not manually `publish=true` for these** — land them on `main` (backend) /
 `ios-staging` (UX) per the normal lane flow and let the Publish lane ship on its
 cron. The UI batch already on `main` (see `status/BACKLOG.md` "Right now") ships
