@@ -8,6 +8,35 @@ _none_
 
 ## Done
 
+- [2026-08-11 UTC] 41 Edit API surface (PLAN.md §12) — branch `ios-staging`
+  - `APIClient.editCoffeeField(publicId:field:value:)` → `POST /api/coffees/:id/edit`, same
+    raw-string-in shape as `resolveReview` (checked `resolveField.js`'s `canonicalize()`: every
+    field case runs the raw value through a string parser — `parseAltitude`/`parsePrice`/
+    `resolveVocab`/etc — so there's no structured-value shape to bridge, unlike the review DTOs).
+  - `MutationOutbox` gets a fourth `PendingMutation` case, `.edit(coffeeId:field:value:)`, with
+    `enqueueEdit`/`pendingEdit` mirroring `enqueueFavorite`/`pendingFavorite` (one outstanding
+    edit per `(coffeeId, field)`, replace-not-accumulate) and a `shouldKeep` branch that falls
+    into the existing 4xx-drops/5xx-retries split for free — a 422 (unresolvable value, e.g. an
+    unknown country) is exactly as terminal as `resolveReview`'s.
+  - `SyncEngine.editField` queues + flushes like `setFavorite`, then — the one real difference
+    from favorite/review — re-fetches detail on success via the existing `loadDetail`, since an
+    edit's backend-derived side effects (e.g. editing `roaster` also derives `roasterCountryId`)
+    can't be guessed at locally the way a favorite bool can. Returns `nil` while still queued
+    (offline) or rejected (422 — the row didn't change, nothing new to merge).
+  - `CoffeeRepository.editField` protocol method; `RemoteCoffeeRepository` delegates to the
+    engine; `SampleCoffeeRepository`'s is a no-op returning `nil` (same reasoning as its
+    `resolveReview`/`dismissReview` no-ops — duplicating the backend's canonicalization in the
+    fixture isn't this lane's job). `CoffeeStore.editField(coffeeId:field:value:)` is the
+    fire-and-forget wrapper the UX lane's edit sheet (#42) will call; merges the refreshed
+    `Coffee` into `index` via `replacingCoffee` on success, same as `loadDetail(for:)`.
+  - Not locally compiled (no Xcode here) — everything is a straight mirror of `setFavorite`'s/
+    `resolveReview`'s existing shapes, so a red compile check should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/{API/APIClient,Store/CoffeeRepository,Store/CoffeeStore,
+    Store/MutationOutbox,Store/RemoteCoffeeRepository,Store/SampleCoffeeRepository,
+    Store/SyncEngine}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-10 UTC, later session] Session check — no ready `ios-shell` row.
   #17/#22 remain the only rows tagged `ios-shell`, both `done`; the only
   `ready` row in the whole backlog is `#39` (data lane, `parseAltitude`/

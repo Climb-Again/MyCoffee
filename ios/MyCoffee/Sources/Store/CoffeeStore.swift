@@ -74,6 +74,18 @@ final class CoffeeStore: ObservableObject {
         Task { await repository.dismissReview(taskId: taskId) }
     }
 
+    /// Applies a per-field edit (PLAN.md §12 #41) — durable through the same
+    /// outbox `resolveReview` uses, but unlike a review task an edited field
+    /// IS part of the coffee index, so a successful round trip re-fetches
+    /// detail and merges it in, the same way `loadDetail` does.
+    func editField(coffeeId: String, field: String, value: String) {
+        Task {
+            if let updated = await repository.editField(coffeeId: coffeeId, field: field, value: value) {
+                index = index.replacingCoffee(updated)
+            }
+        }
+    }
+
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
     /// Insights screen. A once-a-day read, not part of the coffee snapshot —
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.

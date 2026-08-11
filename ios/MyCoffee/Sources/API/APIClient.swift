@@ -175,6 +175,18 @@ struct APIClient: Sendable {
         return true
     }
 
+    // POST /api/coffees/:publicId/edit — apply a per-field edit outside the
+    // review flow (PLAN.md §12 #40). Same raw-string-in, canonicalize-on-the-
+    // backend shape as `resolveReview`; a value the backend can't
+    // canonicalize (e.g. an unknown country) comes back as HTTP 422.
+    @discardableResult
+    func editCoffeeField(publicId: String, field: String, value: String) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["field": field, "value": value])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/edit", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
     // GET /api/brief — the editorial "This month" section (PLAN.md §6.4);
     // `nil` until the backend has generated one.
     func brief() async throws -> Brief? {

@@ -34,4 +34,9 @@ actor SampleCoffeeRepository: CoffeeRepository {
     func resolveReview(taskId: Int, value: String) async {}
 
     func dismissReview(taskId: Int) async {}
+
+    // Same reasoning: canonicalizing an edit's raw value the way the backend
+    // does isn't fixture logic worth duplicating here, so previews see no
+    // change rather than a guessed-at one.
+    func editField(coffeeId: String, field: String, value: String) async -> Coffee? { nil }
 }
