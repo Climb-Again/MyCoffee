@@ -8,6 +8,21 @@ _none_
 
 ## Done
 
+- [2026-08-11 UTC, later session] Session check — no ready `ios-shell` row.
+  Only `ios-shell` rows in `BACKLOG.md` are #17/#22/#41, all `done` (#41
+  landed earlier this same day, `5b76a6c`, and its dependent #42 (ios-ux) is
+  also already `done`, `be0b40a`). Checked `git branch -r --list
+  'origin/claude/*'` per the integrate-before-you-start rule: the only
+  candidate is this session's own branch
+  (`origin/claude/wizardly-thompson-lv7do1`), which carries no unmerged
+  `ios-shell`-owned work (its one commit, the "Year bought" label fix, is
+  already on `main`/`ios-staging`). Merged `origin/main` into `ios-staging`
+  (clean, no conflicts — backend's session-check commit plus two `ios-ux`-owned
+  file tweaks) before stopping. Only other `ready` row in the whole backlog is
+  `#39` (data lane, `normalize.js` altitude/weight/rating sanity envelopes) —
+  out of this lane's scope. Stopping cleanly rather than inventing work or
+  touching UX-owned paths.
+
 - [2026-08-11 UTC] 41 Edit API surface (PLAN.md §12) — branch `ios-staging`
   - `APIClient.editCoffeeField(publicId:field:value:)` → `POST /api/coffees/:id/edit`, same
     raw-string-in shape as `resolveReview` (checked `resolveField.js`'s `canonicalize()`: every
