@@ -194,6 +194,14 @@ Railway env vars, add a real 1024² AppIcon, then dispatch the first builds.
 
 ## 12. Gotchas
 
+- **HARD SIZE BUDGET — app + on-device data stays under 50 MB, always (Radu, 2026-08-10).**
+  This is a standing product constraint, not a target. The app binary and the
+  persisted snapshot are small and fixed; the thing that grows is the on-device
+  **image cache** (`Store/ImageStore.swift`), capped at **30 MB** and evicted at
+  launch (`RootView`) to hold the line. Any change that would push app+data over
+  50 MB — a bigger cache, bundling large assets, a fatter snapshot payload,
+  caching full-res images — **is not a call a lane makes on its own: ask Radu
+  whether it's worth exceeding the cap first.** When in doubt, stay under and ask.
 - App ID + ASC record are **manual** (`produce` has no API-key support).
 - Start command must be `node src/server.js`; bind port before migrations.
 - `MARKETING_VERSION` must move forward every release or TestFlight won't update.

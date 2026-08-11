@@ -25,7 +25,13 @@ enum ImageStoreError: Error {
 actor ImageStore {
     static let shared = ImageStore()
 
-    private static let maxFullBytes = 250 * 1024 * 1024
+    // Hard rule (CLAUDE.md): app + on-device data stays under 50 MB, always.
+    // The binary + persisted snapshot are small and fixed; this image cache is
+    // the only thing that grows, so it's the budget that matters — capped at
+    // 30 MB to leave headroom under 50 MB total. `evictStaleEntries()` is run at
+    // launch (see `RootView`) so this ceiling is actually enforced, not just
+    // declared.
+    private static let maxFullBytes = 30 * 1024 * 1024
     private static let maxAgeSeconds: TimeInterval = 30 * 24 * 60 * 60
 
     private let session: URLSession
@@ -106,9 +112,10 @@ actor ImageStore {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Purges fulls untouched for 30+ days and, if still over the 250 MB
-    /// budget, the oldest-touched files until it's under (PLAN.md §5). Call
-    /// from the BGTask handler, not on every launch.
+    /// Purges files untouched for 30+ days and, if still over the 30 MB budget,
+    /// the oldest-touched files until it's under (PLAN.md §5 / the CLAUDE.md
+    /// 50 MB rule). Cheap — a single directory scan — so it runs at launch
+    /// (`RootView`), not only from a BGTask that may never fire.
     func evictStaleEntries() {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(
