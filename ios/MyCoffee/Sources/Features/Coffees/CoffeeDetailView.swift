@@ -11,6 +11,7 @@ struct CoffeeDetailView: View {
     @EnvironmentObject private var store: CoffeeStore
     @State private var showReview = false
     @State private var fullTextExpanded = true
+    @State private var showFullPhoto = false
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -54,6 +55,13 @@ struct CoffeeDetailView: View {
                 Task { await store.loadDetail(for: initialCoffee) }
             }
         }
+        .fullScreenCover(isPresented: $showFullPhoto) {
+            FullPhotoView(urlString: coffee.images?.display)
+        }
+    }
+
+    private var hasPhoto: Bool {
+        (coffee.images?.display).flatMap(URL.init(string:)) != nil
     }
 
     // MARK: - Hero
@@ -75,6 +83,22 @@ struct CoffeeDetailView: View {
         .frame(height: 320)
         .frame(maxWidth: .infinity)
         .clipped()
+        // Tap the (cropped) hero to see the whole photo full-screen.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if hasPhoto { showFullPhoto = true }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if hasPhoto {
+                Image(systemName: Symbols.reviewZoom)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(8)
+                    .background(.black.opacity(0.35), in: Circle())
+                    .padding(12)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     private var heroPlaceholder: some View {
@@ -433,6 +457,60 @@ private struct NoteBlock: View {
             Text(text)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Full-screen photo viewer: the whole image (`scaledToFit`, not the cropped
+/// hero), pinch-to-zoom / double-tap-to-reset, on black, with an X to close.
+private struct FullPhotoView: View {
+    let urlString: String?
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if let url = urlString.flatMap(URL.init(string:)) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .scaleEffect(scale)
+                            .gesture(
+                                MagnificationGesture()
+                                    .onChanged { value in scale = max(1, min(5, lastScale * value)) }
+                                    .onEnded { _ in lastScale = scale }
+                            )
+                            .onTapGesture(count: 2) {
+                                withAnimation { scale = 1; lastScale = 1 }
+                            }
+                    case .failure:
+                        Image(systemName: Symbols.emptyCup)
+                            .font(.system(size: 56))
+                            .foregroundStyle(.white.opacity(0.5))
+                    default:
+                        ProgressView().tint(.white)
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: Symbols.close)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .padding()
         }
     }
 }
