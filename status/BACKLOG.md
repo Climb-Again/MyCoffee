@@ -45,13 +45,29 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 40 | backend   | 5 | done   | 36 | **Generic per-field edit endpoint** (PLAN.md §12) — `POST /api/coffees/:publicId/edit` `{field, value}` (+ `{edits:[...]}` batch) landed in `routes/coffees.js`; canonicalize + get-or-create + locked/`decided_by='human'` resolution + apply + close open review items, for ANY field on ANY coffee. Added the missing `roaster_country_id` canonicalize/denormalize/column-update case (`adjudicate.js`/`worker.js`), plus a real latent dedup bug it surfaced (`buildCoffeeColumnUpdates` could double-SET a column across two resolved fields — fixed). Resolve logic shared with `routes/review.js` via new `src/lib/resolveField.js`. Countries stay closed (422 on unknown). Verified end-to-end against a real local Postgres — see `status/backend.md` |
 | 41 | ios-shell | 5 | ready | 40 | **Edit API surface** (PLAN.md §12). `APIClient.editCoffeeField(publicId:field:value:)`; `CoffeeRepository.editField` via the mutation outbox + detail re-fetch; `CoffeeStore.editField`. Dropdown vocab already on-client (`index.vocabulary` + `Profile` enum) — no new read endpoint. Seam row: also claim in `status/ios-ux.md` |
 | 42 | ios-ux    | 5 | blocked | 40, 41 | **Edit sheet with consistency dropdowns** (PLAN.md §12). Edit button on `CoffeeDetailView` → `Form` sheet: origin country (multi-select) / roaster country / roaster / farm / process as **pickers over canonical vocab** ("Add new…" for roaster/farm routes through #40's get-or-create); altitude/weight/price/rating/roasted-on as bounded inputs; decaf toggle. Save applies each changed field via #41, reloads detail. `Features/Coffees` |
-| 39 | data      | 4 | done   | — | **Accept-by-default needs sanity envelopes** (PLAN.md §11 #39) — `parseAltitude` (`max<200`/`min>4000` → null), `parseWeight` (<1g/>5kg → null), `parseRating` (outside 0-5 → null, all three match branches) now hard-reject in `src/lib/normalize.js`. 213/213 `npm test` green (11 new). Not yet re-adjudicated against production (the $0 validation step) — see `status/data.md`. |
+| 39 | data      | 4 | claimed | — | **Accept-by-default needs sanity envelopes** (PLAN.md §11 #39) — `parseAltitude` (`max<200`/`min>4000` → null), `parseWeight` (<1g/>5kg → null), `parseRating` (outside 0-5 → null, all three match branches) now hard-reject in `src/lib/normalize.js`. 213/213 `npm test` green (11 new). **Code complete but NOT on `main` yet** — this session's `git push` is restricted to its own branch `claude/peaceful-mccarthy-24z886` (harness-assigned), which is not `main`; `origin/main` is still `074e846`, unmoved. Per `status/README.md`'s "done means on the shared branch" rule this stays `claimed`, not `done`, until an authorized session/human merges it. See `status/data.md`. |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
 whose `needs` are now all `done` from `blocked` to `ready` in the same commit. If
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🟡 2026-08-11 (data lane) — #39's code is done and tested, but not yet on `main`.**
+`parseAltitude`/`parseWeight`/`parseRating` in `backend/src/lib/normalize.js`
+now hard-reject implausible values to `null` instead of just flagging low
+confidence (PLAN.md §11 #39, Radu's own "altitude 1-5m doesn't make sense"
+ask). 213/213 `npm test` green. **Confirmed live, before pushing, that
+production currently has exactly this bug**: two real coffees
+(`ZqjVWBODPm-oKNqoCTmQWg` at `2–30m`, `zh8V1tWHHFmq0vyTox1sKQ` at `1–5m`) —
+this fix isn't theoretical. **Left at `claimed`, not `done`** — this
+session's `git push` is restricted to its own branch
+`claude/peaceful-mccarthy-24z886`, not `main` (`origin/main` still `074e846`),
+same structural gap `status/data.md` documents repeatedly for this repo.
+Whoever can push to `main`: merge, confirm tests, let the Railway deploy
+ship, then run `POST /api/admin/adjudicate` and confirm those two coffees'
+altitude fields drop to `null` while real altitudes elsewhere are
+untouched — then flip `#39` to `done`. Full detail in `status/data.md`.
 
 **🛠️ 2026-08-11 (backend lane) — #40 is DONE.** Generic per-field edit endpoint
 (PLAN.md §12): `POST /api/coffees/:publicId/edit`, single or batch. Reuses

@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-_none_
+- [2026-08-11 01:42 UTC] #39 accept-by-default needs field sanity envelopes (altitude/weight/rating hard reject) — code complete + tested (213/213), **stranded on `claude/peaceful-mccarthy-24z886`, not `main`** — see the ⚠ note below. Needs an authorized session/human to merge before `#39` can flip to `done`.
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
@@ -143,8 +143,23 @@ tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
   none `running`) before pushing `backend/**`.
   **$0 re-adjudication validation** (PLAN.md #39's own acceptance test —
   `POST /api/admin/adjudicate` re-runs over stored `field_candidates`, no new
-  LLM spend): see the follow-up note below for the post-deploy result.
-  — branch `main`, commit `3378955` (claim `e5859a0`).
+  LLM spend) can't run yet either — it needs this code deployed first, which
+  needs the merge below.
+  **Not on `main`.** This session's `git push` is restricted to its own
+  harness-assigned branch, `claude/peaceful-mccarthy-24z886` — not `main`
+  (`origin/main` is still `074e846`, unmoved). Same structural gap this
+  file's own 2026-08-01 correction and the `#25`/kix48i entry above already
+  document for this exact repo. **Leaving `#39` at `claimed`, not `done`,
+  in `BACKLOG.md`** per `status/README.md`'s "done means on the shared
+  branch" rule. Whoever can push to `main`: fast-forward/merge
+  `claude/peaceful-mccarthy-24z886`, confirm `npm test` (213/213), let
+  `railway-deploy.yml` ship it, then run `POST /api/admin/adjudicate` and
+  confirm the two live bad-altitude coffees (`ZqjVWBODPm-oKNqoCTmQWg`:
+  `2–30m`, `zh8V1tWHHFmq0vyTox1sKQ`: `1–5m`) drop to `altitudeMinM/MaxM: null`
+  while the thirteen other altitude-bearing coffees keep their real values —
+  then flip `#39` to `done`.
+  — branch `claude/peaceful-mccarthy-24z886`, commit `3378955` (claim
+  `e5859a0`).
 
 - [2026-08-10 02:00 UTC] #38 — **`backend/migrations/014_roaster_countries.sql`**
   populates `roasters.country_id` (previously NULL for all 89 seeded roasters,
