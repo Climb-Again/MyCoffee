@@ -4,7 +4,48 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_ (see `## Done` below — claimed and finished in the same session)
+_none_
+
+## 2026-08-11 UTC (later session): session check — no ready row this cycle
+
+`origin/main` tip is `a8c7d5b`. All backend-tagged `BACKLOG.md` rows are
+`done` (11/15/16/19/21/23/24/33/35/36/40); `#41` (ios-shell, needs 40) is
+`ready` but not this lane's; `#39` is tagged `data` (`src/lib/normalize.js`
+is Data-owned); `#37`/`#42` are `ios-ux`. Nothing backend-tagged to pick up.
+
+A first fetch scoped to just this session's branch name transiently reported
+`couldn't find remote ref` for `origin/claude/confident-cerf-8giftr` even
+though the branch exists (a stale local remote-tracking ref from container
+init was momentarily out of sync) — a full unscoped `git fetch origin`
+resolved it cleanly and confirmed `origin/main` and that ref agree exactly
+(`0`/`0` ahead-behind) at `a8c7d5b`, so no rebase or merge was needed.
+
+Swept all ~55 `origin/claude/*` branches via `git rev-list --count
+origin/main..<branch>`. Several show large non-zero counts
+(`determined-thompson-{7z8a69,c5t66g}` 36, `hopeful-johnson-3xcwg7` 53,
+`coffee-app-plan-9jdh0c`/`new-app-infrastructure-setup-h3r3wz` 35 each,
+others in the teens-to-30s) — for the ones with the biggest counts, checked
+`git merge-base origin/main <branch>`: it equals `origin/main`'s own tip for
+several of them (`origin/main` is an ancestor of the branch, not the other
+way around), meaning their "extra" commits are old lane session-check
+no-ops layered on top of a main state that has since had all of its real
+content re-verified current. Given the extensive prior audits already on
+record in this file reaching the same "nothing backend-owned to integrate"
+conclusion release after release, did not re-diff all ~55 branches
+file-by-file this session — flagging the two biggest ones
+(`hopeful-johnson-3xcwg7`, `determined-thompson-c5t66g`) as the only ones
+worth a deeper look if a future session has reason to suspect real stranded
+backend work, rather than claiming a from-scratch exhaustive audit here.
+
+Ran `cd backend && npm ci && npm test` — **210/210 green**, matching #40's
+landing count, no drift. Live-verified `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`{"ok":true,"service":"mycoffee-api","db":true,"vertex":true,
+"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`/`paused`,
+**none `running`** — confirms it would have been safe to push `backend/**`
+this session, though there was no code to push.
+
+No code changes — stopping cleanly per the work loop (do not invent work).
 
 ## 2026-08-11 UTC: #40 — generic per-field edit endpoint
 
