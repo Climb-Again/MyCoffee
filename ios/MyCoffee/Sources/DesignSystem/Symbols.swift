@@ -59,4 +59,8 @@ enum Symbols {
     static let reviewZoom = "arrow.up.left.and.arrow.down.right"
     static let reviewPhotoMissing = "photo"
     static let reviewEmpty = "checkmark.circle"
+
+    // Edit sheet (#42)
+    static let edit = "pencil"
+    static let pickerSelected = "checkmark"
 }

@@ -11,6 +11,7 @@ struct CoffeeDetailView: View {
     @EnvironmentObject private var store: CoffeeStore
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
     @State private var showReview = false
+    @State private var showEdit = false
     @State private var fullTextExpanded = true
     @State private var showFullPhoto = false
 
@@ -40,12 +41,21 @@ struct CoffeeDetailView: View {
             await reviewCache.ensureLoaded()
         }
         .toolbar {
-            // Only the trailing Share button is custom — the system back button
-            // stays (one arrow, and it keeps edge-swipe-back working). A second
-            // custom back button here is what produced the duplicate arrow.
+            // Only the trailing Share/Edit buttons are custom — the system back
+            // button stays (one arrow, and it keeps edge-swipe-back working). A
+            // second custom back button here is what produced the duplicate arrow.
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
                     Image(systemName: Symbols.share)
+                        .padding(10)
+                        .background(.thinMaterial, in: Circle())
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showEdit = true
+                } label: {
+                    Image(systemName: Symbols.edit)
                         .padding(10)
                         .background(.thinMaterial, in: Circle())
                 }
@@ -64,6 +74,9 @@ struct CoffeeDetailView: View {
         }
         .fullScreenCover(isPresented: $showFullPhoto) {
             FullPhotoView(urlString: coffee.images?.display)
+        }
+        .sheet(isPresented: $showEdit) {
+            CoffeeEditSheet(coffee: coffee)
         }
     }
 

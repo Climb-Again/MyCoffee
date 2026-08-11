@@ -295,6 +295,72 @@ _none_
 
 ## Done
 
+- [2026-08-11 UTC] 42 Edit sheet with consistency dropdowns (PLAN.md §12) — branch `ios-staging`
+  - Merged `origin/main` into `ios-staging` first per the integrate-before-you-start rule: `git branch -r --list
+    'origin/claude/*'` showed nothing stranded touching `Sources/{Features,DesignSystem}` or `Resources`, but the merge
+    itself surfaced that `#41` (ios-shell) had already landed on `ios-staging` (`5b76a6c`, flipping `#42`→`ready`)
+    while `main`'s own copy of `status/BACKLOG.md` still showed `#41` merely `ready`/`#42` `blocked` — resolved the
+    conflict by keeping `ios-staging`'s more current rows (same "each branch only knows its own lane's latest" gap
+    the shell lane's own 2026-08-10 entry documents). `#37` turned out to be done too (`57f6073`, already on
+    `ios-staging`) — the copy of `status/ios-ux.md` this session read at the very start (before the merge) was stale
+    and didn't show it; not redone.
+  - New `Sources/Features/Coffees/CoffeeEditSheet.swift`. A pencil `ToolbarItem` on `CoffeeDetailView` (next to the
+    existing Share button) opens it as a sheet.
+  - **Every vocab-backed field is a picker, never free text** (the row's own requirement, so an edit can't spawn an
+    inconsistent variant): origin country is a multi-select searchable list over `vocabulary.countries` filtered
+    `isOrigin` (no "is this a blend" toggle — `isBlend` is derived server-side from how many ids resolve, same as
+    extraction); roaster country is a single-select over `isRoaster` countries; roaster and farm are single-select
+    searchable lists over their vocab tables **plus** an "Add new…" `TextField` + `Use` button (mirrors
+    `ReviewCardView`'s existing "Other…" reveal pattern exactly) that routes through #40's get-or-create. Countries
+    have no add-new section at all (`VocabPickerView`'s `newValue: Binding<String>?` is `nil` for the two country
+    pickers) — #36 only get-or-creates roasters/farms, countries stay closed.
+  - **Process** is a `Picker` over `Profile.allCases` + a literal "Unknown" case tagged `Profile?.none` (the standard
+    optional-selection `Picker` pattern — tags and the binding must be the exact same `Profile?` type for SwiftUI's
+    tag-matching to work, not just compile), with `isDecaf` as a separate `Toggle` (decaf is orthogonal to process,
+    matching pushback #3 / `DecafBadge`'s own precedent).
+  - **Raw-value formatting sent to `CoffeeStore.editField`**, reverse-engineered from `backend/src/lib/normalize.js`'s
+    parsers rather than guessed (checked every regex): altitude → `"<min> m"` or `"<min>-<max> m"` (matches
+    `ALTITUDE_RANGE_RE`/`_SINGLE_RE`); weight → `"<grams>g"` (`WEIGHT_RE`); price → `"<amount> EUR"` (the
+    `€|eur\b` branch of `CURRENCY_PATTERNS`, confidence 1.0 — editing intentionally targets the EUR column directly
+    rather than round-tripping through an original-currency+FX pair); rating → `"<value>/5"` (the highest-confidence
+    `parseRating` branch, not the bare-number fallback); roasted-on → plain `PlainDate.isoString` (`YYYY-MM-DD`, the
+    ISO branch of `parseDate`); origin country → selected names joined with `", "` (`resolveOriginCountries`'s
+    `MULTI_VALUE_SPLIT_RE` includes comma); roaster/farm/roaster-country → the bare canonical name string;
+    profile → `"<displayName>"` + `" decaf"` when the toggle is on, or bare `""` when Unknown+not-decaf is explicitly
+    chosen (`canonicalize('profile', ...)` never returns `null` for a non-null string, even empty, so this
+    legitimately clears a coffee to Unknown rather than 422ing).
+  - **Only actually-changed fields round-trip** — every draft `@State` is diffed against a `private let original*`
+    snapshot captured in `init` from the `Coffee` the sheet opened with (not against "is the field empty", which
+    would have been wrong: the rating `Slider` and roasted-on `DatePicker` both need a concrete non-nil default to
+    render at all, so an untouched optional field defaulting to e.g. 3.0★ must never look "changed"). Solved with a
+    `hasRating`/`hasRoastedOn` pair of toggles mirroring each other (gate whether the control renders at all AND
+    whether save even considers that field), and a small epsilon (`> 0.001` rating, `> 0.005` price) instead of exact
+    `Double` equality so a value round-tripped through display formatting (`"%.2f"`) can't spuriously "change" on
+    floating-point noise alone.
+  - **One real Swift-correctness fix caught before it shipped, not by compiling** (no local Xcode): comparing a
+    non-optional `Int`/`PlainDate` against an `Int?`/`PlainDate?` with `!=` does not compile in Swift without explicit
+    wrapping — `Optional(minValue) != originalAltitudeMin`, not `minValue != originalAltitudeMin`. Caught by reasoning
+    through the standard library's actual overload set rather than assuming C-style implicit promotion; fixed all
+    four instances (altitude min/max, weight, roasted-on) before this file was written up as done.
+  - **Also swapped `[(id: Int, name: String)]` tuples for a small `private struct VocabEntry: Identifiable, Hashable`**
+    in `VocabPickerView` — tuple-label keypaths (`ForEach(_, id: \.id)` over an anonymous tuple type) are the kind of
+    thing that's fine in some Swift versions and not others, and there's no local Xcode to confirm which; a named
+    `Identifiable` struct removes the ambiguity entirely rather than betting on it.
+  - **Flagged, not built, since it needs shell-owned files**: the backend already supports a batch `{edits:[...]}`
+    request (#40) specifically so e.g. editing `roaster` and `roasterCountry` together doesn't have the derived value
+    overwrite the explicit one depending on request order — but `APIClient.editCoffeeField`/`CoffeeStore.editField`
+    (#41) only expose a single-field call, so this sheet fires one HTTP request per changed field with no ordering
+    guarantee between them. Low-probability in practice (a user changing both roaster and roaster-country by hand in
+    one save is rare), but real. **Shell lane, if you'd like to close it:** an `APIClient.editCoffeeFields(publicId:
+    edits:)` + a matching `CoffeeStore` batch wrapper would let this sheet send one request instead of N; claim in
+    both lane files per the seam rule if picked up.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red, check `CoffeeEditSheet.swift` first;
+    the `Profile?`-tagged `Picker` and the four `Optional(...)` comparisons above are the most likely first things to
+    check, everything else mirrors an existing pattern in `FilterSheetView`/`ReviewCardView`/`FacetFullListView`.
+  - `ios/MyCoffee/Sources/{Features/Coffees/CoffeeEditSheet,Features/Coffees/CoffeeDetailView,
+    DesignSystem/Symbols}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-08 UTC, later session] 37 "Needs review" reflects only actionable items — branch `ios-staging`
   - Picked up as the only `ready` `ios-ux` row after merging `origin/main` into `ios-staging`
     (backend's `#35`/`#36` landed and flipped this row `blocked`→`ready`, per `status/BACKLOG.md`).

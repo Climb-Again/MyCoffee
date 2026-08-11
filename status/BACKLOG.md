@@ -44,7 +44,7 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 38 | data      | 4 | done   | — | **Roaster countries** — `backend/migrations/014_roaster_countries.sql` populates `roasters.country_id` for 80/89 seeded roasters + backfills `coffees.roaster_country_id`. **Correction to this row's own premise**: the product brief has no roaster↔country pairing at all (verified against `word/document.xml`); sourced via live web search per roaster instead, one at a time, not from the brief. The row's own example "Concept Coffee Roasters→Romania" was wrong (actually Slovakia) — caught by verifying rather than trusting the note. 9 roasters left `NULL` on purpose (ambiguous/no confident source, incl. `Typika` which is genuinely dual Czech Republic+Poland) per Radu's "guess only very close matches" rule. 6 new countries added (Italy, Austria, Sweden, Finland, Slovenia, South Korea). Verified end-to-end against a real local Postgres 16, `npm test` 202/202. See `status/data.md` for the full roaster→country table and the negative/idempotency checks. Deploys via Railway on push; no TestFlight publish needed |
 | 40 | backend   | 5 | done   | 36 | **Generic per-field edit endpoint** (PLAN.md §12) — `POST /api/coffees/:publicId/edit` `{field, value}` (+ `{edits:[...]}` batch) landed in `routes/coffees.js`; canonicalize + get-or-create + locked/`decided_by='human'` resolution + apply + close open review items, for ANY field on ANY coffee. Added the missing `roaster_country_id` canonicalize/denormalize/column-update case (`adjudicate.js`/`worker.js`), plus a real latent dedup bug it surfaced (`buildCoffeeColumnUpdates` could double-SET a column across two resolved fields — fixed). Resolve logic shared with `routes/review.js` via new `src/lib/resolveField.js`. Countries stay closed (422 on unknown). Verified end-to-end against a real local Postgres — see `status/backend.md` |
 | 41 | ios-shell | 5 | done | 40 | **Edit API surface** (PLAN.md §12) — `APIClient.editCoffeeField(publicId:field:value:)`; `CoffeeRepository.editField` via the mutation outbox + detail re-fetch; `CoffeeStore.editField`. Dropdown vocab already on-client (`index.vocabulary` + `Profile` enum) — no new read endpoint. Landed on `ios-staging`, see `status/ios-shell.md` for detail (not locally compiled — no Xcode in this sandbox) |
-| 42 | ios-ux    | 5 | ready | 40, 41 | **Edit sheet with consistency dropdowns** (PLAN.md §12). Edit button on `CoffeeDetailView` → `Form` sheet: origin country (multi-select) / roaster country / roaster / farm / process as **pickers over canonical vocab** ("Add new…" for roaster/farm routes through #40's get-or-create); altitude/weight/price/rating/roasted-on as bounded inputs; decaf toggle. Save applies each changed field via #41, reloads detail. `Features/Coffees` |
+| 42 | ios-ux    | 5 | done | 40, 41 | **Edit sheet with consistency dropdowns** (PLAN.md §12) — `Features/Coffees/CoffeeEditSheet.swift`, a pencil button on `CoffeeDetailView`'s toolbar opening a `Form` sheet: origin country (multi-select, closed vocab) / roaster country (closed) / roaster / farm (both with an "Add new…" text fallback routing through #40's get-or-create) as searchable pickers over canonical vocab; process as a 5-case + Unknown `Picker` with a separate decaf `Toggle`; altitude/weight/price/rating/roasted-on as bounded inputs, each gated so an untouched optional field never spuriously round-trips. Save diffs against the values the sheet opened with and fires one `CoffeeStore.editField` call (#41) per actually-changed field — see `status/ios-ux.md` for the raw-value formatting per field (e.g. `"250g"`, `"4.5/5"`, `"1800-2000 m"`) and the one flagged gap (no client batch-edit wrapper yet, so a roaster+roasterCountry edit in the same save isn't atomic). |
 | 39 | data      | 4 | ready   | — | **Accept-by-default needs sanity envelopes** (PLAN.md §11 #39). Radu: "accept all guesses, but altitude 1–5 m doesn't make sense." #35 applies the top pick regardless of confidence, so a mis-parsed `1–5 m` altitude now shows. Give `parseAltitude` a hard reject (`max<200` or `min>4000` → null → field absent) beyond the soft `needsReview` band; same "obviously-not-this-quantity → null" guard for `parseWeight`/`parseRating`. $0 to validate via re-adjudication. `src/lib/normalize.js` |
 
 **Unblocking is a normal part of the job.** When you finish an item, flip every row
@@ -52,6 +52,32 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**✏️ 2026-08-11 (ios-ux lane) — #42 is DONE.** Edit sheet with consistency
+dropdowns (PLAN.md §12): a pencil button on `CoffeeDetailView`'s toolbar opens
+`CoffeeEditSheet` (`Features/Coffees/CoffeeEditSheet.swift`), a `Form` with
+searchable pickers over canonical vocab for origin country (multi-select),
+roaster country, roaster, and farm (the latter two with an "Add new…" text
+fallback into #40's get-or-create — countries stay closed per #36, no
+add-new there), a segmented process picker (5 cases + Unknown) with a
+separate decaf toggle, and bounded inputs for altitude/weight/price/rating/
+roasted-on. `Save` diffs every field against the value the sheet opened with
+— not just "is the control non-empty" — so an untouched optional field (e.g.
+a coffee with no rating yet, where the slider defaults to a visible 3.0)
+never fires a spurious edit; each changed field becomes one
+`CoffeeStore.editField` call (#41). Picked up straight from `BACKLOG.md`
+without rediscovering #41 first: merging `origin/main` into `ios-staging`
+surfaced that `#41` (ios-shell) had already landed there (`5b76a6c`) and
+flipped `#42`'s row to `ready`, while `main`'s own copy of the table still
+showed `#41` merely `ready`/`#42` `blocked` — same "each branch only knows
+its own lane's latest" pattern this file has hit before (see the 2026-08-10
+ios-shell entry below). Resolved the merge conflict by keeping `ios-staging`'s
+more current rows. Full per-field raw-value formatting + the one flagged
+client-side gap are in `status/ios-ux.md`. Not locally compiled (no Xcode
+here) — flag the compile lane to `Features/Coffees/CoffeeEditSheet.swift`
+first if the next check goes red; the `Profile?`-tagged `Picker` and the
+`VocabEntry` `Identifiable` wrapper (added to dodge tuple-keypath ambiguity
+in `ForEach`) are the two least-proven-by-precedent pieces in this file.
 
 **📱 2026-08-11 (ios-shell lane) — #41 is DONE.** Edit API surface (PLAN.md
 §12): `APIClient.editCoffeeField(publicId:field:value:)` (same raw-string-in
