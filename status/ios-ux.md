@@ -8,6 +8,29 @@ _none_
 
 ## Session notes
 
+- [2026-08-11 UTC] No-op session. `BACKLOG.md`: all five `ios-ux` rows (#18,
+  #27, #28, #37, #42) are `done`. The only `ready` rows this cycle are `#39`
+  (data, altitude/weight/rating sanity envelopes), `#43`/`#44` (backend,
+  photo-size budget + auto-create-farms) — none in this lane's owned paths.
+  Checked `git branch -r --list 'origin/claude/*'` — only this session's own
+  branch (`origin/claude/hopeful-johnson-984get`, exactly `origin/main`'s tip)
+  exists; nothing stranded touching `Sources/Features`, `Sources/DesignSystem`,
+  or `Resources` to adopt.
+  Merged `origin/main` into `ios-staging` (two conflicts, both pure status-note
+  divergence, no code): `status/BACKLOG.md` had `main`'s stale `ready`/`blocked`
+  for `#41`/`#42` (ios-staging already shipped both `done`) plus main's new
+  `#39`/`#44`/`#43` rows — kept `ios-staging`'s `done` status for `#41`/`#42`
+  and folded in the three new rows; also fixed a pre-existing formatting bug
+  in `main`'s copy where row `#43`'s text ran on into row `#39`'s "Radu: accept
+  all guesses..." sentence with no row break — restored `#43` as its own row,
+  ending at "Measure a display's bytes before/after". `status/backend.md` had
+  two backend session-note blocks appended at the same spot on divergent
+  history (same pattern as prior sessions' merges) — resolved as a union, kept
+  both. Also picked up main's 50 MB budget work (`ImageStore.swift` 30 MB cap +
+  `MyCoffeeApp.swift` launch eviction, `CLAUDE.md` §12) cleanly, no conflict —
+  both shell/root-owned, untouched here. Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
 - [2026-08-10 UTC] No-op session (second check same day). `BACKLOG.md`: still
   only four `ios-ux` rows (#18, #27, #28, #37), all `done`. The lone `ready`
   row is `#39` (data lane, altitude/weight/rating sanity envelopes in
