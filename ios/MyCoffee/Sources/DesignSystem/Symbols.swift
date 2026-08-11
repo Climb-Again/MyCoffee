@@ -21,6 +21,7 @@ enum Symbols {
     static let chevronBackward = "chevron.backward"
     static let settings = "gearshape"
     static let share = "square.and.arrow.up"
+    static let close = "xmark"
 
     // Process tags
     static let processDecaf = "moon.zzz.fill"
