@@ -69,7 +69,7 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
   assert.equal(plausible.confidence, 1.0);
   assert.equal(plausible.needsReview, false);
 
-  const implausible = parseAltitude('50 to 80 masl');
+  const implausible = parseAltitude('300 to 500 masl'); // real range, just unusual
   assert.equal(implausible.confidence, 0.5);
   assert.equal(implausible.needsReview, true);
 
@@ -78,6 +78,19 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
 
   assert.equal(parseAltitude('no altitude mentioned here'), null);
   assert.equal(parseAltitude(''), null);
+});
+
+test('parseAltitude: hard plausibility envelope -- accept-by-default (#39) has no confidence gate downstream, so nonsense must become absent', () => {
+  // Radu's own example: "altitude 1-5 m does not make sense".
+  assert.equal(parseAltitude('1 to 5 masl'), null);
+  assert.equal(parseAltitude('50 to 80 masl'), null); // max < 200 -> hard reject
+  assert.equal(parseAltitude('9000 masl'), null); // min > 4000 -> hard reject
+  // Just inside the hard envelope, even though far from the soft 900-2200
+  // plausible band -- still a real elevation, so it must survive as review-
+  // worthy data, not be nulled out.
+  const edge = parseAltitude('200 to 250 masl');
+  assert.equal(edge.min, 200);
+  assert.equal(edge.needsReview, true);
 });
 
 // ---- Price ----
@@ -113,6 +126,16 @@ test('parseWeight: refuses to guess when an altitude marker sits right next to t
   assert.deepEqual(parseWeight('grown at 1600 masl, bag is 250g'), { grams: 250, confidence: 1.0 });
 });
 
+test('parseWeight: hard plausibility envelope -- no coffee bag is sub-gram or over 5kg', () => {
+  assert.equal(parseWeight('0.5g'), null); // sub-gram
+  assert.equal(parseWeight('8000g'), null); // > 5kg
+  // Just inside the envelope but far from the standard sizes -- still real,
+  // low-confidence data, not nulled out.
+  const edge = parseWeight('4990g');
+  assert.equal(edge.grams, 4990);
+  assert.equal(edge.confidence, 0.6);
+});
+
 // ---- Rating ----
 
 test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', () => {
@@ -121,6 +144,16 @@ test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', (
   assert.deepEqual(parseRating('⭐️4.1'), { value: 4.1, confidence: 0.9 });
   assert.deepEqual(parseRating('4.1'), { value: 4.1, confidence: 0.6 }); // bare number -> 0.6
   assert.equal(parseRating(''), null);
+});
+
+test('parseRating: hard plausibility envelope -- the scale is 0-5, matching the DB CHECK constraint', () => {
+  // Regression shape: a live production photo had a stray "45" (unrelated
+  // digits, not a rating) reach the bare-number fallback with no range check.
+  assert.equal(parseRating('45'), null);
+  assert.equal(parseRating('6.5'), null); // bare fallback, out of scale
+  assert.equal(parseRating('12/5'), null); // numerator itself outside 0-5
+  assert.deepEqual(parseRating('5/5'), { value: 5, confidence: 1.0 }); // boundary, still valid
+  assert.deepEqual(parseRating('0/5'), { value: 0, confidence: 1.0 }); // boundary, still valid
 });
 
 // ---- Dates ----

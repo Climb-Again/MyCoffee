@@ -86,6 +86,14 @@ export function parseAltitude(text) {
   if (min == null || max == null) return null;
   if (min > max) [min, max] = [max, min];
 
+  // Hard reject: outside any range a real coffee-growing altitude could be
+  // (e.g. a mis-parsed roast-level scale or count, not an elevation) -- the
+  // field reads as absent, not a bogus number. Accept-by-default (PLAN.md
+  // §11) applies the top pick regardless of confidence, so this can no
+  // longer be caught downstream by a confidence threshold. Distinct from the
+  // soft 900-2200 plausible band below, which is "real but unusual."
+  if (max < 200 || min > 4000) return null;
+
   const plausible = min >= 900 && max <= 2200;
   const wideSpan = max - min > 800;
   return {
@@ -151,6 +159,10 @@ export function parseWeight(text) {
 
   const grams = parseNumber(match[1], { field: 'weight' });
   if (grams == null) return null;
+  // Hard reject: no coffee bag is sub-gram or over 5 kg -- a value out here
+  // is a mis-parse (a count, a year, a bled-through altitude digit), not a
+  // real weight. Field reads as absent rather than storing nonsense.
+  if (grams < 1 || grams > 5000) return null;
   const snapped = WEIGHT_STANDARD_G.find((v) => Math.abs(v - grams) <= 3);
   return {
     grams: snapped ?? grams,
@@ -160,6 +172,14 @@ export function parseWeight(text) {
 
 // ---- Rating ----
 
+// Hard reject: the app's rating scale is 0-5 (matches the `coffees.rating`
+// CHECK constraint). A value outside it is a mis-parse -- most often the
+// bare-number fallback below grabbing an unrelated digit (a date, a count) --
+// not a real rating, so it reads as absent rather than storing nonsense.
+function inRatingRange(value) {
+  return value != null && value >= 0 && value <= 5;
+}
+
 export function parseRating(text) {
   if (!text) return null;
   const s = String(text);
@@ -167,19 +187,19 @@ export function parseRating(text) {
   let m = s.match(/(\d[.,]?\d?)\s*\/\s*5\b/);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 1.0 };
+    return inRatingRange(value) ? { value, confidence: 1.0 } : null;
   }
 
   m = s.match(/⭐️?\s*(\d[.,]?\d?)/u);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.9 };
+    return inRatingRange(value) ? { value, confidence: 0.9 } : null;
   }
 
   m = s.match(/(\d[.,]?\d?)/);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.6 };
+    return inRatingRange(value) ? { value, confidence: 0.6 } : null;
   }
 
   return null;
