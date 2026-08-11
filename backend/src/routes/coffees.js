@@ -6,10 +6,11 @@
 //   GET  /api/coffees/:publicId   detail
 //   GET  /api/coffees/top-filters up to 7 server-ordered cards (PLAN.md §6.1)
 //   POST /api/coffees/:publicId/favorite
+//   POST /api/coffees/:publicId/edit     generic per-field edit (PLAN.md §12 #40)
 //
-// Reads use requireAnyToken; the favorite write uses requireIngestToken, same
-// as every other write path — the iOS app holds INGEST_TOKEN in the Keychain
-// for exactly this (CLAUDE.md §9), not just the Mac exporter.
+// Reads use requireAnyToken; the favorite/edit writes use requireIngestToken,
+// same as every other write path — the iOS app holds INGEST_TOKEN in the
+// Keychain for exactly this (CLAUDE.md §9), not just the Mac exporter.
 import { requireAnyToken, requireIngestToken } from '../auth.js';
 import { query } from '../db.js';
 import { buildMediaUrl } from '../media.js';
@@ -18,6 +19,16 @@ import {
   loadRoasterVocab,
   loadFarmVocab,
 } from '../lib/vocab.js';
+import { loadSharedContext, applyResolutionsToCoffee } from '../lib/worker.js';
+import { EDIT_FIELD_TO_CLIENT, resolveField } from '../lib/resolveField.js';
+
+// Inverted once at module load: client field name (camelCase, from the iOS
+// edit sheet) -> DB field name. A client field with no entry here is unknown
+// to the edit endpoint, not merely un-reviewable (unlike FIELD_TO_CLIENT's
+// narrower review-feed set).
+const CLIENT_TO_FIELD = Object.fromEntries(
+  Object.entries(EDIT_FIELD_TO_CLIENT).map(([dbField, clientField]) => [clientField, dbField]),
+);
 
 // Snapshot payload shape version — bump only when the *shape* of a coffee row
 // or the vocab dictionary changes, so the client knows to drop a cached file
@@ -274,5 +285,60 @@ export default async function coffeesRoutes(app) {
     const row = rows[0];
     if (!row) return reply.code(404).send({ error: 'coffee_not_found' });
     return { id: row.public_id, isFavorite: row.is_favorite };
+  });
+
+  // Generic per-field edit (PLAN.md §12 #40): the review queue only surfaces
+  // extraction-flagged fields, but Radu wants any core field of any coffee
+  // editable on demand, with the exact same locked/human-decided/get-or-create
+  // machinery the review resolve route uses (`resolveField`, `lib/resolveField.js`)
+  // so an edit can never be silently undone by a later adjudication pass.
+  app.post('/api/coffees/:publicId/edit', { preHandler: requireIngestToken }, async (req, reply) => {
+    const edits = Array.isArray(req.body?.edits)
+      ? req.body.edits
+      : [{ field: req.body?.field, value: req.body?.value }];
+    if (edits.length === 0 || edits.some((e) => !e?.field || !('value' in (e ?? {})))) {
+      return reply.code(400).send({ error: 'missing_field_or_value' });
+    }
+
+    const { rows } = await query(
+      `SELECT co.id AS coffee_id, co.photo_id, p.captured_on
+       FROM coffees co JOIN photos p ON p.id = co.photo_id
+       WHERE co.public_id = $1 AND co.deleted_at IS NULL`,
+      [req.params.publicId],
+    );
+    const row = rows[0];
+    if (!row) return reply.code(404).send({ error: 'coffee_not_found' });
+
+    const dbFields = edits.map((e) => CLIENT_TO_FIELD[e.field]);
+    const unknown = edits.find((e, i) => !dbFields[i]);
+    if (unknown) return reply.code(400).send({ error: 'unknown_field', field: unknown.field });
+
+    const sharedCtx = await loadSharedContext();
+    const ctx = { ...sharedCtx, photoDate: row.captured_on };
+
+    // Applied one at a time (each `resolveField` call is its own DB write),
+    // but every resolution is batched into one `applyResolutionsToCoffee` at
+    // the end so a multi-field save (e.g. roaster + roaster country together
+    // from #42's edit sheet) writes the coffees row once, not once per field.
+    const resolutions = {};
+    const results = [];
+    for (let i = 0; i < edits.length; i++) {
+      const dbField = dbFields[i];
+      const outcome = await resolveField(row.photo_id, dbField, edits[i].value, ctx);
+      if (outcome.error) {
+        return reply.code(422).send({ error: outcome.error, field: edits[i].field, value: edits[i].value });
+      }
+      await query(
+        `UPDATE review_items SET status = 'resolved', resolved_value = $3, resolved_at = now()
+         WHERE photo_id = $1 AND field = $2 AND status = 'open'`,
+        [row.photo_id, dbField, JSON.stringify(outcome.value)],
+      );
+      resolutions[dbField] = { decision: 'accepted', value: outcome.value };
+      results.push({ field: edits[i].field, value: outcome.value });
+    }
+
+    await applyResolutionsToCoffee(row.coffee_id, row.photo_id, resolutions, ctx);
+
+    return { id: req.params.publicId, edits: results };
   });
 }

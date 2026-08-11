@@ -28,6 +28,7 @@ const roasterVocab = {
       { id: 10, name: 'Ethiopia', is_origin: true, is_roaster: false, kind: 'country' },
       { id: 11, name: 'Kenya', is_origin: true, is_roaster: false, kind: 'country' },
       { id: 99, name: 'Blend', is_origin: true, is_roaster: false, kind: 'pseudo' },
+      { id: 5, name: 'Netherlands', is_origin: false, is_roaster: true, kind: 'country' },
     ],
     aliasIndex: new Map(),
   },
@@ -41,6 +42,19 @@ const BASE_CTX = { vocab: roasterVocab };
 test('canonicalize roaster_id resolves via exact alias', () => {
   const c = canonicalize('roaster_id', 'DAK', { vocab: roasterVocab });
   assert.equal(c.id, 1);
+});
+
+test('canonicalize roaster_country_id resolves against countries, not the roaster vocab', () => {
+  // Never voted on by extraction -- exists for the generic edit endpoint
+  // (PLAN.md §12 #40) to resolve a direct roaster-country edit.
+  const c = canonicalize('roaster_country_id', 'Netherlands', { vocab: roasterVocab });
+  assert.equal(c.id, 5);
+});
+
+test('canonicalize roaster_country_id rejects a resolved country that is not is_roaster', () => {
+  // Ethiopia resolves fine as a country but is origin-only in the fixture --
+  // a roaster-country edit must not silently accept the wrong kind of country.
+  assert.equal(canonicalize('roaster_country_id', 'Ethiopia', { vocab: roasterVocab }), null);
 });
 
 test('canonicalize origin_country_ids splits a multi-value string', () => {
@@ -84,6 +98,7 @@ test('fieldsEqual: price requires same currency and within 0.05', () => {
 
 test('denormalize round-trips the shapes adjudicateField writes to field_resolutions.value', () => {
   assert.equal(denormalize('roaster_id', { id: 7 }), 7);
+  assert.equal(denormalize('roaster_country_id', { id: 5 }), 5);
   assert.deepEqual(denormalize('altitude', { min: 1300, max: 1600 }), { min: 1300, max: 1600 });
   assert.deepEqual(denormalize('price', { amount: 10, currency: 'EUR' }), { amount: 10, currency: 'EUR' });
 });
