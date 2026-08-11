@@ -90,6 +90,19 @@ Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
 `blocked`→`ready`/stay `blocked` respectively in `BACKLOG.md` in the same
 push — `#41` is now unblocked; `#42` still needs `#41` too.
 
+Pushed straight to `origin/main` (fast-forward `4c1d386..22b081d`) per this
+lane's branch (this session's own `claude/confident-cerf-ey7lm6` scratch
+branch was also updated to the same tip, so it isn't orphaned per the
+"integrate before you start" rule). Watched `railway-deploy.yml` run
+`31447438362` via the GitHub Actions API to completion — **`completed
+success`**. Post-deploy live-verify: `GET /health` → `{"ok":true,"db":true,
+"service":"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`;
+`POST /api/coffees/nonexistent/edit` with no bearer → `401`, with a valid
+ingest token → `{"error":"coffee_not_found"}` (proves the new route, its
+auth gate, and its coffee lookup are all live in production) — did not run
+a real edit against production data, same caution prior sessions have taken
+with #36's live verification.
+
 ## 2026-08-10 UTC (later session): session check — no ready row this cycle
 
 Local clone started 23 commits behind on this session's `claude/*` branch
