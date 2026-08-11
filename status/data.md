@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-_none_
+- [2026-08-11 01:42 UTC] #39 accept-by-default needs field sanity envelopes (altitude/weight/rating hard reject) — branch `main`
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
