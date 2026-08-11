@@ -6,6 +6,44 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-11 UTC (later session, third check): session check — no ready row this cycle
+
+`origin/main` tip is `0282580` (this session's own branch,
+`claude/confident-cerf-jn6jlt`, sits exactly on that tip — 0 ahead/0 behind,
+confirmed via `git rev-parse HEAD origin/main`). No fast-forward needed.
+
+All backend-tagged `BACKLOG.md` rows are still `done`
+(11/15/16/19/21/23/24/33/35/36/40). `#41` (ios-shell, needs 40) is `ready` but
+not this lane's; `#37`/`#42` (ios-ux) are `ready`/`blocked`; `#39` (data,
+altitude/weight/rating sanity envelopes) is `ready` but `src/lib/normalize.js`
+is Data-owned. Nothing backend-tagged to pick up.
+
+Swept all 74 `origin/claude/*` branches via `git rev-list --count
+origin/main..<branch>`. Counts match the prior sweep's shape exactly (same
+branch names, same or slightly grown ahead-counts —
+`hopeful-johnson-3xcwg7` 59, `determined-thompson-{ljny72,jwlcyu,2mu3br}`
+40-41, `peaceful-mccarthy-3f480y` 39, `determined-thompson-{c5t66g,7z8a69}`
+36). Re-checked the two the prior session flagged as "worth a deeper look"
+(`hopeful-johnson-3xcwg7`, `determined-thompson-c5t66g`): both `backend/`
+diffs against current `main` are identical to each other and
+**net-deletions-only** (`30 files changed, 47 insertions(+), 5387
+deletions(-)`) — confirmed stale forks off an older `main` tip predating
+`resolveField.js`/#40, not stranded work. Nothing backend-owned or
+actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **210/210 green**, matching #40's
+landing count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe
+to push `backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **7** open items (down from 8 at the last check),
+consistent with continued human review resolution, no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-11 UTC (later session, second check): session check — no ready row this cycle
 
 `origin/main` tip is `3681201` (30 commits ahead of this session's own branch —
