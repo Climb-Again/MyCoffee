@@ -6,6 +6,45 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-11 UTC (later session, second check): session check — no ready row this cycle
+
+`origin/main` tip is `3681201` (30 commits ahead of this session's own branch —
+all iOS shell/UX work, e.g. the "Year bought" filter label; `status/BACKLOG.md`
+and `status/backend.md` are byte-identical between the two, confirmed via
+`git diff`, so no drift to reconcile). Fast-forwarded local `main` to match.
+
+All backend-tagged `BACKLOG.md` rows are still `done`
+(11/15/16/19/21/23/24/33/35/36/40). `#41` (ios-shell, needs 40) is `ready` but
+not this lane's; `#42` (ios-ux) stays `blocked` on 40+41; `#39` (data,
+altitude/weight/rating sanity envelopes) is `ready` but `src/lib/normalize.js`
+is Data-owned; `#37` (ios-ux) is `ready`, not backend either. Nothing
+backend-tagged to pick up.
+
+Swept `origin/claude/*` (now ~74 branches) via `git rev-list --count
+origin/main..<branch>`. Five newly large-ahead branches this cycle
+(`determined-thompson-{ljny72,jwlcyu,2mu3br}` 40-41 ahead,
+`peaceful-mccarthy-3f480y` 39 ahead, `hopeful-johnson-3xcwg7` grown to 59) —
+inspected each `backend/` diff against current `main`: all five are
+**net-deletions-only** (`30 files changed, 47 insertions(+), 5387
+deletions(-)`, identical shape across all five), i.e. stale forks off an
+older `main` tip that has since gained `resolveField.js`/`#40`'s test files —
+the same pattern every prior sweep in this file has documented, not stranded
+work to adopt.
+
+Ran `cd backend && npm ci && npm test` — **210/210 green**, matching #40's
+landing count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — safe to
+push `backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **8** open items (down from 26 at the last
+full-detail check on 2026-08-08, and this file has no more-recent count
+recorded), consistent with continued human review resolution, no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-11 UTC (later session): session check — no ready row this cycle
 
 `origin/main` tip is `a8c7d5b`. All backend-tagged `BACKLOG.md` rows are
