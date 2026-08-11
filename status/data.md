@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-- [2026-08-11 01:42 UTC] #39 accept-by-default needs field sanity envelopes (altitude/weight/rating hard reject) — branch `main`
+_none_
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
@@ -114,6 +114,37 @@ vocabulary-confirmation queue #25 was built to produce.
 tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
 
 ## Done
+
+- [2026-08-11 01:42 UTC] #39 — **hard plausibility envelopes for `parseAltitude`/`parseWeight`/`parseRating`**
+  in `backend/src/lib/normalize.js` (PLAN.md §11 #39). Radu's refinement of #35:
+  "I know I said accept all guesses, but altitude 1–5 m does not make sense."
+  With accept-by-default dropping the confidence gate, a mis-parse now reaches
+  the app directly, so each numeric parser gets a **hard reject** beyond its
+  existing soft band:
+  - `parseAltitude`: `max<200` or `min>4000` → `null` (absent, not stored).
+    The soft 900–2200 "real but unusual" plausible band is untouched — a
+    genuine elevation outside it still surfaces with `needsReview`.
+  - `parseWeight`: `<1g` or `>5000g` → `null`. No real coffee bag is
+    sub-gram or over 5 kg.
+  - `parseRating`: outside `0–5` → `null`, applied uniformly across the
+    `/5`, star-emoji, and bare-number branches (matches the
+    `coffees.rating` `CHECK(0-5)` constraint `adjudicate.js` already
+    independently guards at its own layer for the live "45" crash —
+    this is the matching fix at the source, per this row's own file
+    assignment).
+  Updated `normalize.test.js`'s existing altitude "implausible" fixture
+  (it asserted a soft-reject result for a range that now hard-rejects) and
+  added three new table-driven tests for the negative envelope + boundary
+  cases on all three parsers. `npm test` 213/213 green (11 new).
+  **Confirmed the exact live bug before pushing**: `GET /api/coffees/:publicId`
+  against production showed two real coffees stored with `altitudeMinM/MaxM`
+  of `1/5` and `2/30` — Radu's own example, live in the corpus right now.
+  Checked `GET /api/admin/jobs` first (all 10 historical jobs `done`/`paused`,
+  none `running`) before pushing `backend/**`.
+  **$0 re-adjudication validation** (PLAN.md #39's own acceptance test —
+  `POST /api/admin/adjudicate` re-runs over stored `field_candidates`, no new
+  LLM spend): see the follow-up note below for the post-deploy result.
+  — branch `main`, commit `3378955` (claim `e5859a0`).
 
 - [2026-08-10 02:00 UTC] #38 — **`backend/migrations/014_roaster_countries.sql`**
   populates `roasters.country_id` (previously NULL for all 89 seeded roasters,
