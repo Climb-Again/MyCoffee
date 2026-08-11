@@ -101,7 +101,7 @@ extension FilterDimension {
         case .priceBand: return "Price"
         case .pricePer100gBand: return "Price / 100 g"
         case .altitudeBand: return "Altitude"
-        case .year: return "Year"
+        case .year: return "Year bought"
         }
     }
 

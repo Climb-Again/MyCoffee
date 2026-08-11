@@ -29,7 +29,12 @@ struct FilterSheetView: View {
                         case .favorite:
                             FavoriteRow(isOn: $draft.favoritesOnly)
                         case .decaf:
-                            DecafRow(selection: $draft.isDecaf)
+                            let decafEntries = facets[.decaf]
+                            DecafRow(
+                                selection: $draft.isDecaf,
+                                caffeinatedCount: decafEntries.first { $0.key == .bool(false) }?.count ?? 0,
+                                decafCount: decafEntries.first { $0.key == .bool(true) }?.count ?? 0
+                            )
                         default:
                             DimensionPills(
                                 dimension: dimension,
@@ -82,17 +87,26 @@ private struct FavoriteRow: View {
 
 private struct DecafRow: View {
     @Binding var selection: Bool?
+    let caffeinatedCount: Int
+    let decafCount: Int
 
     var body: some View {
-        Picker("Decaf", selection: Binding(
-            get: { selection.map { $0 ? 1 : 0 } ?? -1 },
-            set: { selection = $0 == -1 ? nil : $0 == 1 }
-        )) {
-            Text("Both").tag(-1)
-            Text("Caffeinated").tag(0)
-            Text("Decaf").tag(1)
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Decaf", selection: Binding(
+                get: { selection.map { $0 ? 1 : 0 } ?? -1 },
+                set: { selection = $0 == -1 ? nil : $0 == 1 }
+            )) {
+                Text("Both").tag(-1)
+                Text("Caffeinated").tag(0)
+                Text("Decaf").tag(1)
+            }
+            .pickerStyle(.segmented)
+
+            // Counter so the split is visible without applying the filter.
+            Text("\(caffeinatedCount) caffeinated · \(decafCount) decaf")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .pickerStyle(.segmented)
     }
 }
 
