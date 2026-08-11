@@ -53,6 +53,19 @@ test('POST /api/coffees/:publicId/favorite requires the ingest token specificall
   await app.close();
 });
 
+test('POST /api/coffees/:publicId/edit requires the ingest token specifically', async () => {
+  const app = await build();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/coffees/some-id/edit',
+    payload: { field: 'rating', value: '4.5' },
+  });
+  // No server token configured -> 503; a missing/wrong bearer -> 401. Never a
+  // 200/404/422 without auth, and never gated only by APP_TOKEN (PLAN.md §12 #40).
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});
+
 test('GET /api/config reports the snapshot capability once #21 lands', async () => {
   const app = await build();
   const res = await app.inject({ method: 'GET', url: '/api/config' });

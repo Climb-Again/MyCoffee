@@ -81,6 +81,35 @@ test('buildCoffeeColumnUpdates: roaster_id also denormalizes the roaster\'s coun
   assert.deepEqual(values, [1, 5]);
 });
 
+test('buildCoffeeColumnUpdates: roaster_country_id can be set directly, without a roaster_id edit', () => {
+  // The generic edit endpoint (PLAN.md §12 #40) can edit the roaster's country
+  // on its own, unlike normal extraction where it's only ever a side effect
+  // of resolving roaster_id.
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { roaster_country_id: { decision: 'accepted', value: 10 } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['roaster_country_id = $1']);
+  assert.deepEqual(values, [10]);
+});
+
+test('buildCoffeeColumnUpdates: a later roaster_country_id resolution overrides roaster_id\'s derived one, not both', () => {
+  // A batch edit (roaster + roaster country together, #42's edit sheet) must
+  // never emit "roaster_country_id = $1, roaster_country_id = $2" -- Postgres
+  // rejects multiple assignments to the same column. Object key order is the
+  // tiebreak: the explicit roaster_country_id resolution, listed second here,
+  // wins over roaster_id's derived one.
+  const { sets, values } = buildCoffeeColumnUpdates(
+    {
+      roaster_id: { decision: 'accepted', value: 1 },
+      roaster_country_id: { decision: 'accepted', value: 10 },
+    },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 10]);
+});
+
 test('buildCoffeeColumnUpdates: origin_country_ids also computes is_blend and drops invalid ids', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
     { origin_country_ids: { decision: 'accepted', value: [10, 12345] } }, // 12345 isn't a real country id

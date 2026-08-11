@@ -12,9 +12,11 @@
 import { requireAnyToken, requireIngestToken } from '../auth.js';
 import { query } from '../db.js';
 import { buildMediaUrl } from '../media.js';
-import { canonicalize, denormalize } from '../lib/adjudicate.js';
 import { normalizeVocabString } from '../lib/normalize.js';
 import { loadSharedContext, applyResolutionsToCoffee } from '../lib/worker.js';
+import { FIELD_TO_CLIENT, resolveField, slugify } from '../lib/resolveField.js';
+
+export { slugify };
 
 const ALIAS_TABLES = {
   roaster: { table: 'roaster_aliases', fk: 'roaster_id' },
@@ -27,33 +29,12 @@ const ALIAS_TABLES = {
 // detail route's 30-day window.
 const REVIEW_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-// The app's review UI (ReviewField, ios/.../Features/Review) only understands
-// these eight fields; map each DB field name onto the client enum's raw value.
-// DB fields with no client equivalent (rating, roasted_on, the desc_* prose
-// spans) are filtered out of the feed rather than sent as un-actionable cards.
-// `roaster_country_id` is intentionally absent: it's derived from the roaster
-// (worker sets it as a side-effect of resolving `roaster_id`), has no
-// canonicalize/denormalize case, and no standalone coffees-column update — so
-// exposing it as an independently resolvable review field would write a country
-// name string into an integer column. Review the roaster instead; the country
-// follows.
-const FIELD_TO_CLIENT = {
-  origin_country_ids: 'originCountry',
-  roaster_id: 'roaster',
-  origin_farm_id: 'farm',
-  profile: 'profile',
-  altitude: 'altitude',
-  weight_g: 'weight',
-  price: 'price',
-};
-
-// Fields whose stored value is a structured/id shape, not a bare string: a
-// human's accepted value must be canonicalised back into that shape before it
-// can be written, or it would corrupt the coffees row.
-const STRUCTURED_FIELDS = new Set([
-  'roaster_id', 'origin_farm_id', 'origin_country_ids',
-  'altitude', 'price', 'weight_g', 'rating', 'roasted_on', 'profile',
-]);
+// FIELD_TO_CLIENT (imported above, from `lib/resolveField.js`) maps the DB
+// fields the review UI knows how to render onto the client enum's raw value.
+// DB fields with no client equivalent (rating, roasted_on, roaster_country_id,
+// the desc_* prose spans) are filtered out of the feed rather than sent as
+// un-actionable cards -- see that module for why `roaster_country_id`
+// specifically is a review-feed exclusion but not an edit-endpoint one.
 
 const REASON_LABELS = {
   split: 'voters disagreed',
@@ -64,56 +45,6 @@ const REASON_LABELS = {
   below_threshold: 'low confidence',
   no_candidates: 'no clear value found',
 };
-
-// Countries stay a closed set (PLAN.md §11 #36), but farms and roasters are
-// inherently open-ended -- 0 farms are seeded, and new roasters appear over a
-// ten-year corpus. When a human accepts a name `canonicalize()` can't resolve,
-// that's an explicit confirmation, so create the vocab row (plus an alias so
-// every future import resolves it for free) instead of 422ing on a value the
-// extractor already got right.
-const VOCAB_GET_OR_CREATE = {
-  roaster_id: { table: 'roasters', aliasTable: 'roaster_aliases', aliasFk: 'roaster_id', slugged: true },
-  origin_farm_id: { table: 'farms', aliasTable: 'farm_aliases', aliasFk: 'farm_id', slugged: false },
-};
-
-// Exported for tests only -- the rest of getOrCreateVocabEntry needs a live DB.
-export function slugify(name) {
-  return String(name).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'roaster';
-}
-
-async function insertAlias(spec, id, rawName, aliasNorm) {
-  await query(
-    `INSERT INTO ${spec.aliasTable} (${spec.aliasFk}, alias, alias_norm) VALUES ($1, $2, $3)
-     ON CONFLICT (alias_norm) DO NOTHING`,
-    [id, rawName, aliasNorm],
-  );
-}
-
-async function getOrCreateVocabEntry(field, rawName) {
-  const spec = VOCAB_GET_OR_CREATE[field];
-  const aliasNorm = normalizeVocabString(rawName);
-  if (!spec || !aliasNorm) return null;
-
-  if (!spec.slugged) {
-    const { rows } = await query(`INSERT INTO farms (name) VALUES ($1) RETURNING id`, [rawName]);
-    await insertAlias(spec, rows[0].id, rawName, aliasNorm);
-    return rows[0].id;
-  }
-
-  const slugBase = slugify(rawName);
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const slug = attempt === 0 ? slugBase : `${slugBase}-${attempt + 1}`;
-    const { rows } = await query(
-      `INSERT INTO roasters (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING RETURNING id`,
-      [rawName, slug],
-    );
-    if (rows[0]) {
-      await insertAlias(spec, rows[0].id, rawName, aliasNorm);
-      return rows[0].id;
-    }
-  }
-  return null;
-}
 
 // The stored `candidates` are raw voter outputs: some are objects (prose
 // `{start,end}` spans), some are whole-caption dumps from the rules voter.
@@ -217,40 +148,23 @@ export default async function reviewRoutes(app) {
     // fields that string must be canonicalised into the exact shape the
     // extraction pipeline stores (roaster_id -> int, price -> {amount,currency},
     // ...) before it can be written -- storing the bare string would corrupt
-    // the coffees row. Canonicalise with the SAME machinery adjudication uses.
+    // the coffees row. Canonicalise with the SAME machinery adjudication uses
+    // (`resolveField`, shared with the generic edit endpoint — #40).
     const { rows: photoRows } = await query(`SELECT captured_on FROM photos WHERE id = $1`, [item.photo_id]);
     const photoDate = photoRows[0]?.captured_on;
     const sharedCtx = await loadSharedContext();
     const canonicalCtx = { ...sharedCtx, photoDate };
 
-    let value = req.body.value;
-    if (STRUCTURED_FIELDS.has(item.field)) {
-      let canonical = canonicalize(item.field, value, canonicalCtx);
-      if (!canonical && VOCAB_GET_OR_CREATE[item.field]) {
-        // A human explicitly accepting this name IS the confirmation --
-        // get-or-create instead of 422ing (PLAN.md §11 #36). Countries have no
-        // entry in VOCAB_GET_OR_CREATE, so an unknown country still 422s below.
-        const newId = await getOrCreateVocabEntry(item.field, String(value));
-        if (newId != null) canonical = { id: newId, confidenceFactor: 1 };
-      }
-      // Any other unresolvable structured value (an unknown country, an
-      // unparseable price/altitude/...) still refuses rather than writing a
-      // broken value. The item stays open; the reviewer can pick a different
-      // candidate or dismiss.
-      if (!canonical) return reply.code(422).send({ error: 'unresolvable_value', field: item.field, value });
-      value = denormalize(item.field, canonical);
+    const outcome = await resolveField(item.photo_id, item.field, req.body.value, canonicalCtx);
+    // Any unresolvable structured value (an unknown country, an unparseable
+    // price/altitude/...) still refuses rather than writing a broken value.
+    // The item stays open; the reviewer can pick a different candidate or
+    // dismiss.
+    if (outcome.error) {
+      return reply.code(422).send({ error: outcome.error, field: item.field, value: req.body.value });
     }
+    const value = outcome.value;
 
-    // `locked = true`, `decided_by = 'human'` -- PLAN.md §1's single most
-    // important invariant: no later adjudication pass touches this field again.
-    await query(
-      `INSERT INTO field_resolutions (photo_id, field, value, confidence, agreement, voters, decided_by, locked)
-       VALUES ($1, $2, $3, 1, 1, '{human}', 'human', true)
-       ON CONFLICT (photo_id, field) DO UPDATE SET
-         value = EXCLUDED.value, confidence = 1, agreement = 1, voters = '{human}',
-         decided_by = 'human', locked = true, decided_at = now()`,
-      [item.photo_id, item.field, JSON.stringify(value)],
-    );
     await query(`UPDATE review_items SET status = 'resolved', resolved_value = $2, resolved_at = now() WHERE id = $1`, [
       id,
       JSON.stringify(value),

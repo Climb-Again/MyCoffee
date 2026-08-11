@@ -75,67 +75,80 @@ export function isDueForExtraction(photo, now = new Date()) {
 // Pure -- `ctx` carries the already-loaded vocab/profile/fx data, no queries
 // here -- so the field-to-column mapping is testable without a live Postgres.
 export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
-  const sets = [];
-  const values = [];
-  let i = 1;
-  const push = (col, val) => {
-    sets.push(`${col} = $${i++}`);
-    values.push(val);
-  };
+  // A Map, not a plain array, so a column written twice in one call (the
+  // generic edit endpoint, PLAN.md §12 #40, can resolve `roaster_id` and the
+  // directly-edited `roaster_country_id` in the same batch) collapses to one
+  // SET clause instead of two -- Postgres rejects "multiple assignments to
+  // the same column". Whichever field is processed last wins, i.e. object
+  // key order in `resolutions` is the tiebreak; a duplicate never happens
+  // during normal extraction (nothing votes on `roaster_country_id`).
+  const columns = new Map();
+  const set = (col, val) => columns.set(col, val);
 
   for (const [field, res] of Object.entries(resolutions ?? {})) {
     if (res.value == null) continue;
     switch (field) {
       case 'roaster_id': {
-        push('roaster_id', res.value);
+        set('roaster_id', res.value);
         const roaster = (ctx.vocab?.roasters?.candidates ?? []).find((r) => r.id === res.value);
-        push('roaster_country_id', roaster?.country_id ?? null);
+        set('roaster_country_id', roaster?.country_id ?? null);
         break;
       }
+      case 'roaster_country_id':
+        set('roaster_country_id', res.value);
+        break;
       case 'origin_country_ids': {
         const { valid } = validateOriginCountryIds(res.value, ctx.vocab?.countries?.candidates);
-        push('origin_country_ids', valid);
-        push('is_blend', computeIsBlend(valid, ctx.vocab?.countries?.candidates));
+        set('origin_country_ids', valid);
+        set('is_blend', computeIsBlend(valid, ctx.vocab?.countries?.candidates));
         break;
       }
       case 'origin_farm_id':
-        push('origin_farm_id', res.value);
+        set('origin_farm_id', res.value);
         break;
       case 'altitude':
-        push('altitude_min_m', res.value.min);
-        push('altitude_max_m', res.value.max);
+        set('altitude_min_m', res.value.min);
+        set('altitude_max_m', res.value.max);
         break;
       case 'profile':
-        push('profile_id', ctx.profileIdBySlug?.get(res.value.profileId) ?? null);
-        push('profile_detail', res.value.detail ?? null);
-        push('is_decaf', Boolean(res.value.isDecaf));
+        set('profile_id', ctx.profileIdBySlug?.get(res.value.profileId) ?? null);
+        set('profile_detail', res.value.detail ?? null);
+        set('is_decaf', Boolean(res.value.isDecaf));
         break;
       case 'price': {
-        push('price_original_amount', res.value.amount);
-        push('price_original_currency', res.value.currency);
+        set('price_original_amount', res.value.amount);
+        set('price_original_currency', res.value.currency);
         const conv = toEur({ amount: res.value.amount, currency: res.value.currency, date: ctx.photoDate }, ctx.fxRates);
-        push('price_eur', conv?.priceEur ?? null);
-        push('fx_rate', conv?.fxRate ?? null);
-        push('fx_rate_period', conv?.fxRatePeriod ?? null);
+        set('price_eur', conv?.priceEur ?? null);
+        set('fx_rate', conv?.fxRate ?? null);
+        set('fx_rate_period', conv?.fxRatePeriod ?? null);
         break;
       }
       case 'weight_g':
-        push('weight_g', res.value);
+        set('weight_g', res.value);
         break;
       case 'rating':
-        push('rating', res.value);
+        set('rating', res.value);
         break;
       case 'roasted_on':
-        push('roasted_on', res.value);
+        set('roasted_on', res.value);
         break;
       case 'desc_farm_lot':
       case 'desc_brew_guide':
       case 'desc_roaster_copy':
-        push(field, res.value);
+        set(field, res.value);
         break;
       default:
         break;
     }
+  }
+
+  const sets = [];
+  const values = [];
+  let i = 1;
+  for (const [col, val] of columns) {
+    sets.push(`${col} = $${i++}`);
+    values.push(val);
   }
   return { sets, values };
 }

@@ -6,6 +6,7 @@
 //
 // Field value shapes, as returned by `canonicalize()`:
 //   roaster_id / origin_farm_id -> { id, confidenceFactor }
+//   roaster_country_id          -> { id, confidenceFactor }
 //   origin_country_ids          -> { ids: number[], isBlend, unresolved }
 //   altitude                    -> { min, max, confidenceFactor, needsReview }
 //   price                       -> { amount, currency, confidenceFactor }
@@ -55,6 +56,18 @@ export function canonicalize(field, rawValue, ctx = {}) {
     case 'origin_farm_id': {
       const r = resolveVocab(rawValue, ctx.vocab?.farms, ctx.fuzzyOpts);
       return r.resolved && r.id != null ? { id: r.id, confidenceFactor: r.confidence ?? 1 } : null;
+    }
+    // Never voted on by extraction (the worker derives it as a side effect of
+    // `roaster_id` in `buildCoffeeColumnUpdates`) -- this case exists so the
+    // generic edit endpoint (PLAN.md §12 #40) can resolve it directly. Only a
+    // country flagged `is_roaster` counts; a resolved-but-wrong-kind match
+    // (e.g. an origin-only country) is treated as unresolved, same as an
+    // unknown name.
+    case 'roaster_country_id': {
+      const r = resolveVocab(rawValue, ctx.vocab?.countries, ctx.fuzzyOpts);
+      if (!r.resolved || r.id == null) return null;
+      const country = (ctx.vocab?.countries?.candidates ?? []).find((c) => c.id === r.id);
+      return country?.is_roaster ? { id: r.id, confidenceFactor: r.confidence ?? 1 } : null;
     }
     case 'origin_country_ids': {
       const r = resolveOriginCountries(rawValue, ctx.vocab?.countries, ctx.fuzzyOpts);
@@ -118,6 +131,7 @@ export function fieldsEqual(field, a, b) {
   switch (field) {
     case 'roaster_id':
     case 'origin_farm_id':
+    case 'roaster_country_id':
       return a.id === b.id;
     case 'origin_country_ids':
       return a.ids.length === b.ids.length && a.ids.every((id, i) => id === b.ids[i]);
@@ -148,6 +162,7 @@ export function denormalize(field, canonical) {
   switch (field) {
     case 'roaster_id':
     case 'origin_farm_id':
+    case 'roaster_country_id':
       return canonical.id;
     case 'origin_country_ids':
       return canonical.ids;
