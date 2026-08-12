@@ -4,7 +4,95 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-12 00:00 UTC] #44 auto-create farms/roasters during adjudication (PLAN.md §11) — branch `main`
+- [2026-08-12 00:00 UTC] #44 auto-create farms/roasters during adjudication — code done, awaiting merge to `main` from `claude/confident-cerf-hafw59` (see write-up below)
+
+## 2026-08-12 UTC: #44 — auto-create farms/roasters during adjudication
+
+Picked up `#44` (PLAN.md §11), the only `ready` backend row this cycle. `#43`
+(phase 5, photo derivative sizing) was also `ready` but lower priority per
+"lowest phase first" — left for a future session.
+
+**The gap**: `origin_farm_id`/`roaster_id` only resolve during adjudication
+via `canonicalize()` → `resolveVocab()` against the *already-seeded* vocab
+(`src/lib/adjudicate.js`, pure, no DB). Farms start at 0 seeded rows, so a
+farm name every voter agreed on still canonicalized to `null` for every
+candidate, `adjudicateField` saw zero canonicalizable candidates, and the
+field silently landed on `decision: 'absent'` — never applied, and (since
+`absent` isn't a review reason) never even surfaced as a review item to
+manually fix. `#36`'s get-or-create (human accepting a review item) never
+fires here because no review item exists to accept.
+
+**Fix, `src/lib/worker.js`**: new pure `pickVocabNameToCreate(field, rawCandidates, ctx)`
+— for a field in `resolveField.js`'s `VOCAB_GET_OR_CREATE` map (`roaster_id`,
+`origin_farm_id`), returns the raw name to create when (a) no candidate
+already canonicalizes against the current vocab, and (b) every candidate's
+raw value normalizes to the same non-empty string (`normalizeVocabString`,
+Data-owned `normalize.js` — only consumed here, not edited). Returns `null`
+otherwise, including genuine disagreement between distinct raw names —
+that case is deliberately left alone, still resolving to `absent` exactly as
+before; #44 only closes the "confident single name, just not seeded yet" gap,
+not "which of two disagreeing names is right" (a different problem).
+
+New DB-touching `createMissingVocabEntries()` calls `pickVocabNameToCreate`
+for both fields, and when it returns a name, calls `resolveField.js`'s
+existing `getOrCreateVocabEntry()` (the exact function `#36`'s human-accept
+path uses) to insert the row + alias, then **patches `ctx.vocab` in place**
+(pushes the new candidate, adds the alias to `aliasIndex`) so the very next
+`adjudicateRecord()` call in the same `adjudicateAndApply()` resolves it via
+the normal canonicalize path instead of needing a second pass. Skips fields
+with a sticky human decision (`ctx.locked`), same guard `adjudicateRecord`
+itself applies. Wired in ahead of the `adjudicateRecord()` call in
+`adjudicateAndApply()` — the one function both the live worker and
+`POST /api/admin/adjudicate`'s $0 re-adjudication path go through, so this
+also retroactively fixes every already-stored photo whose farm/roaster
+candidates never resolved, without any new LLM spend.
+
+**7 new unit tests** (`test/worker.test.js`) for `pickVocabNameToCreate`,
+pure/no-DB per the file's existing convention: agreeing new farm name →
+returned; already-resolves-via-alias → `null`; disagreeing raw names →
+`null`; no candidates (`[]`/`undefined`) → `null`; a field outside
+`VOCAB_GET_OR_CREATE` (e.g. `price`) → `null`; a new roaster name works the
+same as a farm. `cd backend && npm ci && npm test` — **216/216 green** (210
+prior + 6 pickVocabNameToCreate cases — one of the 7 above duplicates the
+`undefined`/`[]` pair in a single test).
+
+**Verified end-to-end against a real local Postgres 16** (migrations
+001–014 applied clean, via a scratch script run then deleted, not
+committed):
+- Photo with two voters agreeing on a brand-new farm name (`Finca
+  Verify44`) and one voter on a brand-new roaster name (`Verify44 Roasters
+  Co`), neither seeded: `adjudicateAndApply` created `farms` id 1 + its
+  alias, `roasters` id 90 + its alias (`roasters` had 89 seeded rows before,
+  per `#38`), and `coffees.origin_farm_id`/`roaster_id` were both set to the
+  new ids in the same pass — `reviewCount: 0` (accepted outright, no review
+  item, matching the "confident" framing).
+- **No duplicate on re-run**: re-running `adjudicateAndApply` over the same
+  stored `field_candidates` a second time left `farms`/`roasters` counts
+  unchanged (1/90) — the alias created by the first pass resolves the name
+  directly on the second, `pickVocabNameToCreate` never fires again for it.
+- **Disagreement case, separately verified unaffected**: a second photo with
+  two voters proposing different unseeded farm names (`Finca Alpha` vs.
+  `Finca Beta`) left `coffees.origin_farm_id` `null` and created no farm row
+  — confirms #44 only closes the single-name gap, not the genuine-conflict
+  case, exactly as scoped.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 10 jobs, all `done`/`paused`,
+**none `running`** — safe to push `backend/**` per the hard rule.
+
+**Branch note**: this session's harness configuration pins it to its own
+branch (`claude/confident-cerf-hafw59`), with an explicit "never push to a
+different branch without permission" constraint — the same class of
+constraint `CLAUDE.md`'s "A CCR routine/fired session commits to its OWN
+branch, not main" gotcha and `status/README.md`'s "Integrate before you
+start" rule anticipate. Per that rule this is recorded here rather than
+marked `done` outright: `#44`'s code is real and independently re-verified
+(above), but per the "`done` means on the shared branch" corollary it isn't
+`done` until `claude/confident-cerf-hafw59` is merged/fast-forwarded into
+`main`. **Whoever can push to `main`: merge this branch** (it's a small,
+additive, two-file diff plus this status writeup — no migrations, no
+schema change), confirm `npm ci && npm test` (216/216) post-merge, and this
+note can move to `## Done` with the landed SHA.
 
 ## 2026-08-11 UTC (later session, third check): session check — no ready row this cycle
 

@@ -8,7 +8,7 @@
 // is fully unit-tested here without any DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeInputSha, isDueForExtraction, buildCoffeeColumnUpdates } from '../src/lib/worker.js';
+import { computeInputSha, isDueForExtraction, buildCoffeeColumnUpdates, pickVocabNameToCreate } from '../src/lib/worker.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
   const opts = {
@@ -153,4 +153,63 @@ test('buildCoffeeColumnUpdates: altitude writes both min and max', () => {
   );
   assert.deepEqual(sets, ['altitude_min_m = $1', 'altitude_max_m = $2']);
   assert.deepEqual(values, [1300, 1600]);
+});
+
+// pickVocabNameToCreate (PLAN.md §11 #44): a confident, not-yet-seeded
+// farm/roaster name should get-or-created; genuine disagreement or an
+// already-resolvable name should not.
+const openVocabCtx = {
+  vocab: {
+    roasters: { candidates: [{ id: 1, name: 'DAK', country_id: 5 }], aliasIndex: new Map() },
+    farms: {
+      candidates: [{ id: 9, name: 'Finca La Esperanza' }],
+      aliasIndex: new Map([['finca la esperanza', { id: 9, alias: 'Finca La Esperanza', alias_norm: 'finca la esperanza' }]]),
+    },
+  },
+};
+
+test('pickVocabNameToCreate: every voter agreeing on a brand-new farm name returns that name', () => {
+  const raw = pickVocabNameToCreate(
+    'origin_farm_id',
+    [{ agent: 'extract_a', value: 'Finca Nueva' }, { agent: 'extract_b', value: 'Finca Nueva' }],
+    openVocabCtx,
+  );
+  assert.equal(raw, 'Finca Nueva');
+});
+
+test('pickVocabNameToCreate: a name that already resolves against the vocab is not re-created', () => {
+  const raw = pickVocabNameToCreate(
+    'origin_farm_id',
+    [{ agent: 'extract_a', value: 'Finca La Esperanza' }],
+    openVocabCtx,
+  );
+  assert.equal(raw, null);
+});
+
+test('pickVocabNameToCreate: voters disagreeing on the raw name is left to adjudicateField, not created', () => {
+  const raw = pickVocabNameToCreate(
+    'origin_farm_id',
+    [{ agent: 'extract_a', value: 'Finca Nueva' }, { agent: 'extract_b', value: 'Finca Vieja' }],
+    openVocabCtx,
+  );
+  assert.equal(raw, null);
+});
+
+test('pickVocabNameToCreate: no candidates for the field returns null', () => {
+  assert.equal(pickVocabNameToCreate('origin_farm_id', [], openVocabCtx), null);
+  assert.equal(pickVocabNameToCreate('origin_farm_id', undefined, openVocabCtx), null);
+});
+
+test('pickVocabNameToCreate: a field outside VOCAB_GET_OR_CREATE (e.g. price) is never a candidate to create', () => {
+  const raw = pickVocabNameToCreate('price', [{ agent: 'extract_a', value: '45 RON' }], openVocabCtx);
+  assert.equal(raw, null);
+});
+
+test('pickVocabNameToCreate: a new roaster name works the same way as a farm', () => {
+  const raw = pickVocabNameToCreate(
+    'roaster_id',
+    [{ agent: 'extract_a', value: 'Totally New Roaster Co' }],
+    openVocabCtx,
+  );
+  assert.equal(raw, 'Totally New Roaster Co');
 });

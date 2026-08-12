@@ -23,7 +23,7 @@ import { readFile } from 'node:fs/promises';
 import { pool, query, withTransaction } from '../db.js';
 import { config } from '../config.js';
 import { derivativeAbsPath } from '../media.js';
-import { adjudicateRecord } from './adjudicate.js';
+import { adjudicateRecord, canonicalize } from './adjudicate.js';
 import {
   loadCountryVocab,
   loadRoasterVocab,
@@ -33,6 +33,8 @@ import {
 } from './vocab.js';
 import { toEur } from './fx.js';
 import { runExtractA, runExtractB, runCritic, runReconciler, loadRulesVoter, PROMPT_VERSION } from './agents.js';
+import { getOrCreateVocabEntry, VOCAB_GET_OR_CREATE } from './resolveField.js';
+import { normalizeVocabString } from './normalize.js';
 
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
@@ -57,6 +59,31 @@ export function computeInputSha({ agent, provider, model, promptVersion, imageSh
 
 export function buildRawText(photo, photoText) {
   return [photo?.title, photoText?.caption, photoText?.description].filter(Boolean).join('\n\n');
+}
+
+// Farms/roasters are open-ended vocab (0 farms seeded; new roasters appear
+// over a ten-year corpus). When every candidate for one of these fields
+// agrees on the same raw name and none of them resolve against the
+// *current* vocab, that's the same "confident, just not seeded yet" shape
+// #36 already get-or-creates for a human accept (PLAN.md §11 #44) -- returns
+// the raw name to create, or null when the field already resolves, has no
+// candidates, or voters genuinely disagree (left to adjudicateField's normal
+// 'absent' outcome, same as today).
+export function pickVocabNameToCreate(field, rawCandidates, ctx) {
+  if (!VOCAB_GET_OR_CREATE[field]) return null;
+  const candidates = rawCandidates ?? [];
+  if (candidates.length === 0) return null;
+  if (candidates.some((c) => canonicalize(field, c.value, ctx))) return null;
+
+  const normed = new Set();
+  let rawName = null;
+  for (const c of candidates) {
+    const norm = normalizeVocabString(c.value);
+    if (!norm) continue;
+    normed.add(norm);
+    rawName = c.value;
+  }
+  return normed.size === 1 ? rawName : null;
 }
 
 // Mirrors the SQL eligibility predicate in `claimBatch()` below, so the rule
@@ -447,6 +474,27 @@ export async function loadSharedContext() {
   };
 }
 
+// Creates any farm/roaster `pickVocabNameToCreate` flags as a confident,
+// not-yet-seeded name, then patches `ctx.vocab` in place (new candidate +
+// alias) so the immediately-following `adjudicateRecord` call resolves it
+// via the normal canonicalize path instead of `absent`. Skips fields with a
+// sticky human decision -- same guard `adjudicateRecord` itself applies.
+async function createMissingVocabEntries(candidatesByField, ctx) {
+  for (const field of Object.keys(VOCAB_GET_OR_CREATE)) {
+    if (ctx.locked?.has(field)) continue;
+    const rawName = pickVocabNameToCreate(field, candidatesByField[field], ctx);
+    if (rawName == null) continue;
+
+    const newId = await getOrCreateVocabEntry(field, String(rawName));
+    if (newId == null) continue;
+
+    const kind = field === 'roaster_id' ? 'roasters' : 'farms';
+    const norm = normalizeVocabString(rawName);
+    ctx.vocab[kind].candidates.push({ id: newId, name: String(rawName), country_id: null });
+    ctx.vocab[kind].aliasIndex.set(norm, { id: newId, alias: String(rawName), alias_norm: norm });
+  }
+}
+
 // Re-derives field_resolutions/review_items/coffees from whatever
 // field_candidates are already stored -- no voter is run. This is the $0,
 // ~instant re-adjudication path (PLAN.md §2) that both a fresh worker pass
@@ -456,14 +504,18 @@ export async function adjudicateAndApply(photo, photoText, sharedCtx) {
   const { byField: candidatesByField, criticVerdicts } = await fetchFieldData(photo.id);
   const locked = await fetchLockedFields(photo.id);
 
-  const { resolutions, reviews } = adjudicateRecord(candidatesByField, {
+  const adjudicateCtx = {
     ...ADJUDICATE_CTX_DEFAULTS,
     vocab: sharedCtx.vocab,
     locked,
     criticVerdicts,
     photoDate: photo.captured_on,
     rawText,
-  });
+  };
+
+  await createMissingVocabEntries(candidatesByField, adjudicateCtx);
+
+  const { resolutions, reviews } = adjudicateRecord(candidatesByField, adjudicateCtx);
 
   await storeResolutions(photo.id, resolutions);
   const reviewedFieldSet = new Set(reviews.map((r) => r.field));
