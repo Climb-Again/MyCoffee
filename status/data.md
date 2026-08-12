@@ -31,6 +31,19 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-12 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `adc9427`; this session's branch
+(`claude/peaceful-mccarthy-63dndk`) already contains that commit (fast-forward,
+nothing stranded). Every data-tagged row in `status/BACKLOG.md` is still `done`
+except **#26** (`human`) and **#29** (`blocked` on #26) — unchanged since the
+2026-08-09 check. Checked GitHub issue #26 directly (`get_comments`) and swept
+open issues by `updated_at` (this session has MCP GitHub access, unlike a
+routine-fired session): zero comments anywhere, nothing updated since
+2026-07-29 — Radu has not posted an accuracy verdict on the 5-photo sample by
+any channel this lane can see. Per the routine's own instruction, stopping
+here rather than inventing work.
+
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
 `main`/`origin/main` agree at `01dcf36`. Every data-tagged row in
