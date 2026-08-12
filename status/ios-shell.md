@@ -4,7 +4,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-12 00:00 UTC] 41 Edit API surface (APIClient.editCoffeeField, CoffeeRepository.editField, CoffeeStore.editField) — branch `ios-staging`
 
 ## Done
 
