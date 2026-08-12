@@ -46,6 +46,16 @@ Flipped `#45` → `done` in `BACKLOG.md`; `#46` (ios-shell, needs 45) flipped
 `blocked` → `ready` in the same push. `#47` (ios-ux, needs 45+46) stays
 `blocked` — it also needs `#46`.
 
+Pushed straight to `origin/main` (fast-forward `e1efd2c..e655c0c`; this
+session's own `claude/confident-cerf-0ol0nh` branch was pushed to the same
+tip first, so it isn't orphaned). Watched `railway-deploy.yml` run
+`31598603377` to completion via the GitHub Actions API — **`completed
+success`**. Post-deploy live-verify: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/whatsnew` with a
+live token → `200`, full expected shape (`live[6]`, `plan.byLane.{backend:[],
+data:[2],ios:[5]}`, `plan.needsApproval[3]`), content matching what was
+seeded above.
+
 ## 2026-08-12 UTC (same session, follow-up): live production result for #44
 
 Pushed `b22bf1b` to `main`; `railway-deploy.yml` run `31572265068` completed
