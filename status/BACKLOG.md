@@ -45,8 +45,8 @@ After claiming, set the row to `claimed`; after finishing, `done`.
 | 40 | backend   | 5 | done   | 36 | **Generic per-field edit endpoint** (PLAN.md §12) — `POST /api/coffees/:publicId/edit` `{field, value}` (+ `{edits:[...]}` batch) landed in `routes/coffees.js`; canonicalize + get-or-create + locked/`decided_by='human'` resolution + apply + close open review items, for ANY field on ANY coffee. Added the missing `roaster_country_id` canonicalize/denormalize/column-update case (`adjudicate.js`/`worker.js`), plus a real latent dedup bug it surfaced (`buildCoffeeColumnUpdates` could double-SET a column across two resolved fields — fixed). Resolve logic shared with `routes/review.js` via new `src/lib/resolveField.js`. Countries stay closed (422 on unknown). Verified end-to-end against a real local Postgres — see `status/backend.md` |
 | 41 | ios-shell | 5 | ready | 40 | **Edit API surface** (PLAN.md §12). `APIClient.editCoffeeField(publicId:field:value:)`; `CoffeeRepository.editField` via the mutation outbox + detail re-fetch; `CoffeeStore.editField`. Dropdown vocab already on-client (`index.vocabulary` + `Profile` enum) — no new read endpoint. Seam row: also claim in `status/ios-ux.md` |
 | 42 | ios-ux    | 5 | blocked | 40, 41 | **Edit sheet with consistency dropdowns** (PLAN.md §12). Edit button on `CoffeeDetailView` → `Form` sheet: origin country (multi-select) / roaster country / roaster / farm / process as **pickers over canonical vocab** ("Add new…" for roaster/farm routes through #40's get-or-create); altitude/weight/price/rating/roasted-on as bounded inputs; decaf toggle. Save applies each changed field via #41, reloads detail. `Features/Coffees` |
-| 45 | backend   | 6 | ready   | — | **`GET /api/whatsnew` + curated content** (PLAN.md §13). Returns `{live:[…], plan:{byLane:{backend,data,ios}, needsApproval:[…]}}` from a committed `backend/src/data/whatsnew.json` (curated prose, kept in sync with this backlog when rows flip). Seed with current reality. `routes/` + data file |
-| 46 | ios-shell | 6 | blocked | 45 | **`whatsNew()` API surface** (PLAN.md §13). `APIClient.whatsNew()` + lenient-decode DTO; fetched on appear, session-cached, no persistence. `API/` |
+| 45 | backend   | 6 | done   | — | **`GET /api/whatsnew` + curated content** (PLAN.md §13). Returns `{live:[…], plan:{byLane:{backend,data,ios}, needsApproval:[…]}}` from a committed `backend/src/data/whatsnew.json` (curated prose, kept in sync with this backlog when rows flip). Seeded with current reality (post-#43/#44) — see `status/backend.md` |
+| 46 | ios-shell | 6 | ready | 45 | **`whatsNew()` API surface** (PLAN.md §13). `APIClient.whatsNew()` + lenient-decode DTO; fetched on appear, session-cached, no persistence. `API/` |
 | 47 | ios-ux    | 6 | blocked | 45, 46 | **What's New screen** (PLAN.md §13). Reached from Settings; segmented **Live / Plan** control — Live = feature cards (title + detail + area chip); Plan = pinned **"Needs your approval"** then a section per lane. Read-only v1. `Features/` |
 | 44 | backend   | 4 | done    | — | Auto-create farms during adjudication — a confident `accepted` `origin_farm_id` that doesn't resolve against the (0-seeded) farm vocab now get-or-creates the `farms` row via the same #36 machinery, instead of only firing on a human accept. See `status/backend.md` for the live-verified before/after. `src/lib/adjudicate.js`, `src/lib/worker.js`, `src/lib/resolveField.js` |
 | 48 | data      | 4 | ready   | — | **Roaster country should trust the caption over the vocab guess.** Radu: "Uncommon" resolved to UK though its bag says "Prăjitorie: Uncommon (Amsterdam, Olanda)" = Netherlands. Root cause is a roaster **name collision** — a real UK "Uncommon Coffee Roasters" AND the Amsterdam one merged into one vocab row that #38 guessed as UK. Two parts: (a) immediate — correct `Uncommon`'s `country_id` to Netherlands (or split the roaster) via a small data migration + re-adjudicate; (b) durable — when a caption explicitly states the roaster's city/country, prefer that for `roaster_country_id` over the derived vocab country. Until (b), the edit sheet (#42) lets Radu fix such cases per-coffee. `src/lib/normalize.js`/`vocab.js` + migration |
@@ -58,6 +58,17 @@ whose `needs` are now all `done` from `blocked` to `ready` in the same commit. I
 you don't, the next lane has nothing to pick up.
 
 ## Right now
+
+**🛠️ 2026-08-12 (backend lane, later same day) — #45 is DONE.** `GET
+/api/whatsnew` (PLAN.md §13) ships from a new committed
+`backend/src/data/whatsnew.json`, `requireAnyToken`-gated. Content reflects
+current reality as of this push (post-#43/#44): Live now includes farm
+auto-create, roaster countries, accept-by-default, the shrunk photo cache and
+the generic edit API; Plan/byLane lists #37/#39/#41/#42/#48 plus this row's
+own #46/#47 follow-ups; needsApproval lists the pending iOS TestFlight batch,
+the ~$62 backfill, and the 50 MB cap. Full detail in `status/backend.md`.
+**`#46` (ios-shell) flipped `blocked`→`ready`** in the same push; `#47`
+(ios-ux) stays `blocked` — it also needs `#46`.
 
 **🛠️ 2026-08-12 (backend lane) — #44 and #43 are DONE.** Batched both, plus a
 markdown-table repair — full detail in `status/backend.md`. Short version:

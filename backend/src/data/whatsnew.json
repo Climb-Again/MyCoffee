@@ -1,0 +1,85 @@
+{
+  "live": [
+    {
+      "title": "Coffee bag photos become structured data automatically",
+      "detail": "Take a photo of a bag and the backend reads off the roaster, origin, farm, process, price, weight and rating for you.",
+      "area": "data"
+    },
+    {
+      "title": "Extraction picks are applied by default",
+      "detail": "The engine's picks now land directly on the coffee instead of sitting in a review queue; review only shows genuine disagreements between voters.",
+      "area": "backend"
+    },
+    {
+      "title": "Farm names are learned automatically",
+      "detail": "A confident new farm name from a caption now creates its own vocabulary entry instead of being dropped; farm coverage jumped from 0/21 to 13/21 coffees on the first run.",
+      "area": "backend"
+    },
+    {
+      "title": "Roaster countries filled in",
+      "detail": "80 of the 89 known roasters now have a home country on file, so origin filters and insights work for roaster country too.",
+      "area": "data"
+    },
+    {
+      "title": "Smaller cached photos",
+      "detail": "On-device photo thumbnails shrank about 57% to stay comfortably under the app's 50 MB size budget.",
+      "area": "backend"
+    },
+    {
+      "title": "Any coffee field can be corrected",
+      "detail": "Roaster, farm, origin, process, price, weight, rating and roast date can all be fixed from the backend now; an in-app edit sheet with dropdowns is next.",
+      "area": "backend"
+    }
+  ],
+  "plan": {
+    "byLane": {
+      "backend": [],
+      "data": [
+        {
+          "title": "Reject nonsense extracted numbers",
+          "detail": "An altitude of '1-5 m' or a similarly implausible weight/rating should be dropped instead of shown, even though the engine applies picks by default now."
+        },
+        {
+          "title": "Trust an explicit caption over the vocab guess for roaster country",
+          "detail": "Fix the 'Uncommon' roaster mixup (Amsterdam vs. a same-named UK roaster) and prefer what a caption actually says over a derived guess going forward."
+        }
+      ],
+      "ios": [
+        {
+          "title": "Hide the review affordance when there's nothing to actually review",
+          "detail": "A coffee's Review button shouldn't open an empty sheet when its only open items aren't client-reviewable."
+        },
+        {
+          "title": "Wire up the field-edit API on the client",
+          "detail": "Let the app call the backend's edit endpoint so a correction saves for real, not just locally."
+        },
+        {
+          "title": "Edit sheet with consistency dropdowns",
+          "detail": "A form to fix a coffee's roaster, origin, farm, process and other fields, with vocab pickers instead of free text."
+        },
+        {
+          "title": "What's New API surface on the client",
+          "detail": "Fetch this screen's own data from the backend so it always reflects the real current state of the project."
+        },
+        {
+          "title": "What's New screen",
+          "detail": "A Live/Plan view reachable from Settings so you can see what's shipped and what's queued, from inside the app."
+        }
+      ]
+    },
+    "needsApproval": [
+      {
+        "title": "Publish the accumulated iOS batch to TestFlight",
+        "detail": "The review queue UI, insights, roaster/country pages and several fixes are done and compile-green on main, waiting on the scheduled publish run — not pushed manually per your instruction."
+      },
+      {
+        "title": "Launch the full photo backfill (~$62)",
+        "detail": "Extracting all remaining photos needs your go-ahead per the spend gate; the free rules-only pass and the 5-photo sample are already validated."
+      },
+      {
+        "title": "Anything that would exceed the 50 MB app+data cap",
+        "detail": "A bigger image cache, larger bundled assets, or a fatter snapshot all need your sign-off before shipping."
+      }
+    ]
+  }
+}

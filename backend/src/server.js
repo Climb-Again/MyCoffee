@@ -23,6 +23,7 @@ import mediaRoutes from './routes/media.js';
 import coffeesRoutes from './routes/coffees.js';
 import reviewRoutes from './routes/review.js';
 import adminRoutes from './routes/admin.js';
+import whatsnewRoutes from './routes/whatsnew.js';
 
 export async function build() {
   const app = Fastify({
@@ -73,6 +74,7 @@ export async function build() {
   await app.register(coffeesRoutes);
   await app.register(reviewRoutes);
   await app.register(adminRoutes);
+  await app.register(whatsnewRoutes);
 
   return app;
 }
