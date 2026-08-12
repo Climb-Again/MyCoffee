@@ -70,41 +70,38 @@ struct InsightsView: View {
 
     // MARK: - Charts
 
+    /// A pie per listing-filter field, all sourced from the same facet counts
+    /// the filter sheet uses (computed once over the full corpus), so the
+    /// breakdowns always match what tapping that filter would show. The
+    /// rating-by-year line stays too — a trend, which a pie can't show.
     private var chartsSection: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            YearlyStackedChart(
-                title: "Coffees by origin country",
-                data: InsightsAggregation.yearlyTopCategories(coffees: coffees, topN: 6) { coffee in
-                    coffee.isBlend ? "Blend" : (coffee.primaryOriginCountry(vocabulary: vocabulary)?.name ?? "Unknown")
-                }
-            )
-
-            YearlyStackedChart(
-                title: "Coffees by process",
-                // topN covers every profile *plus* "Unknown" — process has a
-                // small, fixed domain, so there's never a real "Other" bucket
-                // to fall into (unlike roaster/origin country, which do).
-                data: InsightsAggregation.yearlyTopCategories(coffees: coffees, topN: Profile.allCases.count + 1) { coffee in
-                    coffee.profile?.displayName ?? "Unknown"
-                },
-                overrideColors: processColors
-            )
-
-            YearlyStackedChart(
-                title: "Coffees by roaster",
-                data: InsightsAggregation.yearlyTopCategories(coffees: coffees, topN: 6) { coffee in
-                    coffee.roaster(vocabulary: vocabulary)?.name ?? "Unknown"
-                }
-            )
-
+        let facets = store.index.facets(for: CoffeeFilter())
+        return VStack(alignment: .leading, spacing: 28) {
+            ForEach(pieDimensions, id: \.self) { dimension in
+                CategoryPieChart(title: dimension.title, slices: slices(for: dimension, facets: facets))
+            }
             RatingByYearChart(points: ratingByYearPoints, allTimeMean: allTimeMeanRating)
         }
     }
 
-    private var processColors: [String: Color] {
-        var colors = Dictionary(uniqueKeysWithValues: Profile.allCases.map { ($0.displayName, ProcessStyles.style(for: $0).color) })
-        colors["Unknown"] = ProcessStyles.unknown.color
-        return colors
+    /// The filterable fields worth a breakdown, in display order. `favorite` is
+    /// omitted (a toggle, not a distribution).
+    private var pieDimensions: [FilterDimension] {
+        [.originCountry, .profile, .roaster, .roasterCountry, .farm, .decaf,
+         .ratingBand, .priceBand, .pricePer100gBand, .altitudeBand, .year]
+    }
+
+    private func slices(for dimension: FilterDimension, facets: FacetCounts) -> [PieSlice] {
+        let entries = facets[dimension]
+            .filter { $0.count > 0 }
+            .sorted { $0.count > $1.count }
+        let maxSlices = 8
+        var slices = entries.prefix(maxSlices).map {
+            PieSlice(label: facetLabel($0.key, dimension: dimension, vocabulary: vocabulary), count: $0.count)
+        }
+        let overflow = entries.dropFirst(maxSlices).reduce(0) { $0 + $1.count }
+        if overflow > 0 { slices.append(PieSlice(label: "Other", count: overflow)) }
+        return slices
     }
 
     private var allTimeMeanRating: Double {

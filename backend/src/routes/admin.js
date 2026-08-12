@@ -10,13 +10,23 @@
 //                                    "the model provider is unreachable" apart
 //                                    from "the worker is broken" without needing
 //                                    platform log access
+//   POST /api/admin/rederive-photos  re-run the display/thumb derivative
+//                                    pipeline against already-stored photos
+//                                    (PLAN.md §11 #43) -- e.g. after shrinking
+//                                    DISPLAY_DERIVATIVES's `display` spec, so
+//                                    photos uploaded before the change also
+//                                    shrink, not just new ones
 //
 // All ingest-token-gated: these are write/spend-triggering operations, same
 // tier as every other mutation in the API.
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { runWorker, defaultVoters, readjudicateAll } from '../lib/worker.js';
+import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 
 function toJobJson(r) {
@@ -140,5 +150,47 @@ export default async function adminRoutes(app) {
     }
     const result = await readjudicateAll({ photoId });
     return result;
+  });
+
+  // Re-derives `display`/`thumb` (never `ocr` -- it's the source, and it's
+  // extraction-only, never cached on-device) from each photo's already-
+  // stored `ocr` asset. The raw upload itself isn't retained past the
+  // original PUT (routes/photos.js), so `ocr` -- the highest-fidelity
+  // derivative kept -- is the only available source for a later re-derive.
+  app.post('/api/admin/rederive-photos', { preHandler: requireIngestToken }, async (req, reply) => {
+    const requested = Array.isArray(req.body?.variants) ? req.body.variants : ['display', 'thumb'];
+    const specs = DISPLAY_DERIVATIVES.filter((s) => s.variant !== 'ocr' && requested.includes(s.variant));
+    if (specs.length === 0) return reply.code(400).send({ error: 'no_variants_to_rederive' });
+
+    const { rows: sources } = await query(
+      `SELECT a.photo_id, a.storage_path FROM assets a WHERE a.variant = 'ocr'`,
+    );
+
+    let updated = 0;
+    const errors = [];
+    for (const src of sources) {
+      try {
+        const buf = await readFile(path.join(config.dataDir, src.storage_path));
+        const derived = await deriveAll(buf, specs);
+        for (const d of Object.values(derived)) {
+          await query(
+            `UPDATE assets SET sha256 = $1, width = $2, height = $3, bytes = $4, storage_path = $5
+             WHERE photo_id = $6 AND variant = $7`,
+            [d.sha256, d.width, d.height, d.bytes, d.storagePath, src.photo_id, d.variant],
+          );
+        }
+        updated += 1;
+      } catch (err) {
+        errors.push({ photoId: src.photo_id, error: err.message });
+      }
+    }
+
+    // Old sha-addressed display/thumb files become unreferenced on disk once
+    // their `assets` row repoints to the new (smaller) sha -- not garbage
+    // collected here. That's a Railway-volume housekeeping concern, not the
+    // on-device budget this row is about (CLAUDE.md's 50 MB cap governs the
+    // iOS ImageStore cache, not backend storage); flagging rather than
+    // guessing at a GC pass's shape.
+    return { updated, errors, total: sources.length };
   });
 }

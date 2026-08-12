@@ -18,23 +18,19 @@ struct RootTabView: View {
 
             ReviewQueueView()
                 .tabItem { Label("Review", systemImage: Symbols.tabReview) }
-                .badge(pendingReviewCount)
+                .badge(store.reviewQueueCount)
         }
         .environmentObject(store)
         .task {
             if store.index.coffees.isEmpty {
                 await store.load()
             }
+            // Badge follows the actual review queue, not the count of non-clean
+            // coffees (which includes fields the app can't review).
+            await store.refreshReviewCount()
         }
         .task {
             await reviewCache.ensureLoaded()
         }
-    }
-
-    /// Counts only coffees with a client-reviewable open item (PLAN.md §11
-    /// #37) — same real-feed gate as the coffee-page Review button, so the
-    /// badge never promises more than the tab actually shows.
-    private var pendingReviewCount: Int {
-        store.index.coffees.filter { $0.hasOpenReview && reviewCache.hasReviewableTasks(for: $0.id) }.count
     }
 }

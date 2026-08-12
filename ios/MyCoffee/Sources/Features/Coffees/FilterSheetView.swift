@@ -149,11 +149,15 @@ private struct DimensionPills: View {
         )
     }
 
-    /// Every dimension's "Unknown" bucket is countable, but `CoffeeFilter`
-    /// only has a filterable slot for it on `.profile` (`includeUnknownProfile`)
-    /// — the others show the count without being selectable.
+    /// The "Unknown / missing" bucket is selectable on the vocab dimensions
+    /// (roaster, roaster country, origin, farm, profile) so you can filter to
+    /// coffees lacking that field — i.e. what still needs editing. The band
+    /// dimensions don't carry an Unknown bucket, so it's shown-only there.
+    private static let unknownSelectable: Set<FilterDimension> =
+        [.roaster, .roasterCountry, .originCountry, .farm, .profile]
+
     private func isTappable(_ key: FacetKey) -> Bool {
-        if case .unknown = key { return dimension == .profile }
+        if case .unknown = key { return Self.unknownSelectable.contains(dimension) }
         return true
     }
 
@@ -174,12 +178,12 @@ func isFacetSelected(_ key: FacetKey, dimension: FilterDimension, in filter: Cof
     case (.originCountry, .vocabID(let id)): return filter.originCountryIDs.contains(id)
     case (.farm, .vocabID(let id)): return filter.farmIDs.contains(id)
     case (.profile, .profile(let p)): return filter.profiles.contains(p)
-    case (.profile, .unknown): return filter.includeUnknownProfile
     case (.ratingBand, .ratingBand(let b)): return filter.ratingBands.contains(b)
     case (.priceBand, .priceBand(let b)): return filter.priceBands.contains(b)
     case (.pricePer100gBand, .priceBand(let b)): return filter.pricePer100gBands.contains(b)
     case (.altitudeBand, .altitudeBand(let b)): return filter.altitudeBands.contains(b)
     case (.year, .year(let y)): return filter.years.contains(y)
+    case (_, .unknown): return filter.unknownDimensions.contains(dimension)
     default: return false
     }
 }
@@ -197,12 +201,12 @@ func toggleFacet(_ key: FacetKey, dimension: FilterDimension, in filter: inout C
     case (.originCountry, .vocabID(let id)): flip(&filter.originCountryIDs, id)
     case (.farm, .vocabID(let id)): flip(&filter.farmIDs, id)
     case (.profile, .profile(let p)): flip(&filter.profiles, p)
-    case (.profile, .unknown): filter.includeUnknownProfile.toggle()
     case (.ratingBand, .ratingBand(let b)): flip(&filter.ratingBands, b)
     case (.priceBand, .priceBand(let b)): flip(&filter.priceBands, b)
     case (.pricePer100gBand, .priceBand(let b)): flip(&filter.pricePer100gBands, b)
     case (.altitudeBand, .altitudeBand(let b)): flip(&filter.altitudeBands, b)
     case (.year, .year(let y)): flip(&filter.years, y)
+    case (_, .unknown): flip(&filter.unknownDimensions, dimension)
     default: break
     }
 }

@@ -93,13 +93,21 @@ struct CoffeeIndex: Sendable {
             result.formIntersection(dimensionSet)
         }
 
-        intersectPostings(.roaster, filter.roasterIDs.map { .vocabID($0) })
-        intersectPostings(.roasterCountry, filter.roasterCountryIDs.map { .vocabID($0) })
-        intersectPostings(.originCountry, filter.originCountryIDs.map { .vocabID($0) })
-        intersectPostings(.farm, filter.farmIDs.map { .vocabID($0) })
+        // For the vocab dimensions, selecting "Unknown" adds the missing-field
+        // bucket to the OR set — so picking only Unknown matches exactly the
+        // coffees lacking that field (what still needs editing).
+        func keysWithUnknown(_ dimension: FilterDimension, _ ids: Set<Int>) -> [FacetKey] {
+            var keys: [FacetKey] = ids.map { .vocabID($0) }
+            if filter.unknownDimensions.contains(dimension) { keys.append(.unknown) }
+            return keys
+        }
+        intersectPostings(.roaster, keysWithUnknown(.roaster, filter.roasterIDs))
+        intersectPostings(.roasterCountry, keysWithUnknown(.roasterCountry, filter.roasterCountryIDs))
+        intersectPostings(.originCountry, keysWithUnknown(.originCountry, filter.originCountryIDs))
+        intersectPostings(.farm, keysWithUnknown(.farm, filter.farmIDs))
 
         var profileKeys: [FacetKey] = filter.profiles.map { .profile($0) }
-        if filter.includeUnknownProfile { profileKeys.append(.unknown) }
+        if filter.unknownDimensions.contains(.profile) { profileKeys.append(.unknown) }
         intersectPostings(.profile, profileKeys)
 
         if let isDecaf = filter.isDecaf {
@@ -251,7 +259,11 @@ struct CoffeeIndex: Sendable {
         }
 
         for (index, coffee) in coffees.enumerated() {
-            if let roasterID = coffee.roasterId { add(.roaster, .vocabID(roasterID), index) }
+            if let roasterID = coffee.roasterId {
+                add(.roaster, .vocabID(roasterID), index)
+            } else {
+                add(.roaster, .unknown, index)  // filterable "no roaster yet" bucket
+            }
 
             if let roasterCountryID = coffee.roasterCountryId {
                 add(.roasterCountry, .vocabID(roasterCountryID), index)

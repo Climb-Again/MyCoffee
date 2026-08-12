@@ -298,17 +298,27 @@ struct CoffeeDetailView: View {
     }
 
     private var processBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                ProcessTag(profile: coffee.profile)
-                if coffee.isDecaf {
-                    DecafBadge()
-                }
-            }
-            if let detail = coffee.profileDetail, !detail.isEmpty {
-                Text(detail)
+        // Full processing name (e.g. "Cold Natural") shown in brackets next to
+        // the coarse profile label ("Natural"). Skipped when the full name adds
+        // nothing — i.e. it's identical to the label (case-insensitive).
+        let detail = coffee.profileDetail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = coffee.profile?.displayName ?? ""
+        let fullName: String? = {
+            guard let detail, !detail.isEmpty,
+                  detail.caseInsensitiveCompare(label) != .orderedSame else { return nil }
+            return detail
+        }()
+
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            ProcessTag(profile: coffee.profile)
+            if let fullName {
+                Text("(\(fullName))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if coffee.isDecaf {
+                DecafBadge()
             }
         }
     }

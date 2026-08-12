@@ -6,6 +6,227 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-12 UTC (same session, follow-up): live production result for #44
+
+Pushed `b22bf1b` to `main`; `railway-deploy.yml` run `31572265068` completed
+`success`. Post-deploy: `GET /health` -> `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `POST /api/admin/rederive-photos` with no bearer -> `401`
+(auth guard live).
+
+Then ran the actual $0 re-adjudication (`POST /api/admin/adjudicate`) against
+**production** -- the same safe, no-LLM-spend operation #35/#36 were verified
+with live, and the exact mechanism #44 depends on to take effect on
+already-extracted data.
+
+**`GET /api/coffees?limit=30` farm coverage, before vs. after:**
+- Before: **0/21** coffees had `originFarmName` set -- matches the backlog
+  row's own "farm is 0/21 in the app" framing exactly.
+- After: **13/21** -- e.g. "Las Nubes", "Finca El Encanto", "Finca Milan",
+  "Tamiru Tadesse" -- all newly auto-created `farms` rows from real extracted
+  text, zero LLM spend, zero human review.
+
+**`GET /api/review?limit=200`** went from `total: 1` (a single non-client-
+-reviewable prose split, per #37's existing filtering) to `total: 6`: the 5
+new items are all genuine, defensible holds -- e.g. two voters proposing two
+different real farm names for the same coffee ("El Paseo" vs. "Huver
+Castillo", "Several small farmers" vs. "Konga Amederaro") correctly stayed
+`split`/unresolved rather than auto-creating one of them, exactly matching
+the `accepted`-only restriction verified locally. One open item (`coffeeId
+Wz65...`, field `farm`, single displayed candidate "Las Flores") looks odd at
+first glance -- but its `candidates` cell is stale display data from before
+this feature landed (the review UI's `cleanCandidates()` dedups by lowercased
+value and the item's own `field_candidates` row predates farm-voting on that
+particular photo, so this run's `resolutions`/`closeStaleReviews` never
+touched it at all -- confirmed this isn't a `resolutions` cycle at all,
+since neither `storeReviews` nor `closeStaleReviews` iterate a field that has
+zero stored candidates for a photo). Pre-existing legacy state, not something
+`#44` created or regressed; not investigating further as it's outside this
+row's scope.
+
+`GET /api/admin/jobs` -- still all `done`/`paused`, no `running` job created
+by the re-adjudication (it doesn't spawn one -- confirmed no new job row).
+
+## 2026-08-12 UTC: #44 (auto-create farms during adjudication) + #43 (shrink served photos + re-derive)
+
+Picked up both `ready` backend rows this cycle (phase 4 and phase 5, both with
+no `needs`) and batched them.
+
+### #44 — auto-create farms during adjudication
+
+Farm was 0/21 in the app: farm names ARE extracted (`extractFarmField` /
+the LLM voters all propose a name), but `canonicalize('origin_farm_id', ...)`
+only ever resolved against the (0-seeded) farm vocab -- an unresolved name
+was dropped entirely, so the field could never reach `accepted`, and #36's
+get-or-create only fires on a human review accept.
+
+**`src/lib/adjudicate.js`**: `canonicalize('origin_farm_id', ...)` now returns
+`{ id: null, name, confidenceFactor: 0.9 }` instead of `null` when the vocab
+lookup fails, so an unresolved farm name is a *candidate*, not a rejection --
+two voters proposing the same new name still cluster into one weighted group.
+`fieldsEqual` falls back to comparing normalized names when either side's
+`id` is null (a resolved candidate never equals an unresolved one, regardless
+of name). `adjudicateField` now returns a `pendingVocabName` alongside its
+usual shape: the winning cluster's raw name when it resolved to `{id: null}`,
+else `null`.
+
+**Deliberately NOT extended to `roaster_id`** -- tried it first, and the
+existing `adjudicate.test.js` case "an unresolvable second candidate leaves a
+single resolvable one -- still accepted" caught exactly why: with 89 roasters
++ aliases already seeded, an unresolvable second voter is far more likely to
+be extractor noise (a wrong/garbled roaster name) than a genuine new roaster.
+Carrying it through would turn that clean single-voter accept into a false
+`split` (two weighted clusters: the resolved roaster vs. the noise name) and
+create a spurious review item. Farms start at 0 seeded, so the asymmetry
+doesn't apply there -- every farm mention IS effectively "new" today. Noting
+this since the issue said "consider the same for a confident new roaster";
+concluded it's the wrong tradeoff given the current vocab shapes.
+
+**`src/lib/worker.js`**: new `createPendingVocabEntries(resolutions)`, called
+in `adjudicateAndApply()` right after `adjudicateRecord()` and before
+`storeResolutions()`. For any field whose `decision === 'accepted'` and
+`pendingVocabName` is set, calls `resolveField.js`'s `getOrCreateVocabEntry()`
+and writes the new id back onto `resolutions[field].value` so it flows
+through to `field_resolutions`/`coffees` exactly like a resolved candidate
+would. Restricted to `accepted` -- a `split` (two voters proposing two
+different new farm names) leaves the field null and goes to review instead
+of silently creating one of them; verified this live below.
+
+**A real duplicate-row race this surfaced, fixed in `resolveField.js`**:
+`getOrCreateVocabEntry`'s farm branch (`!spec.slugged`) inserted into `farms`
+unconditionally, with no `name`-uniqueness guard (unlike roasters' `slug`
+`ON CONFLICT`) -- fine when it only ran once per human review-accept, but
+`adjudicateAndApply()`'s `sharedCtx.vocab.farms` snapshot is loaded ONCE per
+worker run and reused across every photo in the batch (`runWorker`'s
+`loadSharedContext()`), so the *same* new farm name mentioned across several
+photos in one batch would insert a duplicate `farms` row per mention -- only
+the first's `farm_aliases` insert would stick (`alias_norm` is unique), the
+rest silently no-op, leaving orphan duplicate farms each still wired up to a
+real coffee via a different id. Fixed by checking `farm_aliases` for an
+existing `alias_norm` match before inserting a new farm row -- narrows (does
+not eliminate -- still two non-atomic queries) the race to true concurrent
+creation, which the worker's own `concurrency: 2` can in principle hit, down
+from "certain to happen for any repeated mention in one batch."
+
+**Verified end-to-end against a real local Postgres 16** (Postgres 16
+installed in this sandbox but not running by default -- started it, created
+a scratch `mycoffee_test` DB, ran the full migration chain 001-014 clean):
+- Two voters agreeing on a brand-new farm name (`Finca El Diamante`, 0 farms
+  in the table): `adjudicateAndApply()` created the farm + its alias,
+  `coffees.origin_farm_id` was set to the new id, `review_state: 'clean'`
+  (no review item -- it's a confident accept), `field_resolutions` row has
+  `decided_by: 'adjudication'`, `locked: false` (a later human edit via #40
+  still overrides it; it isn't treated as a human decision).
+- A second, separate photo mentioning the exact same new farm name, run
+  against a **freshly-reloaded** `sharedCtx` (the worst-case "long-lived
+  batch snapshot never saw the first creation" scenario) reused farm id 1 --
+  `farms` count stayed at 1, not 2, confirming the alias-lookup-first fix.
+- Two voters on a third photo proposing two *different* new farm names
+  (`Farm Alpha` / `Farm Beta`): decision `split`, `origin_farm_id` stayed
+  `null` (not auto-created), `review_state: 'needs_review'`, one open
+  `review_items` row (`reason: 'split'`) -- confirms the restriction to
+  `accepted` holds and a genuine disagreement still routes to a human.
+
+`cd backend && npm ci && npm test` -- **224/224 green** (217 after this row's
+own 7 new `adjudicate.test.js` cases; +7 more from #43 below).
+
+### #43 — optimize served photos so on-device caching stays under budget
+
+Radu: "instead of not caching, optimize photos." Took the lower-risk of the
+issue's two listed options (shrink dims/quality) over WebP -- WebP would also
+need `media.js`'s `VARIANTS`/extension and the `/media` route's content-type
+to change, and (per the issue itself) an iOS-side assumption about
+`AsyncImage` WebP support that's outside this lane's owned paths to verify;
+shrinking the existing JPEG spec gets most of the win with none of that.
+
+**New `src/lib/imageDerivatives.js`**, factored out of `routes/photos.js`'s
+inline sharp loop so the admin re-derive pass (below) can reuse the exact
+same pipeline instead of duplicating it: `DISPLAY_DERIVATIVES` (the spec
+array -- `display` is now **1080px/q72**, down from 1290px/q82; `ocr`
+2048px/q85 and `thumb` 320px/q75-cover are unchanged), `deriveOne`/`deriveAll`
+(sharp resize+encode+content-address-write), `sha256Hex`.
+`routes/photos.js`'s upload handler now calls `deriveAll(body, ...)` directly
+against the in-memory upload buffer -- this also **removed a pointless
+scratch-file round-trip**: the old code wrote the upload to a temp file
+purely so `sharp(tmpPath)` had a path to read, when `sharp()` already accepts
+a `Buffer` directly (which the route already had in memory as `body`). Fewer
+moving parts, one less disk write+unlink per upload.
+
+**`POST /api/admin/rederive-photos`** (`routes/admin.js`, ingest-token-gated,
+same tier as every other admin mutation): re-derives `display`/`thumb` (never
+`ocr` -- it's the source and it's extraction-only, never cached on-device)
+for every photo with a stored `ocr` asset, from that `ocr` file's bytes.
+**The raw original upload isn't retained past the initial PUT** (`photos.js`
+never wrote it to content-addressed storage, only its derivatives) -- `ocr`,
+the highest-fidelity derivative actually kept, is the only available source
+for a later re-derive. `{variants: [...]}` in the body selects which to
+re-derive (defaults to `['display','thumb']`). Deliberately does **not**
+garbage-collect the old sha-addressed files that become unreferenced once
+their `assets` row repoints to the new sha -- that's Railway-volume
+housekeeping, not the on-device budget this row is about; flagged in the
+route's own comment rather than guessed at.
+
+**Byte-savings measurement** (the issue's own ask, "measure a display's
+bytes before/after"): ran both specs against a **noisy** synthetic 3000×2000
+JPEG (not a flat color block, which is an unrealistically best-case input for
+JPEG) -- old (1290px/q82): 447,156 bytes; new (1080px/q72): 192,728 bytes --
+**~57% smaller**. Real coffee-bag photos (mostly flat background + printed
+text, less entropy than random noise) should compress at least this well,
+likely better; reporting the noisy-image number as a conservative floor
+rather than a synthetic best case.
+
+**Verified end-to-end against the real local Postgres + real files**:
+- Full upload path (`POST /api/photos/manifest` + `PUT .../image`) against a
+  synthetic 2600×1900 JPEG: `201`, all three variants created
+  (`display` came back 1080×789/5,368 bytes), then a re-PUT of the identical
+  bytes correctly deduped (`200 {"deduped":true}`) -- the refactor didn't
+  change upload/dedup behavior.
+- Seeded a photo with a real `ocr` asset on disk plus deliberately-fake
+  oversized `display`/`thumb` asset rows (999,999 / 50,000 bytes, wrong
+  dimensions) to simulate a pre-existing photo from before this change, then
+  called `POST /api/admin/rederive-photos` with a live ingest token:
+  `200 {"updated":1,"errors":[],"total":1}`, and `display`/`thumb` rows both
+  updated in place to the new, correct, much smaller dimensions/bytes;
+  `ocr` untouched, exactly as scoped.
+
+**A real bug caught by testing, not by the suite** (the smoke tests only
+check the auth guard, so they can't catch this): the refactor's first pass
+accidentally deleted `MANIFEST_MAX_ENTRIES`/`TEXT_WAIT_DAYS` along with the
+old import block it was replacing, which `npm test` couldn't catch (both
+constants are only touched once the ingest-token preHandler already lets a
+request through, which no smoke test does) -- caught by the live end-to-end
+upload run above, which hit a real `500 ReferenceError` on the first try.
+Fixed before landing; this is exactly why the live-Postgres runs above matter
+beyond `npm test` for anything past the auth-guard layer.
+
+New tests: `test/imageDerivatives.test.js` (6 cases, real sharp pipeline
+against synthetic in-memory images, `config.dataDir` pointed at a tmp dir for
+the file since the production default `/data` doesn't exist in this sandbox)
++ 1 admin.test.js auth-guard smoke test for the new route.
+`cd backend && npm ci && npm test` -- **224/224 green**.
+
+### Also: repaired a corrupted `BACKLOG.md` table row
+
+While reading #43's row to scope it, found it wasn't just #43's own text --
+a stray `|` mid-cell had merged **#39's entire row content** (data lane,
+`normalize.js` sanity envelopes, referenced by name in several earlier
+`status/backend.md` session-check notes as "ready but not backend-owned") in
+as trailing text on #43's line, with no leading `| 39 | data | ... |` prefix
+of its own. That means #39 had been invisible to anything that pattern-scans
+the table by row (`grep '^| 39 '` -- used by lane routines and by me, both
+returned nothing until this session), even though its content was still
+physically present in the file. Split it back into its own proper row rather
+than leaving it fused to #43's -- not a content change to #39 (still `data`,
+still `src/lib/normalize.js`, still not this lane's to fix), just restoring
+it to something a row-scan can find.
+
+**Live-verified pre-push**: `GET /health` -> `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` -> 10 jobs, all `done`/`paused`,
+**none `running`** -- safe to push `backend/**` per the hard rule.
+
+Flipped both `#44` and `#43` to `done` in `BACKLOG.md`; no row's `needs`
+references either number, so nothing else unblocks. Split `#39` back into
+its own `ready` row (see above) -- unchanged status, just visible again.
+
 ## 2026-08-11 UTC (later session, third check): session check — no ready row this cycle
 
 `origin/main` tip is `0282580` (this session's own branch,

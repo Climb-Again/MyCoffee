@@ -22,6 +22,7 @@ import {
   parseRating,
   parseDate,
   parseProfile,
+  normalizeVocabString,
 } from './normalize.js';
 import { resolveVocab, resolveOriginCountries } from './vocab.js';
 
@@ -55,7 +56,19 @@ export function canonicalize(field, rawValue, ctx = {}) {
     }
     case 'origin_farm_id': {
       const r = resolveVocab(rawValue, ctx.vocab?.farms, ctx.fuzzyOpts);
-      return r.resolved && r.id != null ? { id: r.id, confidenceFactor: r.confidence ?? 1 } : null;
+      if (r.resolved && r.id != null) return { id: r.id, confidenceFactor: r.confidence ?? 1 };
+      // Farms are open-ended vocab, 0 seeded to start (PLAN.md §11 #44) -- an
+      // unresolved name isn't an extraction failure, it's a farm not yet in
+      // the vocab. Carry the raw name through (id: null) so voters agreeing on
+      // the same new name still cluster and get `accepted`; worker.js
+      // get-or-creates the vocab row for an accepted decision. Deliberately
+      // NOT extended to roaster_id: see the "unresolvable second candidate"
+      // test in adjudicate.test.js -- roaster vocab is well-seeded, so an
+      // unresolvable second candidate there is far more likely to be extractor
+      // noise than a genuine new roaster, and treating it as a same-weight
+      // cluster would turn a clean single-voter accept into a false "split".
+      const name = String(rawValue ?? '').trim();
+      return name ? { id: null, name, confidenceFactor: 0.9 } : null;
     }
     // Never voted on by extraction (the worker derives it as a side effect of
     // `roaster_id` in `buildCoffeeColumnUpdates`) -- this case exists so the
@@ -132,7 +145,13 @@ export function fieldsEqual(field, a, b) {
     case 'roaster_id':
     case 'origin_farm_id':
     case 'roaster_country_id':
-      return a.id === b.id;
+      // origin_farm_id is the only one of these three that can carry a null
+      // `id` (an unresolved-but-named farm, see canonicalize above) -- fall
+      // back to comparing the raw name so two voters proposing the same new
+      // farm still cluster, and two proposing different new farms don't.
+      if (a.id != null && b.id != null) return a.id === b.id;
+      if (a.id != null || b.id != null) return false;
+      return normalizeVocabString(a.name) === normalizeVocabString(b.name);
     case 'origin_country_ids':
       return a.ids.length === b.ids.length && a.ids.every((id, i) => id === b.ids[i]);
     case 'altitude': {
@@ -237,7 +256,7 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     .filter(Boolean);
 
   if (candidates.length === 0) {
-    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null };
+    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null, pendingVocabName: null };
   }
 
   const clusters = clusterCandidates(field, candidates).sort((a, b) => b.totalWeight - a.totalWeight);
@@ -287,6 +306,13 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     reviewReason = reviewReason ?? 'implausible';
   }
 
+  // `value` is null when the winning cluster is an as-yet-unresolved farm
+  // name (canonical.id == null) -- worker.js's createPendingVocabEntries()
+  // get-or-creates the farms row for an `accepted` decision and fills this
+  // in; a `split` decision leaves it null rather than auto-creating from a
+  // genuine disagreement between two different farm names.
+  const pendingVocabName = field === 'origin_farm_id' && chosenCanonical?.id == null ? chosenCanonical.name : null;
+
   return {
     field,
     value: denormalize(field, chosenCanonical),
@@ -295,6 +321,7 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     voters: [...winnerVoters],
     decision,
     reviewReason,
+    pendingVocabName,
   };
 }
 

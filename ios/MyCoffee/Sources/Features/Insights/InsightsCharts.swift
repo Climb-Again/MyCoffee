@@ -5,16 +5,20 @@ import Charts
 /// `.chartForegroundStyleScale` only — never iOS 18's `BarPlot`/`LinePlot` or
 /// iOS 26's `Chart3D` (PLAN.md §6.4).
 enum ChartPalette {
-    /// A fixed hue rotation for dimensions with no existing tag color to
-    /// match (origin country, roaster). `Color.gray` is reserved for the
-    /// "Other" bucket so it reads the same way on every chart on the page.
+    /// A balanced categorical palette (the Tableau-10 hues) — evenly spaced,
+    /// consistent saturation/lightness, and legible in both light and dark.
+    /// `Color.gray` is reserved for the "Other" bucket so it reads the same way
+    /// on every chart on the page.
     static let rotation: [Color] = [
-        Color(red: 0.70, green: 0.23, blue: 0.12),
-        Color(red: 0.04, green: 0.42, blue: 0.71),
-        Color(red: 0.42, green: 0.25, blue: 0.63),
-        Color(red: 0.05, green: 0.49, blue: 0.42),
-        Color(red: 0.66, green: 0.08, blue: 0.35),
-        Color(red: 0.85, green: 0.55, blue: 0.10),
+        Color(red: 0.31, green: 0.48, blue: 0.65),  // blue
+        Color(red: 0.95, green: 0.56, blue: 0.17),  // orange
+        Color(red: 0.35, green: 0.63, blue: 0.31),  // green
+        Color(red: 0.88, green: 0.34, blue: 0.35),  // red
+        Color(red: 0.69, green: 0.48, blue: 0.63),  // purple
+        Color(red: 0.46, green: 0.72, blue: 0.70),  // teal
+        Color(red: 0.93, green: 0.79, blue: 0.28),  // yellow
+        Color(red: 1.00, green: 0.62, blue: 0.65),  // pink
+        Color(red: 0.61, green: 0.46, blue: 0.37),  // brown
     ]
 
     static func scale(for categories: [String]) -> (domain: [String], range: [Color]) {
@@ -29,6 +33,69 @@ enum ChartPalette {
             }
         }
         return (categories, range)
+    }
+}
+
+/// One slice of a category pie.
+struct PieSlice: Identifiable {
+    let label: String
+    let count: Int
+    var id: String { label }
+}
+
+/// A donut/pie breakdown of one filterable dimension (origin, roaster, process,
+/// price band, year, …) with a wrapped legend showing each slice's count.
+/// Colors are pinned by label so the same category keeps its hue.
+struct CategoryPieChart: View {
+    let title: String
+    let slices: [PieSlice]
+
+    private var scale: (domain: [String], range: [Color]) {
+        ChartPalette.scale(for: slices.map(\.label))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.headline)
+            if slices.isEmpty {
+                Text("Not enough data yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(height: 60)
+            } else {
+                Chart(slices) { slice in
+                    SectorMark(
+                        angle: .value("Coffees", slice.count),
+                        innerRadius: .ratio(0.55),
+                        angularInset: 1.5
+                    )
+                    .cornerRadius(3)
+                    .foregroundStyle(by: .value(title, slice.label))
+                }
+                .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
+                .chartLegend(.hidden)
+                .frame(height: 180)
+
+                legend
+            }
+        }
+    }
+
+    private var legend: some View {
+        let colors = Dictionary(uniqueKeysWithValues: zip(scale.domain, scale.range))
+        return WrapLayout() {
+            ForEach(slices) { slice in
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(colors[slice.label] ?? .gray)
+                        .frame(width: 9, height: 9)
+                    Text("\(slice.label) · \(slice.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.trailing, 4)
+            }
+        }
     }
 }
 

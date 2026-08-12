@@ -114,6 +114,10 @@ struct ReviewQueueView: View {
             .navigationTitle("Review")
             .task { await load() }
             .refreshable { await load() }
+            // Keep the tab badge in lock-step with the queue as items clear.
+            .onChange(of: engine.openTasks.count) { _, count in
+                store.setReviewQueueCount(count)
+            }
         }
     }
 

@@ -72,6 +72,19 @@ export async function getOrCreateVocabEntry(field, rawName) {
   if (!spec || !aliasNorm) return null;
 
   if (!spec.slugged) {
+    // Check for an existing alias first -- farms have no uniqueness
+    // constraint on `name` itself (unlike roasters' `slug`), so without this
+    // check the same new farm name mentioned across several photos in one
+    // worker batch (a single long-lived `sharedCtx.vocab.farms` snapshot,
+    // PLAN.md §11 #44) would insert a duplicate `farms` row per mention --
+    // only the first's alias insert would stick, and the rest would
+    // silently no-op on the alias table's `alias_norm` uniqueness, leaving
+    // orphan duplicate farms each still wired up to a real coffee.
+    const { rows: existing } = await query(
+      `SELECT ${spec.aliasFk} AS id FROM ${spec.aliasTable} WHERE alias_norm = $1`,
+      [aliasNorm],
+    );
+    if (existing[0]) return existing[0].id;
     const { rows } = await query(`INSERT INTO farms (name) VALUES ($1) RETURNING id`, [rawName]);
     await insertAlias(spec, rows[0].id, rawName, aliasNorm);
     return rows[0].id;

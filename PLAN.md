@@ -1051,3 +1051,51 @@ shows as clean (the badge clears). Only vocab/profile use dropdowns — that's t
 Depends on #40 → #41 → #42 in order. Same **no manual `publish=true`** rule as
 §11: land backend on `main` (auto-deploys via Railway), iOS on `ios-staging`, and
 let the Publish lane ship the iOS half.
+
+## 13. Addendum (2026-08-10) — in-app "What's New" (Live + Plan)
+
+Radu wants to track the project's progress from inside the app: a **What's New**
+screen with **two tabs**. **Backend-served** so it updates without an App Store
+release (the plan changes constantly). Rows #45 (backend) → #46 (iOS shell) →
+#47 (iOS UX).
+
+- **Live** — features he can **see and test in the app right now**, backend or
+  iOS. A feature is "Live" only once it's actually reachable: a backend change is
+  Live as soon as it's deployed + re-adjudicated (its effect shows on sync); an
+  iOS change is Live only once **published to TestFlight** — so built-but-
+  unpublished iOS work is NOT Live yet (that's what makes the pending-publish
+  visible, and why "publish the iOS batch" is a Needs-approval item below).
+- **Plan** — everything **ready to be picked by lanes**, **grouped by lane**
+  (Backend / Data / iOS), each item a one-line user-facing summary. Plus a
+  pinned **"Needs your approval"** section for the decisions only Radu makes:
+  publish the accumulated iOS batch to TestFlight; launch the ~$62 380-photo
+  backfill (spend gate, §8/#26); anything that would exceed the 50 MB app+data
+  cap (§12). This mirrors `status/BACKLOG.md` but curated for a human, not the
+  lane scheduler.
+
+### #45 — `GET /api/whatsnew` + curated content (Backend)
+
+`GET /api/whatsnew` (`requireAnyToken`) returns
+`{ live: [{title, detail, area}], plan: { byLane: {backend:[…], data:[…], ios:[…]}, needsApproval: [{title, detail}] } }`,
+read from a committed `backend/src/data/whatsnew.json`. Content is **curated
+prose**, not a raw backlog dump — keep it in sync with `status/BACKLOG.md`
+whenever a row flips (the operator/lane that moves a backlog row updates this
+file in the same push). Seed it with the current reality: Live = the deployed
+backend wins (real coffees, roaster countries #38, accept-by-default #35, edit
+API #40, review feed); Plan/byLane = #37/#39/#41/#42/#43/#44; Needs-approval =
+publish the iOS batch, the 380 backfill, the 50 MB cap.
+
+### #46 — `whatsNew()` API surface (iOS shell; `APIClient` + DTO)
+
+`APIClient.whatsNew()` → the DTO above; lenient decode (a malformed row is
+skipped, never blanks the screen). No persistence needed — fetched on view
+appear, cached in memory for the session.
+
+### #47 — What's New screen (iOS UX; `Features`)
+
+Reachable from **Settings** (a "What's New" row) — not a 4th tab, to keep the
+tab bar at Coffees/Insights/Review. A segmented **Live / Plan** control:
+**Live** is a list of feature cards (title + one-line detail + a small area
+chip); **Plan** shows the **Needs your approval** section pinned at top, then a
+section per lane. Read-only (no actions) in v1 — it informs, it doesn't approve
+inline. Depends on #45 → #46. Same no-manual-publish rule.
