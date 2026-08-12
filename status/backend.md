@@ -6,6 +6,56 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-12 UTC (later session): #45 — `GET /api/whatsnew` + curated content
+
+Only `ready` backend row this cycle (phase 6, no `needs`). Swept
+`origin/claude/*` for stranded prior attempts at #45 before starting — none
+found (checked branch names/diffs touching `whatsnew`; nothing matched).
+
+**`backend/src/data/whatsnew.json`** (new) — hand-curated content, not a raw
+`BACKLOG.md` dump, per the issue's own instruction. Seeded from current
+reality as of this session, which is *more current* than PLAN.md §13's own
+seeding suggestion (written before #43/#44 landed): moved #43 (shrunk photo
+cache) and #44 (farm auto-create) into **Live** rather than Plan, since both
+are now `done` and deployed. Live: real-photo extraction, accept-by-default
+adjudication, farm auto-create (0/21 → 13/21), roaster countries (80/89),
+the shrunk photo cache, and the generic edit API. Plan/byLane: `data` gets
+#39 (numeric sanity envelopes) and #48 (roaster-country-from-caption); `ios`
+gets #37/#41/#42 plus this row's own #46/#47 follow-ups; `backend` is empty
+(no other backend row is `ready`). `needsApproval`: publish the iOS batch
+sitting on `main`, the ~$62 backfill spend gate, the 50 MB cap.
+
+**`backend/src/routes/whatsnew.js`** (new) — `GET /api/whatsnew`,
+`requireAnyToken` (same tier as `/api/config`, `/api/brief` — any working
+token gets a real answer). Reads+parses the JSON file once at module load
+(not per-request) since it's small, static, and only changes via a redeploy
+anyway. Registered in `server.js` alongside the other route modules.
+
+**Verified**: `cd backend && npm ci && npm test` — **226/226 green** (224
+prior + 2 new: an auth-guard smoke test, and a pure shape-check on
+`whatsnew.json` itself — asserts `live[]`/`plan.byLane.{backend,data,ios}[]`/
+`plan.needsApproval[]` all exist with the string `title`/`detail` fields the
+client DTO will expect, so a future hand-edit that breaks the shape fails the
+suite instead of shipping a blank client screen).
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 10 jobs, all `done`/`paused`,
+**none `running`** — safe to push `backend/**` per the hard rule.
+
+Flipped `#45` → `done` in `BACKLOG.md`; `#46` (ios-shell, needs 45) flipped
+`blocked` → `ready` in the same push. `#47` (ios-ux, needs 45+46) stays
+`blocked` — it also needs `#46`.
+
+Pushed straight to `origin/main` (fast-forward `e1efd2c..e655c0c`; this
+session's own `claude/confident-cerf-0ol0nh` branch was pushed to the same
+tip first, so it isn't orphaned). Watched `railway-deploy.yml` run
+`31598603377` to completion via the GitHub Actions API — **`completed
+success`**. Post-deploy live-verify: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/whatsnew` with a
+live token → `200`, full expected shape (`live[6]`, `plan.byLane.{backend:[],
+data:[2],ios:[5]}`, `plan.needsApproval[3]`), content matching what was
+seeded above.
+
 ## 2026-08-12 UTC (same session, follow-up): live production result for #44
 
 Pushed `b22bf1b` to `main`; `railway-deploy.yml` run `31572265068` completed
