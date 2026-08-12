@@ -4,28 +4,15 @@
 //   PUT  /api/photos/:sourceId/image raw image/jpeg body, content-addressed
 //
 // Both require INGEST_TOKEN — this is the write path the exporter script uses.
-import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, rename, unlink, writeFile, access } from 'node:fs/promises';
-import path from 'node:path';
-import sharp from 'sharp';
+import { randomBytes } from 'node:crypto';
 
 import { requireIngestToken } from '../auth.js';
 import { query, withTransaction } from '../db.js';
 import { config } from '../config.js';
-import { derivativeAbsPath, derivativeRelPath } from '../media.js';
+import { DISPLAY_DERIVATIVES, deriveAll, sha256Hex } from '../lib/imageDerivatives.js';
 
 const MANIFEST_MAX_ENTRIES = 200;
 const TEXT_WAIT_DAYS = 10;
-
-const DERIVATIVES = [
-  { variant: 'ocr', maxDim: 2048, quality: 85 },
-  { variant: 'display', maxDim: 1290, quality: 82 },
-  { variant: 'thumb', maxDim: 320, quality: 75, cover: true },
-];
-
-function sha256Hex(buf) {
-  return createHash('sha256').update(buf).digest('hex');
-}
 
 function isHex64(s) {
   return typeof s === 'string' && /^[0-9a-f]{64}$/i.test(s);
@@ -254,60 +241,30 @@ export default async function photosRoutes(app) {
         return reply.code(200).send({ deduped: true, photoId: photo.public_id });
       }
 
-      const tmpPath = path.join(config.dataDir, 'tmp', `${randomBytes(12).toString('hex')}.jpg`);
-      await mkdir(path.dirname(tmpPath), { recursive: true });
-      await writeFile(tmpPath, body);
-
-      try {
-        const variants = {};
-        for (const spec of DERIVATIVES) {
-          // .rotate() bakes in EXIF orientation before we discard the EXIF
-          // block entirely -- sharp strips metadata by default (no
-          // withMetadata() call), which is exactly the "no GPS on a coffee
-          // bag photo" requirement.
-          let pipeline = sharp(tmpPath).rotate();
-          pipeline = spec.cover
-            ? pipeline.resize(spec.maxDim, spec.maxDim, { fit: 'cover' })
-            : pipeline.resize(spec.maxDim, spec.maxDim, { fit: 'inside', withoutEnlargement: true });
-          const buf = await pipeline.jpeg({ quality: spec.quality }).toBuffer();
-          const meta = await sharp(buf).metadata();
-          const sha = sha256Hex(buf);
-          const absPath = derivativeAbsPath(sha, spec.variant);
-
-          let exists = true;
-          try {
-            await access(absPath);
-          } catch {
-            exists = false;
-          }
-          if (!exists) {
-            await mkdir(path.dirname(absPath), { recursive: true });
-            const tmpDerivative = `${absPath}.tmp-${randomBytes(6).toString('hex')}`;
-            await writeFile(tmpDerivative, buf);
-            await rename(tmpDerivative, absPath);
-          }
-
-          await query(
-            `INSERT INTO assets (photo_id, variant, sha256, width, height, bytes, storage_path)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (photo_id, variant) DO UPDATE SET
-               sha256 = EXCLUDED.sha256, width = EXCLUDED.width, height = EXCLUDED.height,
-               bytes = EXCLUDED.bytes, storage_path = EXCLUDED.storage_path`,
-            [photo.id, spec.variant, sha, meta.width, meta.height, buf.length, derivativeRelPath(sha, spec.variant)],
-          );
-
-          variants[spec.variant] = { sha256: sha, width: meta.width, height: meta.height, bytes: buf.length };
-        }
-
+      // sharp accepts a Buffer directly, same as a file path -- no need to
+      // round-trip the upload through a scratch file first (the prior
+      // version did, purely so sharp had a path to read from).
+      const derived = await deriveAll(body, DISPLAY_DERIVATIVES);
+      const variants = {};
+      for (const d of Object.values(derived)) {
         await query(
-          `UPDATE photos SET has_image = true, image_uploaded_at = now(), updated_at = now(), content_sha256 = COALESCE(content_sha256, $1) WHERE id = $2`,
-          [actualSha, photo.id],
+          `INSERT INTO assets (photo_id, variant, sha256, width, height, bytes, storage_path)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (photo_id, variant) DO UPDATE SET
+             sha256 = EXCLUDED.sha256, width = EXCLUDED.width, height = EXCLUDED.height,
+             bytes = EXCLUDED.bytes, storage_path = EXCLUDED.storage_path`,
+          [photo.id, d.variant, d.sha256, d.width, d.height, d.bytes, d.storagePath],
         );
 
-        return reply.code(201).send({ created: true, photoId: photo.public_id, variants });
-      } finally {
-        await unlink(tmpPath).catch(() => {});
+        variants[d.variant] = { sha256: d.sha256, width: d.width, height: d.height, bytes: d.bytes };
       }
+
+      await query(
+        `UPDATE photos SET has_image = true, image_uploaded_at = now(), updated_at = now(), content_sha256 = COALESCE(content_sha256, $1) WHERE id = $2`,
+        [actualSha, photo.id],
+      );
+
+      return reply.code(201).send({ created: true, photoId: photo.public_id, variants });
     },
   );
 }

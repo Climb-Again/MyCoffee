@@ -86,6 +86,33 @@ test('canonicalize rating rejects anything outside 0-5 -- parseRating\'s bare-nu
   assert.equal(canonicalize('rating', '5', {}).value, 5);
 });
 
+test('canonicalize origin_farm_id resolves an existing farm via exact alias', () => {
+  const c = canonicalize('origin_farm_id', 'El Paraiso', { vocab: roasterVocab });
+  assert.equal(c.id, 1);
+});
+
+test('canonicalize origin_farm_id carries an unresolvable name through instead of dropping it', () => {
+  // Farms are open-ended (0 seeded to start, PLAN.md §11 #44) -- unlike
+  // roaster_id, an unresolved farm name is a *candidate*, not a rejection, so
+  // it can still cluster with another voter's agreeing candidate.
+  const c = canonicalize('origin_farm_id', 'Finca El Diamante', { vocab: roasterVocab });
+  assert.equal(c.id, null);
+  assert.equal(c.name, 'Finca El Diamante');
+});
+
+test('fieldsEqual: origin_farm_id compares unresolved candidates by normalized name', () => {
+  assert.equal(
+    fieldsEqual('origin_farm_id', { id: null, name: 'Finca El Diamante' }, { id: null, name: '  finca el diamante ' }),
+    true,
+  );
+  assert.equal(
+    fieldsEqual('origin_farm_id', { id: null, name: 'Finca El Diamante' }, { id: null, name: 'Some Other Farm' }),
+    false,
+  );
+  // A resolved candidate never equals an unresolved one, regardless of name.
+  assert.equal(fieldsEqual('origin_farm_id', { id: 1, name: 'El Paraiso' }, { id: null, name: 'El Paraiso' }), false);
+});
+
 test('fieldsEqual: altitude agrees within 50m of midpoint', () => {
   assert.equal(fieldsEqual('altitude', { min: 1300, max: 1600 }, { min: 1350, max: 1600 }), true);
   assert.equal(fieldsEqual('altitude', { min: 1300, max: 1600 }, { min: 1000, max: 1200 }), false);
@@ -157,6 +184,48 @@ test('a genuine split -- two voters resolving to different real roasters -- goes
   // Provisional: the top-weighted (here, either -- a 1-vs-1 tie keeps
   // whichever cluster formed first) pick is still written, not left null.
   assert.ok([1, 2].includes(result.value));
+});
+
+test('origin_farm_id: two voters agreeing on the same new (unresolved) farm name are accepted, flagged for get-or-create', () => {
+  const result = adjudicateField(
+    'origin_farm_id',
+    [
+      { agent: 'extract_a', value: 'Finca El Diamante', confidence: 0.9 },
+      { agent: 'extract_b', value: 'Finca El Diamante', confidence: 0.9 },
+    ],
+    BASE_CTX,
+  );
+  assert.equal(result.decision, 'accepted');
+  // Not yet resolvable to an id -- worker.js's createPendingVocabEntries()
+  // get-or-creates the farms row and fills this in before storeResolutions.
+  assert.equal(result.value, null);
+  assert.equal(result.pendingVocabName, 'Finca El Diamante');
+});
+
+test('origin_farm_id: a single voter proposing a new farm name is accepted, same as any other single-voter field', () => {
+  const result = adjudicateField('origin_farm_id', [{ agent: 'extract_a', value: 'Finca El Diamante', confidence: 0.9 }], BASE_CTX);
+  assert.equal(result.decision, 'accepted');
+  assert.equal(result.pendingVocabName, 'Finca El Diamante');
+});
+
+test('origin_farm_id: two voters proposing two different new farm names is a genuine split, not an auto-create', () => {
+  const result = adjudicateField(
+    'origin_farm_id',
+    [
+      { agent: 'extract_a', value: 'Finca El Diamante', confidence: 0.9 },
+      { agent: 'extract_b', value: 'Hacienda La Esperanza', confidence: 0.9 },
+    ],
+    BASE_CTX,
+  );
+  assert.equal(result.decision, 'split');
+  assert.equal(result.reviewReason, 'split');
+});
+
+test('origin_farm_id: resolving to an existing farm has no pendingVocabName', () => {
+  const result = adjudicateField('origin_farm_id', [{ agent: 'extract_a', value: 'El Paraiso', confidence: 0.9 }], BASE_CTX);
+  assert.equal(result.decision, 'accepted');
+  assert.equal(result.value, 1);
+  assert.equal(result.pendingVocabName, null);
 });
 
 test('P3 (rules) carries 1.5x weight on numeric fields -- a materially different value from 2 LLM voters is still a real split', () => {

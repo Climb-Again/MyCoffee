@@ -40,3 +40,10 @@ test('POST /api/admin/adjudicate requires the ingest token', async () => {
   assert.ok([401, 503].includes(res.statusCode));
   await app.close();
 });
+
+test('POST /api/admin/rederive-photos requires the ingest token', async () => {
+  const app = await build();
+  const res = await app.inject({ method: 'POST', url: '/api/admin/rederive-photos', payload: {} });
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});

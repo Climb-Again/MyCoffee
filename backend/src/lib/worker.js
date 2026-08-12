@@ -24,6 +24,7 @@ import { pool, query, withTransaction } from '../db.js';
 import { config } from '../config.js';
 import { derivativeAbsPath } from '../media.js';
 import { adjudicateRecord } from './adjudicate.js';
+import { getOrCreateVocabEntry } from './resolveField.js';
 import {
   loadCountryVocab,
   loadRoasterVocab,
@@ -447,6 +448,21 @@ export async function loadSharedContext() {
   };
 }
 
+// A confident `accepted` field whose winning value didn't resolve against the
+// vocab (today: only `origin_farm_id` can produce this -- PLAN.md §11 #44,
+// farms start at 0 seeded) is a new vocab entry, not an extraction failure --
+// get-or-create it here, the same confirmation a human accept already gives
+// (#36), so it applies without a review round-trip. Restricted to `accepted`
+// (not `split`) so a genuine disagreement between two different farm names
+// still goes to review instead of silently creating one of them.
+async function createPendingVocabEntries(resolutions) {
+  for (const res of Object.values(resolutions)) {
+    if (res.decision !== 'accepted' || !res.pendingVocabName) continue;
+    const newId = await getOrCreateVocabEntry(res.field, res.pendingVocabName);
+    if (newId != null) res.value = newId;
+  }
+}
+
 // Re-derives field_resolutions/review_items/coffees from whatever
 // field_candidates are already stored -- no voter is run. This is the $0,
 // ~instant re-adjudication path (PLAN.md §2) that both a fresh worker pass
@@ -464,6 +480,8 @@ export async function adjudicateAndApply(photo, photoText, sharedCtx) {
     photoDate: photo.captured_on,
     rawText,
   });
+
+  await createPendingVocabEntries(resolutions);
 
   await storeResolutions(photo.id, resolutions);
   const reviewedFieldSet = new Set(reviews.map((r) => r.field));
