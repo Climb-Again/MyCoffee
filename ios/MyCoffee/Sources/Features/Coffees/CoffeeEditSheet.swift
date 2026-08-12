@@ -14,11 +14,12 @@ private struct VocabEntry: Identifiable, Hashable {
 /// "Add new…" fallback that routes through #40's get-or-create; origin/roaster
 /// country stay a closed picker (#36: countries never get-or-create).
 ///
-/// Saves each changed field independently via #41's `CoffeeStore.editField`
-/// (fire-and-forget, durable through the mutation outbox); only fields the
-/// user actually touched are sent — comparing against the value this sheet was
-/// opened with, not just "is the control non-empty", so an untouched optional
-/// field never spuriously round-trips.
+/// Only fields the user actually touched are sent — comparing against the
+/// value this sheet was opened with, not just "is the control non-empty", so
+/// an untouched optional field never spuriously round-trips. A save with more
+/// than one changed field goes through #41's batch `CoffeeStore.editFields`
+/// (one HTTP request, no ordering race between e.g. a same-save `roaster` +
+/// `roasterCountry` edit); a single-field save still uses `editField`.
 struct CoffeeEditSheet: View {
     let coffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
@@ -255,70 +256,68 @@ struct CoffeeEditSheet: View {
 
     // MARK: - Save
 
-    /// Builds the list of `(field, rawValue)` edits that actually changed,
-    /// then fires each through #41's `CoffeeStore.editField` — one HTTP call
-    /// per field (the client has no batch-edit wrapper yet even though the
-    /// backend's `POST /api/coffees/:id/edit` supports `{edits:[...]}`;
-    /// flagged for the shell lane in `status/ios-ux.md` rather than reaching
-    /// into shell-owned `API`/`Store` files to add one here).
+    /// Builds the list of changed-field edits, then applies them via #41's
+    /// `CoffeeStore` — a single-field save calls `editField`; a multi-field
+    /// save calls the batch `editFields` (#41's atomicity fix for #42) so the
+    /// backend resolves and applies them together in one request.
     private func save() {
-        var edits: [(field: String, value: String)] = []
+        var edits: [CoffeeFieldEdit] = []
 
         if originCountryIDs != originalOriginCountryIDs {
             let names = originCountryIDs.compactMap { vocabulary.countries[$0]?.name }
             if !names.isEmpty {
-                edits.append((field: "originCountry", value: names.joined(separator: ", ")))
+                edits.append(CoffeeFieldEdit(field: "originCountry", value: names.joined(separator: ", ")))
             }
         }
 
         if roasterCountryID != originalRoasterCountryID,
            let id = roasterCountryID, let name = vocabulary.countries[id]?.name {
-            edits.append((field: "roasterCountry", value: name))
+            edits.append(CoffeeFieldEdit(field: "roasterCountry", value: name))
         }
 
         let trimmedNewRoaster = newRoasterName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedNewRoaster.isEmpty {
-            edits.append((field: "roaster", value: trimmedNewRoaster))
+            edits.append(CoffeeFieldEdit(field: "roaster", value: trimmedNewRoaster))
         } else if roasterID != originalRoasterID, let id = roasterID, let name = vocabulary.roasters[id]?.name {
-            edits.append((field: "roaster", value: name))
+            edits.append(CoffeeFieldEdit(field: "roaster", value: name))
         }
 
         let trimmedNewFarm = newFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedNewFarm.isEmpty {
-            edits.append((field: "farm", value: trimmedNewFarm))
+            edits.append(CoffeeFieldEdit(field: "farm", value: trimmedNewFarm))
         } else if farmID != originalFarmID, let id = farmID, let name = vocabulary.farms[id]?.name {
-            edits.append((field: "farm", value: name))
+            edits.append(CoffeeFieldEdit(field: "farm", value: name))
         }
 
         if profile != originalProfile || isDecaf != originalIsDecaf {
             var text = profile?.displayName ?? ""
             if isDecaf { text += text.isEmpty ? "decaf" : " decaf" }
-            edits.append((field: "profile", value: text))
+            edits.append(CoffeeFieldEdit(field: "profile", value: text))
         }
 
         if let minValue = Int(altitudeMin) {
             let maxValue = Int(altitudeMax) ?? minValue
             if Optional(minValue) != originalAltitudeMin || Optional(maxValue) != originalAltitudeMax {
                 let text = minValue == maxValue ? "\(minValue) m" : "\(minValue)-\(maxValue) m"
-                edits.append((field: "altitude", value: text))
+                edits.append(CoffeeFieldEdit(field: "altitude", value: text))
             }
         }
 
         if let grams = Int(weightGrams), Optional(grams) != originalWeightG {
-            edits.append((field: "weight", value: "\(grams)g"))
+            edits.append(CoffeeFieldEdit(field: "weight", value: "\(grams)g"))
         }
 
         if let amount = Double(priceEur.replacingOccurrences(of: ",", with: ".")) {
             let changed = originalPriceEur.map { abs(amount - $0) > 0.005 } ?? true
             if changed {
-                edits.append((field: "price", value: String(format: "%.2f EUR", amount)))
+                edits.append(CoffeeFieldEdit(field: "price", value: String(format: "%.2f EUR", amount)))
             }
         }
 
         if hasRating {
             let changed = originalRating.map { abs(rating - $0) > 0.001 } ?? true
             if changed {
-                edits.append((field: "rating", value: String(format: "%.1f/5", rating)))
+                edits.append(CoffeeFieldEdit(field: "rating", value: String(format: "%.1f/5", rating)))
             }
         }
 
@@ -327,12 +326,14 @@ struct CoffeeEditSheet: View {
             if let y = components.year, let m = components.month, let d = components.day {
                 let plain = PlainDate(year: y, month: m, day: d)
                 if Optional(plain) != originalRoastedOn {
-                    edits.append((field: "roastedOn", value: plain.isoString))
+                    edits.append(CoffeeFieldEdit(field: "roastedOn", value: plain.isoString))
                 }
             }
         }
 
-        for edit in edits {
+        if edits.count > 1 {
+            store.editFields(coffeeId: coffee.id, edits: edits)
+        } else if let edit = edits.first {
             store.editField(coffeeId: coffee.id, field: edit.field, value: edit.value)
         }
         dismiss()

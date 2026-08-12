@@ -59,6 +59,16 @@ you don't, the next lane has nothing to pick up.
 
 ## Right now
 
+**✅ 2026-08-12 (ios-ux lane) — the batch-edit call-site swap below is DONE.**
+`Features/Coffees/CoffeeEditSheet.swift`'s `save()` now sends one
+`CoffeeStore.editFields(coffeeId:edits:)` call when a save changed more than
+one field, instead of looping `editField` per field — closes the atomicity
+gap the ios-shell entry just below flagged, same session cycle. Single-field
+saves still use `editField` unchanged. See `status/ios-ux.md` for detail; not
+locally compiled (no Xcode here), but this is a narrow call-site change
+against an already-public type (`CoffeeFieldEdit`), so a red compile check
+would most likely be a typo, not a design gap.
+
 **🔗 2026-08-12 (ios-shell lane) — closed #42's flagged batch-edit atomicity
 gap, no new backlog row.** No `ios-shell` row was actually `ready` this cycle
 (`#41` below was already `done` on `ios-staging` — `main`'s copy of this file

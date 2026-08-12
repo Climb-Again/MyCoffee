@@ -8,6 +8,38 @@ _none_
 
 ## Session notes
 
+- [2026-08-12 UTC] Closed the batch-edit atomicity gap the ios-shell lane's
+  2026-08-12 session flagged (`status/ios-shell.md`): it added
+  `CoffeeStore.editFields`/`APIClient.editCoffeeFields` and asked UX to swap
+  the call site, since the fix only takes effect once the sheet stops calling
+  the single-field path in a loop. No numbered `BACKLOG.md` row was actually
+  `ready` for this lane this cycle — `#37` and `#42` were already `done` on
+  `ios-staging` before this session started (`57f6073` / `be0b40a`); `main`'s
+  copy of `status/BACKLOG.md` still showed stale rows because the dev/ship
+  split means `ios-staging` never pushes there until Publish merges. `#47`
+  (What's New screen) stays `blocked` — `#45`/`#46` aren't done yet.
+  - Merged `origin/main` into `ios-staging` first (two real conflicts in
+    `status/BACKLOG.md`, reconciled by keeping `ios-staging`'s newer #41/#42
+    rows and `main`'s newer #43/#44/#45/#46/#47/#48/#39 rows; two trivial Swift
+    conflicts — a dead unused `pendingReviewCount` left over from an earlier
+    #37 draft in `RootTabView.swift`, and `ReviewQueueView.swift`'s older
+    fire-and-forget resolve path superseded by the outbox-backed one — both
+    resolved by keeping `ios-staging`'s side, no logic change).
+  - `Features/Coffees/CoffeeEditSheet.swift`'s `save()` built a
+    `[(field, value)]` tuple array and called `store.editField` once per entry
+    in a loop — exactly the gap ios-shell's write-up named. Changed the
+    array's element type to the shared `CoffeeFieldEdit` struct (already
+    public from #41) and, at the end of `save()`, call
+    `store.editFields(coffeeId:edits:)` when more than one field changed,
+    falling back to the existing single-field `store.editField` when exactly
+    one did. No behavior change for a single-field save; a multi-field save
+    (e.g. changing `roaster` and `roasterCountry` in the same sheet visit) now
+    goes over the wire as one request instead of two racing ones.
+  - Not locally compiled (no Xcode here) — a narrow, mechanical call-site
+    change against an existing, already-used type, so a red compile check
+    here would most likely be a typo, not a design gap.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-11 UTC] No-op session. `BACKLOG.md`: all five `ios-ux` rows (#18,
   #27, #28, #37, #42) are `done`. The only `ready` rows this cycle are `#39`
   (data, altitude/weight/rating sanity envelopes), `#43`/`#44` (backend,
