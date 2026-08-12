@@ -187,6 +187,24 @@ struct APIClient: Sendable {
         return true
     }
 
+    // POST /api/coffees/:publicId/edit with a body's `edits` array — applies
+    // multiple field edits in one request instead of one call per field
+    // (`routes/coffees.js` resolves each in order, then writes the coffees
+    // row once; any single edit's 422 aborts the whole batch before anything
+    // is applied). Closes the gap #42's edit sheet flagged: two single-field
+    // `editCoffeeField` calls for e.g. `roaster` + `roasterCountry` have no
+    // ordering guarantee against each other, so a derived value could race
+    // an explicit one.
+    @discardableResult
+    func editCoffeeFields(publicId: String, edits: [CoffeeFieldEdit]) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "edits": edits.map { ["field": $0.field, "value": $0.value] },
+        ])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/edit", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
     // GET /api/brief — the editorial "This month" section (PLAN.md §6.4);
     // `nil` until the backend has generated one.
     func brief() async throws -> Brief? {
@@ -204,4 +222,13 @@ struct StatusResponse: Codable {
     let ok: Bool
     let service: String
     let db: Bool
+}
+
+/// One field/value pair in a batch edit request (`editCoffeeFields`,
+/// PLAN.md §12). `value` is always the same raw string the single-field
+/// `editCoffeeField` takes — the backend's `resolveField` does the
+/// canonicalizing either way.
+struct CoffeeFieldEdit: Codable, Sendable, Equatable {
+    let field: String
+    let value: String
 }

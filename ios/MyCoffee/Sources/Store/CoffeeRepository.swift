@@ -36,4 +36,10 @@ protocol CoffeeRepository: Sendable {
     /// queued (offline) or was rejected (a 422 never applies, so there's
     /// nothing new to merge).
     func editField(coffeeId: String, field: String, value: String) async -> Coffee?
+
+    /// Same as `editField`, but applies every edit in `edits` in one request
+    /// (PLAN.md §12, closing the atomicity gap #42's edit sheet flagged) —
+    /// use this instead of N `editField` calls whenever a single save
+    /// changes more than one field.
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee?
 }

@@ -39,4 +39,6 @@ actor SampleCoffeeRepository: CoffeeRepository {
     // does isn't fixture logic worth duplicating here, so previews see no
     // change rather than a guessed-at one.
     func editField(coffeeId: String, field: String, value: String) async -> Coffee? { nil }
+
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee? { nil }
 }

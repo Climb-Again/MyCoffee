@@ -140,6 +140,19 @@ actor SyncEngine {
         return try? await loadDetail(coffeeId: coffeeId, using: client)
     }
 
+    /// Same shape as `editField`, but for >1 field applied in one request
+    /// (PLAN.md §12, the #42-flagged atomicity gap) — the backend resolves
+    /// every edit before writing the coffees row once, so there's no
+    /// ordering hazard between e.g. an explicit `roasterCountry` and the
+    /// `roasterCountryId` a same-save `roaster` edit derives.
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit], client: APIClient?) async -> Coffee? {
+        await outbox.enqueueEditBatch(coffeeId: coffeeId, edits: edits)
+        guard let client else { return nil }
+        await outbox.flush(using: client)
+        guard await outbox.pendingEditBatch(coffeeId: coffeeId) == nil else { return nil }
+        return try? await loadDetail(coffeeId: coffeeId, using: client)
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,

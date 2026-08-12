@@ -4,9 +4,63 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-12 00:00 UTC] 41 Edit API surface (APIClient.editCoffeeField, CoffeeRepository.editField, CoffeeStore.editField) — branch `ios-staging`
+_none_
 
 ## Done
+
+- [2026-08-12 UTC] No open `BACKLOG.md` row for `ios-shell` this cycle — `#41` (this
+  lane's only other row besides `#17`/`#22`) was already `done` on `ios-staging`
+  (`5b76a6c`, 2026-08-11), and `#42` (ios-ux) had already landed on top of it
+  (`be0b40a`, same day). This session initially claimed `#41` off `main`'s stale
+  copy of `status/BACKLOG.md` — `main` still showed `41 ready`/`42 blocked` because
+  the dev/ship split means `ios-staging` never pushes its `status/BACKLOG.md`
+  updates to `main` until the Publish lane merges; `ios-staging`'s own copy already
+  read `done`/`done`. Retracted that claim once `git checkout ios-staging` surfaced
+  the real state, rather than redoing already-landed work.
+  - **Picked up a real, already-flagged, already-scoped gap instead of stopping**
+    (same precedent as the 2026-08-06 entry below): `status/ios-ux.md`'s `#42`
+    write-up flagged that the backend's batch `{edits:[...]}` endpoint (`#40`) has
+    no client-side batch caller — `APIClient.editCoffeeField`/`CoffeeStore.editField`
+    (`#41`) only expose one field per HTTP request, so `CoffeeEditSheet` fires one
+    request per changed field with no ordering guarantee between them (e.g. an
+    explicit `roasterCountry` edit racing the `roasterCountryId` a same-save
+    `roaster` edit derives). UX's note named the exact ask: "an `APIClient.
+    editCoffeeFields(publicId:edits:)` + a matching `CoffeeStore` batch wrapper... 
+    claim in both lane files per the seam rule if picked up." Closed it:
+    - `APIClient.editCoffeeFields(publicId:edits:)` → the same `POST
+      /api/coffees/:id/edit` route, body `{edits:[{field,value},...]}` instead of
+      `{field,value}` — confirmed against `routes/coffees.js`: all edits resolve
+      before the coffees row is written once, so a single 422 aborts the whole
+      batch rather than partially applying.
+    - New `CoffeeFieldEdit: Codable` (`{field, value}`) — shared by the API call,
+      a new `PendingMutation.editBatch(coffeeId:edits:)` case (one outstanding
+      batch per coffeeId, same replace-not-accumulate rule as `.edit`), and
+      `MutationOutbox.enqueue/pendingEditBatch`. Extended both exhaustive
+      `PendingMutation` switches (`isReviewMutation`, `shouldKeep`) — `shouldKeep`
+      reuses the existing 4xx-drops/5xx-retries split unchanged.
+    - `SyncEngine.editFields` mirrors `editField`'s queue→flush→re-fetch-detail
+      shape; `CoffeeRepository.editFields` + `RemoteCoffeeRepository`/
+      `SampleCoffeeRepository` (no-op, same reasoning as `editField`'s) conform;
+      `CoffeeStore.editFields(coffeeId:edits:)` is the call the edit sheet should
+      switch to whenever `edits.count > 1`.
+  - **UX lane: one call-site swap, not new plumbing.** `Features/Coffees/
+    CoffeeEditSheet.swift`'s save currently fires `store.editField(...)` once per
+    changed field. When more than one field changed in the same save, swap that
+    loop for one `store.editFields(coffeeId:edits:)` call instead — the atomicity
+    fix only takes effect once the sheet stops calling the single-field path in a
+    loop. Not making this swap myself — `Features/Coffees/**` is UX-owned.
+  - No new `BACKLOG.md` row (not a numbered issue, just closing a flagged gap in
+    already-owned files — same as the 2026-08-06 entry's precedent); added a
+    pointer in `BACKLOG.md`'s `#42` row + "Right now" section instead so the UX
+    lane sees it without reading this file.
+  - Not locally compiled (no Xcode here) — every new piece mirrors `editField`'s
+    existing shape 1:1, so a red compile check should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/{API/APIClient,Store/CoffeeRepository,Store/CoffeeStore,
+    Store/MutationOutbox,Store/RemoteCoffeeRepository,Store/SampleCoffeeRepository,
+    Store/SyncEngine}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 
 - [2026-08-11 UTC, later session] Session check — no ready `ios-shell` row.
   Only `ios-shell` rows in `BACKLOG.md` are #17/#22/#41, all `done` (#41
