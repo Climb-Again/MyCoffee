@@ -6,6 +6,38 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-12 UTC (later session, follow-up check): session check — no ready row this cycle
+
+`main`/`origin/main` agree exactly at `8dd05f6` (no fast-forward needed).
+All backend-tagged `BACKLOG.md` rows are `done`
+(11/15/16/19/21/23/24/33/35/36/40/43/44/45). Only `ready` rows remaining
+overall are `#39`/`#48` (data, `normalize.js`/vocab-owned) and `#41`/`#46`
+(ios-shell) — none backend-tagged. Nothing to pick up.
+
+Fresh unscoped `git fetch origin --prune` — 79 `origin/claude/*` branches (up
+from 74 at the last sweep). Checked every branch's ahead-count vs
+`origin/main`; the ~15 newly-seen names this cycle
+(`confident-cerf-k31mzh`, `determined-thompson-{yjymsr,uh2dyn,s66jso,ekezl2,
+4x4vo3,349x88,w41je3,40hdu2,wjm3gv,tw8az2,2c546d,v93cvk}`,
+`lanes-status-blockers-wws2lc`, `confident-cerf-hafw59`) all show the same
+`backend/` diff shape as every prior sweep: **net-deletions-only**
+(`backend/test/whatsnew.test.js` deleted, `worker.test.js` shrunk — i.e.
+stale forks off a `main` tip that predates #45) — not stranded work to
+integrate.
+
+Ran `cd backend && npm ci && npm test` — **226/226 green**, matching #45's
+landing count exactly, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 10 jobs, all `done`/`paused`, **none `running`** — would
+have been safe to push `backend/**` this session, though there was no code
+to push. `GET /api/review?limit=200` → **6** open items, unchanged from the
+count recorded right after #44's live re-adjudication — no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-12 UTC (later session): #45 — `GET /api/whatsnew` + curated content
 
 Only `ready` backend row this cycle (phase 6, no `needs`). Swept
