@@ -11,7 +11,10 @@ struct CoffeeFilter: Equatable, Sendable {
     var originCountryIDs: Set<Int> = []
     var farmIDs: Set<Int> = []
     var profiles: Set<Profile> = []
-    var includeUnknownProfile = false
+    /// Dimensions for which the "Unknown / missing" bucket is selected — lets
+    /// you filter to coffees lacking that field (i.e. what still needs editing).
+    /// Covers roaster / roaster country / origin / farm / profile.
+    var unknownDimensions: Set<FilterDimension> = []
     var isDecaf: Bool?             // nil = both
     var favoritesOnly = false
     var ratingBands: Set<RatingBand> = []
@@ -27,7 +30,7 @@ struct CoffeeFilter: Equatable, Sendable {
             && originCountryIDs.isEmpty
             && farmIDs.isEmpty
             && profiles.isEmpty
-            && !includeUnknownProfile
+            && unknownDimensions.isEmpty
             && isDecaf == nil
             && !favoritesOnly
             && ratingBands.isEmpty
@@ -49,7 +52,6 @@ struct CoffeeFilter: Equatable, Sendable {
         case .farm: copy.farmIDs = []
         case .profile:
             copy.profiles = []
-            copy.includeUnknownProfile = false
         case .decaf: copy.isDecaf = nil
         case .favorite: copy.favoritesOnly = false
         case .ratingBand: copy.ratingBands = []
@@ -58,6 +60,8 @@ struct CoffeeFilter: Equatable, Sendable {
         case .altitudeBand: copy.altitudeBands = []
         case .year: copy.years = []
         }
+        // The "Unknown" selection is per-dimension too — clear it alongside.
+        copy.unknownDimensions.remove(dimension)
         return copy
     }
 
