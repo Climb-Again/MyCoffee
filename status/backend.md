@@ -6,6 +6,46 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-12 UTC (same session, follow-up): live production result for #44
+
+Pushed `b22bf1b` to `main`; `railway-deploy.yml` run `31572265068` completed
+`success`. Post-deploy: `GET /health` -> `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `POST /api/admin/rederive-photos` with no bearer -> `401`
+(auth guard live).
+
+Then ran the actual $0 re-adjudication (`POST /api/admin/adjudicate`) against
+**production** -- the same safe, no-LLM-spend operation #35/#36 were verified
+with live, and the exact mechanism #44 depends on to take effect on
+already-extracted data.
+
+**`GET /api/coffees?limit=30` farm coverage, before vs. after:**
+- Before: **0/21** coffees had `originFarmName` set -- matches the backlog
+  row's own "farm is 0/21 in the app" framing exactly.
+- After: **13/21** -- e.g. "Las Nubes", "Finca El Encanto", "Finca Milan",
+  "Tamiru Tadesse" -- all newly auto-created `farms` rows from real extracted
+  text, zero LLM spend, zero human review.
+
+**`GET /api/review?limit=200`** went from `total: 1` (a single non-client-
+-reviewable prose split, per #37's existing filtering) to `total: 6`: the 5
+new items are all genuine, defensible holds -- e.g. two voters proposing two
+different real farm names for the same coffee ("El Paseo" vs. "Huver
+Castillo", "Several small farmers" vs. "Konga Amederaro") correctly stayed
+`split`/unresolved rather than auto-creating one of them, exactly matching
+the `accepted`-only restriction verified locally. One open item (`coffeeId
+Wz65...`, field `farm`, single displayed candidate "Las Flores") looks odd at
+first glance -- but its `candidates` cell is stale display data from before
+this feature landed (the review UI's `cleanCandidates()` dedups by lowercased
+value and the item's own `field_candidates` row predates farm-voting on that
+particular photo, so this run's `resolutions`/`closeStaleReviews` never
+touched it at all -- confirmed this isn't a `resolutions` cycle at all,
+since neither `storeReviews` nor `closeStaleReviews` iterate a field that has
+zero stored candidates for a photo). Pre-existing legacy state, not something
+`#44` created or regressed; not investigating further as it's outside this
+row's scope.
+
+`GET /api/admin/jobs` -- still all `done`/`paused`, no `running` job created
+by the re-adjudication (it doesn't spawn one -- confirmed no new job row).
+
 ## 2026-08-12 UTC: #44 (auto-create farms during adjudication) + #43 (shrink served photos + re-derive)
 
 Picked up both `ready` backend rows this cycle (phase 4 and phase 5, both with
