@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-12 00:00 UTC] #44 auto-create farms/roasters during adjudication (PLAN.md §11) — branch `main`
 
 ## 2026-08-11 UTC (later session, third check): session check — no ready row this cycle
 
