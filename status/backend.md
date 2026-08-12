@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-12 UTC] #45 GET /api/whatsnew + curated content — branch `main`
 
 ## 2026-08-12 UTC (same session, follow-up): live production result for #44
 
