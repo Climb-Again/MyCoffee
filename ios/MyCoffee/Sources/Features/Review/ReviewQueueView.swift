@@ -93,6 +93,7 @@ struct ReviewCardStack: View {
 /// on appear and persists each accept/dismiss through the engine's injected
 /// hooks; the sample fixtures survive only as `#Preview` fodder.
 struct ReviewQueueView: View {
+    @EnvironmentObject private var store: CoffeeStore
     @StateObject private var engine = ReviewQueueEngine(tasks: [])
     @State private var isLoading = true
     @State private var loadError: String?
@@ -113,6 +114,10 @@ struct ReviewQueueView: View {
             .navigationTitle("Review")
             .task { await load() }
             .refreshable { await load() }
+            // Keep the tab badge in lock-step with the queue as items clear.
+            .onChange(of: engine.openTasks.count) { _, count in
+                store.setReviewQueueCount(count)
+            }
         }
     }
 
@@ -122,7 +127,9 @@ struct ReviewQueueView: View {
         do {
             let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
-            engine.load(feed.items.compactMap(ReviewTask.init(dto:)))
+            let tasks = feed.items.compactMap(ReviewTask.init(dto:))
+            engine.load(tasks)
+            store.setReviewQueueCount(tasks.count)
             // Fire-and-forget persistence; a failed call leaves the row open
             // server-side, which the next `load()` will surface again.
             engine.onAccept = { task, value in

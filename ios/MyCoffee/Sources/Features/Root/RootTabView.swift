@@ -17,17 +17,16 @@ struct RootTabView: View {
 
             ReviewQueueView()
                 .tabItem { Label("Review", systemImage: Symbols.tabReview) }
-                .badge(pendingReviewCount)
+                .badge(store.reviewQueueCount)
         }
         .environmentObject(store)
         .task {
             if store.index.coffees.isEmpty {
                 await store.load()
             }
+            // Badge follows the actual review queue, not the count of non-clean
+            // coffees (which includes fields the app can't review).
+            await store.refreshReviewCount()
         }
-    }
-
-    private var pendingReviewCount: Int {
-        store.index.coffees.filter(\.hasOpenReview).count
     }
 }

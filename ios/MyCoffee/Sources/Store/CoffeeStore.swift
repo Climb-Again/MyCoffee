@@ -16,6 +16,15 @@ final class CoffeeStore: ObservableObject {
     @Published var filter = CoffeeFilter()
     @Published var sort: SortOption = .dateBought
 
+    /// The Review-tab badge count. This is the count of items the review queue
+    /// can actually action (`GET /api/review`, already filtered to
+    /// app-reviewable fields with usable candidates) — NOT every coffee whose
+    /// `reviewState` is non-clean. The two diverge: a coffee can be
+    /// `needs_review` only for fields the app can't review (farm, prose,
+    /// roasted-date), which the queue omits — so a badge counting non-clean
+    /// coffees never drops as you clear the queue. The badge follows the queue.
+    @Published private(set) var reviewQueueCount: Int = 0
+
     private let repository: CoffeeRepository
 
     init(repository: CoffeeRepository = RemoteCoffeeRepository()) {
@@ -79,6 +88,19 @@ final class CoffeeStore: ObservableObject {
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.
     func loadBrief() async -> Brief? {
         try? await APIClient(config: AppConfig.shared).brief()
+    }
+
+    /// Refresh the Review-tab badge from the same feed the Review page renders,
+    /// so badge and page always agree. Called on launch; the Review view also
+    /// updates it live via `setReviewQueueCount` as items are cleared.
+    func refreshReviewCount() async {
+        guard let client = try? await APIClient(config: AppConfig.shared),
+              let feed = try? await client.reviewFeed() else { return }
+        reviewQueueCount = feed.items.count
+    }
+
+    func setReviewQueueCount(_ count: Int) {
+        reviewQueueCount = count
     }
 
     var filteredCoffees: [Coffee] {
