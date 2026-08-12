@@ -8,6 +8,37 @@ _none_
 
 ## Done
 
+- [2026-08-12 UTC, later session] 46 `whatsNew()` API surface (PLAN.md §13) — branch `ios-staging`
+  - `APIClient.whatsNew() async throws -> WhatsNewResponseDTO` (`GET /api/whatsnew`), plus the new
+    `API/Wire/WhatsNewWire.swift`: `WhatsNewResponseDTO{live, plan}`, `WhatsNewPlanDTO{byLane, needsApproval}`,
+    `WhatsNewItemDTO{title, detail, area}` (`area` only populated on `live` items, `nil` on plan items — matches
+    `backend/src/data/whatsnew.json`'s actual shape and `backend/test/whatsnew.test.js`'s assertions).
+  - **Lenient decode**, per the row's own ask: every array (`live`, each `byLane` lane, `needsApproval`) decodes via
+    `[FailableDecodable<WhatsNewItemDTO>].self.compactMap(\.value)` — the same `FlexibleDecoding.swift` helper the
+    snapshot/review feeds already use — so one malformed curated card is dropped, never a fatal decode that blanks
+    the whole screen.
+  - Session first checked out `ios-staging` and discovered its own `status/BACKLOG.md` already had `#41`/`#42`
+    marked `done` (landed 2026-08-11/12) while `main`'s copy — this session's merge source — still showed `41
+    ready`/`42 blocked`; merging `origin/main` in also surfaced that `main` had `#45` done and `#46` freshly flipped
+    `blocked`→`ready`. Reconciled `status/BACKLOG.md`'s merge conflict by keeping `ios-staging`'s truth for #41/#42
+    (done) and `main`'s truth for #45/#46 (done/ready) rather than picking one side — same "each branch is stale
+    about the other's lane" pattern prior sessions have hit, not a new code conflict. Pushed that reconciliation
+    (`8d9a3c7`) before starting #46's actual code.
+  - Also swept all 80 `origin/claude/*` branches for stranded ios-shell work per the integrate-before-you-start
+    rule: every candidate that touches this lane's owned paths (`confident-cerf-*`, `determined-thompson-*`,
+    `hopeful-johnson-*`, `peaceful-mccarthy-*`, plus the four already-known stale ones) diffs as a **net deletion**
+    against current `ios-staging` — pre-#22/#41 snapshots missing work that's since landed, not new work to adopt.
+    Nothing stranded.
+  - Not locally compiled (no Xcode here) — new file mirrors `ReviewWire.swift`'s exact shape (custom
+    `CodingKeys`-based `init(from:)`, `FailableDecodable` for every array), so a red compile check should point at
+    a typo, not a design gap.
+  - Scope stayed inside `API/` per the row's own note (no `CoffeeStore`/`CoffeeRepository` wrapper) — unlike `#41`'s
+    `editField`, this one has no offline-mutation angle, and `#28`'s `loadBrief()` precedent shows a bare
+    `APIClient` call is an accepted shape for a UX view to call directly from a `.task`; not inventing a `CoffeeStore`
+    method the row didn't ask for.
+  - `ios/MyCoffee/Sources/API/{APIClient,Wire/WhatsNewWire}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-12 UTC] No open `BACKLOG.md` row for `ios-shell` this cycle — `#41` (this
   lane's only other row besides `#17`/`#22`) was already `done` on `ios-staging`
   (`5b76a6c`, 2026-08-11), and `#42` (ios-ux) had already landed on top of it

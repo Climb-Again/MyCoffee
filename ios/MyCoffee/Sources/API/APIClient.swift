@@ -216,6 +216,20 @@ struct APIClient: Sendable {
             throw APIError.decoding(error)
         }
     }
+
+    // GET /api/whatsnew — curated "what's live / what's planned" content for
+    // the What's New screen (PLAN.md §13, #45/#46). No `since`/pagination —
+    // the whole payload is a handful of short cards; the caller decides
+    // whether to cache it for the session (no local persistence here).
+    func whatsNew() async throws -> WhatsNewResponseDTO {
+        let req = try makeRequest(path: "/api/whatsnew", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(WhatsNewResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
 }
 
 struct StatusResponse: Codable {
