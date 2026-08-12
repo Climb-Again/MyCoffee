@@ -23,6 +23,13 @@ struct SettingsSheet: View {
                     }
                 }
                 Section {
+                    NavigationLink {
+                        WhatsNewView()
+                    } label: {
+                        Label("What's New", systemImage: Symbols.whatsNew)
+                    }
+                }
+                Section {
                     Button("Disconnect", role: .destructive) {
                         config.disconnect()
                         dismiss()

@@ -8,6 +8,25 @@ _none_
 
 ## Session notes
 
+- [2026-08-12 UTC, later session] `#47` (What's New screen) picked up — `#45`
+  (backend) and `#46` (ios-shell) are both `done` on `origin/main`/`ios-staging`
+  now, unblocking it. Before writing anything, swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch exists, touching nothing
+  under `Sources/Features`/`Sources/DesignSystem`/`Resources`, so nothing
+  stranded to adopt. **Also caught a stale plan going in**: this session
+  initially drafted its own client-only fix for `#37`
+  ("Needs review" reflects only actionable items) against `status/BACKLOG.md`
+  as checked out on `main`, which still showed `#37` `ready` — merging
+  `origin/main` into `ios-staging` immediately surfaced that `#37` was already
+  `done` on `ios-staging` (`57f6073`, a fuller fix via
+  `Features/Review/ReviewFeedCache.swift` that also gates the Review tab badge,
+  not just the detail-page button). Discarded the draft before committing
+  anything, per the "integrate before you start" rule — this is exactly the
+  failure mode `CLAUDE.md` §12 warns about, caught before it produced a
+  duplicate. See `## Done` below for the `#47` work actually landed this
+  session.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-12 UTC] Closed the batch-edit atomicity gap the ios-shell lane's
   2026-08-12 session flagged (`status/ios-shell.md`): it added
   `CoffeeStore.editFields`/`APIClient.editCoffeeFields` and asked UX to swap
@@ -349,6 +368,36 @@ _none_
   documented no-op behaviour.
 
 ## Done
+
+- [2026-08-12 12:00 UTC] 47 What's New screen — branch `ios-staging`
+  - `Features/WhatsNew/WhatsNewView.swift` (new): segmented Live/Plan control
+    (`Picker(.segmented)`) over `GET /api/whatsnew` (#46's
+    `APIClient.whatsNew()` → `WhatsNewResponseDTO`). Live renders a plain
+    `List` of feature cards (title + one-line detail + an area chip, shown
+    only when `item.area` is non-nil per the DTO's own contract that `area`
+    is live-only); Plan renders `Section("Needs your approval")` pinned first,
+    then one `Section` per lane in a fixed Backend/Data/iOS order (not
+    alphabetical over `byLane`'s keys — a stable, product-meaningful order),
+    skipping any lane section that's empty. Read-only, no actions, per the
+    row's "v1" scope. `ContentUnavailableView` for the load-failed and
+    genuinely-empty cases (with "Try again" on the failure path), matching the
+    pattern already used in `CoffeeReviewSheet`/`ReviewQueueView`.
+  - `Features/Coffees/SettingsSheet.swift`: added a "What's New" row
+    (`NavigationLink` → `WhatsNewView()`) above the existing Disconnect
+    section — reached from Settings, not a 4th tab, per the row's own spec.
+  - `DesignSystem/Symbols.swift`: three new entries under "What's New (#47)"
+    (`whatsNew` for the Settings row icon, `whatsNewEmpty`, `whatsNewUnavailable`).
+  - Uses `@EnvironmentObject private var config: AppConfig` +
+    `try APIClient(config: config)`, the same pattern `SettingsSheet.swift`
+    already uses for its own status check — no new shell/API surface needed,
+    `#46` already published everything this screen consumes.
+  - Not locally compiled (no Xcode here) — flag the compile lane to
+    `Features/WhatsNew/WhatsNewView.swift`, the `SettingsSheet.swift` diff, and
+    the three new `Symbols.swift` entries specifically if the next compile
+    check goes red.
+  - No `BACKLOG.md` row lists `47` as a `needs` dependency, so nothing to
+    unblock.
+  - Commit: (see `git log` on `ios-staging`)
 
 - [2026-08-11 UTC] 42 Edit sheet with consistency dropdowns (PLAN.md §12) — branch `ios-staging`
   - Merged `origin/main` into `ios-staging` first per the integrate-before-you-start rule: `git branch -r --list

@@ -63,4 +63,9 @@ enum Symbols {
     // Edit sheet (#42)
     static let edit = "pencil"
     static let pickerSelected = "checkmark"
+
+    // What's New (#47)
+    static let whatsNew = "sparkles"
+    static let whatsNewEmpty = "tray"
+    static let whatsNewUnavailable = "wifi.exclamationmark"
 }
