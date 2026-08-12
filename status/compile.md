@@ -29,6 +29,13 @@ _none_
   - **Rerun (run #21, sha `e34c0b1`) went GREEN** — compile check confirmed
     fixed, no upload (this lane never dispatches `publish=true`).
 
+- **2026-08-12: run `31635776311` (`ios-testflight.yml`, `publish=false`,
+  `ref: ios-staging`, sha `81ac0b9`) went GREEN.** `ios-staging` had 65
+  unmerged commits over `main` since the last check (last: #46 ios-shell
+  `whatsNew()` API surface), spanning #37/#39/#41/#42's edit-sheet +
+  batch-edit-atomicity work and several UX fixes — check was warranted, no
+  fix needed.
+
 ## Abandoned
 
 _none_
