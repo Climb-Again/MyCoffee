@@ -175,6 +175,36 @@ struct APIClient: Sendable {
         return true
     }
 
+    // POST /api/coffees/:publicId/edit — apply a per-field edit outside the
+    // review flow (PLAN.md §12 #40). Same raw-string-in, canonicalize-on-the-
+    // backend shape as `resolveReview`; a value the backend can't
+    // canonicalize (e.g. an unknown country) comes back as HTTP 422.
+    @discardableResult
+    func editCoffeeField(publicId: String, field: String, value: String) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["field": field, "value": value])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/edit", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
+    // POST /api/coffees/:publicId/edit with a body's `edits` array — applies
+    // multiple field edits in one request instead of one call per field
+    // (`routes/coffees.js` resolves each in order, then writes the coffees
+    // row once; any single edit's 422 aborts the whole batch before anything
+    // is applied). Closes the gap #42's edit sheet flagged: two single-field
+    // `editCoffeeField` calls for e.g. `roaster` + `roasterCountry` have no
+    // ordering guarantee against each other, so a derived value could race
+    // an explicit one.
+    @discardableResult
+    func editCoffeeFields(publicId: String, edits: [CoffeeFieldEdit]) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "edits": edits.map { ["field": $0.field, "value": $0.value] },
+        ])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/edit", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
     // GET /api/brief — the editorial "This month" section (PLAN.md §6.4);
     // `nil` until the backend has generated one.
     func brief() async throws -> Brief? {
@@ -186,10 +216,33 @@ struct APIClient: Sendable {
             throw APIError.decoding(error)
         }
     }
+
+    // GET /api/whatsnew — curated "what's live / what's planned" content for
+    // the What's New screen (PLAN.md §13, #45/#46). No `since`/pagination —
+    // the whole payload is a handful of short cards; the caller decides
+    // whether to cache it for the session (no local persistence here).
+    func whatsNew() async throws -> WhatsNewResponseDTO {
+        let req = try makeRequest(path: "/api/whatsnew", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(WhatsNewResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
 }
 
 struct StatusResponse: Codable {
     let ok: Bool
     let service: String
     let db: Bool
+}
+
+/// One field/value pair in a batch edit request (`editCoffeeFields`,
+/// PLAN.md §12). `value` is always the same raw string the single-field
+/// `editCoffeeField` takes — the backend's `resolveField` does the
+/// canonicalizing either way.
+struct CoffeeFieldEdit: Codable, Sendable, Equatable {
+    let field: String
+    let value: String
 }

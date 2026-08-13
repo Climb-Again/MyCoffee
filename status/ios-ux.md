@@ -8,6 +8,319 @@ _none_
 
 ## Session notes
 
+- [2026-08-13 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
+  `ios-ux`-tagged row is `done` (`18/27/28/37/42/47`) — `#37`/`#42`/`#47` were
+  already landed in prior sessions and merely stale on `main`'s copy of the
+  file, same divergence pattern the 2026-08-12 sessions below already caught.
+  The only `ready` rows in the whole table are `#39`/`#48`, both `data`-lane
+  (`normalize.js`/vocab-owned) — none `ios-ux`. Swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch, touching nothing under
+  `Sources/Features`/`Sources/DesignSystem`/`Resources`, so nothing stranded to
+  adopt. Merged `origin/main` into `ios-staging` (one conflict, in
+  `status/backend.md` — two backend session-note entries appended at the same
+  spot on divergent history, same recurring pattern; resolved as a union, kept
+  both entries, no code involved). Stopping cleanly per the lane's documented
+  no-op behaviour; no code changes this session.
+
+- [2026-08-12 UTC, later session] `#47` (What's New screen) picked up — `#45`
+  (backend) and `#46` (ios-shell) are both `done` on `origin/main`/`ios-staging`
+  now, unblocking it. Before writing anything, swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch exists, touching nothing
+  under `Sources/Features`/`Sources/DesignSystem`/`Resources`, so nothing
+  stranded to adopt. **Also caught a stale plan going in**: this session
+  initially drafted its own client-only fix for `#37`
+  ("Needs review" reflects only actionable items) against `status/BACKLOG.md`
+  as checked out on `main`, which still showed `#37` `ready` — merging
+  `origin/main` into `ios-staging` immediately surfaced that `#37` was already
+  `done` on `ios-staging` (`57f6073`, a fuller fix via
+  `Features/Review/ReviewFeedCache.swift` that also gates the Review tab badge,
+  not just the detail-page button). Discarded the draft before committing
+  anything, per the "integrate before you start" rule — this is exactly the
+  failure mode `CLAUDE.md` §12 warns about, caught before it produced a
+  duplicate. See `## Done` below for the `#47` work actually landed this
+  session.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-12 UTC] Closed the batch-edit atomicity gap the ios-shell lane's
+  2026-08-12 session flagged (`status/ios-shell.md`): it added
+  `CoffeeStore.editFields`/`APIClient.editCoffeeFields` and asked UX to swap
+  the call site, since the fix only takes effect once the sheet stops calling
+  the single-field path in a loop. No numbered `BACKLOG.md` row was actually
+  `ready` for this lane this cycle — `#37` and `#42` were already `done` on
+  `ios-staging` before this session started (`57f6073` / `be0b40a`); `main`'s
+  copy of `status/BACKLOG.md` still showed stale rows because the dev/ship
+  split means `ios-staging` never pushes there until Publish merges. `#47`
+  (What's New screen) stays `blocked` — `#45`/`#46` aren't done yet.
+  - Merged `origin/main` into `ios-staging` first (two real conflicts in
+    `status/BACKLOG.md`, reconciled by keeping `ios-staging`'s newer #41/#42
+    rows and `main`'s newer #43/#44/#45/#46/#47/#48/#39 rows; two trivial Swift
+    conflicts — a dead unused `pendingReviewCount` left over from an earlier
+    #37 draft in `RootTabView.swift`, and `ReviewQueueView.swift`'s older
+    fire-and-forget resolve path superseded by the outbox-backed one — both
+    resolved by keeping `ios-staging`'s side, no logic change).
+  - `Features/Coffees/CoffeeEditSheet.swift`'s `save()` built a
+    `[(field, value)]` tuple array and called `store.editField` once per entry
+    in a loop — exactly the gap ios-shell's write-up named. Changed the
+    array's element type to the shared `CoffeeFieldEdit` struct (already
+    public from #41) and, at the end of `save()`, call
+    `store.editFields(coffeeId:edits:)` when more than one field changed,
+    falling back to the existing single-field `store.editField` when exactly
+    one did. No behavior change for a single-field save; a multi-field save
+    (e.g. changing `roaster` and `roasterCountry` in the same sheet visit) now
+    goes over the wire as one request instead of two racing ones.
+  - Not locally compiled (no Xcode here) — a narrow, mechanical call-site
+    change against an existing, already-used type, so a red compile check
+    here would most likely be a typo, not a design gap.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-11 UTC] No-op session. `BACKLOG.md`: all five `ios-ux` rows (#18,
+  #27, #28, #37, #42) are `done`. The only `ready` rows this cycle are `#39`
+  (data, altitude/weight/rating sanity envelopes), `#43`/`#44` (backend,
+  photo-size budget + auto-create-farms) — none in this lane's owned paths.
+  Checked `git branch -r --list 'origin/claude/*'` — only this session's own
+  branch (`origin/claude/hopeful-johnson-984get`, exactly `origin/main`'s tip)
+  exists; nothing stranded touching `Sources/Features`, `Sources/DesignSystem`,
+  or `Resources` to adopt.
+  Merged `origin/main` into `ios-staging` (two conflicts, both pure status-note
+  divergence, no code): `status/BACKLOG.md` had `main`'s stale `ready`/`blocked`
+  for `#41`/`#42` (ios-staging already shipped both `done`) plus main's new
+  `#39`/`#44`/`#43` rows — kept `ios-staging`'s `done` status for `#41`/`#42`
+  and folded in the three new rows; also fixed a pre-existing formatting bug
+  in `main`'s copy where row `#43`'s text ran on into row `#39`'s "Radu: accept
+  all guesses..." sentence with no row break — restored `#43` as its own row,
+  ending at "Measure a display's bytes before/after". `status/backend.md` had
+  two backend session-note blocks appended at the same spot on divergent
+  history (same pattern as prior sessions' merges) — resolved as a union, kept
+  both. Also picked up main's 50 MB budget work (`ImageStore.swift` 30 MB cap +
+  `MyCoffeeApp.swift` launch eviction, `CLAUDE.md` §12) cleanly, no conflict —
+  both shell/root-owned, untouched here. Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
+- [2026-08-10 UTC] No-op session (second check same day). `BACKLOG.md`: still
+  only four `ios-ux` rows (#18, #27, #28, #37), all `done`. The lone `ready`
+  row is `#39` (data lane, altitude/weight/rating sanity envelopes in
+  `normalize.js`) — not ours. `#26` stays `human` (still awaiting Radu's
+  accuracy verdict) and `#29` stays `data`/`blocked` on it. Fetched and merged
+  `origin/main` (`310b49b`, backend's own session-check commit on top of
+  `#39`'s plan-doc addition and the process/decaf tag fix) into `ios-staging`
+  — merge was clean (one auto-merge each in `BACKLOG.md`/`status/backend.md`,
+  pure status-note unions) and the resulting tree is byte-identical to
+  `origin/ios-staging`'s, so this is bookkeeping only, no code changed.
+  Checked `git branch -r --list 'origin/claude/*'` — only this session's own
+  branch exists and it touches none of `Sources/Features`,
+  `Sources/DesignSystem`, or `Resources`, so nothing stranded to adopt.
+  Pushed the merge (`89f38d0`) to `ios-staging`. Stopping cleanly per the
+  lane's documented no-op behaviour.
+
+- [2026-08-10 UTC] No-op session. `BACKLOG.md`: all four `ios-ux` rows (#18,
+  #27, #28, #37) are still `done`; `#29` (the only other row touching
+  anything downstream of this lane) is `data`-owned and `blocked` on `#26`
+  (still `human`, awaiting Radu's accuracy verdict) — nothing newly `ready`
+  for `ios-ux`. `origin/main`'s tip (`692c16b`, data lane `#38` — roaster
+  countries) is already an ancestor of `ios-staging` HEAD via the prior
+  session's merge (`git merge origin/main` reported "Already up to date").
+  Checked `git branch -r --list 'origin/claude/*'` — only this session's own
+  branch exists, and it touches none of `Sources/Features`,
+  `Sources/DesignSystem`, or `Resources`, so nothing stranded to adopt.
+  Stopping cleanly per the lane's documented no-op behaviour; no feature
+  code changed.
+
+- [2026-08-09 UTC] No-op session (second check same day). `BACKLOG.md`: all
+  four `ios-ux` rows (#18, #27, #28, #37) still `done`; the only `ready` row
+  is `#38` (data lane). `origin/main` (`b466788`) is already an ancestor of
+  `ios-staging` HEAD (`501a587`), confirmed via `git merge-base
+  --is-ancestor` — no new merge needed, the prior session's reconciliation
+  already covers it. Briefly drafted a client-only fix for `#37` before
+  checking branch state and discovering it was already shipped in `57f6073`
+  with a more complete `ReviewFeedCache`-based approach (also gates the
+  Review tab badge, which a per-view fetch wouldn't have) — discarded the
+  draft rather than duplicate it. Stopping cleanly per the lane's documented
+  no-op behaviour; no feature code changed.
+
+- [2026-08-09 UTC] No-op session. `BACKLOG.md`: all four `ios-ux` rows (#18,
+  #27, #28, #37) are `done`. Confirmed by reading `origin/ios-staging`'s copy
+  of `BACKLOG.md` directly (not just this file's own `## Done` section) —
+  `#37` landed in `57f6073` (2026-08-08, prior session) but `origin/main`'s
+  copy of `BACKLOG.md` still showed it `ready` (main hasn't had `ios-staging`
+  merged into it since). Merging `origin/main` into `ios-staging` surfaced
+  that exact conflict on the `#37` row (`done` vs `ready`) plus main's new
+  `#38` (data lane) addition — resolved keeping `ios-staging`'s `done` for
+  `#37` (it's real, verified against the landed code, not a stale claim) and
+  keeping main's new `#38` row (not ours; data lane). Swept `git branch -r
+  --list 'origin/claude/*'` — only this session's own branch remains, and it
+  touches none of `Sources/Features`, `Sources/DesignSystem`, or `Resources`
+  (`git rev-list --count` = 0), so nothing stranded to adopt. Stopping
+  cleanly per the lane's documented no-op behaviour; no feature code changed.
+
+- [2026-08-08 UTC] No-op session. `BACKLOG.md`: still only `#18`/`#27`/`#28`
+  tagged `ios-ux`, all `done`. New row `#37` ("Needs review" reflects only
+  actionable items, PLAN.md §11) is `ios-ux` but `blocked` on `#35`/`#36`
+  (both backend, both `ready` — not done yet), so nothing to pick up; correct
+  no-op per the work loop's own instructions. Merged `origin/main`
+  (`aaacc88`, the accept-by-default policy doc + farm-accept + review-
+  affordance backend/iOS fixes) into `ios-staging` — clean, no conflicts
+  with `Features/`/`DesignSystem/`/`Resources/`. Swept
+  `git branch -r --list 'origin/claude/*'` (65 branches) for stranded work
+  touching `Sources/{Features,DesignSystem}/**` or `Resources/**`: several
+  non-zero hits (`determined-thompson-{3tonjx,4281b1,nto1g8,x99e3x}`,
+  `lanes-status-blockers-wws2lc`, `wizardly-thompson-eurlj6`,
+  `new-app-infrastructure-setup-h3r3wz`), all pre-`#18` scaffolding/design-
+  system commits already superseded by the landed `#18`/`#27`/`#28` work
+  (same commit SHAs as `ios-staging`'s own history in most cases) — nothing
+  to adopt. Stopping cleanly; no code changes this session.
+
+- [2026-08-07 UTC, later same day] No open `BACKLOG.md` row (`#18`/`#27`/`#28`
+  still the only `ios-ux` rows, all `done`; `#29` still `human`-gated on `#26`).
+  Found real work anyway: `origin/main` had moved to `da12d12` ("iOS: listing
+  photos, review scroll/back fixes, coffee-page cleanups") — another off-lane
+  push straight to `main` touching both `ios-ux`-owned files
+  (`Features/Coffees/CoffeeDetailView.swift`, `Features/Review/{ReviewCardView,
+  ReviewQueueView}.swift`, new `Features/Review/CoffeeReviewSheet.swift`) and
+  `ios-shell`-owned ones (`API/Wire/{CoffeeMapping,SnapshotWire}.swift`,
+  `Store/SyncEngine.swift`) — same "commits to `main` instead of `ios-staging`"
+  footgun `CLAUDE.md` §12 already documents, not this lane's mistake to fix by
+  policy but stranded work to integrate per `status/README.md`'s rule.
+  - `git merge origin/main` into `ios-staging`: one real conflict, in
+    `Features/Review/ReviewQueueView.swift` — `ios-staging`'s side only
+    differed in a doc comment (its actual body/load()/toolbar code was already
+    identical to `origin/main`'s pre-`da12d12` state, since this lane's own
+    `4e491be`/shell's `ef50a07` had already landed equivalently on both
+    branches before `da12d12` forked). Resolved by taking `origin/main`'s side
+    (the new shared `ReviewCardStack` component `da12d12` extracted, which the
+    rest of the already-auto-merged file now references) — no functional
+    HEAD-only content was dropped. Pushed the merge to `ios-staging`
+    (`9b9fc95`).
+  - **One real regression caught and fixed, not just merged through**: the new
+    `CoffeeReviewSheet.swift` (per-coffee review sheet, launched from the
+    detail page's "needs review" marker) was written by the `da12d12` session
+    against a fork that predated this lane's own outbox-durability fix — its
+    `load()` called `client.resolveReview(id:value:)`/`client.dismissReview(id:)`
+    directly on `APIClient`, the exact fire-and-forget pattern already fixed in
+    `ReviewQueueView.swift` (see the 2026-08-06 entry below). Swapped both for
+    `store.resolveReview(taskId:value:)`/`store.dismissReview(taskId:)` on the
+    `CoffeeStore` (added `@EnvironmentObject private var store: CoffeeStore`,
+    same as `ReviewQueueView`) so per-coffee resolutions from the detail page
+    also survive offline/app restart through `MutationOutbox`, not just the
+    Review tab's. `client` stays for `reviewFeed()` (the GET, unaffected).
+  - Also swept `git branch -r --list 'origin/claude/*'` (still 57) — no new
+    candidates beyond the one dismissed in the entry below (`hopeful-johnson-
+    icvqmr`, a stale pre-durable-outbox fork, correctly not adopted).
+  - Not locally compiled (no Xcode here) — if the next compile check goes red,
+    check `CoffeeReviewSheet.swift`'s new `@EnvironmentObject` line first (it's
+    a one-line addition to an otherwise `da12d12`-authored file) and the
+    resolved `ReviewQueueView.swift` conflict region (lines ~1–90, the new
+    `ReviewCardStack` struct).
+  - `ios/MyCoffee/Sources/Features/Review/{CoffeeReviewSheet,ReviewQueueView}.swift`
+  - Commit: `9b9fc95` (merge) + one follow-up commit on `ios-staging` (see
+    `git log`)
+
+- [2026-08-07 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`, unchanged. The two seam gaps this lane had open
+  (review durability, Insights "This month" brief) are also closed as of
+  yesterday's session (`4e491be`) — confirmed by reading `ReviewQueueView.swift`
+  and `InsightsView.swift` on `origin/ios-staging`: both call through
+  `CoffeeStore` (`resolveReview`/`dismissReview`/`loadBrief`), no direct
+  `APIClient` mutation calls left in UX-owned files. `#29` (data, phase 6)
+  stays `blocked` on `#26`, which is still `human` — not this lane's row
+  either way.
+  Full-fetched all `origin/claude/*` branches (57, up from 56) and swept every
+  one via `git rev-list --count origin/ios-staging..<branch> --
+  ios/MyCoffee/Sources/Features ios/MyCoffee/Sources/DesignSystem
+  ios/MyCoffee/Resources`. Seven non-zero hits, all inspected by tree diff, none
+  stranded to adopt:
+  - `coffee-app-plan-9jdh0c`, `new-app-infrastructure-setup-h3r3wz`,
+    `mycoffee-publish-autopilot-rv8cve`, `relaxed-thompson-ceai5p`: pure
+    deletions against current `ios-staging` (pre-#27/#28 forks, same shape
+    every prior sweep has found).
+  - `modest-newton-oxaddt`: identical diff to the above (also a stale
+    pre-#27/#28 fork).
+  - `wizardly-thompson-0g9i90`: already inspected and dismissed by
+    `status/ios-shell.md`'s 2026-08-05 sweep (pre-`roasterId`-fix snapshot).
+  - `hopeful-johnson-icvqmr`: the one real candidate — flagged for the record
+    by backend's 2026-08-06 sweep as "not integrated." Diffed it directly
+    against `origin/ios-staging`: it wires the same "This month" brief
+    (renaming `BriefCard`→`EditorialBriefCard`) but its `ReviewQueueView.swift`
+    still calls `client.resolveReview`/`client.dismissReview` directly —
+    it forked from `ef50a07` *before* this lane's own `4e491be` added the
+    durable `CoffeeStore.resolveReview`/`.dismissReview` wiring. Adopting it
+    would be a **regression** (reintroducing fire-and-forget mutations over
+    the already-landed durable outbox path), not an integration. Not adopted;
+    its brief-card naming (`EditorialBriefCard` vs. the landed `BriefCard`) is
+    a cosmetic difference not worth cherry-picking alone.
+  No code changes this session — stopping cleanly per the work loop (do not
+  invent work).
+
+- [2026-08-06 UTC, ios-ux lane] Closed two cross-lane seam gaps the shell
+  lane's `ef50a07` landed today, both explicitly flagged in that commit "for
+  the UX lane to call" — no open `BACKLOG.md` row (#18/#27/#28 all `done`),
+  same precedent as the 2026-08-02 UX-wiring-gap entry below.
+  - **`Features/Review/ReviewQueueView.swift`**: swapped the direct
+    `client.resolveReview(id:value:)`/`client.dismissReview(id:)` calls in
+    `load()`'s `engine.onAccept`/`.onDismiss` hooks for
+    `store.resolveReview(taskId:value:)`/`store.dismissReview(taskId:)` on the
+    `CoffeeStore` already available via `.environmentObject` (`RootTabView`).
+    Accepts/dismisses now persist through `MutationOutbox` — durable across
+    offline/app restart — instead of a fire-and-forget network call that
+    silently dropped on failure. `client.reviewFeed()` (the GET, unaffected)
+    stays as-is; only the two mutating calls moved.
+  - **`Features/Insights/{InsightsView,BriefCard}.swift`**: added the
+    editorial "This month" section PLAN.md §6.4 asks for, reusing
+    `GET /api/brief` via the new `CoffeeStore.loadBrief()`. New
+    `BriefCard.swift` (title + body, omitted entirely when `nil` — same
+    "missing fields omit their row, never N/A" convention as `DataQualityCard`
+    right above it), fetched in a `.task` on `InsightsView`'s `NavigationStack`
+    and placed between the Data quality card and the findings section. New
+    `Symbols.brief = "newspaper"` in `DesignSystem/Symbols.swift`.
+  - **Not wired, flagged rather than guessed**: the shell lane's same
+    `ef50a07`-era work also added `APIClient.createReviewRule(kind:
+    canonicalId:alias:)` (`POST /api/review/rules`), but `ReviewQueueEngine`'s
+    long-press/"Accept all" rule creation only has a display-string
+    `ReviewCandidate.value` to work with — no canonical vocabulary `Int` id
+    anywhere in ux-owned models — so there's no way to call it durably without
+    guessing at an id lookup that doesn't exist yet. `ReviewRule` stays a
+    client-side-only convenience for this session, same as before.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red,
+    check `ReviewQueueView.swift`'s new `@EnvironmentObject` (unused `client`
+    var is still needed for `reviewFeed()`, just not for the two mutations
+    anymore) and `BriefCard.swift`'s `if let brief` self-conditional body.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-05 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`, unchanged from the prior check. The two flagged
+  seam gaps from `#27`/`#28` (shell adding `CoffeeStore.loadBrief()` for
+  Insights' "This month" section, and an `APIClient`/`CoffeeStore` surface
+  for `GET /api/review` / `POST /api/review/:id` / `POST /api/review/rules`
+  so the review queue can round-trip through `MutationOutbox`) are still
+  unclaimed — confirmed via `grep` for `loadBrief`/review-route methods in
+  `Sources/Store` and `Sources/API`: none exist yet. `status/ios-shell.md`'s
+  latest entries (2026-08-04) merged `origin/main` but added no new
+  `ios-shell`-owned code either. Swept `git branch -r --list 'origin/claude/*'`
+  via `git rev-list --count origin/ios-staging..<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources`: the two
+  non-trivial hits (`claude/coffee-app-plan-9jdh0c`,
+  `claude/new-app-infrastructure-setup-h3r3wz`) both diff as pure deletions
+  against current `ios-staging` — they predate the #18/#27/#28 work and carry
+  nothing to adopt. Merged `origin/main` into `ios-staging` (clean — picked up
+  backend's `FlexibleDecoding`/`SnapshotWire`/`Vocab.swift` nullable-`isoCode`
+  fix and a `CoffeeDetailView.swift` follow-up, both shell-owned, no conflicts
+  with UX-owned paths). Stopping cleanly per the lane's documented no-op
+  behaviour; no code changes this session.
+
+- [2026-08-04 UTC] No-op session. `BACKLOG.md`: only `ios-ux` rows are `#18`,
+  `#27`, `#28` — all `done`. The two flagged seam gaps from `#27`/`#28`
+  (shell adding `CoffeeStore.loadBrief()` for the Insights "This month"
+  section, and `APIClient`/`CoffeeStore` methods for `GET /api/review` /
+  `POST /api/review/:id` / `POST /api/review/rules` so the review queue can
+  round-trip through `MutationOutbox` instead of only mutating local state)
+  are still unclaimed — confirmed via `status/ios-shell.md`'s own 2026-08-04
+  entry, which merged `main` but added no new `ios-shell`-owned code. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  (`claude/hopeful-johnson-0fzb9o`) exists, 0 commits ahead of `ios-staging`
+  in any owned path, nothing stranded to adopt. `git merge origin/main` into
+  `ios-staging` was already up to date (no divergence to reconcile). Stopping
+  cleanly per the lane's documented no-op behaviour; no code changes this
+  session.
+
 - [2026-08-03 UTC] No-op session (second cycle same day). `BACKLOG.md`: `#27`
   (needs 22, 24) still `blocked` — `#24` unchanged, still blocked on `#23`
   (Vertex extension). `#28` (needs 22) stays `done`. Re-swept `git branch -r
@@ -69,6 +382,209 @@ _none_
   documented no-op behaviour.
 
 ## Done
+
+- [2026-08-12 12:00 UTC] 47 What's New screen — branch `ios-staging`
+  - `Features/WhatsNew/WhatsNewView.swift` (new): segmented Live/Plan control
+    (`Picker(.segmented)`) over `GET /api/whatsnew` (#46's
+    `APIClient.whatsNew()` → `WhatsNewResponseDTO`). Live renders a plain
+    `List` of feature cards (title + one-line detail + an area chip, shown
+    only when `item.area` is non-nil per the DTO's own contract that `area`
+    is live-only); Plan renders `Section("Needs your approval")` pinned first,
+    then one `Section` per lane in a fixed Backend/Data/iOS order (not
+    alphabetical over `byLane`'s keys — a stable, product-meaningful order),
+    skipping any lane section that's empty. Read-only, no actions, per the
+    row's "v1" scope. `ContentUnavailableView` for the load-failed and
+    genuinely-empty cases (with "Try again" on the failure path), matching the
+    pattern already used in `CoffeeReviewSheet`/`ReviewQueueView`.
+  - `Features/Coffees/SettingsSheet.swift`: added a "What's New" row
+    (`NavigationLink` → `WhatsNewView()`) above the existing Disconnect
+    section — reached from Settings, not a 4th tab, per the row's own spec.
+  - `DesignSystem/Symbols.swift`: three new entries under "What's New (#47)"
+    (`whatsNew` for the Settings row icon, `whatsNewEmpty`, `whatsNewUnavailable`).
+  - Uses `@EnvironmentObject private var config: AppConfig` +
+    `try APIClient(config: config)`, the same pattern `SettingsSheet.swift`
+    already uses for its own status check — no new shell/API surface needed,
+    `#46` already published everything this screen consumes.
+  - Not locally compiled (no Xcode here) — flag the compile lane to
+    `Features/WhatsNew/WhatsNewView.swift`, the `SettingsSheet.swift` diff, and
+    the three new `Symbols.swift` entries specifically if the next compile
+    check goes red.
+  - No `BACKLOG.md` row lists `47` as a `needs` dependency, so nothing to
+    unblock.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-11 UTC] 42 Edit sheet with consistency dropdowns (PLAN.md §12) — branch `ios-staging`
+  - Merged `origin/main` into `ios-staging` first per the integrate-before-you-start rule: `git branch -r --list
+    'origin/claude/*'` showed nothing stranded touching `Sources/{Features,DesignSystem}` or `Resources`, but the merge
+    itself surfaced that `#41` (ios-shell) had already landed on `ios-staging` (`5b76a6c`, flipping `#42`→`ready`)
+    while `main`'s own copy of `status/BACKLOG.md` still showed `#41` merely `ready`/`#42` `blocked` — resolved the
+    conflict by keeping `ios-staging`'s more current rows (same "each branch only knows its own lane's latest" gap
+    the shell lane's own 2026-08-10 entry documents). `#37` turned out to be done too (`57f6073`, already on
+    `ios-staging`) — the copy of `status/ios-ux.md` this session read at the very start (before the merge) was stale
+    and didn't show it; not redone.
+  - New `Sources/Features/Coffees/CoffeeEditSheet.swift`. A pencil `ToolbarItem` on `CoffeeDetailView` (next to the
+    existing Share button) opens it as a sheet.
+  - **Every vocab-backed field is a picker, never free text** (the row's own requirement, so an edit can't spawn an
+    inconsistent variant): origin country is a multi-select searchable list over `vocabulary.countries` filtered
+    `isOrigin` (no "is this a blend" toggle — `isBlend` is derived server-side from how many ids resolve, same as
+    extraction); roaster country is a single-select over `isRoaster` countries; roaster and farm are single-select
+    searchable lists over their vocab tables **plus** an "Add new…" `TextField` + `Use` button (mirrors
+    `ReviewCardView`'s existing "Other…" reveal pattern exactly) that routes through #40's get-or-create. Countries
+    have no add-new section at all (`VocabPickerView`'s `newValue: Binding<String>?` is `nil` for the two country
+    pickers) — #36 only get-or-creates roasters/farms, countries stay closed.
+  - **Process** is a `Picker` over `Profile.allCases` + a literal "Unknown" case tagged `Profile?.none` (the standard
+    optional-selection `Picker` pattern — tags and the binding must be the exact same `Profile?` type for SwiftUI's
+    tag-matching to work, not just compile), with `isDecaf` as a separate `Toggle` (decaf is orthogonal to process,
+    matching pushback #3 / `DecafBadge`'s own precedent).
+  - **Raw-value formatting sent to `CoffeeStore.editField`**, reverse-engineered from `backend/src/lib/normalize.js`'s
+    parsers rather than guessed (checked every regex): altitude → `"<min> m"` or `"<min>-<max> m"` (matches
+    `ALTITUDE_RANGE_RE`/`_SINGLE_RE`); weight → `"<grams>g"` (`WEIGHT_RE`); price → `"<amount> EUR"` (the
+    `€|eur\b` branch of `CURRENCY_PATTERNS`, confidence 1.0 — editing intentionally targets the EUR column directly
+    rather than round-tripping through an original-currency+FX pair); rating → `"<value>/5"` (the highest-confidence
+    `parseRating` branch, not the bare-number fallback); roasted-on → plain `PlainDate.isoString` (`YYYY-MM-DD`, the
+    ISO branch of `parseDate`); origin country → selected names joined with `", "` (`resolveOriginCountries`'s
+    `MULTI_VALUE_SPLIT_RE` includes comma); roaster/farm/roaster-country → the bare canonical name string;
+    profile → `"<displayName>"` + `" decaf"` when the toggle is on, or bare `""` when Unknown+not-decaf is explicitly
+    chosen (`canonicalize('profile', ...)` never returns `null` for a non-null string, even empty, so this
+    legitimately clears a coffee to Unknown rather than 422ing).
+  - **Only actually-changed fields round-trip** — every draft `@State` is diffed against a `private let original*`
+    snapshot captured in `init` from the `Coffee` the sheet opened with (not against "is the field empty", which
+    would have been wrong: the rating `Slider` and roasted-on `DatePicker` both need a concrete non-nil default to
+    render at all, so an untouched optional field defaulting to e.g. 3.0★ must never look "changed"). Solved with a
+    `hasRating`/`hasRoastedOn` pair of toggles mirroring each other (gate whether the control renders at all AND
+    whether save even considers that field), and a small epsilon (`> 0.001` rating, `> 0.005` price) instead of exact
+    `Double` equality so a value round-tripped through display formatting (`"%.2f"`) can't spuriously "change" on
+    floating-point noise alone.
+  - **One real Swift-correctness fix caught before it shipped, not by compiling** (no local Xcode): comparing a
+    non-optional `Int`/`PlainDate` against an `Int?`/`PlainDate?` with `!=` does not compile in Swift without explicit
+    wrapping — `Optional(minValue) != originalAltitudeMin`, not `minValue != originalAltitudeMin`. Caught by reasoning
+    through the standard library's actual overload set rather than assuming C-style implicit promotion; fixed all
+    four instances (altitude min/max, weight, roasted-on) before this file was written up as done.
+  - **Also swapped `[(id: Int, name: String)]` tuples for a small `private struct VocabEntry: Identifiable, Hashable`**
+    in `VocabPickerView` — tuple-label keypaths (`ForEach(_, id: \.id)` over an anonymous tuple type) are the kind of
+    thing that's fine in some Swift versions and not others, and there's no local Xcode to confirm which; a named
+    `Identifiable` struct removes the ambiguity entirely rather than betting on it.
+  - **Flagged, not built, since it needs shell-owned files**: the backend already supports a batch `{edits:[...]}`
+    request (#40) specifically so e.g. editing `roaster` and `roasterCountry` together doesn't have the derived value
+    overwrite the explicit one depending on request order — but `APIClient.editCoffeeField`/`CoffeeStore.editField`
+    (#41) only expose a single-field call, so this sheet fires one HTTP request per changed field with no ordering
+    guarantee between them. Low-probability in practice (a user changing both roaster and roaster-country by hand in
+    one save is rare), but real. **Shell lane, if you'd like to close it:** an `APIClient.editCoffeeFields(publicId:
+    edits:)` + a matching `CoffeeStore` batch wrapper would let this sheet send one request instead of N; claim in
+    both lane files per the seam rule if picked up.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red, check `CoffeeEditSheet.swift` first;
+    the `Profile?`-tagged `Picker` and the four `Optional(...)` comparisons above are the most likely first things to
+    check, everything else mirrors an existing pattern in `FilterSheetView`/`ReviewCardView`/`FacetFullListView`.
+  - `ios/MyCoffee/Sources/{Features/Coffees/CoffeeEditSheet,Features/Coffees/CoffeeDetailView,
+    DesignSystem/Symbols}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-08 UTC, later session] 37 "Needs review" reflects only actionable items — branch `ios-staging`
+  - Picked up as the only `ready` `ios-ux` row after merging `origin/main` into `ios-staging`
+    (backend's `#35`/`#36` landed and flipped this row `blocked`→`ready`, per `status/BACKLOG.md`).
+  - Root cause confirmed by reading `backend/src/routes/review.js`: `GET /api/review` already
+    filters `review_items` to `FIELD_TO_CLIENT`'s eight keys server-side (`WHERE ... field =
+    ANY($clientFields)`), so the real feed never contained the non-actionable `desc_*` splits in
+    the first place. The bug was purely client-side: the detail-page Review button and the Review
+    tab badge both gate on `Coffee.reviewState`/`hasOpenReview` — a coarse column that lights up
+    for *any* open `review_items` row, including the ones the feed itself already excludes. That
+    mismatch is exactly PLAN.md §11 #37's "empty All set sheet" bug, and the same root cause was
+    quietly inflating the tab badge too (not called out in the issue text, but same fix, same
+    files, so folded in here rather than left half-done).
+  - **New `Sources/Features/Review/ReviewFeedCache.swift`** — a small `@MainActor` shared cache
+    of `coffeeId`s that have at least one client-reviewable open item, sourced from the same
+    `GET /api/review` feed `ReviewQueueView`/`CoffeeReviewSheet` already fetch (`adopt(_:)` lets
+    them hand it their result instead of a second network round-trip; `ensureLoaded()`/`refresh()`
+    are for call sites — `CoffeeDetailView`, `RootTabView` — that don't otherwise fetch the feed).
+  - **Deliberately fails open, not closed**: `reviewableCoffeeIds` stays `nil` (→
+    `hasReviewableTasks` returns `true`, i.e. don't suppress) until a feed fetch actually
+    succeeds. A sample/demo run with no backend configured (`APIClient.APIError.notConfigured`)
+    or a transient network error never gets a positive answer, so it never wrongly *hides* a
+    real affordance — it just falls back to today's coarse `hasOpenReview` behavior. This was the
+    main risk in gating on network data at all, given the work loop's own "build against
+    `BundledSampleRepository`, zero backend dependency" instruction — verified by reading through
+    the fallback path rather than running it (no local Xcode).
+  - `CoffeeDetailView.swift`: the Review button now shows only when `coffee.hasOpenReview &&
+    reviewCache.hasReviewableTasks(for: coffee.id)`; added a second `.task` to prime the cache;
+    the review sheet's `onFinished` now calls `reviewCache.refresh()` before re-loading detail, so
+    finishing a review promptly re-hides the button if that was the coffee's last actionable item.
+  - `RootTabView.swift`: `pendingReviewCount` (the Review tab's `.badge()`) now applies the same
+    `hasReviewableTasks` gate, so the badge number matches what the tab's own feed-backed queue
+    actually contains instead of counting every `needs_review` coffee.
+  - `ReviewQueueView.swift` / `CoffeeReviewSheet.swift`: one-line `ReviewFeedCache.shared.adopt(feed)`
+    added right after each existing `client.reviewFeed()` fetch — no other change needed, since
+    accept/dismiss in both already route through `CoffeeStore.resolveReview(taskId:value:)`/
+    `.dismissReview(taskId:)` (the durable `MutationOutbox` path, already wired by an earlier
+    session — see the false-start note below for how that was confirmed rather than assumed).
+  - **False start, caught before pushing**: first pass was written against `origin/main`'s copy of
+    `CoffeeReviewSheet.swift`/`ReviewQueueView.swift`, which turned out to be stale — `main` hasn't
+    had `ios-staging`'s last publish-merge, so its copies still fire-and-forget through a raw
+    `APIClient` call instead of `store.resolveReview`/`.dismissReview`. Caught by diffing
+    `origin/main` against `origin/ios-staging` for these exact files before committing; re-did the
+    change against real `origin/ios-staging` content. Flagging because it's a live instance of the
+    exact "which branch is actually current" trap `CLAUDE.md`'s gotchas section warns about — not
+    a claim that `main`'s copy needs fixing (the Publish lane's normal merge replaces it).
+  - Not locally compiled (no Xcode in this environment) — flag the compile lane to
+    `Features/Review/ReviewFeedCache.swift` and the four call sites above specifically if the next
+    compile check goes red. `@MainActor final class ... ObservableObject` with a `static let
+    shared` singleton read via `@ObservedObject` is a pattern not used elsewhere in this codebase
+    yet, so it's the most likely first thing to check.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-05 UTC] Session check — no ready `ios-ux` row (`#18`/`#27`/`#28` are
+  the only ios-ux rows, all `done`). **Found and reconciled an off-lane
+  commit pair**: `origin/main` carried two commits
+  (`63ac9a5`/`9bb27d6`, "Review API: enrich feed..." / "iOS: wire Review tab
+  to real backend...") from a different session that pushed straight to
+  `main` instead of `ios-staging` — a violation of `CLAUDE.md` §5's dev/ship
+  split (only the Publish lane may merge `ios-staging → main`; a push to
+  `main` should never touch `ios/**` directly). Worse, it edited files across
+  both iOS lanes in one commit: `API/APIClient.swift` + new
+  `API/Wire/ReviewWire.swift` (shell-owned) alongside
+  `Features/Review/{ReviewCardView,ReviewModels,ReviewQueueEngine,
+  ReviewQueueView}.swift` + `Features/Coffees/CoffeeDetailView.swift`
+  (ux-owned) — exactly the cross-boundary mixing the two-lane split exists to
+  prevent, and it was never on `ios-staging` at all.
+  - Not reverting it — the content itself is good and overdue: it closes the
+    exact gap `#27`'s own `status/ios-ux.md` entry flagged ("no
+    `CoffeeStore`/`APIClient` surface for `GET /api/review`") by adding
+    `APIClient.reviewFeed()/.resolveReview()/.dismissReview()` and wiring
+    `ReviewQueueEngine`'s `onAccept`/`onDismiss` hooks to them; it also
+    replaced my `ReviewPhotoPlaceholder` with a real pinch-zoomable
+    `AsyncImage` against the backend's new signed `thumbUrl`, and added the
+    "Full text" disclosure on both the review card and `CoffeeDetailView`
+    using the backend's newly-enriched raw title/caption/description. It also
+    closes a follow-up ios-shell had flagged (`status/ios-shell.md`,
+    2026-08-05): `ReviewFeedDTO` now decodes `items` via `FailableDecodable`,
+    skipping one malformed row instead of failing the whole array.
+  - `git checkout ios-staging && git merge origin/main` — clean on every
+    `ios/**` file (auto-merged, including `CoffeeDetailView.swift`); the only
+    conflict was an additive one in `status/backend.md` (two session-check
+    entries at the same spot), resolved by keeping both.
+  - Verified before pushing: every SF Symbol the new code references
+    (`reviewOther`, `reviewZoom`, plus the ones already used) already exists
+    in `DesignSystem/Symbols.swift` — no typo risk, no missing-symbol blank
+    render. Read the new `APIClient`/`ReviewWire`/engine/view code in full;
+    it's consistent with this lane's own conventions (fire-and-forget
+    persistence, `AppConfig.shared`, no new dependencies). Swept
+    `git branch -r --list 'origin/claude/*'` for stranded work in
+    `Features/**`/`DesignSystem/**`/`Resources/**` — every non-zero candidate
+    was either pre-lane-split scaffolding already known-superseded or exactly
+    the two commits (`de55557`, `9bb27d6`) just merged from `main`; nothing
+    else to adopt.
+  - **Flagging, not fixing**: the new review persistence bypasses
+    `MutationOutbox` entirely (fire-and-forget `Task { try? await
+    client.resolveReview(...) }` in `ReviewQueueView.load()`) — offline or a
+    failed call just leaves the row open server-side for a later `load()`,
+    it doesn't retry or survive the pattern `MutationOutbox` gives favorites.
+    `MutationOutbox`'s own doc comment already reserves a
+    `.reviewResolution(taskId:value:)` case for this; not adding it myself
+    since `Store/MutationOutbox.swift` is shell-owned and this is the same
+    seam noted in `#27`'s original entry below, just not yet closed by this
+    off-lane commit either.
+  - No `BACKLOG.md` row change — `#27`/`#28` were already `done`; this is
+    integration of already-landed content, not new scope.
+  - Commit: `09acfb3` (merge), on `ios-staging`
 
 - [2026-08-04 00:00 UTC] 27 Review queue — batch cards, photo auto-zoom, mapping rules — branch `ios-staging`
   - Unblocked by merging `origin/main` into `ios-staging`: each branch only knew half the picture (`ios-staging` had

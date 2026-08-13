@@ -620,6 +620,103 @@ auth gate, and its coffee lookup are all live in production) — did not run
 a real edit against production data, same caution prior sessions have taken
 with #36's live verification.
 
+## 2026-08-11 UTC: #40 — generic per-field edit endpoint
+
+Picked up `#40` (PLAN.md §12, Radu's "make core structured data editable with
+fix dropdowns" directive) — the only `ready` backend row this cycle.
+
+**`POST /api/coffees/:publicId/edit`** (`routes/coffees.js`), `requireIngestToken`,
+body `{ field, value }` or `{ edits: [...] }` for a batch. Maps the client field
+name to a DB field via `EDIT_FIELD_TO_CLIENT` (a new superset of `#35`'s
+review-feed `FIELD_TO_CLIENT`, adding `rating`, `roasted_on`, and a direct
+`roaster_country_id` edit — none of which the review feed exposes as a card, but
+all of which #42's edit sheet has a dedicated control for), canonicalizes +
+locks + applies via the shared helper below, then closes any open
+`review_items` row for that (photo, field) so an edited field's "needs review"
+badge clears.
+
+**Refactor**: extracted the resolve body `POST /api/review/:id` used inline
+(canonicalize → get-or-create fallback → `422` on failure → locked
+`field_resolutions` write) into `src/lib/resolveField.js`'s
+`resolveField(photoId, field, rawValue, ctx)`, per the issue's explicit ask.
+`review.js` now calls it too — `VOCAB_GET_OR_CREATE`/`getOrCreateVocabEntry`/
+`slugify`/`STRUCTURED_FIELDS`/`FIELD_TO_CLIENT` all moved to the new lib file;
+`review.js` re-exports `slugify` so the existing test import path
+(`test/review.test.js`) didn't need to change.
+
+**Added the missing `roaster_country_id` case** the issue specifically calls
+out: `adjudicate.js`'s `canonicalize()`/`denormalize()`/`fieldsEqual()` gained
+a case (resolves a country name against the *countries* vocab, not the
+roaster vocab, and rejects a resolved-but-not-`is_roaster` country — e.g.
+"Ethiopia" — as unresolved, same as an unknown name); `worker.js`'s
+`buildCoffeeColumnUpdates()` gained a matching direct-write case.
+
+**A real latent bug this surfaced, fixed in the same pass**: `roaster_id`'s
+case already pushed a *second* SET clause (`roaster_country_id`, derived from
+the roaster) as a side effect. Once `roaster_country_id` became independently
+editable, a batch edit touching both `roaster` and `roasterCountry` in one
+call would emit `roaster_country_id = $1, roaster_country_id = $2` —
+Postgres rejects "multiple assignments to the same column" outright.
+Refactored `buildCoffeeColumnUpdates` to build a `Map<column, value>` instead
+of two parallel arrays, so a column written twice collapses to its last
+value (object key order in `resolutions` is the tiebreak) instead of erroring.
+Confirmed via a real batch edit below that the explicit `roasterCountry`
+value wins over the roaster's own derived country, with no SQL error.
+
+**Verified end-to-end against a real local Postgres 16** (migrations 001–014
+applied clean, all 210 `npm test` — up from 202 — green first): inserted a
+photo + coffee row, started `node src/server.js` against it, and drove the
+real HTTP route with curl —
+- no bearer → `401`; a single-field edit (`rating`) → `200`, `coffees.rating`
+  updated, a matching `locked`/`decided_by='human'` `field_resolutions` row;
+- an unknown client field → `400 unknown_field`;
+- an unresolvable `roasterCountry` value (`"Neverland"`) → `422
+  unresolvable_value`, nothing written;
+- a **batch edit** (`roaster` → an existing roaster whose seeded `country_id`
+  is `NULL`, plus `roasterCountry` → `"Denmark"` in the same call) → both
+  applied with no SQL error, and `coffees.roaster_country_id` ended up `29`
+  (Denmark, the explicit edit) rather than `NULL` (the roaster's own derived
+  country) — proves the dedup fix's "last write wins" ordering, not just that
+  it avoids the crash;
+- **get-or-create**: editing `roaster` to a brand-new name
+  (`"Totally New Roaster Co"`) created the `roasters` row + slug + alias and
+  applied the new id — same #36 machinery the review route already used,
+  now shared;
+- **review-item close**: a manually-inserted open `review_items` row for
+  `(photo_id, 'weight_g')` flipped to `resolved` after editing `weight`, and
+  `coffees.weight_g` updated to `250`;
+- **regression**: re-tested `POST /api/review/:id` (now calling the same
+  shared `resolveField()`) against the same DB — a `rating` review item
+  resolved correctly, `coffees.rating` updated, `GET /api/review` still
+  returns the expected shape. No behavior change from the refactor.
+
+`cd backend && npm ci && npm test` — **210/210 green** (202 prior + 8 new:
+2 `adjudicate.test.js` roaster_country_id canonicalize cases, 2
+`worker.test.js` buildCoffeeColumnUpdates cases (direct edit + the dedup
+fix), 1 `coffees.test.js` auth-guard smoke test, 3 new
+`test/resolveField.test.js` pure field-map tests).
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 10 jobs, all `done`/`paused`,
+**none `running`** — safe to push `backend/**` per the hard rule.
+
+`#41` (ios-shell, needs 40) and `#42` (ios-ux, needs 40+41) flipped
+`blocked`→`ready`/stay `blocked` respectively in `BACKLOG.md` in the same
+push — `#41` is now unblocked; `#42` still needs `#41` too.
+
+Pushed straight to `origin/main` (fast-forward `4c1d386..22b081d`) per this
+lane's branch (this session's own `claude/confident-cerf-ey7lm6` scratch
+branch was also updated to the same tip, so it isn't orphaned per the
+"integrate before you start" rule). Watched `railway-deploy.yml` run
+`31447438362` via the GitHub Actions API to completion — **`completed
+success`**. Post-deploy live-verify: `GET /health` → `{"ok":true,"db":true,
+"service":"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`;
+`POST /api/coffees/nonexistent/edit` with no bearer → `401`, with a valid
+ingest token → `{"error":"coffee_not_found"}` (proves the new route, its
+auth gate, and its coffee lookup are all live in production) — did not run
+a real edit against production data, same caution prior sessions have taken
+with #36's live verification.
+
 ## 2026-08-10 UTC (later session): session check — no ready row this cycle
 
 Local clone started 23 commits behind on this session's `claude/*` branch
@@ -902,6 +999,47 @@ above on why) -- #36 stays verified against the local Postgres only.
 
 Marked `#35`/`#36` `done` in `BACKLOG.md`, flipped `#37` (ios-ux, needs
 35+36) `blocked` → `ready` in the same push.
+
+## 2026-08-08 UTC: session check — no ready row this cycle
+
+`main`/`origin/main` agree at `da12d12` (fast-forwarded a stale local clone —
+`8614f95`-based — up 9 commits; this session's own designated branch,
+`claude/confident-cerf-1zj53f`, was 0 behind/0 ahead of that same tip, so
+nothing of this session's own was stranded). All backend-tagged rows in
+`status/BACKLOG.md` are still `done` (11/15/16/19/21/23/24/33); `#26` (data)
+is still `human` — awaiting Radu's accuracy verdict on the 5-photo sample per
+the spend gate — and `#29` stays `blocked` on it. Neither unblocks a backend
+row.
+
+Fresh unscoped `git fetch origin` — 60 `origin/claude/*` branches (up from 53
+at the last sweep). Swept every one via `git rev-list --count
+origin/main..<branch>`. One new one worth naming, `determined-thompson-4281b1`
+(13 ahead): inspected via `git diff --stat` against current `main` — like the
+two 35-ahead pre-lane-split scaffolds, it's a stale fork from a much older
+`main` tip (predates migrations 008–013 and every `src/lib/*`/route file that
+exists today) and its diff is net-deletions-only — not stranded work to adopt.
+Two previously single-commit branches grew this cycle
+(`modest-newton-oxaddt` 1→7, `relaxed-thompson-ceai5p` 1→7) — inspected both
+the same way, same shape: stale forks off the same old pre-#21/#23/#24 `main`
+tip (last shared commit `0ad0023`), net-deletions-only, not actionable.
+`hopeful-johnson-icvqmr` (still 15 ahead) is unchanged from the last sweep's
+finding — real iOS-ux work (`CoffeeStore.loadBrief()`, durable review
+resolve/dismiss), not backend-owned, not re-flagging further. Every other
+non-zero branch is the same shape every prior sweep has found (other lanes'
+own no-op status-note commits, or the long-superseded `peaceful-mccarthy-*`
+attempts) — nothing backend-owned or actionable to integrate.
+
+Ran `cd backend && npm ci && npm test` — **195/195 green**, matching the last
+recorded count, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; `GET /api/admin/jobs` → 10 jobs, all `done`
+or `paused`, **none `running`** — safe to push `backend/**` this session per
+the hard rule, though there was no code to push.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
 
 ## 2026-08-08 UTC: session check — no ready row this cycle
 

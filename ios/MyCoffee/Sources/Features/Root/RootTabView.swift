@@ -6,6 +6,7 @@ import SwiftUI
 /// never conditionally inserted, which would reindex the bar.
 struct RootTabView: View {
     @StateObject private var store = CoffeeStore()
+    @ObservedObject private var reviewCache = ReviewFeedCache.shared
 
     var body: some View {
         TabView {
@@ -27,6 +28,9 @@ struct RootTabView: View {
             // Badge follows the actual review queue, not the count of non-clean
             // coffees (which includes fields the app can't review).
             await store.refreshReviewCount()
+        }
+        .task {
+            await reviewCache.ensureLoaded()
         }
     }
 }

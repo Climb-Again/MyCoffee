@@ -125,6 +125,34 @@ actor SyncEngine {
         }
     }
 
+    /// Queues the edit and flushes immediately if online (same shape as
+    /// `setFavorite`/`resolveReview`), then re-fetches detail so any
+    /// backend-derived side effect lands exactly as the server computed it —
+    /// unlike a favorite toggle, an edit's effect on the coffee row (e.g. a
+    /// re-derived `roasterCountryId`) can't be guessed at locally. Returns
+    /// `nil` while offline (still queued after the flush attempt) — there's
+    /// nothing new on the server to fetch yet.
+    func editField(coffeeId: String, field: String, value: String, client: APIClient?) async -> Coffee? {
+        await outbox.enqueueEdit(coffeeId: coffeeId, field: field, value: value)
+        guard let client else { return nil }
+        await outbox.flush(using: client)
+        guard await outbox.pendingEdit(coffeeId: coffeeId, field: field) == nil else { return nil }
+        return try? await loadDetail(coffeeId: coffeeId, using: client)
+    }
+
+    /// Same shape as `editField`, but for >1 field applied in one request
+    /// (PLAN.md §12, the #42-flagged atomicity gap) — the backend resolves
+    /// every edit before writing the coffees row once, so there's no
+    /// ordering hazard between e.g. an explicit `roasterCountry` and the
+    /// `roasterCountryId` a same-save `roaster` edit derives.
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit], client: APIClient?) async -> Coffee? {
+        await outbox.enqueueEditBatch(coffeeId: coffeeId, edits: edits)
+        guard let client else { return nil }
+        await outbox.flush(using: client)
+        guard await outbox.pendingEditBatch(coffeeId: coffeeId) == nil else { return nil }
+        return try? await loadDetail(coffeeId: coffeeId, using: client)
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,

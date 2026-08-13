@@ -46,6 +46,7 @@ enum Symbols {
     static let dataQuality = "checkmark.seal"
     static let zscoreToggle = "chart.line.uptrend.xyaxis"
     static let insightsEmpty = "chart.bar.xaxis"
+    static let brief = "newspaper"
 
     // Review queue (#27)
     static let reviewCountry = "globe"
@@ -58,4 +59,13 @@ enum Symbols {
     static let reviewZoom = "arrow.up.left.and.arrow.down.right"
     static let reviewPhotoMissing = "photo"
     static let reviewEmpty = "checkmark.circle"
+
+    // Edit sheet (#42)
+    static let edit = "pencil"
+    static let pickerSelected = "checkmark"
+
+    // What's New (#47)
+    static let whatsNew = "sparkles"
+    static let whatsNewEmpty = "tray"
+    static let whatsNewUnavailable = "wifi.exclamationmark"
 }

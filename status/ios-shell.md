@@ -8,6 +8,311 @@ _none_
 
 ## Done
 
+- [2026-08-13 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46 are all
+  `done` (this session's own designated branch had a stale copy of `status/BACKLOG.md`
+  showing #41/#46 as `ready` — checking out `origin/ios-staging` directly showed both
+  already landed, `81ac0b9`/earlier, with #42/#47 on top). Only `ready` rows remaining
+  are `#39`/`#48`, both `data`-tagged (`normalize.js`/vocab-owned) — none for this lane.
+  Merged `origin/main` into `ios-staging` to pick up backend's session-check commits
+  (`4d0a771`/`f30b450`/`613176d`); resolved one additive conflict in `status/backend.md`
+  (two session-check entries landing independently on each branch) by keeping both,
+  no factual conflict. Re-swept all 83 `origin/claude/*` branches per the
+  integrate-before-you-start rule: the two largest by ahead-count in this lane's owned
+  paths (`wizardly-thompson-0g9i90`, `hopeful-johnson-3xcwg7`, both 6 commits ahead)
+  diff as pure net-deletions (601 removed / 46 added, across `MutationOutbox.swift`,
+  `CoffeeStore.swift`, `WhatsNewWire.swift`, etc.) — stale pre-#41/#46 snapshots, not
+  new work. Nothing stranded to adopt. Stopping cleanly rather than inventing work or
+  touching UX-owned paths.
+
+- [2026-08-12 UTC, later session] 46 `whatsNew()` API surface (PLAN.md §13) — branch `ios-staging`
+  - `APIClient.whatsNew() async throws -> WhatsNewResponseDTO` (`GET /api/whatsnew`), plus the new
+    `API/Wire/WhatsNewWire.swift`: `WhatsNewResponseDTO{live, plan}`, `WhatsNewPlanDTO{byLane, needsApproval}`,
+    `WhatsNewItemDTO{title, detail, area}` (`area` only populated on `live` items, `nil` on plan items — matches
+    `backend/src/data/whatsnew.json`'s actual shape and `backend/test/whatsnew.test.js`'s assertions).
+  - **Lenient decode**, per the row's own ask: every array (`live`, each `byLane` lane, `needsApproval`) decodes via
+    `[FailableDecodable<WhatsNewItemDTO>].self.compactMap(\.value)` — the same `FlexibleDecoding.swift` helper the
+    snapshot/review feeds already use — so one malformed curated card is dropped, never a fatal decode that blanks
+    the whole screen.
+  - Session first checked out `ios-staging` and discovered its own `status/BACKLOG.md` already had `#41`/`#42`
+    marked `done` (landed 2026-08-11/12) while `main`'s copy — this session's merge source — still showed `41
+    ready`/`42 blocked`; merging `origin/main` in also surfaced that `main` had `#45` done and `#46` freshly flipped
+    `blocked`→`ready`. Reconciled `status/BACKLOG.md`'s merge conflict by keeping `ios-staging`'s truth for #41/#42
+    (done) and `main`'s truth for #45/#46 (done/ready) rather than picking one side — same "each branch is stale
+    about the other's lane" pattern prior sessions have hit, not a new code conflict. Pushed that reconciliation
+    (`8d9a3c7`) before starting #46's actual code.
+  - Also swept all 80 `origin/claude/*` branches for stranded ios-shell work per the integrate-before-you-start
+    rule: every candidate that touches this lane's owned paths (`confident-cerf-*`, `determined-thompson-*`,
+    `hopeful-johnson-*`, `peaceful-mccarthy-*`, plus the four already-known stale ones) diffs as a **net deletion**
+    against current `ios-staging` — pre-#22/#41 snapshots missing work that's since landed, not new work to adopt.
+    Nothing stranded.
+  - Not locally compiled (no Xcode here) — new file mirrors `ReviewWire.swift`'s exact shape (custom
+    `CodingKeys`-based `init(from:)`, `FailableDecodable` for every array), so a red compile check should point at
+    a typo, not a design gap.
+  - Scope stayed inside `API/` per the row's own note (no `CoffeeStore`/`CoffeeRepository` wrapper) — unlike `#41`'s
+    `editField`, this one has no offline-mutation angle, and `#28`'s `loadBrief()` precedent shows a bare
+    `APIClient` call is an accepted shape for a UX view to call directly from a `.task`; not inventing a `CoffeeStore`
+    method the row didn't ask for.
+  - `ios/MyCoffee/Sources/API/{APIClient,Wire/WhatsNewWire}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-12 UTC] No open `BACKLOG.md` row for `ios-shell` this cycle — `#41` (this
+  lane's only other row besides `#17`/`#22`) was already `done` on `ios-staging`
+  (`5b76a6c`, 2026-08-11), and `#42` (ios-ux) had already landed on top of it
+  (`be0b40a`, same day). This session initially claimed `#41` off `main`'s stale
+  copy of `status/BACKLOG.md` — `main` still showed `41 ready`/`42 blocked` because
+  the dev/ship split means `ios-staging` never pushes its `status/BACKLOG.md`
+  updates to `main` until the Publish lane merges; `ios-staging`'s own copy already
+  read `done`/`done`. Retracted that claim once `git checkout ios-staging` surfaced
+  the real state, rather than redoing already-landed work.
+  - **Picked up a real, already-flagged, already-scoped gap instead of stopping**
+    (same precedent as the 2026-08-06 entry below): `status/ios-ux.md`'s `#42`
+    write-up flagged that the backend's batch `{edits:[...]}` endpoint (`#40`) has
+    no client-side batch caller — `APIClient.editCoffeeField`/`CoffeeStore.editField`
+    (`#41`) only expose one field per HTTP request, so `CoffeeEditSheet` fires one
+    request per changed field with no ordering guarantee between them (e.g. an
+    explicit `roasterCountry` edit racing the `roasterCountryId` a same-save
+    `roaster` edit derives). UX's note named the exact ask: "an `APIClient.
+    editCoffeeFields(publicId:edits:)` + a matching `CoffeeStore` batch wrapper... 
+    claim in both lane files per the seam rule if picked up." Closed it:
+    - `APIClient.editCoffeeFields(publicId:edits:)` → the same `POST
+      /api/coffees/:id/edit` route, body `{edits:[{field,value},...]}` instead of
+      `{field,value}` — confirmed against `routes/coffees.js`: all edits resolve
+      before the coffees row is written once, so a single 422 aborts the whole
+      batch rather than partially applying.
+    - New `CoffeeFieldEdit: Codable` (`{field, value}`) — shared by the API call,
+      a new `PendingMutation.editBatch(coffeeId:edits:)` case (one outstanding
+      batch per coffeeId, same replace-not-accumulate rule as `.edit`), and
+      `MutationOutbox.enqueue/pendingEditBatch`. Extended both exhaustive
+      `PendingMutation` switches (`isReviewMutation`, `shouldKeep`) — `shouldKeep`
+      reuses the existing 4xx-drops/5xx-retries split unchanged.
+    - `SyncEngine.editFields` mirrors `editField`'s queue→flush→re-fetch-detail
+      shape; `CoffeeRepository.editFields` + `RemoteCoffeeRepository`/
+      `SampleCoffeeRepository` (no-op, same reasoning as `editField`'s) conform;
+      `CoffeeStore.editFields(coffeeId:edits:)` is the call the edit sheet should
+      switch to whenever `edits.count > 1`.
+  - **UX lane: one call-site swap, not new plumbing.** `Features/Coffees/
+    CoffeeEditSheet.swift`'s save currently fires `store.editField(...)` once per
+    changed field. When more than one field changed in the same save, swap that
+    loop for one `store.editFields(coffeeId:edits:)` call instead — the atomicity
+    fix only takes effect once the sheet stops calling the single-field path in a
+    loop. Not making this swap myself — `Features/Coffees/**` is UX-owned.
+  - No new `BACKLOG.md` row (not a numbered issue, just closing a flagged gap in
+    already-owned files — same as the 2026-08-06 entry's precedent); added a
+    pointer in `BACKLOG.md`'s `#42` row + "Right now" section instead so the UX
+    lane sees it without reading this file.
+  - Not locally compiled (no Xcode here) — every new piece mirrors `editField`'s
+    existing shape 1:1, so a red compile check should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/{API/APIClient,Store/CoffeeRepository,Store/CoffeeStore,
+    Store/MutationOutbox,Store/RemoteCoffeeRepository,Store/SampleCoffeeRepository,
+    Store/SyncEngine}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+
+- [2026-08-11 UTC, later session] Session check — no ready `ios-shell` row.
+  Only `ios-shell` rows in `BACKLOG.md` are #17/#22/#41, all `done` (#41
+  landed earlier this same day, `5b76a6c`, and its dependent #42 (ios-ux) is
+  also already `done`, `be0b40a`). Checked `git branch -r --list
+  'origin/claude/*'` per the integrate-before-you-start rule: the only
+  candidate is this session's own branch
+  (`origin/claude/wizardly-thompson-lv7do1`), which carries no unmerged
+  `ios-shell`-owned work (its one commit, the "Year bought" label fix, is
+  already on `main`/`ios-staging`). Merged `origin/main` into `ios-staging`
+  (clean, no conflicts — backend's session-check commit plus two `ios-ux`-owned
+  file tweaks) before stopping. Only other `ready` row in the whole backlog is
+  `#39` (data lane, `normalize.js` altitude/weight/rating sanity envelopes) —
+  out of this lane's scope. Stopping cleanly rather than inventing work or
+  touching UX-owned paths.
+
+- [2026-08-11 UTC] 41 Edit API surface (PLAN.md §12) — branch `ios-staging`
+  - `APIClient.editCoffeeField(publicId:field:value:)` → `POST /api/coffees/:id/edit`, same
+    raw-string-in shape as `resolveReview` (checked `resolveField.js`'s `canonicalize()`: every
+    field case runs the raw value through a string parser — `parseAltitude`/`parsePrice`/
+    `resolveVocab`/etc — so there's no structured-value shape to bridge, unlike the review DTOs).
+  - `MutationOutbox` gets a fourth `PendingMutation` case, `.edit(coffeeId:field:value:)`, with
+    `enqueueEdit`/`pendingEdit` mirroring `enqueueFavorite`/`pendingFavorite` (one outstanding
+    edit per `(coffeeId, field)`, replace-not-accumulate) and a `shouldKeep` branch that falls
+    into the existing 4xx-drops/5xx-retries split for free — a 422 (unresolvable value, e.g. an
+    unknown country) is exactly as terminal as `resolveReview`'s.
+  - `SyncEngine.editField` queues + flushes like `setFavorite`, then — the one real difference
+    from favorite/review — re-fetches detail on success via the existing `loadDetail`, since an
+    edit's backend-derived side effects (e.g. editing `roaster` also derives `roasterCountryId`)
+    can't be guessed at locally the way a favorite bool can. Returns `nil` while still queued
+    (offline) or rejected (422 — the row didn't change, nothing new to merge).
+  - `CoffeeRepository.editField` protocol method; `RemoteCoffeeRepository` delegates to the
+    engine; `SampleCoffeeRepository`'s is a no-op returning `nil` (same reasoning as its
+    `resolveReview`/`dismissReview` no-ops — duplicating the backend's canonicalization in the
+    fixture isn't this lane's job). `CoffeeStore.editField(coffeeId:field:value:)` is the
+    fire-and-forget wrapper the UX lane's edit sheet (#42) will call; merges the refreshed
+    `Coffee` into `index` via `replacingCoffee` on success, same as `loadDetail(for:)`.
+  - Not locally compiled (no Xcode here) — everything is a straight mirror of `setFavorite`'s/
+    `resolveReview`'s existing shapes, so a red compile check should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/{API/APIClient,Store/CoffeeRepository,Store/CoffeeStore,
+    Store/MutationOutbox,Store/RemoteCoffeeRepository,Store/SampleCoffeeRepository,
+    Store/SyncEngine}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-10 UTC, later session] Session check — no ready `ios-shell` row.
+  #17/#22 remain the only rows tagged `ios-shell`, both `done`; the only
+  `ready` row in the whole backlog is `#39` (data lane, `parseAltitude`/
+  `parseWeight`/`parseRating` sanity envelopes) — not shell-owned. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts). Swept
+  `git branch -r --list 'origin/claude/*'`: only this session's own branch
+  exists, touching no `ios-shell`-owned path — nothing stranded to adopt.
+  **One real, already-flagged fix picked up instead of inventing work**:
+  `status/ios-ux.md`'s 2026-08-06 entry flagged `Store/ImageStore.swift`'s
+  doc comment as stale (it said "Not yet wired into `Thumbnail.swift`" and
+  "no batch-media-URL endpoint exists yet"), left for this lane since the
+  file is shell-owned. Both premises are now false — `Thumbnail.swift` calls
+  `ImageStore.shared.thumbnail(for:maxPixelSize:)` directly, and the compact
+  snapshot row (`toCompactCoffee` in `backend/src/routes/coffees.js`) has
+  carried a signed `thumbUrl` since `SNAPSHOT_VERSION=2`, so no separate
+  batch endpoint was ever needed. Updated the comment to describe the real,
+  already-wired state instead of a stale gap. No compile risk — comment-only
+  change to a shell-owned file, no signature/behavior touched.
+  - `ios/MyCoffee/Sources/Store/ImageStore.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-10 UTC] Session check — no ready `ios-shell` row. #17/#22 remain the
+  only rows tagged `ios-shell`, both `done`. Merging `origin/main` into
+  `ios-staging` surfaced a real divergence, not just stale session-check
+  noise: `ios-staging` still carried `#37` (ios-ux) `done`/`#38` (data)
+  `ready`, while `main` had the reverse — `#37` `ready`/`#38` `done` (the data
+  lane's 2026-08-10 roaster-country migration). Resolved the `status/
+  BACKLOG.md` conflict as the union of both branches' newer knowledge (`#37`
+  done, `#38` done) rather than picking one side, since each branch was
+  correct about the row it actually has direct knowledge of. No `ios-shell`
+  row unblocks from this — neither `#37` nor `#38` lists `ios-shell` as a
+  dependent. Re-swept all 69 `origin/claude/*` branches for stranded work in
+  this lane's owned paths (`git rev-list --count origin/ios-staging..<branch>
+  -- ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}
+  ios/project.yml`): 17 candidates show nonzero commits ahead, but every one
+  diffs as a **net deletion** against current `ios-staging` (pre-#22 or
+  pre-#17 snapshots missing files #22 later added) — confirmed by `git diff
+  --stat`, not just the commit count. Nothing stranded to adopt. Pushed the
+  merge commit (`e66cd10`) to `ios-staging`. Stopping cleanly rather than
+  inventing work or touching UX-owned paths.
+
+- [2026-08-09 UTC] Session check — no ready `ios-shell` row. #17/#22 are the
+  only rows tagged `ios-shell`, both `done`. #37 (ios-ux, needs 35/36 — both
+  `done`) is the only `ready` row in the whole backlog and is UX-owned, not
+  shell-owned; #29 (data, phase 6) still `blocked` on #26, still `human`.
+  Re-fetched all `origin/claude/*` branches (65 candidates) and swept each
+  with `git diff --stat origin/ios-staging..<branch> -- <ios-shell-owned
+  paths>` per the integrate-before-you-start rule: 17 candidates showed a
+  nonzero `rev-list --count`, but every one of those diffs as a **net
+  deletion** against current `ios-staging` (missing `SyncEngine.swift`/
+  `CoffeeCoding.swift`/`PlainDate.swift`/etc. that #22 later added, or
+  pre-rename shapes like `JSONDecoder+Coffee.swift`) — i.e. each is a stale
+  pre-#22 snapshot being diffed backwards, not new work ahead. Nothing
+  stranded to adopt. Merged `origin/main` into `ios-staging` (`52ddd23`,
+  clean — two other lanes' status-only session-check commits, no code)
+  before stopping. Stopping cleanly rather than inventing work or touching
+  UX-owned paths.
+
+- [2026-08-08 UTC, later same day] Session check — still no ready
+  `ios-shell` row. Since the earlier check below, Radu's accept-by-default
+  directive landed on `main` (`aaacc88`, merged in via `git merge origin/main`
+  — no conflicts) adding `BACKLOG.md` #35/#36 (backend, both `ready` not
+  `done` yet) and #37 (`ios-ux`, `blocked` on 35/36) — none of that is
+  ios-shell-owned or unblocked. Re-swept `origin/claude/*` for stranded work
+  in this lane's owned paths: only new candidate is this session's own branch
+  (`wizardly-thompson-ofd9vn`), zero prior commits, nothing to adopt.
+  Confirmed the 2026-08-05 "decode leniently" follow-up (skip a malformed
+  snapshot row instead of failing the whole array) is already resolved —
+  `de55557` added `FailableDecodable` and applied it to `SnapshotWire.swift`'s
+  `coffees`/vocab arrays. Stopping cleanly; pushing the merge to
+  `ios-staging`.
+
+- [2026-08-08 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
+  (Radu's 5-photo accuracy verdict still pending — confirmed via today's
+  backend-lane session check, which independently re-verified the same
+  state), so #29 (data, phase 6) stays `blocked`; nothing else in
+  `BACKLOG.md` is tagged `ios-shell`. `git merge origin/main` into
+  `ios-staging` pulled in one commit (`fc88d0e`, backend's own no-op session
+  check touching only `status/backend.md`) — no conflicts, no shell-owned
+  file changed. Re-fetched and swept all 61 `origin/claude/*` branches for
+  stranded work in this lane's owned paths
+  (`ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}`,
+  `ios/project.yml`): checked the three recurring nonzero-diff candidates
+  plus the newest branches (`relaxed-thompson-wrqfk0`,
+  `wizardly-thompson-eurlj6`) by actual diff content, not just commit count —
+  `coffee-app-plan-9jdh0c` and `new-app-infrastructure-setup-h3r3wz` are both
+  pure net-deletions (2465 lines removed, 1 inserted) against current
+  `ios-staging`, i.e. stale pre-#17 scaffolding already superseded;
+  `wizardly-thompson-0g9i90` is the same pre-`loadBrief()`/pre-`roasterId`-fix
+  snapshot every prior sweep found (its diff deletes the review-feed/brief
+  API methods and reverts `roasterId` back to non-optional); `wrqfk0` and
+  `eurlj6` show zero commits ahead in owned paths. Nothing stranded to adopt.
+  No cross-lane ask pending either — `status/ios-ux.md`'s only open item
+  (the `/api/brief` wiring ask) was already closed by this lane's own
+  2026-08-06 entry (`CoffeeStore.loadBrief()`). Stopping cleanly rather than
+  inventing work; pushing the `origin/main` merge to `ios-staging` per
+  CLAUDE.md §3.
+
+- [2026-08-07 UTC, note from an `ios-ux` session, not this lane's own work]
+  `origin/main` had advanced to `da12d12` ("iOS: listing photos, review
+  scroll/back fixes, coffee-page cleanups") via another off-lane push straight
+  to `main` — touched this lane's `API/Wire/{CoffeeMapping,SnapshotWire}.swift`
+  and `Store/SyncEngine.swift` (mapping the snapshot's `thumbUrl` into
+  `Coffee.images`) alongside `ios-ux`-owned files. The `ios-ux` session that
+  ran that day merged it into `ios-staging` (`9b9fc95`) and reconciled one
+  conflict (in a `ios-ux`-owned file only) — see `status/ios-ux.md`'s matching
+  entry for detail. Recording it here too per the same precedent this file's
+  own 2026-08-06 entry set ("recording it here too since this branch is where
+  it originated"): nothing for this lane to do, `Store`/`API` content landed
+  as-authored, no shell-owned conflict to resolve.
+
+- [2026-08-07 UTC, later same day] Session check — unchanged from the check
+  earlier today. No ready `ios-shell` row: #17/#22 done, #26 (data, phase 4)
+  still `human` (Radu's 5-photo verdict pending), so #29 stays `blocked`.
+  `ios-staging` already at `90834f4` (ios-ux's later no-op session merged
+  `origin/main`'s `e0cfea2` in already) — nothing to merge. Re-swept all 59
+  `origin/claude/*` branches (3 more than the earlier check's 56): same 7
+  nonzero-diff candidates as before in this lane's owned paths
+  (`coffee-app-plan-9jdh0c`, `hopeful-johnson-icvqmr`, `modest-newton-oxaddt`,
+  `mycoffee-publish-autopilot-rv8cve`, `new-app-infrastructure-setup-h3r3wz`,
+  `relaxed-thompson-ceai5p`, `wizardly-thompson-0g9i90`) — no new branches
+  appeared since. Stopping cleanly rather than inventing work.
+
+- [2026-08-07 UTC] Session check — no ready `ios-shell` row. Only ios-shell
+  rows are #17/#22, both `done`. #26 (data, phase 4) is still `human`
+  (awaiting Radu's 5-photo accuracy verdict), so #29 (data, phase 6) stays
+  `blocked`. `git merge origin/main` into `ios-staging` was a no-op (already
+  up to date — both at `e0cfea2`). Re-fetched and swept all 56
+  `origin/claude/*` branches for stranded work in this lane's owned paths
+  (`git rev-list --count origin/ios-staging..<branch> -- <ios-shell-owned
+  paths>`): 7 showed a nonzero count (`coffee-app-plan-9jdh0c`,
+  `hopeful-johnson-icvqmr`, `modest-newton-oxaddt`,
+  `mycoffee-publish-autopilot-rv8cve`, `new-app-infrastructure-setup-h3r3wz`,
+  `relaxed-thompson-ceai5p`, `wizardly-thompson-0g9i90`), but commit count is
+  misleading across diverged histories, so checked actual file content: the
+  same three pure-deletion/pre-fix-snapshot candidates as every prior check,
+  plus unrelated publish/compile-lane branches that predate `ios-staging`'s
+  creation, plus `hopeful-johnson-icvqmr` (an `ios-ux` branch) whose
+  Store/API/Models files are byte-identical to what's already on
+  `ios-staging` — its actual new content was `Features/Insights` wiring,
+  already landed via `4e491be`. Nothing stranded to adopt. Stopping cleanly
+  rather than inventing work or touching UX-owned paths.
+
+- [2026-08-06 UTC, later same day] Session check — no ready `ios-shell` row.
+  #17/#22 done; #27/#28 (ios-ux) done; #29 (data, phase 6) still `blocked` on
+  #26, still `human` (awaiting Radu's verdict). The cross-lane `ios-ux` ask
+  under `## Claimed` and the `loadBrief()` follow-up were already closed by
+  an earlier session today (commit `ef50a07`, see the entry right below) —
+  verified `## Claimed` is empty and the work is present on `origin/ios-staging`,
+  so not redoing it. Swept `origin/claude/*` (55 candidates after fetch) for
+  stranded work in this lane's owned paths: same three pure-deletion
+  candidates as prior checks (`coffee-app-plan-9jdh0c`,
+  `new-app-infrastructure-setup-h3r3wz`, `wizardly-thompson-0g9i90`), nothing
+  new to adopt. Merged `origin/main` (2 backend session-check commits,
+  `status/backend.md` only) into `ios-staging`, clean, no conflicts. The
+  unclaimed leniency follow-up (decode `coffees` array skipping malformed
+  rows instead of failing whole-array) stays flagged, not picked up — no
+  backlog row, and inventing scope isn't this loop's job. Stopping cleanly.
+
 - [2026-08-06 UTC] No open `BACKLOG.md` row for `ios-shell` (#17/#22 are the only rows and both `done`), but two
   legitimate, already-claimed cross-lane asks were still open, so picked those up instead of stopping — same
   precedent as the earlier review-feed wiring below.

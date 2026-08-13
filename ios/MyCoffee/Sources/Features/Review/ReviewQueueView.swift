@@ -127,16 +127,15 @@ struct ReviewQueueView: View {
         do {
             let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
-            let tasks = feed.items.compactMap(ReviewTask.init(dto:))
-            engine.load(tasks)
-            store.setReviewQueueCount(tasks.count)
-            // Fire-and-forget persistence; a failed call leaves the row open
-            // server-side, which the next `load()` will surface again.
+            ReviewFeedCache.shared.adopt(feed)
+            engine.load(feed.items.compactMap(ReviewTask.init(dto:)))
+            // Durable through the outbox — survives offline/app restart,
+            // unlike a raw fire-and-forget `APIClient` call.
             engine.onAccept = { task, value in
-                Task { try? await client.resolveReview(id: "\(task.id)", value: value) }
+                store.resolveReview(taskId: task.id, value: value)
             }
             engine.onDismiss = { task in
-                Task { try? await client.dismissReview(id: "\(task.id)") }
+                store.dismissReview(taskId: task.id)
             }
         } catch {
             loadError = error.localizedDescription

@@ -25,4 +25,21 @@ protocol CoffeeRepository: Sendable {
 
     /// Records a review-task dismissal ("not on the bag") the same way.
     func dismissReview(taskId: Int) async
+
+    /// Applies a per-field edit via the backend's locked/human-decided
+    /// resolve path (PLAN.md §12 #40/#41) — queued through the same durable
+    /// outbox `resolveReview` uses, then re-fetches detail so any
+    /// backend-derived side effect (e.g. editing `roaster` also derives
+    /// `roasterCountryId`) lands exactly as the server computed it, instead
+    /// of being guessed at with a local optimistic merge. Returns the
+    /// refreshed `Coffee` once the edit round-trips; `nil` while it's still
+    /// queued (offline) or was rejected (a 422 never applies, so there's
+    /// nothing new to merge).
+    func editField(coffeeId: String, field: String, value: String) async -> Coffee?
+
+    /// Same as `editField`, but applies every edit in `edits` in one request
+    /// (PLAN.md §12, closing the atomicity gap #42's edit sheet flagged) —
+    /// use this instead of N `editField` calls whenever a single save
+    /// changes more than one field.
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee?
 }

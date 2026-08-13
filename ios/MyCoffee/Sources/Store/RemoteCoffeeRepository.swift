@@ -37,4 +37,14 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         let client = try? await APIClient(config: AppConfig.shared)
         await engine.dismissReview(taskId: taskId, client: client)
     }
+
+    func editField(coffeeId: String, field: String, value: String) async -> Coffee? {
+        let client = try? await APIClient(config: AppConfig.shared)
+        return await engine.editField(coffeeId: coffeeId, field: field, value: value, client: client)
+    }
+
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee? {
+        let client = try? await APIClient(config: AppConfig.shared)
+        return await engine.editFields(coffeeId: coffeeId, edits: edits, client: client)
+    }
 }

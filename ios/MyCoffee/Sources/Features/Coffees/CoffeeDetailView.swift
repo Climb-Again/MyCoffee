@@ -9,7 +9,9 @@ import UIKit
 struct CoffeeDetailView: View {
     private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
+    @ObservedObject private var reviewCache = ReviewFeedCache.shared
     @State private var showReview = false
+    @State private var showEdit = false
     @State private var fullTextExpanded = true
     @State private var showFullPhoto = false
 
@@ -35,13 +37,25 @@ struct CoffeeDetailView: View {
         .task {
             await store.loadDetail(for: initialCoffee)
         }
+        .task {
+            await reviewCache.ensureLoaded()
+        }
         .toolbar {
-            // Only the trailing Share button is custom — the system back button
-            // stays (one arrow, and it keeps edge-swipe-back working). A second
-            // custom back button here is what produced the duplicate arrow.
+            // Only the trailing Share/Edit buttons are custom — the system back
+            // button stays (one arrow, and it keeps edge-swipe-back working). A
+            // second custom back button here is what produced the duplicate arrow.
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
                     Image(systemName: Symbols.share)
+                        .padding(10)
+                        .background(.thinMaterial, in: Circle())
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showEdit = true
+                } label: {
+                    Image(systemName: Symbols.edit)
                         .padding(10)
                         .background(.thinMaterial, in: Circle())
                 }
@@ -52,11 +66,17 @@ struct CoffeeDetailView: View {
         .navigationTitle("")
         .sheet(isPresented: $showReview) {
             CoffeeReviewSheet(coffeeId: coffee.id) {
-                Task { await store.loadDetail(for: initialCoffee) }
+                Task {
+                    await reviewCache.refresh()
+                    await store.loadDetail(for: initialCoffee)
+                }
             }
         }
         .fullScreenCover(isPresented: $showFullPhoto) {
             FullPhotoView(urlString: coffee.images?.display)
+        }
+        .sheet(isPresented: $showEdit) {
+            CoffeeEditSheet(coffee: coffee)
         }
     }
 
@@ -151,9 +171,14 @@ struct CoffeeDetailView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if coffee.hasOpenReview {
+            if coffee.hasOpenReview && reviewCache.hasReviewableTasks(for: coffee.id) {
                 // Tappable: the marker isn't just a status, it launches the
                 // review for this coffee's open fields (PLAN.md §6.5).
+                // Gated on the real feed, not just the coarse `reviewState`
+                // column, so a coffee whose only open item is a non-client-
+                // reviewable field (e.g. a `desc_*` prose split) never shows
+                // an affordance that opens to an empty "All set" sheet
+                // (PLAN.md §11 #37).
                 Button {
                     showReview = true
                 } label: {
