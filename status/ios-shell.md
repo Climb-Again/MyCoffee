@@ -8,6 +8,28 @@ _none_
 
 ## Done
 
+- [2026-08-13 UTC, later session] Session check — no ready `ios-shell` row.
+  Only rows tagged `ios-shell` are #17/#22/#41/#46, all `done`. Found `main`
+  had moved strictly ahead of `ios-staging` since the earlier session today —
+  `git merge-base origin/main origin/ios-staging` equaled `origin/ios-staging`'s
+  own tip, i.e. `main` had already merged `ios-staging` in and then added data
+  lane commits on top (`#48(a)` migration `015_fix_uncommon_roaster_country.sql`,
+  a new AppIcon, `status/BACKLOG.md`/`status/backend.md` updates) — the opposite
+  direction from the usual "ios-staging is stale" case, so checked
+  `git merge-base`/`git rev-parse` explicitly rather than assuming which side
+  needed the merge. `git merge origin/main` into `ios-staging` was a clean
+  fast-forward (`14b0e34..fb86696`), no conflicts. Post-merge, the only `ready`
+  rows in `BACKLOG.md` are `#29`/`#48`/`#39`, all `data`-tagged — confirmed none
+  are `ios-shell`. Re-swept all 85 `origin/claude/*` branches per the
+  integrate-before-you-start rule: 44 show nonzero commits ahead in this lane's
+  owned paths, but every one sampled (`determined-thompson-*`, `confident-cerf-*`,
+  `peaceful-mccarthy-*`, `hopeful-johnson-*`, `wizardly-thompson-*`, plus the
+  known scaffolding branches) diffs as a large net deletion (e.g. `33 files
+  changed, 1 insertion(+), 2746 deletions(-)`) against current `ios-staging` —
+  stale pre-#22/#41 snapshots, not new work. Nothing stranded to adopt. Pushed
+  the fast-forward merge to `ios-staging`. Stopping cleanly rather than
+  inventing work or touching UX-owned paths.
+
 - [2026-08-13 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46 are all
   `done` (this session's own designated branch had a stale copy of `status/BACKLOG.md`
   showing #41/#46 as `ready` — checking out `origin/ios-staging` directly showed both
