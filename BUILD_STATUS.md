@@ -103,9 +103,12 @@ spend cap all get defaults in `src/config.js`. Optional overrides only:
       `match`: `certs/distribution/DQ2D2T3MR9.{cer,p12}` +
       `profiles/appstore/AppStore_ro.climbagain.mycoffee.mobileprovision`.
       (It also rewrote that branch's `README.md`, as the gotcha predicted.)
-- [ ] Dispatch `publish=true` again → first actual TestFlight upload. Run #6 then died
+- [x] Dispatch `publish=true` again → first actual TestFlight upload. Run #6 then died
       at `xcodegen generate`: fastlane's `sh` runs in `ios/fastlane/`, so the spec at
-      `ios/project.yml` wasn't found. Fixed by wrapping in `Dir.chdir("..")`.
+      `ios/project.yml` wasn't found. Fixed by wrapping in `Dir.chdir("..")`. **Stale
+      checkbox corrected 2026-08-13** — this has been green since run #14 and has
+      shipped repeatedly since (most recently run `31738925456` on `main@d1009d1`,
+      2026-08-13, `publish` lane cron); see `status/publish.md` for the run log.
 - [x] **Build accepted on the phone and connected to the backend** (Radu, confirmed).
       End-to-end spine proven: signed TestFlight build → Connect screen → `/api/status`
       → Postgres, `db:true` `vertex:true`. NOTE: this build is the **placeholder shell**
