@@ -8,6 +8,27 @@ _none_
 
 ## Session notes
 
+- [2026-08-13 UTC, later session] No-op session. `status/BACKLOG.md`: every
+  `ios-ux`-tagged row (`#18/#27/#28/#37/#42/#47`) is `done`; the only `ready`
+  rows (`#29`/`#39`/`#48`) are all `data`-lane. Merged `origin/main` into
+  `ios-staging` (clean, no conflicts — picked up backend/publish status-note
+  additions, no code). Swept `git branch -r --list 'origin/claude/*'` (87
+  branches, up from prior sweeps) via `git rev-list --count
+  ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` — 51 non-zero
+  hits, a much larger set than any prior sweep. Spot-checked a representative
+  sample across every distinct branch-name family (`determined-thompson-*`,
+  `confident-cerf-*`, `peaceful-mccarthy-*`, `hopeful-johnson-*`,
+  `wizardly-thompson-*`, `relaxed-thompson-*`) with `git diff --stat`: every
+  one is a **net-negative diff** against current `ios-staging` (e.g. "140
+  insertions, 3069 deletions"), including deleting `Features/WhatsNew/
+  WhatsNewView.swift` — i.e. every one of these branches forked *before* the
+  current state (pre-#47, several pre-#37/#42) and has nothing to contribute;
+  same "stale pre-current fork" shape every prior sweep in this file has
+  already documented, just at higher branch count. Nothing stranded to adopt.
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-13 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
   `ios-ux`-tagged row is `done` (`18/27/28/37/42/47`) — `#37`/`#42`/`#47` were
   already landed in prior sessions and merely stale on `main`'s copy of the
