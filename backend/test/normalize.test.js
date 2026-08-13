@@ -69,7 +69,9 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
   assert.equal(plausible.confidence, 1.0);
   assert.equal(plausible.needsReview, false);
 
-  const implausible = parseAltitude('50 to 80 masl');
+  // Outside the soft 900-2200 band but still inside the hard 200-4000
+  // envelope (#39) — flagged for review, not rejected outright.
+  const implausible = parseAltitude('300 to 350 masl');
   assert.equal(implausible.confidence, 0.5);
   assert.equal(implausible.needsReview, true);
 
@@ -78,6 +80,20 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
 
   assert.equal(parseAltitude('no altitude mentioned here'), null);
   assert.equal(parseAltitude(''), null);
+});
+
+test('parseAltitude: hard plausibility envelope rejects non-elevation numbers (#39)', () => {
+  // Radu's own example: "altitude 1-5 m does not make sense" — a roast-level
+  // scale or a count the extractor mistook for an elevation.
+  assert.equal(parseAltitude('1-5 m'), null);
+  assert.equal(parseAltitude('grown at 1 to 5 m'), null);
+  // Above the envelope too — an OCR-mangled huge number is not a real elevation.
+  assert.equal(parseAltitude('5000 to 6000 masl'), null);
+  // Just inside the hard envelope (200-4000) but outside the soft 900-2200
+  // band: still returned, flagged for review, not rejected outright.
+  const edge = parseAltitude('250 to 300 masl');
+  assert.ok(edge);
+  assert.equal(edge.needsReview, true);
 });
 
 // ---- Price ----
@@ -113,6 +129,13 @@ test('parseWeight: refuses to guess when an altitude marker sits right next to t
   assert.deepEqual(parseWeight('grown at 1600 masl, bag is 250g'), { grams: 250, confidence: 1.0 });
 });
 
+test('parseWeight: hard plausibility envelope rejects sub-gram / over-5kg bags (#39)', () => {
+  assert.equal(parseWeight('0.5g'), null);
+  assert.equal(parseWeight('6000g bag'), null);
+  // Still inside the envelope, just not a standard size — low confidence, not null.
+  assert.deepEqual(parseWeight('5000g'), { grams: 5000, confidence: 0.6 });
+});
+
 // ---- Rating ----
 
 test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', () => {
@@ -121,6 +144,14 @@ test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', (
   assert.deepEqual(parseRating('⭐️4.1'), { value: 4.1, confidence: 0.9 });
   assert.deepEqual(parseRating('4.1'), { value: 4.1, confidence: 0.6 }); // bare number -> 0.6
   assert.equal(parseRating(''), null);
+});
+
+test('parseRating: hard plausibility envelope rejects out-of-scale numbers (#39)', () => {
+  // A bare number that isn't actually a /5 rating (a year fragment, a count).
+  assert.equal(parseRating('12'), null);
+  // A malformed "/5" marker whose captured value is still out of scale.
+  assert.equal(parseRating('12/5'), null);
+  assert.equal(parseRating('6/5'), null);
 });
 
 // ---- Dates ----

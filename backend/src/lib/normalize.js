@@ -86,6 +86,13 @@ export function parseAltitude(text) {
   if (min == null || max == null) return null;
   if (min > max) [min, max] = [max, min];
 
+  // Hard plausibility envelope (PLAN.md §11 addendum, #39): coffee grows
+  // ~200-3000 m, so a parse entirely outside a generous 200-4000 m window
+  // cannot be the real elevation (a roast-level scale, a count, an OCR
+  // glitch) — return null (field reads as absent) rather than a confidence
+  // flag alone, since accept-by-default (#35) no longer checks confidence.
+  if (max < 200 || min > 4000) return null;
+
   const plausible = min >= 900 && max <= 2200;
   const wideSpan = max - min > 800;
   return {
@@ -151,6 +158,9 @@ export function parseWeight(text) {
 
   const grams = parseNumber(match[1], { field: 'weight' });
   if (grams == null) return null;
+  // Hard plausibility envelope (#39): no retail coffee bag is sub-gram or
+  // over 5 kg — a parse outside that range is a misread, not a real weight.
+  if (grams < 1 || grams > 5000) return null;
   const snapped = WEIGHT_STANDARD_G.find((v) => Math.abs(v - grams) <= 3);
   return {
     grams: snapped ?? grams,
@@ -160,26 +170,31 @@ export function parseWeight(text) {
 
 // ---- Rating ----
 
+// Hard plausibility envelope (#39): the rating scale is 0-5 by construction
+// (every marker here is "/5" or a star out of 5) — a parse outside that range
+// is a misread (a year, a count), not a real rating.
+function ratingResult(value, confidence) {
+  if (value == null || value < 0 || value > 5) return null;
+  return { value, confidence };
+}
+
 export function parseRating(text) {
   if (!text) return null;
   const s = String(text);
 
   let m = s.match(/(\d[.,]?\d?)\s*\/\s*5\b/);
   if (m) {
-    const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 1.0 };
+    return ratingResult(parseNumber(m[1], { field: 'rating' }), 1.0);
   }
 
   m = s.match(/⭐️?\s*(\d[.,]?\d?)/u);
   if (m) {
-    const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.9 };
+    return ratingResult(parseNumber(m[1], { field: 'rating' }), 0.9);
   }
 
   m = s.match(/(\d[.,]?\d?)/);
   if (m) {
-    const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.6 };
+    return ratingResult(parseNumber(m[1], { field: 'rating' }), 0.6);
   }
 
   return null;
