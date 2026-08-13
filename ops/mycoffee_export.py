@@ -42,7 +42,7 @@ MANIFEST_BATCH_SIZE = 200  # hard server limit, routes/photos.js MANIFEST_MAX_EN
 RETRY_DELAYS_S = (2, 5, 15, 45, 120)  # mirrors the extraction worker backoff, PLAN.md §2
 OCR_MAX_DIM = 2048  # matches the server's 'ocr' derivative spec, routes/photos.js
 OCR_JPEG_QUALITY = 85
-DEFAULT_ALBUM = "Coffees"
+DEFAULT_ALBUM = "coffees"
 DEFAULT_BACKEND_URL = "https://mycoffee-production-bd43.up.railway.app"
 DEFAULT_STATE_PATH = Path.home() / "Library" / "Application Support" / "MyCoffee" / "export_state.json"
 
