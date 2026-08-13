@@ -8,6 +8,22 @@ _none_
 
 ## Done
 
+- [2026-08-13 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46 are all
+  `done` (this session's own designated branch had a stale copy of `status/BACKLOG.md`
+  showing #41/#46 as `ready` — checking out `origin/ios-staging` directly showed both
+  already landed, `81ac0b9`/earlier, with #42/#47 on top). Only `ready` rows remaining
+  are `#39`/`#48`, both `data`-tagged (`normalize.js`/vocab-owned) — none for this lane.
+  Merged `origin/main` into `ios-staging` to pick up backend's session-check commits
+  (`4d0a771`/`f30b450`/`613176d`); resolved one additive conflict in `status/backend.md`
+  (two session-check entries landing independently on each branch) by keeping both,
+  no factual conflict. Re-swept all 83 `origin/claude/*` branches per the
+  integrate-before-you-start rule: the two largest by ahead-count in this lane's owned
+  paths (`wizardly-thompson-0g9i90`, `hopeful-johnson-3xcwg7`, both 6 commits ahead)
+  diff as pure net-deletions (601 removed / 46 added, across `MutationOutbox.swift`,
+  `CoffeeStore.swift`, `WhatsNewWire.swift`, etc.) — stale pre-#41/#46 snapshots, not
+  new work. Nothing stranded to adopt. Stopping cleanly rather than inventing work or
+  touching UX-owned paths.
+
 - [2026-08-12 UTC, later session] 46 `whatsNew()` API surface (PLAN.md §13) — branch `ios-staging`
   - `APIClient.whatsNew() async throws -> WhatsNewResponseDTO` (`GET /api/whatsnew`), plus the new
     `API/Wire/WhatsNewWire.swift`: `WhatsNewResponseDTO{live, plan}`, `WhatsNewPlanDTO{byLane, needsApproval}`,
