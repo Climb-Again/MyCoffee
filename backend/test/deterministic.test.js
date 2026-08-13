@@ -8,6 +8,7 @@ import { buildAliasIndex } from '../src/lib/vocab.js';
 import {
   findAliasMentions,
   extractRoasterField,
+  extractRoasterCountryField,
   extractOriginCountriesField,
   extractFarmField,
   extractRoastedOnField,
@@ -40,6 +41,7 @@ const COUNTRY_VOCAB = {
     { id: 2, name: 'Ethiopia', is_origin: true, is_roaster: false },
     { id: 3, name: 'Brazil', is_origin: true, is_roaster: false },
     { id: 4, name: 'Netherlands', is_origin: false, is_roaster: true },
+    { id: 5, name: 'United Kingdom', is_origin: false, is_roaster: true },
   ],
   aliasIndex: buildAliasIndex([
     { id: 1, alias: 'Colombia', alias_norm: 'colombia' },
@@ -48,6 +50,8 @@ const COUNTRY_VOCAB = {
     { id: 2, alias: 'Etiopia', alias_norm: 'etiopia' },
     { id: 3, alias: 'Brazil', alias_norm: 'brazil' },
     { id: 4, alias: 'Netherlands', alias_norm: 'netherlands' },
+    { id: 4, alias: 'Olanda', alias_norm: 'olanda' },
+    { id: 5, alias: 'United Kingdom', alias_norm: 'united kingdom' },
   ]),
 };
 
@@ -104,6 +108,36 @@ test('extractRoasterField: two distinct roasters of equal specificity in one cap
   };
   const result = extractRoasterField('Kolibri vs Kaffara, side by side tasting', tiedVocab);
   assert.equal(result, null);
+});
+
+// ---- extractRoasterCountryField (#48: caption beats the vocab-derived guess) ----
+
+test('extractRoasterCountryField: the real-world Uncommon/Olanda caption resolves to Netherlands', () => {
+  const result = extractRoasterCountryField('Prajitorie: Uncommon (Amsterdam, Olanda)', COUNTRY_VOCAB);
+  assert.deepEqual(result, { value: 'Olanda', confidence: 1.0, evidence: 'Prajitorie: Uncommon (Amsterdam, Olanda)' });
+});
+
+test('extractRoasterCountryField: an English "Roastery:" label works the same way', () => {
+  const result = extractRoasterCountryField('Roastery: Some Roasters (London, United Kingdom)', COUNTRY_VOCAB);
+  assert.equal(result.value, 'United Kingdom');
+});
+
+test('extractRoasterCountryField: an origin-country mention elsewhere is never mistaken for the roaster country', () => {
+  const rawText = 'Origin: Ethiopia, washed.\nGreat coffee, no roaster country stated.';
+  assert.equal(extractRoasterCountryField(rawText, COUNTRY_VOCAB), null);
+});
+
+test('extractRoasterCountryField: a roastery line with no recognisable country proposes nothing', () => {
+  assert.equal(extractRoasterCountryField('Roastery: Some Roasters', COUNTRY_VOCAB), null);
+});
+
+test('extractRoasterCountryField: no roastery label at all proposes nothing, even with a roaster-country name present', () => {
+  assert.equal(extractRoasterCountryField('Made in the Netherlands, lovely bag', COUNTRY_VOCAB), null);
+});
+
+test('extractRoasterCountryField: empty text proposes nothing', () => {
+  assert.equal(extractRoasterCountryField('', COUNTRY_VOCAB), null);
+  assert.equal(extractRoasterCountryField(null, COUNTRY_VOCAB), null);
 });
 
 test('extractRoasterField: no mention proposes nothing', () => {
@@ -231,4 +265,11 @@ test('extractRuleFields: missing vocab dictionaries is handled without throwing'
   assert.ok(fields.price);
   assert.ok(fields.weight_g);
   assert.ok(fields.rating);
+});
+
+test('extractRuleFields: an explicit roastery-country caption proposes roaster_country_id alongside roaster_id (#48)', () => {
+  const rawText = 'Roaster: Kolibri.\nPrajitorie: Kolibri (Amsterdam, Olanda)\nOrigin: Ethiopia.';
+  const fields = extractRuleFields(rawText, { roasterVocab: ROASTER_VOCAB, countryVocab: COUNTRY_VOCAB });
+  assert.equal(fields.roaster_id.value, 'Kolibri');
+  assert.equal(fields.roaster_country_id.value, 'Olanda');
 });

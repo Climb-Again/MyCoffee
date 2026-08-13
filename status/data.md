@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-- [2026-08-13 01:41 UTC] #39 Accept-by-default field sanity envelopes (parseAltitude/parseWeight/parseRating hard reject) — branch `main`
+_none — see `## Done` below; both #39 and #48 finished this session but are only on this session's own branch, not yet on `main` (see the note in that section)._
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
@@ -114,6 +114,100 @@ vocabulary-confirmation queue #25 was built to produce.
 tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
 
 ## Done
+
+- [2026-08-13, this session] #39 + #48 — **code complete and tested, but only on
+  this session's own branch (`claude/peaceful-mccarthy-71uw7l`), not yet on
+  `main`.** This session's harness restricts `git push` to that one branch (per
+  its own "never push to a different branch without explicit permission" rule)
+  — the same structural gap `status/README.md`'s "Integrate before you start"
+  section and this file's own 2026-08-01/08-04 corrections already describe for
+  `rwi2ql`/`kix48i`. Per `status/README.md`, **"done" means "on the shared
+  branch"**, so both rows stay `claimed` in `BACKLOG.md`, not `done`, until an
+  authorized session merges this branch into `main`. `git rev-parse main
+  origin/main` agreed at `4d0a771` before this session's commits, and this
+  branch's own history is a clean fast-forward from there (`ac643b8`, `6f8ef74`,
+  and this session's remaining commits) — a plain merge/fast-forward is all
+  that's needed, no conflict expected.
+
+  **#39 — Accept-by-default field sanity envelopes (PLAN.md §11 addendum).**
+  `normalize.js`'s `parseAltitude`/`parseWeight`/`parseRating` each got a hard
+  plausibility envelope that returns `null` (field reads as absent) when a
+  parse cannot be the real quantity, on top of the existing soft
+  `needsReview` band:
+  - `parseAltitude`: `max<200 || min>4000` → null. Radu's own example, "1-5 m
+    does not make sense", is exactly this case (a roast-scale/count the
+    extractor mistook for an elevation). The existing soft 900-2200
+    plausible/needsReview band is untouched — an existing test
+    (`'50 to 80 masl'`) that asserted the *soft* band's confidence/needsReview
+    had to move to a value inside the new hard envelope (`300-350`) since 50-80
+    is now a hard reject, not a soft flag; that's the intended behavior change,
+    not a regression.
+  - `parseWeight`: `grams<1 || grams>5000` → null (no retail bag is sub-gram or
+    over 5 kg).
+  - `parseRating`: value outside `0-5` → null (every marker here implies a /5
+    scale) — factored into a shared `ratingResult()` helper so all three
+    branches (`/5`, star, bare-number) get the same envelope.
+  `npm test`: 236/236 green (see below for the full count incl. #48).
+
+  **#48 — Roaster country trusts the caption over the vocab guess.** Two
+  parts, per the row:
+  - **(a) Immediate** — `backend/migrations/015_uncommon_country_fix.sql`
+    corrects roaster `Uncommon`'s `country_id` (United Kingdom → Netherlands)
+    and backfills the one already-adjudicated `coffees` row that had the wrong
+    value copied in. **Verified directly against the live production API**
+    (`GET /api/coffees/:id` for the one real "Uncommon" coffee,
+    `Wz65qPzjESHqF82t-F-YYg`) that the corpus has exactly one "Uncommon"
+    record and its own caption is unambiguous: `rawDescription` contains
+    `"Prajitorie: Uncommon (Amsterdam, Olanda)"` — the Amsterdam roaster, not
+    the UK one #38's web search found under the same name. Not splitting the
+    roaster row: with only one record and no second one to anchor a genuine UK
+    identity, a plain correction is the smaller, verifiable fix (splitting
+    would just be guessing in the other direction). Also seeds the missing
+    `'Olanda'` (Romanian for Netherlands) `country_aliases` row — needed for
+    part (b) to resolve this exact caption's country mention at all, and the
+    same class of gap that let this go unnoticed at extraction time.
+  - **(b) Durable** — `deterministic.js` gained `extractRoasterCountryField()`:
+    scans for a line carrying an explicit roastery label (`Prajitorie:`,
+    `Roastery:`, `Roaster:`, diacritic-folded so the Romanian form matches),
+    then looks for an `is_roaster`-flagged country alias mention *within that
+    line only* (never the whole caption, so an origin-country mention
+    elsewhere can't be mistaken for the roaster's own country — same
+    "labelled, not bare noun" discipline as `PROCESS_LABEL_RE`). Wired into
+    `extractRuleFields` as a normal `roaster_country_id` candidate.
+    `adjudicate.js`'s `canonicalize()`/`fieldsEqual()`/`denormalize()` already
+    fully support `roaster_country_id` as a voted field (added for #40's
+    direct-edit case; comment there said "nothing votes on this during normal
+    extraction" — that's no longer quite true, now that the rules voter can).
+    **Verified end-to-end against a real local Postgres 16** (all 15
+    migrations apply cleanly, `npm run migrate` confirms `country_id` is
+    Netherlands for `Uncommon` and the `Olanda` alias resolves): ran the real
+    `runWorker({voters: [rulesVoter]})` path (rules-only, no LLM, no network)
+    against two hand-inserted photos —
+    (1) the real Uncommon caption text end-to-end: final `coffees` row lands
+    on `roaster_id=89` (Uncommon) and `roaster_country_id` = Netherlands;
+    (2) a caption for `Kolibri` (whose seeded vocab country is Netherlands,
+    correct and untouched) with a *fabricated* `"Prajitorie: Kolibri (Berlin,
+    Germany)"` line — the final `coffees` row's `roaster_country_id` came out
+    as **Germany**, not the roaster's own vocab-derived Netherlands, proving
+    the caption candidate genuinely outranks the vocab-derived default in the
+    real code path, not just for this one migrated case.
+    One thing flagged, not fixed (out of this lane's owned files): the actual
+    precedence between the `roaster_id`-derived `roaster_country_id` and a
+    voted one, in `worker.js`'s `buildCoffeeColumnUpdates`, is "whichever
+    field is processed last" by plain object key order — which in turn depends
+    on `fetchFieldData`'s `SELECT ... FROM field_candidates WHERE photo_id=$1`
+    having no `ORDER BY`. It worked correctly in both of this session's live
+    end-to-end runs, and Backend already accepted the same ordering
+    convention for #40's direct-edit case, but it isn't a guaranteed ordering
+    under the SQL standard — Backend may want an explicit `ORDER BY id` (or an
+    explicit precedence rule) there rather than relying on incidental
+    Postgres row-return order, at their discretion.
+  Full test suite (normalize + deterministic + everything else): `npm test`
+  236/236 green, including 7 new `extractRoasterCountryField` cases (the real
+  Uncommon/Olanda caption, an English-label variant, an origin-country mention
+  that must never be mistaken for the roaster's own country, a labelled line
+  with no recognisable country, no label at all, and empty text) plus the
+  three new hard-envelope test groups for #39.
 
 - [2026-08-10 02:00 UTC] #38 — **`backend/migrations/014_roaster_countries.sql`**
   populates `roasters.country_id` (previously NULL for all 89 seeded roasters,

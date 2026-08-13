@@ -17,11 +17,11 @@
 //     runs the exact same parser on this voter's raw value. So this module
 //     only needs to decide whether the field is present at all (by calling
 //     the parser once itself) and, if so, hand the raw text straight through.
-//   - roaster_id/origin_country_ids/origin_farm_id: canonicalize() resolves
-//     these via `resolveVocab()`, which does an EXACT alias_norm lookup on
-//     the whole raw value — it does not scan a paragraph for a substring. So
-//     this module has to find the matching substring itself and propose just
-//     that (see `findAliasMentions`).
+//   - roaster_id/roaster_country_id/origin_country_ids/origin_farm_id:
+//     canonicalize() resolves these via `resolveVocab()`, which does an EXACT
+//     alias_norm lookup on the whole raw value — it does not scan a paragraph
+//     for a substring. So this module has to find the matching substring
+//     itself and propose just that (see `findAliasMentions`).
 import { parseAltitude, parsePrice, parseWeight, parseRating, parseProfile, parseFarm, foldDiacritics, normalizeVocabString } from './normalize.js';
 import { loadRoasterVocab, loadCountryVocab } from './vocab.js';
 import { query } from '../db.js';
@@ -79,6 +79,36 @@ export function extractOriginCountriesField(rawText, countryVocab) {
   if (mentions.length === 0) return null;
   const names = mentions.map((m) => m.alias);
   return { value: names.join(' / '), confidence: 1.0, evidence: names.join(', ') };
+}
+
+// The roaster's country is normally *derived* by worker.js from the roaster's
+// own vocab row (`roasters.country_id`), never voted on -- but a vocab guess
+// can be wrong (#38's live web search merged two same-named roasters, e.g.
+// "Uncommon", into one row) while the caption itself states the roastery's
+// city/country explicitly ("Prajitorie: Uncommon (Amsterdam, Olanda)"). #48:
+// when that explicit statement is present, propose it as a real candidate for
+// `roaster_country_id` so it goes through adjudication like any other field,
+// instead of the silent vocab-derived default always winning. Scoped to a
+// line carrying an explicit roastery label -- same "labelled, not bare noun"
+// requirement as `PROCESS_LABEL_RE` -- so an origin-country mention elsewhere
+// in the caption can never be mistaken for the roaster's own country, and the
+// country match itself is restricted to `is_roaster` countries for the same
+// reason `extractOriginCountriesField` restricts to `is_origin` ones.
+const ROASTERY_LABEL_RE = /\b(prajitorie|roastery|roaster)\s*[:=]/i;
+
+export function extractRoasterCountryField(rawText, countryVocab) {
+  if (!rawText) return null;
+  const roasterCountryIds = new Set(
+    (countryVocab?.candidates ?? []).filter((c) => c.is_roaster).map((c) => c.id),
+  );
+  const lines = String(rawText).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (!ROASTERY_LABEL_RE.test(foldDiacritics(normalizeVocabString(line)))) continue;
+    const mentions = findAliasMentions(line, countryVocab?.aliasIndex).filter((m) => roasterCountryIds.has(m.id));
+    const top = uniqueTopMention(mentions);
+    if (top) return { value: top.alias, confidence: 1.0, evidence: line };
+  }
+  return null;
 }
 
 // Farms start with no seeded vocabulary at all (PLAN.md §1: "derived from the
@@ -160,6 +190,7 @@ export function extractRuleFields(rawText, { roasterVocab, countryVocab } = {}) 
   };
 
   set('roaster_id', extractRoasterField(rawText, roasterVocab));
+  set('roaster_country_id', extractRoasterCountryField(rawText, countryVocab));
   set('origin_country_ids', extractOriginCountriesField(rawText, countryVocab));
   set('origin_farm_id', extractFarmField(rawText));
   set('altitude', passthroughField(parseAltitude, rawText));
