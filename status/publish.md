@@ -78,3 +78,20 @@ _none_
   Also corrected `BUILD_STATUS.md`'s "Blocking, do first" section, which still
   described the first `publish=true` dispatch as pending — it had been green for
   several cycles (runs on 8/4, 8/5, confirmed real via job logs, and now 8/6).
+
+- **2026-08-13 (autopilot session, Thu cron) — routine ship, still green, no fixes
+  needed.** Checked for an in-flight run first (none) and for stranded `ios-staging`
+  work per CLAUDE.md §5: the only unmerged commit (`f8e43be`) was a docs-only
+  session-check note (no iOS code), so no merge was needed before shipping.
+  Dispatched `publish=true` on `main@d1009d1` via
+  `mcp__github__actions_run_trigger` (no PAT in the environment carries
+  `actions:write` — same as every prior run; `GH_ACTIONS_PAT`/`GH_PAT`/`GH_TOKEN`/
+  `GITHUB_TOKEN` all still 403 on the dispatch endpoint, confirmed again this
+  session). Run **`31738925456`** completed **success** in ~2 min — job log
+  confirms `Build & upload to TestFlight` actually ran (96 s, not skipped); the
+  `Compile check (no upload)` step was skipped as expected for a `publish=true`
+  ref. First dispatch this session was green, so the loop's fix-and-retry path
+  was never needed. Also corrected a stale unchecked box in `BUILD_STATUS.md`'s
+  "First build" section that still described the first `publish=true` dispatch as
+  pending, several ships after run #14 proved it. Processing (~20 min, async,
+  `skip_waiting_for_build_processing`) unconfirmed — check TestFlight/email.
