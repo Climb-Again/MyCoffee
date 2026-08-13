@@ -8,6 +8,20 @@ _none_
 
 ## Session notes
 
+- [2026-08-13 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
+  `ios-ux`-tagged row is `done` (`18/27/28/37/42/47`) — `#37`/`#42`/`#47` were
+  already landed in prior sessions and merely stale on `main`'s copy of the
+  file, same divergence pattern the 2026-08-12 sessions below already caught.
+  The only `ready` rows in the whole table are `#39`/`#48`, both `data`-lane
+  (`normalize.js`/vocab-owned) — none `ios-ux`. Swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch, touching nothing under
+  `Sources/Features`/`Sources/DesignSystem`/`Resources`, so nothing stranded to
+  adopt. Merged `origin/main` into `ios-staging` (one conflict, in
+  `status/backend.md` — two backend session-note entries appended at the same
+  spot on divergent history, same recurring pattern; resolved as a union, kept
+  both entries, no code involved). Stopping cleanly per the lane's documented
+  no-op behaviour; no code changes this session.
+
 - [2026-08-12 UTC, later session] `#47` (What's New screen) picked up — `#45`
   (backend) and `#46` (ios-shell) are both `done` on `origin/main`/`ios-staging`
   now, unblocking it. Before writing anything, swept `git branch -r --list
