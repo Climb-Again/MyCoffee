@@ -123,7 +123,17 @@ export function canonicalize(field, rawValue, ctx = {}) {
     }
     case 'profile': {
       const r = parseProfile(rawValue);
-      return { profileId: r.profileId, isDecaf: r.isDecaf, detail: r.detail, confidenceFactor: 1 };
+      // Decaf is a caption-level fact, not a process-method one: "Decaf" is
+      // written in the coffee's name/title (e.g. "El Vergel (Decaf)", "Jhoan
+      // Vergara Decaf Pink Bourbon"), while the voters extract `profile` as the
+      // "Procesare" process word only ("Natural"/"Washed"). parseProfile(rawValue)
+      // therefore never sees the decaf mention and every coffee came out
+      // caffeinated. OR-in a scan of the whole caption so an explicit decaf
+      // signal (decaf / decofeinizat / swiss water / EA / …) is caught wherever
+      // it appears. Same across every voter's candidate, so it doesn't perturb
+      // profile clustering; $0 to backfill via re-adjudication.
+      const isDecaf = r.isDecaf || parseProfile(ctx.rawText || '').isDecaf;
+      return { profileId: r.profileId, isDecaf, detail: r.detail, confidenceFactor: 1 };
     }
     default:
       if (isProseField(field)) {
