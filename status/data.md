@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-- [2026-08-14 UTC] #39 field sanity envelopes (`parseAltitude`/`parseWeight`/`parseRating` hard reject) — branch `main`
+_none_
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
@@ -114,6 +114,81 @@ vocabulary-confirmation queue #25 was built to produce.
 tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
 
 ## Done
+
+- [2026-08-14 UTC, sha `b23cc2b`] #39 — **Accept-by-default needs field sanity
+  envelopes** (PLAN.md §11 addendum). Radu's own words: "I know I said accept
+  all guesses, but altitude 1–5 m does not make sense." #35 (accept-by-default)
+  applies the top pick regardless of confidence, so a mis-parse like `1-5 m`
+  used to reach the app. Gave the three numeric parsers in `src/lib/normalize.js`
+  a **hard** plausibility envelope — `return null` (field reads as absent), not
+  just the existing soft `needsReview` flag:
+  - `parseAltitude`: `max < 200 || min > 4000` → `null` (kept the soft
+    900–2200 "plausible" band for "real but unusual" untouched).
+  - `parseWeight`: `grams < 1 || grams > 5000` → `null` (a coffee bag is never
+    sub-gram or over 5kg).
+  - `parseRating`: any parsed value outside `0–5` → `null` (the scale is
+    always out of 5 — an altitude- or date-shaped bare number bleeding into
+    the last-resort fallback branch is exactly the failure mode PLAN.md's own
+    prior note on this parser already flags).
+  Also had to update one pre-existing test (`parseAltitude`'s "implausible"
+  case used `'50 to 80 masl'`, which is now hard-rejected to `null` under the
+  new floor — replaced with `'300 to 500 masl'`, a real elevation outside the
+  soft 900–2200 band but still inside the hard 200–4000 envelope, so the soft
+  `needsReview`/`confidence: 0.5` path still has coverage) and added 4 new
+  table-driven tests, one per envelope plus the altitude single-value case.
+  229/229 `npm test` green (up from 202).
+
+  **$0 validation, per PLAN.md's own instruction ("confirm the bad altitude
+  drops to empty while real ones stay") — ran it against real production, not
+  just unit tests.** Checked `GET /api/admin/jobs` first (all 11 historical
+  jobs `done`/`paused`, none `running` — safe to push `backend/**`). Pushed,
+  waited out the Railway redeploy (one transient 502 mid-swap, then healthy),
+  then snapshotted all 51 production coffees' `altitudeMinM/MaxM`/`weightG`/
+  `rating` before and after `POST /api/admin/adjudicate`. Found two real bogus
+  altitudes already live: `ZqjVWBODPm-oKNqoCTmQWg` (`2`–`30` m) and
+  `zh8V1tWHHFmq0vyTox1sKQ` (`1`–`5` m — Radu's own example, verbatim, already
+  in production before this fix).
+
+  **The resolution layer is provably correct**: after re-adjudicating, `GET
+  /api/review` has no altitude item for either coffee, confirming the decision
+  is now `absent` (accept-by-default's own rule: "absent → no candidates, no
+  review row" — matches; a `split`/`implausible` decision would have opened
+  one). Traced the code path to be sure rather than inferring from silence:
+  `adjudicateField` (`src/lib/adjudicate.js:250`) filters out every candidate
+  whose `canonicalize()` now returns `null`; with zero survivors it returns
+  `{value: null, decision: 'absent'}` (line 259) — exactly the new-code path,
+  confirmed by reading it, not assumed.
+
+  **But the diff of the before/after snapshot was empty — `GET
+  /api/coffees/:id` still shows `2`–`30` and `1`–`5`.** Root-caused this before
+  concluding the validation failed: `adjudicateRecord` (`adjudicate.js:358`)
+  still writes `resolutions.altitude = {value: null, decision: 'absent', ...}`
+  into the map every time (it never drops the key), so `buildCoffeeColumnUpdates`
+  (`worker.js:78-155`) does see it — but line 90 is `if (res.value == null)
+  continue;`, which treats "this field was just decided absent" identically to
+  "this field was never voted on this pass at all" and skips writing the
+  column either way. The already-materialized value from whatever *prior* pass
+  first accepted `2-30`/`1-5` (before #39 existed) is never retracted — it's
+  additive-only by construction, and nobody had needed retraction until now.
+  This is `worker.js`, squarely backend-owned (not `ops/**` or
+  `src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js`), so left it
+  unfixed rather than editing out-of-lane, and confirmed there's no in-lane way
+  to correct the two live values either: no DB credentials are available in
+  this session (only the Railway HTTP host is allowlisted, unlike the
+  `ops/fx_rates_seed.sql` psql-by-hand pattern), and the generic edit endpoint
+  (#40) can't be used to clear a field — `resolveField()` 422s
+  (`unresolvable_value`) on any input `canonicalize()` can't turn into a real
+  value, and there's no real value to clear an altitude *to*. Filed as
+  **#49** (backend, ready, $0) with the exact fix shape: distinguish "field
+  absent from `resolutions` entirely" from "field present with
+  `decision: 'absent'`" and `SET … = NULL` only in the latter case, then
+  re-run `POST /api/admin/adjudicate` once it ships and re-check these same
+  two coffee ids.
+
+  No other `data` row was `ready` at phase 4 besides `#48`'s remaining part
+  (b) — `#39` has the lower number, so it was next per the "lowest phase
+  first, then lowest number" rule. `#48`(b) stays `ready` for a future
+  session. — branch `main`, commit `b23cc2b`.
 
 - [2026-08-10 02:00 UTC] #38 — **`backend/migrations/014_roaster_countries.sql`**
   populates `roasters.country_id` (previously NULL for all 89 seeded roasters,
