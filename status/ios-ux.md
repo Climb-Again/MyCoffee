@@ -8,6 +8,21 @@ _none_
 
 ## Session notes
 
+- [2026-08-14 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
+  `ios-ux`-tagged row (`18/27/28/37/42/47`) is still `done`; no new `ios-ux`
+  row has appeared since `#47`. The only rows touched this cycle were
+  backend's `#49` (retract a stale `coffees` column on re-adjudication —
+  landed and verified live) and data's `#39`/`#48(b)` — none in this lane's
+  owned paths. Swept `git branch -r --list 'origin/claude/*'` — only
+  `origin/claude/hopeful-johnson-mu7ff6` exists (this session's own assigned
+  branch, 0 commits ahead of `main` under `Sources/Features`,
+  `Sources/DesignSystem`, or `Resources`), so nothing stranded to adopt.
+  Merged `origin/main` into `ios-staging` (two conflicts: `status/BACKLOG.md`
+  row `#49` — HEAD's stale `ready` copy vs. `main`'s newer `done` writeup,
+  kept `main`'s; `status/backend.md` — HEAD's side was empty at that spot,
+  `main` had the full `#49` session writeup, kept it whole). Stopping cleanly
+  per the lane's documented no-op behaviour; no feature code changed.
+
 - [2026-08-13 UTC, later session] No-op session. `status/BACKLOG.md`: every
   `ios-ux`-tagged row (`#18/#27/#28/#37/#42/#47`) is `done`; the only `ready`
   rows (`#29`/`#39`/`#48`) are all `data`-lane. Merged `origin/main` into
