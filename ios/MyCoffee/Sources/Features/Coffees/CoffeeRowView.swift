@@ -51,9 +51,19 @@ struct CoffeeRowView: View {
                             DecafBadge()
                         }
                         if let rating = coffee.rating {
-                            Label(String(format: "%.1f", rating), systemImage: Symbols.starFill)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.orange)
+                            // Explicit HStack, not `Label`: a `Label` here gets
+                            // squeezed by the process tag and wraps the number
+                            // character-by-character ("4\n.\n2", clipped). Pin it
+                            // to one line at its intrinsic width so star + value
+                            // always render side by side.
+                            HStack(spacing: 3) {
+                                Image(systemName: Symbols.starFill)
+                                Text(String(format: "%.1f", rating))
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                         Spacer(minLength: 0)
                         // A `Button` nested inside the row's `NavigationLink`
