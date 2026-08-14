@@ -25,6 +25,7 @@ struct FacetFullListView: View {
                 averageRating: entry.averageRating,
                 isSelected: isFacetSelected(entry.key, dimension: dimension, in: draft),
                 isEnabled: isTappable(entry.key),
+                isUnknown: { if case .unknown = entry.key { return true }; return false }(),
                 action: { toggleFacet(entry.key, dimension: dimension, in: &draft) }
             )
             .listRowSeparator(.hidden)

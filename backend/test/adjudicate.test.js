@@ -86,6 +86,24 @@ test('canonicalize rating rejects anything outside 0-5 -- parseRating\'s bare-nu
   assert.equal(canonicalize('rating', '5', {}).value, 5);
 });
 
+test('canonicalize profile: decaf is read from the whole caption, not just the process word', () => {
+  // Voters extract `profile` as the "Procesare" word only ("Natural"); "Decaf"
+  // lives in the coffee name. Without the caption scan every coffee comes out
+  // caffeinated (the live bug: 0/51 flagged despite real decaf bags).
+  const rawText = 'Manhattan Coffee Roasters Colombia – El Vergel (Decaf)\nProcesare: Natural';
+  const withCaption = canonicalize('profile', 'Natural', { rawText });
+  assert.equal(withCaption.isDecaf, true);
+  assert.equal(withCaption.profileId, 'natural');
+
+  // No decaf mention anywhere -> stays caffeinated.
+  const plain = canonicalize('profile', 'Natural', { rawText: 'Procesare: Natural' });
+  assert.equal(plain.isDecaf, false);
+
+  // Also caught when the decaf word rides on the process string itself.
+  const inProcess = canonicalize('profile', 'Washed, Swiss Water', {});
+  assert.equal(inProcess.isDecaf, true);
+});
+
 test('canonicalize origin_farm_id resolves an existing farm via exact alias', () => {
   const c = canonicalize('origin_farm_id', 'El Paraiso', { vocab: roasterVocab });
   assert.equal(c.id, 1);

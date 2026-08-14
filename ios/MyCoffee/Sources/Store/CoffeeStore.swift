@@ -87,11 +87,34 @@ final class CoffeeStore: ObservableObject {
     /// outbox `resolveReview` uses, but unlike a review task an edited field
     /// IS part of the coffee index, so a successful round trip re-fetches
     /// detail and merges it in, the same way `loadDetail` does.
-    func editField(coffeeId: String, field: String, value: String) {
-        Task {
-            if let updated = await repository.editField(coffeeId: coffeeId, field: field, value: value) {
-                index = index.replacingCoffee(updated)
-            }
+    ///
+    /// Returns whether the edit was confirmed saved by the server. The caller
+    /// (the edit sheet) awaits this and only dismisses on `true`, showing an
+    /// error otherwise — a `false` means the write did not round-trip (offline,
+    /// a rejected value, an auth problem), and silently dropping it is exactly
+    /// what made edits look like they "saved but reverted."
+    /// Human-readable reason the last edit save failed, for the edit sheet's
+    /// alert. `nil` after a success. `APIError` is a `LocalizedError`, so this
+    /// carries the real server message ("HTTP 422: …", "Backend URL or token
+    /// not set", …) rather than a generic "couldn't save."
+    @Published var editErrorText: String?
+
+    @discardableResult
+    func editField(coffeeId: String, field: String, value: String) async -> Bool {
+        do {
+            let updated = try await repository.editField(coffeeId: coffeeId, field: field, value: value)
+            index = index.replacingCoffee(updated)
+            // A roaster/farm edit may have get-or-created a new vocab row on the
+            // backend (#40). The detail re-fetch carries the new id but not the
+            // vocab entry, so without a re-sync the new name resolves to
+            // "Unknown" and is missing from the picker on the next edit. A delta
+            // refresh pulls the full vocab dictionary (and re-asserts the row).
+            await refresh()
+            editErrorText = nil
+            return true
+        } catch {
+            editErrorText = error.localizedDescription
+            return false
         }
     }
 
@@ -99,11 +122,17 @@ final class CoffeeStore: ObservableObject {
     /// sends one request instead of N with no ordering guarantee between them
     /// (PLAN.md §12, closing the gap #42's edit sheet flagged). Prefer this
     /// over calling `editField` in a loop whenever `edits.count > 1`.
-    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) {
-        Task {
-            if let updated = await repository.editFields(coffeeId: coffeeId, edits: edits) {
-                index = index.replacingCoffee(updated)
-            }
+    @discardableResult
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Bool {
+        do {
+            let updated = try await repository.editFields(coffeeId: coffeeId, edits: edits)
+            index = index.replacingCoffee(updated)
+            await refresh()
+            editErrorText = nil
+            return true
+        } catch {
+            editErrorText = error.localizedDescription
+            return false
         }
     }
 

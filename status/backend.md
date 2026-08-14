@@ -6,6 +6,42 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-14 UTC (later session, follow-up check): session check — no ready row this cycle
+
+This session's branch (`claude/confident-cerf-fod7ez`) started already at
+`origin/main`'s tip (`36fa37d` — the prior session's own #49 follow-up fix,
+retracting NOT-NULL-defaulted columns to their table default instead of
+`NULL`). No fast-forward needed.
+
+All backend-tagged `BACKLOG.md` rows are `done`, including `#49` (just closed
+in the immediately-preceding session). The only `ready` rows remaining are
+data-lane owned: `#29` (harden incremental path) and `#48` part (b) (caption-
+vs-vocab roaster-country rule). Nothing backend-tagged to pick up.
+
+Fresh unscoped `git fetch origin --prune` — 88 `origin/claude/*` branches (up
+from 86 at the last sweep, consistent with routine session growth, not a
+signal of new stranded work by itself). Given the extensive prior audits
+already on record in this file reaching the same "top branches are
+net-deletions-only stale forks" conclusion release after release, did not
+re-run a full ahead-count sweep this cycle — no session note since #49
+mentioned pushing to any branch other than `main`, so there's no new
+candidate to check.
+
+Ran `cd backend && npm ci && npm test` — **236/236 green**, matching #49's
+landing count exactly, no drift.
+
+Live-verified against production: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`; `GET /api/admin/jobs` (ingest token) → 11 jobs, all
+`done`/`paused`, **none `running`** — would have been safe to push
+`backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **0** open items, down from 2 at #49's own
+post-deploy check — consistent with continued review resolution, no
+regressions, and no sign #49's fix broke anything live.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-14 UTC: #49 — retract a stale `coffees` column when re-adjudication flips a field to `absent`
 
 The only `ready` backend row this cycle (found while validating #39's own

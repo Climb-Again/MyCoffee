@@ -339,6 +339,30 @@ export default async function coffeesRoutes(app) {
 
     await applyResolutionsToCoffee(row.coffee_id, row.photo_id, resolutions, ctx);
 
-    return { id: req.params.publicId, edits: results };
+    // Roaster country is a property of the ROASTER, not the individual coffee.
+    // When it's edited, write it onto the roaster's vocab row and every other
+    // coffee of that roaster — so the same roaster can never carry two
+    // different countries across coffees, and future coffees of this roaster
+    // inherit it automatically (worker.js derives roaster_country_id from
+    // roasters.country_id at adjudication time). Read the roaster_id AFTER the
+    // apply so a same-save roaster change is reflected. Skip when the coffee
+    // has no roaster — there's nothing to cascade through.
+    let cascadedCoffees = 0;
+    if ('roaster_country_id' in resolutions) {
+      const { rows: rc } = await query(`SELECT roaster_id FROM coffees WHERE id = $1`, [row.coffee_id]);
+      const roasterId = rc[0]?.roaster_id ?? null;
+      const countryId = resolutions.roaster_country_id.value ?? null;
+      if (roasterId != null) {
+        await query(`UPDATE roasters SET country_id = $1 WHERE id = $2`, [countryId, roasterId]);
+        const { rowCount } = await query(
+          `UPDATE coffees SET roaster_country_id = $1, updated_at = now()
+           WHERE roaster_id = $2 AND deleted_at IS NULL AND roaster_country_id IS DISTINCT FROM $1`,
+          [countryId, roasterId],
+        );
+        cascadedCoffees = rowCount ?? 0;
+      }
+    }
+
+    return { id: req.params.publicId, edits: results, roasterCountryCascadedTo: cascadedCoffees };
   });
 }

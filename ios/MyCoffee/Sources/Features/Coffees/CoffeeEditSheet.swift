@@ -42,6 +42,9 @@ struct CoffeeEditSheet: View {
     @State private var roastedOn: Date
     @State private var hasRoastedOn: Bool
 
+    @State private var saving = false
+    @State private var saveFailed = false
+
     private let originalOriginCountryIDs: Set<Int>
     private let originalRoasterCountryID: Int?
     private let originalRoasterID: Int?
@@ -103,10 +106,21 @@ struct CoffeeEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .disabled(saving)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button("Save") { Task { await performSave() } }
+                    }
                 }
+            }
+            .interactiveDismissDisabled(saving)
+            .alert("Couldn't save", isPresented: $saveFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(store.editErrorText ?? "Your changes weren't saved — check your connection and try again. Nothing was lost; the sheet still has your edits.")
             }
         }
         .presentationDetents([.large])
@@ -256,11 +270,38 @@ struct CoffeeEditSheet: View {
 
     // MARK: - Save
 
-    /// Builds the list of changed-field edits, then applies them via #41's
-    /// `CoffeeStore` — a single-field save calls `editField`; a multi-field
-    /// save calls the batch `editFields` (#41's atomicity fix for #42) so the
-    /// backend resolves and applies them together in one request.
-    private func save() {
+    /// Awaits the save and only dismisses once the server confirms it. A failed
+    /// write keeps the sheet open (with the user's edits intact) and raises an
+    /// alert, instead of the old fire-and-forget `save()` that dismissed
+    /// unconditionally — which is what made a dropped edit look like it "saved
+    /// but reverted on refresh."
+    private func performSave() async {
+        let edits = buildEdits()
+        guard !edits.isEmpty else {
+            // The sheet saw no difference from what it opened with. Surface that
+            // instead of dismissing as though a save happened — if you changed
+            // something and still see this, the change didn't register (a diff
+            // bug), which is exactly what we need to know.
+            store.editErrorText = "No changes detected to save."
+            saveFailed = true
+            return
+        }
+        saving = true
+        let ok: Bool
+        if edits.count > 1 {
+            ok = await store.editFields(coffeeId: coffee.id, edits: edits)
+        } else {
+            ok = await store.editField(coffeeId: coffee.id, field: edits[0].field, value: edits[0].value)
+        }
+        saving = false
+        if ok { dismiss() } else { saveFailed = true }
+    }
+
+    /// Builds the list of changed-field edits. A single-field save goes through
+    /// `editField`; a multi-field save goes through the batch `editFields`
+    /// (#41's atomicity fix for #42) so the backend resolves and applies them
+    /// together in one request.
+    private func buildEdits() -> [CoffeeFieldEdit] {
         var edits: [CoffeeFieldEdit] = []
 
         if originCountryIDs != originalOriginCountryIDs {
@@ -275,14 +316,14 @@ struct CoffeeEditSheet: View {
             edits.append(CoffeeFieldEdit(field: "roasterCountry", value: name))
         }
 
-        let trimmedNewRoaster = newRoasterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNewRoaster = properCased(newRoasterName)
         if !trimmedNewRoaster.isEmpty {
             edits.append(CoffeeFieldEdit(field: "roaster", value: trimmedNewRoaster))
         } else if roasterID != originalRoasterID, let id = roasterID, let name = vocabulary.roasters[id]?.name {
             edits.append(CoffeeFieldEdit(field: "roaster", value: name))
         }
 
-        let trimmedNewFarm = newFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNewFarm = properCased(newFarmName)
         if !trimmedNewFarm.isEmpty {
             edits.append(CoffeeFieldEdit(field: "farm", value: trimmedNewFarm))
         } else if farmID != originalFarmID, let id = farmID, let name = vocabulary.farms[id]?.name {
@@ -331,12 +372,21 @@ struct CoffeeEditSheet: View {
             }
         }
 
-        if edits.count > 1 {
-            store.editFields(coffeeId: coffee.id, edits: edits)
-        } else if let edit = edits.first {
-            store.editField(coffeeId: coffee.id, field: edit.field, value: edit.value)
-        }
-        dismiss()
+        return edits
+    }
+
+    /// Proper-cases a newly typed roaster/farm name — capitalise the first
+    /// letter of each word (Radu's ask) — while preserving the rest of each
+    /// word so acronyms typed in caps (DAK, A.M.O.C) aren't lowercased the way
+    /// `String.capitalized` would. Also trims and collapses whitespace; returns
+    /// "" for blank input so the caller's `!isEmpty` guard still works.
+    private func properCased(_ raw: String) -> String {
+        raw.split(whereSeparator: { $0.isWhitespace })
+            .map { word in
+                guard let first = word.first else { return "" }
+                return first.uppercased() + String(word.dropFirst())
+            }
+            .joined(separator: " ")
     }
 }
 

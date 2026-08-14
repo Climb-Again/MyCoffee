@@ -41,7 +41,6 @@ const COUNTRY_CANDIDATES = [
   { id: 1, name: 'Colombia', is_origin: true, kind: 'country' },
   { id: 2, name: 'Ethiopia', is_origin: true, kind: 'country' },
   { id: 3, name: 'Brazil', is_origin: true, kind: 'country' },
-  { id: 99, name: 'Blend', is_origin: true, kind: 'pseudo' },
 ];
 const COUNTRY_ALIASES = buildAliasIndex([
   { id: 1, alias: 'Columbia', alias_norm: 'columbia' },
@@ -116,10 +115,13 @@ test('resolveOriginCountries: a single resolvable origin is not a blend', () => 
   assert.equal(result.isBlend, false);
 });
 
-test('resolveOriginCountries: literal "Blend" is a blend even as a single id', () => {
+test('resolveOriginCountries: literal "Blend" is not a country (pseudo-country removed, migration 019)', () => {
+  // "Blend" no longer resolves to anything — a blend must name its real
+  // origins. A bare "Blend" is an unresolved origin, not a blend.
   const result = resolveOriginCountries('Blend', COUNTRY_VOCAB);
-  assert.deepEqual(result.ids, [99]);
-  assert.equal(result.isBlend, true);
+  assert.deepEqual(result.ids, []);
+  assert.deepEqual(result.unresolved, ['Blend']);
+  assert.equal(result.isBlend, false);
 });
 
 test('resolveOriginCountries: unresolved parts are reported, not silently dropped', () => {
@@ -143,8 +145,9 @@ test('computeIsBlend: a single non-pseudo id is not a blend', () => {
   assert.equal(computeIsBlend([1], COUNTRY_CANDIDATES), false);
 });
 
-test('computeIsBlend: a single pseudo-country id (Blend) is a blend', () => {
-  assert.equal(computeIsBlend([99], COUNTRY_CANDIDATES), true);
+test('computeIsBlend: a single id is never a blend (no more pseudo-country special case)', () => {
+  assert.equal(computeIsBlend([99], COUNTRY_CANDIDATES), false);
+  assert.equal(computeIsBlend([2], COUNTRY_CANDIDATES), false);
 });
 
 test('computeIsBlend: empty/missing ids is not a blend', () => {
