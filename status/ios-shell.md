@@ -8,6 +8,20 @@ _none_
 
 ## Done
 
+- [2026-08-14 UTC] Session check — no ready `ios-shell` row. Only rows tagged
+  `ios-shell` are #17/#22/#41/#46, all `done`. All `ready` rows this cycle are
+  data-owned (#29, #48(b)) or backend-owned (#49) — nothing in
+  `Sources/{App,Store,API,Models,Query,Utilities}` or `project.yml` to pick up.
+  Checked `git branch -r --list 'origin/claude/*'` per the
+  integrate-before-you-start rule: only stranded branch is this session's own
+  (`claude/wizardly-thompson-1bgub6`), 0 commits ahead of `ios-staging` in any
+  owned path — nothing to adopt. Merged `origin/main` into `ios-staging`
+  (`e09c928`) to pick up backend's #39/#49 and data's #48(a) — resolved one
+  additive conflict in `status/backend.md` (two same-day backend session-check
+  entries; kept both) and picked up the accompanying `status/BACKLOG.md`/
+  `status/data.md` changes cleanly. No code changes this session — stopping
+  cleanly per the work loop rather than inventing work.
+
 - [2026-08-13 UTC, later session] Session check — no ready `ios-shell` row.
   Only rows tagged `ios-shell` are #17/#22/#41/#46, all `done`. Found `main`
   had moved strictly ahead of `ios-staging` since the earlier session today —
