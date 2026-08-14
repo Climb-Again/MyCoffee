@@ -117,13 +117,16 @@ final class CoffeeStore: ObservableObject {
     func editField(coffeeId: String, field: String, value: String) async -> Bool {
         do {
             let updated = try await repository.editField(coffeeId: coffeeId, field: field, value: value)
-            index = index.replacingCoffee(updated)
-            // A roaster/farm edit may have get-or-created a new vocab row on the
-            // backend (#40). The detail re-fetch carries the new id but not the
-            // vocab entry, so without a re-sync the new name resolves to
-            // "Unknown" and is missing from the picker on the next edit. A delta
-            // refresh pulls the full vocab dictionary (and re-asserts the row).
+            // Refresh FIRST — a roaster/farm edit may have get-or-created a new
+            // vocab row (#40), and the delta sync pulls the full vocab so the
+            // new name isn't "Unknown". Then re-apply the detailed edited coffee
+            // ON TOP: the sync replaces every coffee with the compact snapshot
+            // row, which omits the full source text / notes; `updated` (from the
+            // detail re-fetch) still has them, so applying it last keeps the
+            // coffee page's full-text section from vanishing until the next
+            // detail fetch.
             await refresh()
+            index = index.replacingCoffee(updated)
             editErrorText = nil
             return true
         } catch {
@@ -140,8 +143,11 @@ final class CoffeeStore: ObservableObject {
     func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Bool {
         do {
             let updated = try await repository.editFields(coffeeId: coffeeId, edits: edits)
-            index = index.replacingCoffee(updated)
+            // Refresh first (fresh vocab), then re-apply the detailed coffee on
+            // top so its full text/notes aren't clobbered by the compact
+            // snapshot row — see editField above.
             await refresh()
+            index = index.replacingCoffee(updated)
             editErrorText = nil
             return true
         } catch {
