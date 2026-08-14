@@ -45,27 +45,29 @@ struct CoffeeRowView: View {
                         }
                     }
 
-                    HStack(spacing: 8) {
-                        ProcessTag(profile: coffee.profile)
-                        if coffee.isDecaf {
-                            DecafBadge()
-                        }
-                        if let rating = coffee.rating {
-                            // Explicit HStack, not `Label`: a `Label` here gets
-                            // squeezed by the process tag and wraps the number
-                            // character-by-character ("4\n.\n2", clipped). Pin it
-                            // to one line at its intrinsic width so star + value
-                            // always render side by side.
-                            HStack(spacing: 3) {
-                                Image(systemName: Symbols.starFill)
-                                Text(String(format: "%.1f", rating))
+                    // The tag cluster WRAPS. Each pill keeps its intrinsic width
+                    // (so the earlier icon-only collapse can't come back), but a
+                    // coffee with two tags — process + Decaf — plus the rating
+                    // would otherwise force this row wider than the screen and
+                    // shove the whole row (thumbnail included) off both edges.
+                    // WrapLayout drops the overflow onto a second line instead.
+                    HStack(alignment: .top, spacing: 8) {
+                        WrapLayout(horizontalSpacing: 6, verticalSpacing: 6) {
+                            ProcessTag(profile: coffee.profile)
+                            if coffee.isDecaf {
+                                DecafBadge()
                             }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.orange)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
+                            if let rating = coffee.rating {
+                                HStack(spacing: 3) {
+                                    Image(systemName: Symbols.starFill)
+                                    Text(String(format: "%.1f", rating))
+                                }
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.orange)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                            }
                         }
-                        Spacer(minLength: 0)
                         // A `Button` nested inside the row's `NavigationLink`
                         // label: SwiftUI hit-tests it first, so the heart tap
                         // never falls through to the row's own navigation.

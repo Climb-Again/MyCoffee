@@ -27,19 +27,18 @@ protocol CoffeeRepository: Sendable {
     func dismissReview(taskId: Int) async
 
     /// Applies a per-field edit via the backend's locked/human-decided
-    /// resolve path (PLAN.md §12 #40/#41) — queued through the same durable
-    /// outbox `resolveReview` uses, then re-fetches detail so any
+    /// resolve path (PLAN.md §12 #40/#41), then re-fetches detail so any
     /// backend-derived side effect (e.g. editing `roaster` also derives
-    /// `roasterCountryId`) lands exactly as the server computed it, instead
-    /// of being guessed at with a local optimistic merge. Returns the
-    /// refreshed `Coffee` once the edit round-trips; `nil` while it's still
-    /// queued (offline) or was rejected (a 422 never applies, so there's
-    /// nothing new to merge).
-    func editField(coffeeId: String, field: String, value: String) async -> Coffee?
+    /// `roasterCountryId`) lands exactly as the server computed it. Sends
+    /// SYNCHRONOUSLY (not through the offline outbox) and **throws** on any
+    /// failure — offline, an HTTP error, a rejected value — so a save that
+    /// didn't round-trip can surface the real reason instead of being
+    /// swallowed and looking like it "saved but reverted."
+    func editField(coffeeId: String, field: String, value: String) async throws -> Coffee
 
     /// Same as `editField`, but applies every edit in `edits` in one request
     /// (PLAN.md §12, closing the atomicity gap #42's edit sheet flagged) —
     /// use this instead of N `editField` calls whenever a single save
     /// changes more than one field.
-    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee?
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async throws -> Coffee
 }

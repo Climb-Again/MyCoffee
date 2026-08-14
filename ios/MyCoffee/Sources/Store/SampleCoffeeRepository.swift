@@ -38,7 +38,11 @@ actor SampleCoffeeRepository: CoffeeRepository {
     // Same reasoning: canonicalizing an edit's raw value the way the backend
     // does isn't fixture logic worth duplicating here, so previews see no
     // change rather than a guessed-at one.
-    func editField(coffeeId: String, field: String, value: String) async -> Coffee? { nil }
+    func editField(coffeeId: String, field: String, value: String) async throws -> Coffee {
+        throw APIClient.APIError.notConfigured
+    }
 
-    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Coffee? { nil }
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async throws -> Coffee {
+        throw APIClient.APIError.notConfigured
+    }
 }

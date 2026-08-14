@@ -93,19 +93,29 @@ final class CoffeeStore: ObservableObject {
     /// error otherwise — a `false` means the write did not round-trip (offline,
     /// a rejected value, an auth problem), and silently dropping it is exactly
     /// what made edits look like they "saved but reverted."
+    /// Human-readable reason the last edit save failed, for the edit sheet's
+    /// alert. `nil` after a success. `APIError` is a `LocalizedError`, so this
+    /// carries the real server message ("HTTP 422: …", "Backend URL or token
+    /// not set", …) rather than a generic "couldn't save."
+    @Published var editErrorText: String?
+
     @discardableResult
     func editField(coffeeId: String, field: String, value: String) async -> Bool {
-        guard let updated = await repository.editField(coffeeId: coffeeId, field: field, value: value) else {
+        do {
+            let updated = try await repository.editField(coffeeId: coffeeId, field: field, value: value)
+            index = index.replacingCoffee(updated)
+            // A roaster/farm edit may have get-or-created a new vocab row on the
+            // backend (#40). The detail re-fetch carries the new id but not the
+            // vocab entry, so without a re-sync the new name resolves to
+            // "Unknown" and is missing from the picker on the next edit. A delta
+            // refresh pulls the full vocab dictionary (and re-asserts the row).
+            await refresh()
+            editErrorText = nil
+            return true
+        } catch {
+            editErrorText = error.localizedDescription
             return false
         }
-        index = index.replacingCoffee(updated)
-        // A roaster/farm edit may have get-or-created a new vocab row on the
-        // backend (#40). The detail re-fetch carries the new id but not the
-        // vocab entry, so without a re-sync the new name resolves to "Unknown"
-        // here and is missing from the picker on the next edit. A delta refresh
-        // pulls the full vocab dictionary (and re-asserts the saved row).
-        await refresh()
-        return true
     }
 
     /// Same as `editField`, but for a save that changes more than one field —
@@ -114,12 +124,16 @@ final class CoffeeStore: ObservableObject {
     /// over calling `editField` in a loop whenever `edits.count > 1`.
     @discardableResult
     func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async -> Bool {
-        guard let updated = await repository.editFields(coffeeId: coffeeId, edits: edits) else {
+        do {
+            let updated = try await repository.editFields(coffeeId: coffeeId, edits: edits)
+            index = index.replacingCoffee(updated)
+            await refresh()
+            editErrorText = nil
+            return true
+        } catch {
+            editErrorText = error.localizedDescription
             return false
         }
-        index = index.replacingCoffee(updated)
-        await refresh()
-        return true
     }
 
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the

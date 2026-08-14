@@ -120,7 +120,7 @@ struct CoffeeEditSheet: View {
             .alert("Couldn't save", isPresented: $saveFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Your changes weren't saved — check your connection and try again. Nothing was lost; the sheet still has your edits.")
+                Text(store.editErrorText ?? "Your changes weren't saved — check your connection and try again. Nothing was lost; the sheet still has your edits.")
             }
         }
         .presentationDetents([.large])
@@ -277,7 +277,15 @@ struct CoffeeEditSheet: View {
     /// but reverted on refresh."
     private func performSave() async {
         let edits = buildEdits()
-        guard !edits.isEmpty else { dismiss(); return }
+        guard !edits.isEmpty else {
+            // The sheet saw no difference from what it opened with. Surface that
+            // instead of dismissing as though a save happened — if you changed
+            // something and still see this, the change didn't register (a diff
+            // bug), which is exactly what we need to know.
+            store.editErrorText = "No changes detected to save."
+            saveFailed = true
+            return
+        }
         saving = true
         let ok: Bool
         if edits.count > 1 {
@@ -308,14 +316,14 @@ struct CoffeeEditSheet: View {
             edits.append(CoffeeFieldEdit(field: "roasterCountry", value: name))
         }
 
-        let trimmedNewRoaster = newRoasterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNewRoaster = properCased(newRoasterName)
         if !trimmedNewRoaster.isEmpty {
             edits.append(CoffeeFieldEdit(field: "roaster", value: trimmedNewRoaster))
         } else if roasterID != originalRoasterID, let id = roasterID, let name = vocabulary.roasters[id]?.name {
             edits.append(CoffeeFieldEdit(field: "roaster", value: name))
         }
 
-        let trimmedNewFarm = newFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNewFarm = properCased(newFarmName)
         if !trimmedNewFarm.isEmpty {
             edits.append(CoffeeFieldEdit(field: "farm", value: trimmedNewFarm))
         } else if farmID != originalFarmID, let id = farmID, let name = vocabulary.farms[id]?.name {
@@ -365,6 +373,20 @@ struct CoffeeEditSheet: View {
         }
 
         return edits
+    }
+
+    /// Proper-cases a newly typed roaster/farm name — capitalise the first
+    /// letter of each word (Radu's ask) — while preserving the rest of each
+    /// word so acronyms typed in caps (DAK, A.M.O.C) aren't lowercased the way
+    /// `String.capitalized` would. Also trims and collapses whitespace; returns
+    /// "" for blank input so the caller's `!isEmpty` guard still works.
+    private func properCased(_ raw: String) -> String {
+        raw.split(whereSeparator: { $0.isWhitespace })
+            .map { word in
+                guard let first = word.first else { return "" }
+                return first.uppercased() + String(word.dropFirst())
+            }
+            .joined(separator: " ")
     }
 }
 

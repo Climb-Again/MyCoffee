@@ -132,12 +132,13 @@ actor SyncEngine {
     /// re-derived `roasterCountryId`) can't be guessed at locally. Returns
     /// `nil` while offline (still queued after the flush attempt) — there's
     /// nothing new on the server to fetch yet.
-    func editField(coffeeId: String, field: String, value: String, client: APIClient?) async -> Coffee? {
-        await outbox.enqueueEdit(coffeeId: coffeeId, field: field, value: value)
-        guard let client else { return nil }
-        await outbox.flush(using: client)
-        guard await outbox.pendingEdit(coffeeId: coffeeId, field: field) == nil else { return nil }
-        return try? await loadDetail(coffeeId: coffeeId, using: client)
+    func editField(coffeeId: String, field: String, value: String, client: APIClient?) async throws -> Coffee {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        // Send directly and let a non-2xx throw `APIError.http` — do NOT route
+        // through the outbox, whose `shouldKeep` drops a 4xx as "done" and made
+        // a rejected edit indistinguishable from a saved one.
+        _ = try await client.editCoffeeField(publicId: coffeeId, field: field, value: value)
+        return try await loadDetail(coffeeId: coffeeId, using: client)
     }
 
     /// Same shape as `editField`, but for >1 field applied in one request
@@ -145,12 +146,10 @@ actor SyncEngine {
     /// every edit before writing the coffees row once, so there's no
     /// ordering hazard between e.g. an explicit `roasterCountry` and the
     /// `roasterCountryId` a same-save `roaster` edit derives.
-    func editFields(coffeeId: String, edits: [CoffeeFieldEdit], client: APIClient?) async -> Coffee? {
-        await outbox.enqueueEditBatch(coffeeId: coffeeId, edits: edits)
-        guard let client else { return nil }
-        await outbox.flush(using: client)
-        guard await outbox.pendingEditBatch(coffeeId: coffeeId) == nil else { return nil }
-        return try? await loadDetail(coffeeId: coffeeId, using: client)
+    func editFields(coffeeId: String, edits: [CoffeeFieldEdit], client: APIClient?) async throws -> Coffee {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        _ = try await client.editCoffeeFields(publicId: coffeeId, edits: edits)
+        return try await loadDetail(coffeeId: coffeeId, using: client)
     }
 
     private func persist() {

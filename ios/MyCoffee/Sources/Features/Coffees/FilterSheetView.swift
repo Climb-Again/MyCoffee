@@ -139,12 +139,14 @@ private struct DimensionPills: View {
     }
 
     private func pill(for entry: FacetCounts.Entry) -> some View {
-        FilterPill(
+        let isUnknown: Bool = { if case .unknown = entry.key { return true }; return false }()
+        return FilterPill(
             title: facetLabel(entry.key, dimension: dimension, vocabulary: vocabulary),
             count: entry.count,
             averageRating: entry.averageRating,
             isSelected: isSelected(entry.key),
             isEnabled: isTappable(entry.key),
+            isUnknown: isUnknown,
             action: { toggle(entry.key) }
         )
     }
