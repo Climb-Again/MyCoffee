@@ -78,7 +78,11 @@ struct InsightsView: View {
         let facets = store.index.facets(for: CoffeeFilter())
         return VStack(alignment: .leading, spacing: 28) {
             ForEach(pieDimensions, id: \.self) { dimension in
-                CategoryPieChart(title: dimension.title, slices: slices(for: dimension, facets: facets))
+                CategoryPieChart(
+                    title: dimension.title,
+                    slices: slices(for: dimension, facets: facets),
+                    onSelect: { key in selectInCoffees(dimension: dimension, key: key) }
+                )
             }
             RatingByYearChart(points: ratingByYearPoints, allTimeMean: allTimeMeanRating)
         }
@@ -97,11 +101,45 @@ struct InsightsView: View {
             .sorted { $0.count > $1.count }
         let maxSlices = 8
         var slices = entries.prefix(maxSlices).map {
-            PieSlice(label: facetLabel($0.key, dimension: dimension, vocabulary: vocabulary), count: $0.count)
+            PieSlice(
+                label: facetLabel($0.key, dimension: dimension, vocabulary: vocabulary),
+                count: $0.count,
+                key: $0.key,
+                averageRating: $0.averageRating
+            )
         }
-        let overflow = entries.dropFirst(maxSlices).reduce(0) { $0 + $1.count }
-        if overflow > 0 { slices.append(PieSlice(label: "Other", count: overflow)) }
+        let overflowEntries = entries.dropFirst(maxSlices)
+        let overflow = overflowEntries.reduce(0) { $0 + $1.count }
+        if overflow > 0 {
+            slices.append(PieSlice(label: "Other", count: overflow, key: nil, averageRating: weightedAverageRating(overflowEntries)))
+        }
         return slices
+    }
+
+    /// Weighted by each entry's own count, over only the entries that have a
+    /// rating at all — an "Other" bucket rolling up mostly-unrated values
+    /// shouldn't have its average dragged toward zero by them.
+    private func weightedAverageRating(_ entries: ArraySlice<FacetCounts.Entry>) -> Double? {
+        let rated = entries.compactMap { entry -> (Double, Int)? in
+            guard let averageRating = entry.averageRating else { return nil }
+            return (averageRating, entry.count)
+        }
+        guard !rated.isEmpty else { return nil }
+        let totalCount = rated.reduce(0) { $0 + $1.1 }
+        guard totalCount > 0 else { return nil }
+        let weightedSum = rated.reduce(0.0) { $0 + $1.0 * Double($1.1) }
+        return weightedSum / Double(totalCount)
+    }
+
+    /// Tapping a legend label replaces the Coffees listing's filter with
+    /// exactly this value and switches to that tab (PLAN.md §13/#50) — a
+    /// deep-link, not an additive toggle, so it always shows exactly what was
+    /// tapped regardless of whatever filter was already active.
+    private func selectInCoffees(dimension: FilterDimension, key: FacetKey) {
+        var filter = CoffeeFilter()
+        toggleFacet(key, dimension: dimension, in: &filter)
+        store.filter = filter
+        store.selectedTab = .coffees
     }
 
     private var allTimeMeanRating: Double {

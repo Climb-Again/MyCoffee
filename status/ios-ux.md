@@ -8,6 +8,58 @@ _none_
 
 ## Session notes
 
+- [2026-08-14 UTC, later session] 50 Insights charts: per-label average rating + tap-to-filter — branch `ios-staging`
+  - Picked up as the only `ready` `ios-ux` row (the no-op check right below this entry ran before
+    Radu's `#50` landed on `origin/main`/was merged in here). Its `needs` (`#46`) was already
+    `done`; the seam it flagged for ios-shell (`CoffeeStore.selectedTab`/`RootTab`) had also
+    already landed the same day (`47f2934`) — confirmed by reading `Sources/Store/CoffeeStore.swift`
+    directly rather than trusting the row text alone, per the integrate-before-you-start rule.
+    `git branch -r --list 'origin/claude/*'` showed only this session's own branch — nothing else
+    stranded to adopt.
+  - **(a) Per-label average rating**: `PieSlice` (`Features/Insights/InsightsCharts.swift`) gained
+    `key: FacetKey?` (`nil` only for the synthetic "Other" slice) and `averageRating: Double?`.
+    `InsightsView.slices(for:facets:)` threads both straight from `FacetCounts.Entry` — no new
+    computation needed, the facet layer already carries `averageRating` (same value the filter
+    sheet's pills already show). Legend rows now render `Label · N · ★X.X` via a small
+    `legendText(for:)` helper, omitting the `★` segment entirely when `averageRating` is `nil`
+    (unrated slice) — same "missing fields omit their row" convention as everywhere else, applied
+    at the segment level here. The "Other" bucket's average is a count-weighted mean over only its
+    *rated* sub-entries (`weightedAverageRating`) so a pile of unrated overflow values can't drag
+    it toward 0 — an overflow bucket that's, say, 80% unrated coffees at ★4.5 now still shows
+    ★4.5, not ★0.9.
+  - **(b) Tap-to-filter**: each legend row with a non-nil `key` is wrapped in a `Button`
+    (`.buttonStyle(.plain)`, so it doesn't inherit accent-color tinting); "Other" stays plain text
+    since it doesn't correspond to one filterable value. `CategoryPieChart` takes an optional
+    `onSelect: ((FacetKey) -> Void)?` (nil-able so a future preview/test can render a
+    non-interactive chart without wiring a handler). `InsightsView.selectInCoffees(dimension:key:)`
+    builds a **fresh** `CoffeeFilter()` and calls the existing `toggleFacet(_:dimension:in:)`
+    helper (already shared from `FilterSheetView.swift`) to set exactly that one value — starting
+    from empty rather than layering onto whatever filter was already active, matching the row's
+    "replaces the whole filter" framing (same semantics as the top filter cards' `.replacing`).
+    Then sets `store.filter` and `store.selectedTab = .coffees` in one call. The Unknown slice
+    works for free: `toggleFacet`'s existing `(_, .unknown)` case already flips
+    `unknownDimensions`, exactly the row's own ask.
+  - **One real gap found and closed, not just threaded through**: `.decaf` is one of
+    `InsightsView.pieDimensions` (already rendering a pie before this row), but
+    `toggleFacet`/`isFacetSelected` (`FilterSheetView.swift`) had no `(.decaf, .bool)` case — dead
+    code until now, because the filter sheet always special-cases decaf as a segmented
+    `DecafRow` control and never routes it through the generic per-dimension pill loop. Without
+    this case, tapping the decaf legend in Insights would have silently no-opped (`default: break`
+    on toggle, `default: false` on selected-check). Added both cases so decaf deep-links exactly
+    like every other dimension; verified this is additive only — the filter sheet's own decaf UI
+    never calls either function, so no existing behavior changes.
+  - **`RootTabView.swift`**: `TabView(selection: $store.selectedTab)` + a `.tag(RootTab.*)` per
+    tab, the wiring half of the seam ios-shell's row explicitly left for this lane. No other
+    behavior change — `store.reviewQueueCount` badge, `.environmentObject`, and the two `.task`
+    blocks are untouched.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red, the two most likely
+    spots are `legendRow`'s `Group { if let ... { Button ... } else { content } }` pattern (not
+    used elsewhere in this codebase — a local `content` view value built once and referenced from
+    both branches) and the two new `(.decaf, .bool(...))` switch cases in `FilterSheetView.swift`.
+  - `ios/MyCoffee/Sources/Features/{Insights/{InsightsView,InsightsCharts},Coffees/FilterSheetView,
+    Root/RootTabView}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-14 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
   `ios-ux`-tagged row (`18/27/28/37/42/47`) is still `done`; no new `ios-ux`
   row has appeared since `#47`. The only rows touched this cycle were

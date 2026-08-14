@@ -185,6 +185,7 @@ func isFacetSelected(_ key: FacetKey, dimension: FilterDimension, in filter: Cof
     case (.pricePer100gBand, .priceBand(let b)): return filter.pricePer100gBands.contains(b)
     case (.altitudeBand, .altitudeBand(let b)): return filter.altitudeBands.contains(b)
     case (.year, .year(let y)): return filter.years.contains(y)
+    case (.decaf, .bool(let d)): return filter.isDecaf == d
     case (_, .unknown): return filter.unknownDimensions.contains(dimension)
     default: return false
     }
@@ -208,6 +209,7 @@ func toggleFacet(_ key: FacetKey, dimension: FilterDimension, in filter: inout C
     case (.pricePer100gBand, .priceBand(let b)): flip(&filter.pricePer100gBands, b)
     case (.altitudeBand, .altitudeBand(let b)): flip(&filter.altitudeBands, b)
     case (.year, .year(let y)): flip(&filter.years, y)
+    case (.decaf, .bool(let d)): filter.isDecaf = (filter.isDecaf == d) ? nil : d
     case (_, .unknown): flip(&filter.unknownDimensions, dimension)
     default: break
     }
