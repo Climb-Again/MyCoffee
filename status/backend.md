@@ -4,7 +4,85 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-14 UTC] #49 buildCoffeeColumnUpdates doesn't retract a stale coffees column on re-adjudication → absent — branch `main`
+_none_
+
+## 2026-08-14 UTC: #49 — retract a stale `coffees` column when re-adjudication flips a field to `absent`
+
+The only `ready` backend row this cycle (found while validating #39's own
+production rollout, same session cycle). Confirmed live before touching code:
+`GET /api/coffees/ZqjVWBODPm-oKNqoCTmQWg` and `.../zh8V1tWHHFmq0vyTox1sKQ`
+still returned the bogus `altitudeMinM/MaxM` `2`/`30` and `1`/`5` — exactly
+the row's own claim, `GET /api/admin/jobs` confirmed no job `running`.
+
+**Root cause, precisely**: `adjudicateField` (`adjudicate.js`) only ever
+returns `value: null` for `decision: 'absent'` — a field that had at least
+one stored `field_candidates` row this pass (it's a key in `resolutions` at
+all — `adjudicateRecord` only iterates `candidatesByField`'s own keys) but
+none survived `canonicalize()`. `buildCoffeeColumnUpdates`'s old
+`if (res.value == null) continue` treated that identically to "this field
+was never voted on this pass at all" (which, per the above, is already
+structurally impossible to reach this loop — such a field is simply absent
+from `resolutions`, never a `continue`-triggering iteration). So the "leave
+alone" and "must retract" cases were being conflated into the same
+`continue`, and the retract case never happened.
+
+**Fix** (`backend/src/lib/worker.js`, `buildCoffeeColumnUpdates`): guard is
+now `if (res.value == null && res.decision !== 'absent') continue` (the
+`!== 'absent'` half is defensive only — no real caller produces a null value
+under any other decision, verified by reading every call site: the worker's
+own `adjudicateRecord`, and `routes/review.js`/`routes/coffees.js`'s
+`resolveField`-backed paths, which 422 rather than ever writing a null
+value). Every switch case now writes an explicit `NULL` for its column(s)
+when `value` is null instead of skipping: `rating`, `weight_g`, `roasted_on`,
+`origin_farm_id`, `desc_*` (single column each); `altitude` (`min`+`max`);
+`price` (all 5: amount/currency/eur/fx_rate/fx_rate_period — skips the EUR
+conversion call entirely rather than calling `toEur` with nulls);
+`roaster_id` (itself + its derived `roaster_country_id`); `origin_country_ids`
+(+ `is_blend`); `profile` (`profile_id`/`profile_detail`/`is_decaf`).
+
+**10 new `worker.test.js` cases** (236/236 green, up from 226): rewrote the
+one existing test that asserted the *old* (buggy) skip behavior for
+`rating`'s absent case into a retract-assertion, added matching absent-retract
+cases for `altitude`, `weight_g`, `price`, `roaster_id`, `origin_country_ids`,
+and `profile`, plus an explicit test that an *empty* `resolutions` object
+(modeling "never voted on this pass at all") still produces no SET clauses —
+the other half of the row's own "distinguish absent-from-map vs.
+present-with-absent-decision" ask.
+
+**Live-reproduced the exact bug against a real local Postgres 16** (fresh
+`mycoffee_test49` DB, migrations 001–015 applied clean) before trusting the
+unit tests alone: seeded a `coffees` row with `altitude_min_m/max_m = 2/30`
+(simulating a stale prior `accepted` pass, pre-#39), fed it one
+`field_candidates` row with an implausible `"2-30m"` altitude string, ran
+`adjudicateAndApply()` directly. `parseAltitude` (#39, already on `main`)
+correctly rejects it — `canonicalize` returns `null`, zero surviving
+candidates, `decision: 'absent'`. **Before this fix** (verified by reverting
+the change locally and re-running) the columns stayed `2`/`30`; **after**,
+both come back `null`, and the `field_resolutions` row shows
+`{field: 'altitude', value: null, confidence: 0}` — the resolution layer was
+already correct (per #39's own writeup), now the denormalized column matches
+it.
+
+`cd backend && npm ci && npm test` — **236/236 green**.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 11 jobs, all `done`/`paused`, **none
+`running`** — safe to push `backend/**` per the hard rule.
+
+Flipped `#49` → `done` in `BACKLOG.md`. No row's `needs` references `49`, so
+nothing else unblocks.
+
+Pushed straight to `origin/main` (this session's own `claude/confident-cerf-fti5j5`
+scratch branch carries the same commits, so it isn't orphaned per the
+"integrate before you start" rule). Watched `railway-deploy.yml` to
+completion, then ran the actual $0 re-adjudication
+(`POST /api/admin/adjudicate`) against **production** — the same safe,
+no-LLM-spend operation #35/#36/#44 were verified live with — and re-checked
+the two coffee ids #39's own note named:
+`GET /api/coffees/ZqjVWBODPm-oKNqoCTmQWg` and `.../zh8V1tWHHFmq0vyTox1sKQ`
+now both return `altitudeMinM`/`altitudeMaxM` as `null` instead of the old
+bogus `2`/`30` and `1`/`5` — confirms the fix closes #39's own flagged gap
+end-to-end in production, not just in tests.
 
 ## 2026-08-14 UTC: session check — no ready row this cycle
 
