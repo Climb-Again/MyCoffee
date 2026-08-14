@@ -95,8 +95,10 @@ export function parseAltitude(text) {
   const plausible = min >= 900 && max <= 2200;
   const wideSpan = max - min > 800;
   return {
-    min,
-    max,
+    // altitude_min_m / altitude_max_m are INTEGER columns — round so a decimal
+    // elevation can't abort the coffee insert (same class as weight above).
+    min: Math.round(min),
+    max: Math.round(max),
     unit: 'm',
     confidence: plausible ? 1.0 : 0.5,
     needsReview: wideSpan || !plausible,
@@ -161,7 +163,10 @@ export function parseWeight(text) {
   if (grams < 1 || grams > 5000) return null;
   const snapped = WEIGHT_STANDARD_G.find((v) => Math.abs(v - grams) <= 3);
   return {
-    grams: snapped ?? grams,
+    // `weight_g` is an INTEGER column, so a decimal ("18.5 g") must be rounded
+    // or the coffee insert throws `invalid input syntax for type integer` and
+    // aborts the whole extraction of that photo.
+    grams: snapped ?? Math.round(grams),
     confidence: snapped ? 1.0 : 0.6,
   };
 }

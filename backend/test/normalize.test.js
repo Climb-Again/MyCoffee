@@ -128,6 +128,16 @@ test('parseWeight: hard plausibility envelope — sub-gram/over-5kg "bags" are a
   assert.equal(parseWeight('6000g bag'), null);
 });
 
+test('parseWeight/parseAltitude: decimals are rounded — weight_g / altitude_*_m are INTEGER columns', () => {
+  // A live extraction ("18.5 g") crashed the coffee insert with
+  // `invalid input syntax for type integer: "18.5"` — round instead.
+  assert.equal(parseWeight('18.5 g').grams, 19);
+  assert.equal(Number.isInteger(parseWeight('18.5 g').grams), true);
+  const alt = parseAltitude('1850.5 masl');
+  assert.equal(Number.isInteger(alt.min), true);
+  assert.equal(Number.isInteger(alt.max), true);
+});
+
 // ---- Rating ----
 
 test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', () => {
