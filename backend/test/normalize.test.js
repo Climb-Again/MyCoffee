@@ -190,6 +190,9 @@ test('parseProfile: maps aliases onto exactly the six profiles, never defaults t
     ['thermal shock', 'experimental'],
     ['lactic process', 'experimental'],
     ['double fermentation', 'experimental'],
+    // The literal word the edit sheet sends for the Experimental process must
+    // resolve back — otherwise editing a coffee to "Experimental" saved blank.
+    ['Experimental', 'experimental'],
   ];
   for (const [text, expected] of cases) {
     assert.equal(parseProfile(text).profileId, expected, `parseProfile(${text})`);

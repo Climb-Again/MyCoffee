@@ -71,14 +71,13 @@ export function resolveOriginCountries(text, vocab, fuzzyOpts) {
   return { ids, unresolved, isBlend: computeIsBlend(ids, vocab?.candidates) };
 }
 
-// True when the resolved origin is multi-valued, OR resolves to the `Blend`
-// pseudo-country (kind='pseudo', 004_vocab.sql) even as a single id — a bag
-// literally labelled "Blend" is a blend regardless of array length.
-export function computeIsBlend(originCountryIds, countryCandidates) {
-  const ids = Array.isArray(originCountryIds) ? originCountryIds : [];
-  if (ids.length > 1) return true;
-  const byId = new Map((countryCandidates ?? []).map((c) => [c.id, c]));
-  return ids.some((id) => byId.get(id)?.kind === 'pseudo');
+// A blend is simply MORE THAN ONE resolved origin country. The legacy `Blend`
+// pseudo-country (which flagged a single fake "Blend" origin as a blend) was
+// removed in migration 019 — a bag is a blend because it names multiple
+// origins, not because it's labelled with a country called "Blend" (Radu).
+// `countryCandidates` is still accepted for call-site compatibility, unused.
+export function computeIsBlend(originCountryIds, _countryCandidates) {
+  return Array.isArray(originCountryIds) && originCountryIds.length > 1;
 }
 
 // Enforces the referential integrity Postgres can't: every id in

@@ -257,7 +257,7 @@ const PROFILE_ALIASES = [
   ['anaerobic', ['anaerobic', 'anaerob', 'carbonic maceration', 'cm']],
   ['natural', ['natural', 'dry process', 'uscat']],
   ['washed', ['lavado', 'spalat', 'spalata', 'fully washed', 'washed']],
-  ['experimental', ['thermal shock', 'double fermentation', 'yeast', 'lactic']],
+  ['experimental', ['experimental', 'thermal shock', 'double fermentation', 'yeast', 'lactic']],
 ];
 
 // Process is clearly being described, but by a name we don't model. Radu's
