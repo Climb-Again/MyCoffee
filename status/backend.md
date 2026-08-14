@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-14 UTC] #49 buildCoffeeColumnUpdates doesn't retract a stale coffees column on re-adjudication → absent — branch `main`
 
 ## 2026-08-14 UTC: session check — no ready row this cycle
 
