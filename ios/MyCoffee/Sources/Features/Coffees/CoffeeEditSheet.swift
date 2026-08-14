@@ -42,6 +42,9 @@ struct CoffeeEditSheet: View {
     @State private var roastedOn: Date
     @State private var hasRoastedOn: Bool
 
+    @State private var saving = false
+    @State private var saveFailed = false
+
     private let originalOriginCountryIDs: Set<Int>
     private let originalRoasterCountryID: Int?
     private let originalRoasterID: Int?
@@ -103,10 +106,21 @@ struct CoffeeEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .disabled(saving)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button("Save") { Task { await performSave() } }
+                    }
                 }
+            }
+            .interactiveDismissDisabled(saving)
+            .alert("Couldn't save", isPresented: $saveFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes weren't saved — check your connection and try again. Nothing was lost; the sheet still has your edits.")
             }
         }
         .presentationDetents([.large])
@@ -256,11 +270,30 @@ struct CoffeeEditSheet: View {
 
     // MARK: - Save
 
-    /// Builds the list of changed-field edits, then applies them via #41's
-    /// `CoffeeStore` — a single-field save calls `editField`; a multi-field
-    /// save calls the batch `editFields` (#41's atomicity fix for #42) so the
-    /// backend resolves and applies them together in one request.
-    private func save() {
+    /// Awaits the save and only dismisses once the server confirms it. A failed
+    /// write keeps the sheet open (with the user's edits intact) and raises an
+    /// alert, instead of the old fire-and-forget `save()` that dismissed
+    /// unconditionally — which is what made a dropped edit look like it "saved
+    /// but reverted on refresh."
+    private func performSave() async {
+        let edits = buildEdits()
+        guard !edits.isEmpty else { dismiss(); return }
+        saving = true
+        let ok: Bool
+        if edits.count > 1 {
+            ok = await store.editFields(coffeeId: coffee.id, edits: edits)
+        } else {
+            ok = await store.editField(coffeeId: coffee.id, field: edits[0].field, value: edits[0].value)
+        }
+        saving = false
+        if ok { dismiss() } else { saveFailed = true }
+    }
+
+    /// Builds the list of changed-field edits. A single-field save goes through
+    /// `editField`; a multi-field save goes through the batch `editFields`
+    /// (#41's atomicity fix for #42) so the backend resolves and applies them
+    /// together in one request.
+    private func buildEdits() -> [CoffeeFieldEdit] {
         var edits: [CoffeeFieldEdit] = []
 
         if originCountryIDs != originalOriginCountryIDs {
@@ -331,12 +364,7 @@ struct CoffeeEditSheet: View {
             }
         }
 
-        if edits.count > 1 {
-            store.editFields(coffeeId: coffee.id, edits: edits)
-        } else if let edit = edits.first {
-            store.editField(coffeeId: coffee.id, field: edit.field, value: edit.value)
-        }
-        dismiss()
+        return edits
     }
 }
 
