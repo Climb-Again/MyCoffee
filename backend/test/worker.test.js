@@ -60,11 +60,86 @@ const vocabCtx = {
   photoDate: '2020-05-15',
 };
 
-test('buildCoffeeColumnUpdates skips fields with no value (decision "absent")', () => {
+test('buildCoffeeColumnUpdates: a bare-scalar field decided "absent" explicitly retracts the column (#49)', () => {
+  // Regression for #49: re-adjudication can flip a field from a stale prior
+  // `accepted` to `absent` (e.g. #39's new altitude/weight/rating sanity
+  // envelopes rejecting a value a previous, looser pass had accepted). The
+  // column must be SET to NULL, not silently left holding the old value.
   const { sets, values } = buildCoffeeColumnUpdates(
     { rating: { decision: 'absent', value: null } },
     vocabCtx,
   );
+  assert.deepEqual(sets, ['rating = $1']);
+  assert.deepEqual(values, [null]);
+});
+
+test('buildCoffeeColumnUpdates: altitude decided "absent" retracts both min and max (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { altitude: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['altitude_min_m = $1', 'altitude_max_m = $2']);
+  assert.deepEqual(values, [null, null]);
+});
+
+test('buildCoffeeColumnUpdates: weight_g decided "absent" retracts the column (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { weight_g: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['weight_g = $1']);
+  assert.deepEqual(values, [null]);
+});
+
+test('buildCoffeeColumnUpdates: price decided "absent" retracts all five price columns, no EUR conversion attempted (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { price: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, [
+    'price_original_amount = $1',
+    'price_original_currency = $2',
+    'price_eur = $3',
+    'fx_rate = $4',
+    'fx_rate_period = $5',
+  ]);
+  assert.deepEqual(values, [null, null, null, null, null]);
+});
+
+test('buildCoffeeColumnUpdates: roaster_id decided "absent" retracts both roaster_id and its derived country (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { roaster_id: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [null, null]);
+});
+
+test('buildCoffeeColumnUpdates: origin_country_ids decided "absent" retracts both origin_country_ids and is_blend (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { origin_country_ids: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['origin_country_ids = $1', 'is_blend = $2']);
+  assert.deepEqual(values, [null, null]);
+});
+
+test('buildCoffeeColumnUpdates: profile decided "absent" retracts profile_id, profile_detail, and is_decaf (#49)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { profile: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['profile_id = $1', 'profile_detail = $2', 'is_decaf = $3']);
+  assert.deepEqual(values, [null, null, null]);
+});
+
+test('buildCoffeeColumnUpdates: a field that was never voted on this pass is not a key in resolutions at all, and stays untouched', () => {
+  // This is the OTHER half of #49's distinction -- a field absent from
+  // `resolutions` entirely (no candidates were ever stored for it, e.g. the
+  // caption never mentioned weight) must not be confused with a field
+  // present with `decision: 'absent'`. Passing an empty resolutions object
+  // models that case directly: nothing gets set.
+  const { sets, values } = buildCoffeeColumnUpdates({}, vocabCtx);
   assert.deepEqual(sets, []);
   assert.deepEqual(values, []);
 });

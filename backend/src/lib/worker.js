@@ -87,57 +87,86 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
   const set = (col, val) => columns.set(col, val);
 
   for (const [field, res] of Object.entries(resolutions ?? {})) {
-    if (res.value == null) continue;
+    // `adjudicateField` (adjudicate.js) only ever returns `value: null` for
+    // `decision: 'absent'` -- candidates existed for this field (it's a key
+    // in `resolutions` at all) but none survived `canonicalize()` this pass.
+    // That must explicitly retract whatever a *prior* pass materialized onto
+    // the column, not merely skip it: skipping is indistinguishable from
+    // "never voted on this pass" and left a stale value in place forever
+    // (#49 -- e.g. a bogus altitude that #39's new sanity envelope correctly
+    // started rejecting kept showing via `GET /api/coffees/:id` after a full
+    // re-adjudication because this loop never wrote the NULL). A field that
+    // was never voted on at all is never a key in `resolutions` in the first
+    // place (`adjudicateRecord` only iterates `candidatesByField`'s own
+    // keys), so that case never reaches this loop -- nothing else to guard.
+    // The `res.decision !== 'absent'` fallback is defensive only: every real
+    // caller (adjudicateRecord, and the review/edit routes' always-accepted
+    // resolutions) never produces a null value under any other decision.
+    if (res.value == null && res.decision !== 'absent') continue;
+    const value = res.value;
     switch (field) {
       case 'roaster_id': {
-        set('roaster_id', res.value);
-        const roaster = (ctx.vocab?.roasters?.candidates ?? []).find((r) => r.id === res.value);
+        set('roaster_id', value ?? null);
+        const roaster = value != null ? (ctx.vocab?.roasters?.candidates ?? []).find((r) => r.id === value) : null;
         set('roaster_country_id', roaster?.country_id ?? null);
         break;
       }
       case 'roaster_country_id':
-        set('roaster_country_id', res.value);
+        set('roaster_country_id', value ?? null);
         break;
       case 'origin_country_ids': {
-        const { valid } = validateOriginCountryIds(res.value, ctx.vocab?.countries?.candidates);
-        set('origin_country_ids', valid);
-        set('is_blend', computeIsBlend(valid, ctx.vocab?.countries?.candidates));
+        if (value == null) {
+          set('origin_country_ids', null);
+          set('is_blend', null);
+        } else {
+          const { valid } = validateOriginCountryIds(value, ctx.vocab?.countries?.candidates);
+          set('origin_country_ids', valid);
+          set('is_blend', computeIsBlend(valid, ctx.vocab?.countries?.candidates));
+        }
         break;
       }
       case 'origin_farm_id':
-        set('origin_farm_id', res.value);
+        set('origin_farm_id', value ?? null);
         break;
       case 'altitude':
-        set('altitude_min_m', res.value.min);
-        set('altitude_max_m', res.value.max);
+        set('altitude_min_m', value?.min ?? null);
+        set('altitude_max_m', value?.max ?? null);
         break;
       case 'profile':
-        set('profile_id', ctx.profileIdBySlug?.get(res.value.profileId) ?? null);
-        set('profile_detail', res.value.detail ?? null);
-        set('is_decaf', Boolean(res.value.isDecaf));
+        set('profile_id', value != null ? (ctx.profileIdBySlug?.get(value.profileId) ?? null) : null);
+        set('profile_detail', value?.detail ?? null);
+        set('is_decaf', value != null ? Boolean(value.isDecaf) : null);
         break;
       case 'price': {
-        set('price_original_amount', res.value.amount);
-        set('price_original_currency', res.value.currency);
-        const conv = toEur({ amount: res.value.amount, currency: res.value.currency, date: ctx.photoDate }, ctx.fxRates);
-        set('price_eur', conv?.priceEur ?? null);
-        set('fx_rate', conv?.fxRate ?? null);
-        set('fx_rate_period', conv?.fxRatePeriod ?? null);
+        if (value == null) {
+          set('price_original_amount', null);
+          set('price_original_currency', null);
+          set('price_eur', null);
+          set('fx_rate', null);
+          set('fx_rate_period', null);
+        } else {
+          set('price_original_amount', value.amount);
+          set('price_original_currency', value.currency);
+          const conv = toEur({ amount: value.amount, currency: value.currency, date: ctx.photoDate }, ctx.fxRates);
+          set('price_eur', conv?.priceEur ?? null);
+          set('fx_rate', conv?.fxRate ?? null);
+          set('fx_rate_period', conv?.fxRatePeriod ?? null);
+        }
         break;
       }
       case 'weight_g':
-        set('weight_g', res.value);
+        set('weight_g', value ?? null);
         break;
       case 'rating':
-        set('rating', res.value);
+        set('rating', value ?? null);
         break;
       case 'roasted_on':
-        set('roasted_on', res.value);
+        set('roasted_on', value ?? null);
         break;
       case 'desc_farm_lot':
       case 'desc_brew_guide':
       case 'desc_roaster_copy':
-        set(field, res.value);
+        set(field, value ?? null);
         break;
       default:
         break;
