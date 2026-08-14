@@ -69,7 +69,7 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
   assert.equal(plausible.confidence, 1.0);
   assert.equal(plausible.needsReview, false);
 
-  const implausible = parseAltitude('50 to 80 masl');
+  const implausible = parseAltitude('300 to 500 masl'); // real elevation, outside the soft 900-2200 band
   assert.equal(implausible.confidence, 0.5);
   assert.equal(implausible.needsReview, true);
 
@@ -78,6 +78,16 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
 
   assert.equal(parseAltitude('no altitude mentioned here'), null);
   assert.equal(parseAltitude(''), null);
+});
+
+test('parseAltitude: hard plausibility envelope — impossible elevations are absent, not a bogus value (#39)', () => {
+  // Radu's own example: "1-5 m" is a roast-level scale/count bleeding into the
+  // parse, not a real elevation — accept-by-default has no confidence gate to
+  // stop it, so it must come out null (field absent) rather than stored.
+  assert.equal(parseAltitude('1-5 m'), null);
+  assert.equal(parseAltitude('50 to 80 masl'), null); // max < 200m floor
+  assert.equal(parseAltitude('5000 to 6000 masl'), null); // min > 4000m ceiling
+  assert.equal(parseAltitude('4500m'), null); // single value above the ceiling
 });
 
 // ---- Price ----
@@ -113,6 +123,11 @@ test('parseWeight: refuses to guess when an altitude marker sits right next to t
   assert.deepEqual(parseWeight('grown at 1600 masl, bag is 250g'), { grams: 250, confidence: 1.0 });
 });
 
+test('parseWeight: hard plausibility envelope — sub-gram/over-5kg "bags" are absent, not a bogus value (#39)', () => {
+  assert.equal(parseWeight('0.5g bag'), null);
+  assert.equal(parseWeight('6000g bag'), null);
+});
+
 // ---- Rating ----
 
 test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', () => {
@@ -121,6 +136,11 @@ test('parseRating: explicit /5, star emoji, and bare-number confidence tiers', (
   assert.deepEqual(parseRating('⭐️4.1'), { value: 4.1, confidence: 0.9 });
   assert.deepEqual(parseRating('4.1'), { value: 4.1, confidence: 0.6 }); // bare number -> 0.6
   assert.equal(parseRating(''), null);
+});
+
+test('parseRating: stays within its 0-5 scale — an out-of-range number is absent, not a bogus rating (#39)', () => {
+  assert.equal(parseRating('9/5'), null); // impossible on a /5 scale
+  assert.equal(parseRating('1800'), null); // altitude-shaped bare number, not a rating
 });
 
 // ---- Dates ----
