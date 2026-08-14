@@ -115,22 +115,29 @@ test('buildCoffeeColumnUpdates: roaster_id decided "absent" retracts both roaste
   assert.deepEqual(values, [null, null]);
 });
 
-test('buildCoffeeColumnUpdates: origin_country_ids decided "absent" retracts both origin_country_ids and is_blend (#49)', () => {
+test('buildCoffeeColumnUpdates: origin_country_ids decided "absent" retracts to the column\'s own NOT NULL defaults, not NULL (#49)', () => {
+  // coffees.origin_country_ids/is_blend are NOT NULL DEFAULT '{}'/false
+  // (008_coffees.sql) -- an UPDATE ... SET origin_country_ids = NULL violates
+  // that constraint outright (caught live against production, not just by a
+  // unit test: POST /api/admin/adjudicate 500'd with exactly this error the
+  // first time this fix shipped).
   const { sets, values } = buildCoffeeColumnUpdates(
     { origin_country_ids: { decision: 'absent', value: null } },
     vocabCtx,
   );
   assert.deepEqual(sets, ['origin_country_ids = $1', 'is_blend = $2']);
-  assert.deepEqual(values, [null, null]);
+  assert.deepEqual(values, [[], false]);
 });
 
-test('buildCoffeeColumnUpdates: profile decided "absent" retracts profile_id, profile_detail, and is_decaf (#49)', () => {
+test('buildCoffeeColumnUpdates: profile decided "absent" retracts is_decaf to its NOT NULL default (false), profile_id/profile_detail to NULL (#49)', () => {
+  // is_decaf is NOT NULL DEFAULT false (008_coffees.sql); profile_id and
+  // profile_detail are plain nullable columns, so those two retract to NULL.
   const { sets, values } = buildCoffeeColumnUpdates(
     { profile: { decision: 'absent', value: null } },
     vocabCtx,
   );
   assert.deepEqual(sets, ['profile_id = $1', 'profile_detail = $2', 'is_decaf = $3']);
-  assert.deepEqual(values, [null, null, null]);
+  assert.deepEqual(values, [null, null, false]);
 });
 
 test('buildCoffeeColumnUpdates: a field that was never voted on this pass is not a key in resolutions at all, and stays untouched', () => {

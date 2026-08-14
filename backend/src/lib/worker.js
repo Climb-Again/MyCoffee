@@ -116,8 +116,11 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
         break;
       case 'origin_country_ids': {
         if (value == null) {
-          set('origin_country_ids', null);
-          set('is_blend', null);
+          // `coffees.origin_country_ids`/`is_blend` are NOT NULL (008_coffees.sql,
+          // DEFAULT '{}'/false) -- retract to that default, not NULL, or the
+          // UPDATE violates the not-null constraint.
+          set('origin_country_ids', []);
+          set('is_blend', false);
         } else {
           const { valid } = validateOriginCountryIds(value, ctx.vocab?.countries?.candidates);
           set('origin_country_ids', valid);
@@ -135,7 +138,9 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
       case 'profile':
         set('profile_id', value != null ? (ctx.profileIdBySlug?.get(value.profileId) ?? null) : null);
         set('profile_detail', value?.detail ?? null);
-        set('is_decaf', value != null ? Boolean(value.isDecaf) : null);
+        // `coffees.is_decaf` is NOT NULL DEFAULT false -- retract to that
+        // default, not NULL, or the UPDATE violates the not-null constraint.
+        set('is_decaf', value != null ? Boolean(value.isDecaf) : false);
         break;
       case 'price': {
         if (value == null) {
