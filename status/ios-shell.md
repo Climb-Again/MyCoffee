@@ -8,6 +8,31 @@ _none_
 
 ## Done
 
+- [2026-08-14 UTC] Seam for #50 (ios-ux) — `CoffeeStore.selectedTab` — branch `ios-staging`
+  - No `ios-shell`-tagged row was `ready` this cycle (`#29`/`#48` are data-owned). But `#50`
+    (ios-ux, ready, needs 46 — done) explicitly names a gap in a shell-owned file: tapping an
+    Insights legend label needs to both set `CoffeeStore.filter` (already writable — no shell
+    work needed there) *and* switch `RootTabView`'s active tab to Coffees, and there is
+    currently no tab-selection surface at all — `RootTabView.swift`'s `TabView` has no
+    `selection:` binding. The row's own text asks shell to claim this seam if a surface has
+    to be added; picked it up instead of stopping on a no-op session, same precedent as the
+    2026-08-06/08-11 entries below (`loadBrief()`, `editCoffeeFields`).
+  - Added `enum RootTab { case coffees, insights, review }` + `@Published var selectedTab:
+    RootTab = .coffees` to `Sources/Store/CoffeeStore.swift`, next to `filter`/`sort` (same
+    seam pattern the file's own doc comment describes — shell publishes, UX consumes).
+  - **UX lane: wiring, not new plumbing.** `RootTabView.swift`'s `TabView` needs a `selection:
+    $store.selectedTab` binding plus a `.tag(RootTab.x)` on each of the three tab views; the
+    Insights tap handler for #50(b) then sets `store.filter`/`unknownDimensions` and
+    `store.selectedTab = .coffees` in the same action. Not making this change myself —
+    `Features/Root/**` and `Features/Insights/**` are UX-owned.
+  - No `BACKLOG.md` row number for this (not new scope, just unblocking a flagged seam in an
+    already-owned file) — left `#50`'s own row text as the pointer, per the "no invented
+    scope" convention this file already follows.
+  - Not locally compiled (no Xcode here) — a 9-line addition (one enum, one `@Published`
+    property) to a file that already compiles, so a red compile check here would be a typo.
+  - `ios/MyCoffee/Sources/Store/CoffeeStore.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-14 UTC] Session check — no ready `ios-shell` row. Only rows tagged
   `ios-shell` are #17/#22/#41/#46, all `done`. All `ready` rows this cycle are
   data-owned (#29, #48(b)) or backend-owned (#49) — nothing in
