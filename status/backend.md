@@ -6,6 +6,44 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-14 UTC (later session still, second follow-up check): session check — no ready row this cycle
+
+This session's branch (`claude/confident-cerf-j8in2k`) started already at
+`origin/main`'s tip (`048fd88`). No fast-forward needed.
+
+All backend-tagged `BACKLOG.md` rows are still `done`. The only `ready` rows
+are `#29`/`#48(b)` (data-owned) and `#50` (ios-ux, needs 46). Nothing
+backend-tagged to pick up.
+
+`git branch -r --list 'origin/claude/*'` — 1 result (this session's own
+branch only). Nothing stranded to integrate.
+
+Ran `cd backend && npm ci && npm test` — **238/238 green** (up from 236 at
+the last check, from two small ad-hoc backend/data commits landed directly
+on `main` since: `2f3789a` decaf-detection-from-whole-caption and `b5089a1`
+roaster-country-edit-cascades-to-all-that-roaster's-coffees — neither logged
+a `status/backend.md` entry of its own, noting here for the record since
+this file is the audit trail).
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`. `GET
+/api/admin/jobs` → 12 jobs; **none `running`** — safe to push `backend/**`
+this session, though there was no code to push. Job `12` (2026-08-14,
+14:12–15:33 UTC, 69 photos, $4.394) finished `done` but carries a
+`lastError`: `"photo 74: invalid input syntax for type integer: \"18.5\""` —
+this is exactly the bug the data lane's `df85735` (15:13:11 UTC, same day)
+fixed in `normalize.js` (`parseWeight`/`parseAltitude` now round to the
+INTEGER columns' precision). The job's error timestamp falls inside its own
+14:12–15:33 run window, before the 15:13 fix redeployed, so photo 74 itself
+may still be stuck unprocessed from that one crash — a re-run is the data
+lane's call (their extraction job), not this lane's; not touching it.
+`GET /api/review?limit=200` → **57** open items, up from 0 at the last
+check, consistent with job 12's new 69-photo batch surfacing genuine new
+disagreements, not a regression.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-14 UTC (later session, follow-up check): session check — no ready row this cycle
 
 This session's branch (`claude/confident-cerf-fod7ez`) started already at
