@@ -75,10 +75,39 @@ nothing else unblocks.
 Pushed straight to `origin/main` (this session's own `claude/confident-cerf-fti5j5`
 scratch branch carries the same commits, so it isn't orphaned per the
 "integrate before you start" rule). Watched `railway-deploy.yml` to
-completion, then ran the actual $0 re-adjudication
+completion (`31777952352`, both `test` and `deploy` jobs green).
+
+**A real bug the live production run caught, not the unit suite**: the first
+version of this fix retracted every absent field to `NULL`, including
+`origin_country_ids`/`is_blend`/`is_decaf` — but `008_coffees.sql` declares
+all three `NOT NULL` (`origin_country_ids ... NOT NULL DEFAULT '{}'`,
+`is_blend ... NOT NULL DEFAULT false`, `is_decaf ... NOT NULL DEFAULT
+false`). The unit tests I'd written for those two fields asserted `NULL` too
+(same blind spot, no DB to catch it), so `npm test` was green while the
+route would 500 in production. Running the actual `POST /api/admin/adjudicate`
+against **production** immediately surfaced it: `500 {"code":"23502",
+"error":"Internal Server Error","message":"null value in column
+\"origin_country_ids\" of relation \"coffees\" violates not-null
+constraint"}`. Fixed by retracting those three columns to the table's own
+`DEFAULT` (`[]`/`false`/`false`) instead of `NULL`; updated the two affected
+`worker.test.js` cases to match, and reproduced both the original 500 and its
+fix against a real local Postgres (a coffee with real prior `origin_country_ids`/
+`is_blend` values, fed an unresolvable origin-country candidate so it
+decides `absent` — `adjudicateAndApply` no longer throws, and the row lands
+on `{ids: [], isBlend: false}` as expected; same shape for a `profile`-absent
+case landing on `is_decaf: false`). Re-ran `npm test` — **236/236 green**
+with the corrected assertions — before pushing the fix commit and re-deploying.
+This is exactly why this lane's protocol runs a real end-to-end verification
+against production/a live Postgres in addition to the unit suite (see the
+`origin_country_ids`/`price`/`profile` NOT-NULL-vs-nullable distinction now
+called out inline in `worker.js`'s comments) — a unit test alone would have
+shipped this to production green.
+
+Once the fix redeployed (`railway-deploy.yml` run for the follow-up commit,
+completed success), ran the actual $0 re-adjudication
 (`POST /api/admin/adjudicate`) against **production** — the same safe,
-no-LLM-spend operation #35/#36/#44 were verified live with — and re-checked
-the two coffee ids #39's own note named:
+no-LLM-spend operation #35/#36/#44 were verified live with — and it completed
+without error this time. Re-checked the two coffee ids #39's own note named:
 `GET /api/coffees/ZqjVWBODPm-oKNqoCTmQWg` and `.../zh8V1tWHHFmq0vyTox1sKQ`
 now both return `altitudeMinM`/`altitudeMaxM` as `null` instead of the old
 bogus `2`/`30` and `1`/`5` — confirms the fix closes #39's own flagged gap
