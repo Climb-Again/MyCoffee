@@ -86,6 +86,12 @@ export function parseAltitude(text) {
   if (min == null || max == null) return null;
   if (min > max) [min, max] = [max, min];
 
+  // Hard plausibility envelope: coffee grows ~200-4000m. Below/above that the
+  // extractor almost certainly grabbed something else (a roast-level scale, a
+  // count) rather than a real elevation — absent is safer than a bogus value,
+  // and accept-by-default no longer has a confidence gate to catch it (#39).
+  if (max < 200 || min > 4000) return null;
+
   const plausible = min >= 900 && max <= 2200;
   const wideSpan = max - min > 800;
   return {
@@ -151,6 +157,8 @@ export function parseWeight(text) {
 
   const grams = parseNumber(match[1], { field: 'weight' });
   if (grams == null) return null;
+  // Hard plausibility envelope: a coffee bag is never sub-gram or over 5kg (#39).
+  if (grams < 1 || grams > 5000) return null;
   const snapped = WEIGHT_STANDARD_G.find((v) => Math.abs(v - grams) <= 3);
   return {
     grams: snapped ?? grams,
@@ -160,6 +168,12 @@ export function parseWeight(text) {
 
 // ---- Rating ----
 
+// A rating is always out of 5 — anything outside that scale is a different
+// quantity (an altitude, a count) misfiring this parser, not a real rating.
+function inRatingScale(value) {
+  return value != null && value >= 0 && value <= 5;
+}
+
 export function parseRating(text) {
   if (!text) return null;
   const s = String(text);
@@ -167,19 +181,19 @@ export function parseRating(text) {
   let m = s.match(/(\d[.,]?\d?)\s*\/\s*5\b/);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 1.0 };
+    return inRatingScale(value) ? { value, confidence: 1.0 } : null;
   }
 
   m = s.match(/⭐️?\s*(\d[.,]?\d?)/u);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.9 };
+    return inRatingScale(value) ? { value, confidence: 0.9 } : null;
   }
 
   m = s.match(/(\d[.,]?\d?)/);
   if (m) {
     const value = parseNumber(m[1], { field: 'rating' });
-    return value == null ? null : { value, confidence: 0.6 };
+    return inRatingScale(value) ? { value, confidence: 0.6 } : null;
   }
 
   return null;
