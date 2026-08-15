@@ -26,6 +26,7 @@ import { derivativeAbsPath } from '../media.js';
 import { adjudicateRecord } from './adjudicate.js';
 import { getOrCreateVocabEntry } from './resolveField.js';
 import { extractRoasterCountryOverride } from './deterministic.js';
+import { foldDiacritics } from './normalize.js';
 import {
   loadCountryVocab,
   loadRoasterVocab,
@@ -194,6 +195,38 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
     values.push(val);
   }
   return { sets, values };
+}
+
+// #56 -- `search_labels_blob`/`search_prose_blob` (009_search.sql) back the
+// listing's full-text search but nothing ever wrote them. Pure and
+// vocab-lookup-only (no query here) so it's testable without a live
+// Postgres, same split as `buildCoffeeColumnUpdates`. Labels outrank prose in
+// `search_tsv`'s generated weighting (migration comment), so this only needs
+// to produce the two folded strings -- the SQL side already handles ranking.
+export function buildSearchBlobs(coffee, ctx = {}) {
+  const countries = ctx.vocab?.countries?.candidates ?? [];
+  const roasters = ctx.vocab?.roasters?.candidates ?? [];
+  const farms = ctx.vocab?.farms?.candidates ?? [];
+  const countryName = (id) => countries.find((c) => c.id === id)?.name;
+  const roasterName = (id) => roasters.find((r) => r.id === id)?.name;
+  const farmName = (id) => farms.find((f) => f.id === id)?.name;
+  const profileName = (id) => ctx.profileNameById?.get(id);
+
+  const labelParts = [
+    roasterName(coffee?.roaster_id),
+    countryName(coffee?.roaster_country_id),
+    ...(coffee?.origin_country_ids ?? []).map(countryName),
+    farmName(coffee?.origin_farm_id),
+    profileName(coffee?.profile_id),
+    coffee?.profile_detail,
+  ].filter(Boolean);
+
+  const proseParts = [coffee?.raw_title, coffee?.raw_caption, coffee?.raw_description].filter(Boolean);
+
+  return {
+    labelsBlob: foldDiacritics(labelParts.join(' ')),
+    proseBlob: foldDiacritics(proseParts.join(' ')),
+  };
 }
 
 async function withBackoff(fn, delays) {
@@ -455,6 +488,28 @@ async function finalizeCoffeeStatus(coffeeId, photoId) {
   ]);
 }
 
+// Re-derives the two search blob columns from whatever the coffees row
+// currently holds (post-update state -- a save that only touches, say,
+// `weight_g` still needs the blob to reflect the roaster/origin names that
+// were already there). One extra SELECT+UPDATE per apply, not a hot path at
+// this corpus size (PLAN.md §1's ~900-row estimate).
+async function refreshSearchBlobs(coffeeId, ctx) {
+  const { rows } = await query(
+    `SELECT roaster_id, roaster_country_id, origin_country_ids, origin_farm_id,
+            profile_id, profile_detail, raw_title, raw_caption, raw_description
+     FROM coffees WHERE id = $1`,
+    [coffeeId],
+  );
+  const row = rows[0];
+  if (!row) return;
+  const { labelsBlob, proseBlob } = buildSearchBlobs(row, ctx);
+  await query(`UPDATE coffees SET search_labels_blob = $1, search_prose_blob = $2 WHERE id = $3`, [
+    labelsBlob,
+    proseBlob,
+    coffeeId,
+  ]);
+}
+
 // Writes decided (non-review) fields onto the coffees row and refreshes
 // review_state/min_field_confidence. Shared by the live worker path and
 // `POST /api/review/:id` (a human decision applies the exact same way a
@@ -467,6 +522,7 @@ export async function applyResolutionsToCoffee(coffeeId, photoId, resolutions, c
       coffeeId,
     ]);
   }
+  await refreshSearchBlobs(coffeeId, ctx);
   await finalizeCoffeeStatus(coffeeId, photoId);
 }
 
@@ -475,12 +531,13 @@ export async function loadSharedContext() {
     loadCountryVocab(query),
     loadRoasterVocab(query),
     loadFarmVocab(query),
-    query('SELECT id, slug FROM profiles'),
+    query('SELECT id, slug, name FROM profiles'),
     query('SELECT currency, period, rate_to_eur AS "rateToEur" FROM fx_rates'),
   ]);
   return {
     vocab: { countries, roasters, farms },
     profileIdBySlug: new Map(profilesResult.rows.map((r) => [r.slug, r.id])),
+    profileNameById: new Map(profilesResult.rows.map((r) => [r.id, r.name])),
     fxRates: fxRows.rows.map((r) => ({
       currency: r.currency,
       period: r.period instanceof Date ? r.period.toISOString().slice(0, 10) : r.period,
@@ -488,6 +545,19 @@ export async function loadSharedContext() {
     })),
     vocabVersion: config.extraction.vocabVersion,
   };
+}
+
+// #56's one-time backfill for coffees that predate this feature -- every
+// existing row's blobs are still at the `''` default (009_search.sql) since
+// nothing ever wrote them before this change. Scoped to just the two blob
+// columns (not a full `readjudicateAll()`) so it can't touch any other field.
+export async function rebuildAllSearchBlobs() {
+  const sharedCtx = await loadSharedContext();
+  const { rows } = await query(`SELECT id FROM coffees WHERE deleted_at IS NULL`);
+  for (const row of rows) {
+    await refreshSearchBlobs(row.id, sharedCtx);
+  }
+  return { updated: rows.length };
 }
 
 // A confident `accepted` field whose winning value didn't resolve against the

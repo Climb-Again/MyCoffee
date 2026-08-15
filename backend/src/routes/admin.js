@@ -16,6 +16,9 @@
 //                                    DISPLAY_DERIVATIVES's `display` spec, so
 //                                    photos uploaded before the change also
 //                                    shrink, not just new ones
+//   POST /api/admin/rebuild-search-blobs  one-time backfill (#56) --
+//                                    recomputes search_labels_blob/
+//                                    search_prose_blob for every coffee
 //
 // All ingest-token-gated: these are write/spend-triggering operations, same
 // tier as every other mutation in the API.
@@ -25,7 +28,7 @@ import path from 'node:path';
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { runWorker, defaultVoters, readjudicateAll } from '../lib/worker.js';
+import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 
@@ -150,6 +153,14 @@ export default async function adminRoutes(app) {
     }
     const result = await readjudicateAll({ photoId });
     return result;
+  });
+
+  // One-time backfill for #56: every coffee that predates the search-blob
+  // feature still has `search_labels_blob`/`search_prose_blob` at their `''`
+  // default (009_search.sql) since nothing ever wrote them. $0, no LLM spend
+  // -- re-derives from whatever the row already holds.
+  app.post('/api/admin/rebuild-search-blobs', { preHandler: requireIngestToken }, async () => {
+    return rebuildAllSearchBlobs();
   });
 
   // Re-derives `display`/`thumb` (never `ocr` -- it's the source, and it's
