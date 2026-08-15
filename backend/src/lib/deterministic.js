@@ -81,6 +81,28 @@ export function extractOriginCountriesField(rawText, countryVocab) {
   return { value: names.join(' / '), confidence: 1.0, evidence: names.join(', ') };
 }
 
+// #48(b) — a caption sometimes states the roaster's own city/country
+// explicitly (Radu's purchases are captioned in Romanian, e.g. "Prăjitorie:
+// Uncommon (Amsterdam, Olanda)"); when it does, that should beat the
+// vocab-derived `roasters.country_id`, since the vocab guess (#38) only ever
+// exists for when the caption says nothing and can be wrong when two
+// real-world roasters collapse into one vocab row (#48a, the Uncommon
+// UK/NL bug). Reuses the same word-boundary + diacritic-folded scan as
+// `extractOriginCountriesField`, filtered to `is_roaster` countries so an
+// origin mention ("Etiopia" describing the beans) is never mistaken for the
+// roaster's location. More than one distinct roaster-country mentioned is
+// ambiguous and declines rather than guesses — the same "ambiguous never
+// auto-resolves" rule `resolveCityCountry` already applies to cities. Pure:
+// the caller (worker.js, backend-owned) decides whether/how to apply it.
+export function extractRoasterCountryOverride(rawText, countryVocab) {
+  const roasterCountryIds = new Set(
+    (countryVocab?.candidates ?? []).filter((c) => c.is_roaster).map((c) => c.id),
+  );
+  const mentions = findAliasMentions(rawText, countryVocab?.aliasIndex).filter((m) => roasterCountryIds.has(m.id));
+  const distinctIds = new Set(mentions.map((m) => m.id));
+  return distinctIds.size === 1 ? [...distinctIds][0] : null;
+}
+
 // Farms start with no seeded vocabulary at all (PLAN.md §1: "derived from the
 // data and approved in the review queue") — so unlike roaster/country, this
 // never resolves via alias matching. It surfaces a *candidate new farm name*

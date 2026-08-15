@@ -9,6 +9,7 @@ import {
   findAliasMentions,
   extractRoasterField,
   extractOriginCountriesField,
+  extractRoasterCountryOverride,
   extractFarmField,
   extractRoastedOnField,
   extractProfileField,
@@ -40,6 +41,7 @@ const COUNTRY_VOCAB = {
     { id: 2, name: 'Ethiopia', is_origin: true, is_roaster: false },
     { id: 3, name: 'Brazil', is_origin: true, is_roaster: false },
     { id: 4, name: 'Netherlands', is_origin: false, is_roaster: true },
+    { id: 5, name: 'United Kingdom', is_origin: false, is_roaster: true },
   ],
   aliasIndex: buildAliasIndex([
     { id: 1, alias: 'Colombia', alias_norm: 'colombia' },
@@ -48,6 +50,9 @@ const COUNTRY_VOCAB = {
     { id: 2, alias: 'Etiopia', alias_norm: 'etiopia' },
     { id: 3, alias: 'Brazil', alias_norm: 'brazil' },
     { id: 4, alias: 'Netherlands', alias_norm: 'netherlands' },
+    { id: 4, alias: 'Olanda', alias_norm: 'olanda' },
+    { id: 5, alias: 'United Kingdom', alias_norm: 'united kingdom' },
+    { id: 5, alias: 'Marea Britanie', alias_norm: 'marea britanie' },
   ]),
 };
 
@@ -130,6 +135,40 @@ test('extractOriginCountriesField: a roaster-only country mention (Netherlands) 
 test('extractOriginCountriesField: an alias variant is proposed as literally written — resolveVocab resolves the alias downstream', () => {
   const result = extractOriginCountriesField('Columbia, lovely', COUNTRY_VOCAB);
   assert.equal(result.value, 'Columbia');
+});
+
+// ---- extractRoasterCountryOverride (#48b) ----
+
+test('extractRoasterCountryOverride: a caption stating the roaster city/country in Romanian resolves it — the real Uncommon bug', () => {
+  const id = extractRoasterCountryOverride('Prăjitorie: Uncommon (Amsterdam, Olanda)', COUNTRY_VOCAB);
+  assert.equal(id, 4); // Netherlands, not the vocab's stale United Kingdom guess
+});
+
+test('extractRoasterCountryOverride: a diacritic-free spelling still matches (fold happens at match time, not storage time)', () => {
+  const id = extractRoasterCountryOverride('Prajitorie: Uncommon (Amsterdam, Olanda)', COUNTRY_VOCAB);
+  assert.equal(id, 4);
+});
+
+test('extractRoasterCountryOverride: no country mention at all declines (caller keeps the vocab-derived country)', () => {
+  assert.equal(extractRoasterCountryOverride('A lovely washed coffee, no location named', COUNTRY_VOCAB), null);
+});
+
+test('extractRoasterCountryOverride: an origin-only mention (Ethiopia, the beans) is never read as the roaster location', () => {
+  assert.equal(extractRoasterCountryOverride('Single origin Ethiopia, notes of jasmine', COUNTRY_VOCAB), null);
+});
+
+test('extractRoasterCountryOverride: two distinct roaster-countries mentioned is ambiguous and declines rather than guesses', () => {
+  const id = extractRoasterCountryOverride('Roasted in the Netherlands, imported from United Kingdom stock', COUNTRY_VOCAB);
+  assert.equal(id, null);
+});
+
+test('extractRoasterCountryOverride: the same country mentioned via two different aliases is not ambiguous (one distinct id)', () => {
+  const id = extractRoasterCountryOverride('Prăjitorie olandeză, i.e. Netherlands, a.k.a. Olanda', COUNTRY_VOCAB);
+  assert.equal(id, 4);
+});
+
+test('extractRoasterCountryOverride: no vocab passed declines rather than throwing', () => {
+  assert.equal(extractRoasterCountryOverride('Prăjitorie: Uncommon (Amsterdam, Olanda)', undefined), null);
 });
 
 // ---- extractFarmField ----

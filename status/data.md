@@ -29,7 +29,86 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-- [2026-08-15 00:00 UTC] #48(b) caption-city override for roaster country (durable rule) — branch `main`
+_none_
+
+## 2026-08-15 — #48(b) is DONE: caption-city roaster-country override
+
+**Integration note first:** this session's assigned branch
+(`claude/peaceful-mccarthy-6n4yw7`) was 57 commits ahead of `origin/main` —
+every lane (backend, ios-shell, ios-ux, data) had been pushing to this same
+branch across many prior firings without it ever landing on `main`, the
+identical "stranded branch" failure mode CLAUDE.md §12 documents, just with
+one shared branch name instead of several. `origin/main` was a strict
+ancestor (clean fast-forward, `git rev-list --count branch..main` = 0), so
+fast-forwarded `main` to the branch tip and pushed — `origin/main` now
+matches what `BACKLOG.md` already described as done (through #49). Backend
+`npm test` re-verified 238/238 green on that merged state before doing any
+new work, and confirmed via `GET /api/admin/jobs` that no extraction job was
+`running` before the push (CLAUDE.md's hard interlock).
+
+**The work itself:** `#48`'s row had one part left — "(b) durable rule: when
+a caption explicitly states the roaster's city/country, prefer that for
+`roaster_country_id` over the derived vocab country." Added
+`extractRoasterCountryOverride(rawText, countryVocab)` to
+`src/lib/deterministic.js`, right next to `extractOriginCountriesField` since
+it's the same shape of problem: reuses `findAliasMentions` (the existing
+diacritic-folded, word-boundary alias scan already built for the roaster/
+origin voter fields), filtered to `is_roaster` countries so an origin mention
+("Etiopia" describing the beans) can never be misread as the roaster's
+location, and returns `null` (decline, keep whatever the caller already has)
+when zero or more than one distinct roaster-country is mentioned — the same
+"ambiguous never auto-resolves" rule `resolveCityCountry` already applies to
+cities.
+
+**The alias gap this surfaced:** Radu's captions are Romanian
+("Prăjitorie: Uncommon (Amsterdam, Olanda)"), but `005_vocab_seed.sql` only
+ever seeded English country names/aliases for roaster countries — so the
+override could recognise "Netherlands" in a caption but never "Olanda", the
+actual spelling in the one caption that motivated this whole row. Added
+`backend/migrations/020_add_romanian_roaster_country_aliases.sql`, seeding
+Romanian names for the 20 existing roaster countries that don't already share
+an identical spelling with English (skipped Canada/Austria/Slovenia/Romania —
+same word in both languages): Belgia, Cehia, Danemarca, Franța, Germania,
+Irlanda, Letonia, Olanda, Norvegia, Polonia, Slovacia, Spania, SUA/Statele
+Unite, Marea Britanie/Anglia, Italia, Suedia, Finlanda, Coreea de Sud,
+Elveția. Diacritics kept as typed in `alias_norm` (e.g. `franța`) — exact
+`alias_norm` lookups (`resolveVocab`) don't fold them, but the new override
+goes through `findAliasMentions`, which folds both sides before comparing, so
+a diacritic-free caption spelling ("Franta") still matches; this is called
+out in the migration's own header comment so it isn't rediscovered as a bug.
+
+**Tests:** 7 new table-driven cases in `test/deterministic.test.js` (245/245
+`npm test` green): the real Uncommon caption resolving to Netherlands; the
+same caption with diacritics stripped (proves the fold-at-match-time design);
+no country mention at all (declines); an origin-only mention ("Ethiopia")
+correctly never read as a roaster location; two distinct roaster-countries in
+one caption (ambiguous, declines); the same country via two different
+aliases ("Netherlands" + "Olanda" both present — one distinct id, not
+ambiguous); and `undefined` vocab passed (declines rather than throwing).
+
+**Live verification, not just unit tests:** started a local Postgres 16,
+applied the full migration chain 001→020 (all clean, 020 idempotent on a
+second run), loaded the real seeded `countries`/`country_aliases` via
+`loadCountryVocab`, and called
+`extractRoasterCountryOverride('Prăjitorie: Uncommon (Amsterdam, Olanda)',
+countryVocab)` against it directly — resolved to Netherlands (id 35), not
+United Kingdom (id 41, the vocab's stale guess from #38) — proving the
+override would have produced the correct answer on the exact caption that
+prompted this backlog row. Dropped the test database afterward; did not
+touch production Postgres (this feature has no live wiring yet — see below).
+
+**Not done, filed as #51 (backend, ready) instead of guessed at:** the
+override function exists and is tested, but nothing calls it yet.
+`buildCoffeeColumnUpdates`'s `roaster_id` case (`src/lib/worker.js`) still
+unconditionally does `set('roaster_country_id', roaster?.country_id ?? null)`
+— wiring it up needs `rawText` threaded into the `ctx` object
+`applyResolutionsToCoffee` builds (today just `{...sharedCtx, photoDate}`)
+and a call to the new override before falling back to the vocab-derived
+country. `worker.js` is backend-owned, not this lane's to edit — same split
+as #39 (data, `normalize.js` sanity envelopes) → #49 (backend, the
+`worker.js` fix those envelopes exposed a gap in). Until #51 lands, the edit
+sheet (#42) still covers any individual miscoded roaster country per-coffee,
+same as #48(a) noted.
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
