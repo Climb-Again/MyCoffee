@@ -12,89 +12,105 @@ struct CoffeesListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                let cards = store.topFilterCards
-                if !cards.isEmpty {
-                    Section {
-                        TopFilterCardsRow(cards: cards, activeFilter: store.filter) { card in
-                            store.filter = card.filter
+            searchableList
+                .navigationTitle("Coffees")
+                .navigationDestination(for: String.self) { coffeeID in
+                    if let coffee = store.index.coffee(id: coffeeID) {
+                        CoffeeDetailView(coffee: coffee)
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showFilterSheet = true
+                        } label: {
+                            Label("Filter", systemImage: store.filter.isEmpty ? Symbols.filter : Symbols.filterFilled)
                         }
                     }
-                    .listRowInsets(EdgeInsets())
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Picker("Sort", selection: $store.sort) {
+                                ForEach(SortOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(option)
+                                }
+                            }
+                        } label: {
+                            Label("Sort", systemImage: Symbols.sort)
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: Symbols.settings)
+                        }
+                    }
+                }
+                .sheet(isPresented: $showFilterSheet) {
+                    FilterSheetView(store: store)
+                }
+                .sheet(isPresented: $showSettings) {
+                    SettingsSheet()
+                }
+                .task {
+                    if store.index.coffees.isEmpty {
+                        await store.load()
+                    }
+                }
+                .refreshable {
+                    await store.refresh()
+                }
+        }
+    }
+
+    /// The listing `List`, with search attached. iOS 26 anchors `.searchable`
+    /// at the bottom (thumb-reach) when given `.tabBar` placement instead of
+    /// the default nav-bar-top field — that placement case doesn't exist
+    /// pre-26, so it's gated behind `#available` and falls back to today's
+    /// top placement on 17–25. Same binding/prompt either way; this is
+    /// placement only (PLAN.md's own framing of the row).
+    @ViewBuilder
+    private var searchableList: some View {
+        let list = List {
+            let cards = store.topFilterCards
+            if !cards.isEmpty {
+                Section {
+                    TopFilterCardsRow(cards: cards, activeFilter: store.filter) { card in
+                        store.filter = card.filter
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
+            ForEach(sections) { section in
+                Section(section.header) {
+                    ForEach(section.coffees) { coffee in
+                        NavigationLink(value: coffee.id) {
+                            CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary, sort: store.sort)
+                        }
+                    }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
+            }
 
-                ForEach(sections) { section in
-                    Section(section.header) {
-                        ForEach(section.coffees) { coffee in
-                            NavigationLink(value: coffee.id) {
-                                CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary, sort: store.sort)
-                            }
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    }
-                }
+            if store.filteredCoffees.isEmpty {
+                ContentUnavailableView(
+                    "No coffees match",
+                    systemImage: Symbols.emptyCup,
+                    description: Text("Try clearing some filters.")
+                )
+                .listRowSeparator(.hidden)
+            }
+        }
+        .listStyle(.plain)
 
-                if store.filteredCoffees.isEmpty {
-                    ContentUnavailableView(
-                        "No coffees match",
-                        systemImage: Symbols.emptyCup,
-                        description: Text("Try clearing some filters.")
-                    )
-                    .listRowSeparator(.hidden)
-                }
-            }
-            .listStyle(.plain)
-            .searchable(text: $store.filter.query, prompt: "Search coffees, roasters, farms")
-            .navigationTitle("Coffees")
-            .navigationDestination(for: String.self) { coffeeID in
-                if let coffee = store.index.coffee(id: coffeeID) {
-                    CoffeeDetailView(coffee: coffee)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showFilterSheet = true
-                    } label: {
-                        Label("Filter", systemImage: store.filter.isEmpty ? Symbols.filter : Symbols.filterFilled)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Picker("Sort", selection: $store.sort) {
-                            ForEach(SortOption.allCases, id: \.self) { option in
-                                Text(option.displayName).tag(option)
-                            }
-                        }
-                    } label: {
-                        Label("Sort", systemImage: Symbols.sort)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: Symbols.settings)
-                    }
-                }
-            }
-            .sheet(isPresented: $showFilterSheet) {
-                FilterSheetView(store: store)
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsSheet()
-            }
-            .task {
-                if store.index.coffees.isEmpty {
-                    await store.load()
-                }
-            }
-            .refreshable {
-                await store.refresh()
-            }
+        if #available(iOS 26.0, *) {
+            list.searchable(text: $store.filter.query, placement: .tabBar, prompt: "Search coffees, roasters, farms")
+        } else {
+            list.searchable(text: $store.filter.query, prompt: "Search coffees, roasters, farms")
         }
     }
 

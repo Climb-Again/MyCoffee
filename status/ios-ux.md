@@ -8,6 +8,63 @@ _none_
 
 ## Session notes
 
+- [2026-08-15 UTC, later session] 58 Move the listing search box to the bottom (iOS 26 style) — branch `claude/hopeful-johnson-bdpy3r` (not yet merged into `ios-staging` — see note below)
+  - **False start caught before pushing, exactly the "integrate before you start" failure mode.** This session's
+    designated branch is based on `origin/main`, not `origin/ios-staging` — its copy of `status/BACKLOG.md`/
+    `status/ios-ux.md` was stale (main hasn't had `ios-staging` merged into it recently) and still showed `#50`
+    `ready` with the seam ("tab-selection surface") unbuilt. Built a full `#50` implementation against that stale
+    view — a new `Features/Root/AppNavigation.swift` `ObservableObject` for tab selection, `PieSlice.key`, tap-to-
+    filter wiring in `InsightsCharts`/`InsightsView` — before merging `origin/ios-staging` in and discovering `#50`
+    (and `#52`/`#53`/`#54`/`#55` besides) were **already fully landed there**, including the exact seam
+    (`CoffeeStore.selectedTab`/`RootTab`, added by ios-shell) my draft had independently reinvented as a separate
+    `AppNavigation` class. Discarded the draft (`git checkout --` the three edited files, deleted the new one)
+    before committing anything, then merged `origin/ios-staging` in for real. No harm done — nothing was pushed —
+    but recording it per this file's own established practice of logging near-misses (see the 2026-08-12 entry
+    below for the same pattern) and because it's a clean illustration of *why* a fired session must check the
+    lane's actual branch, not just the branch it happens to be running on.
+  - **The merge itself surfaced a second, real bug**: `status/BACKLOG.md`'s own table had `#56`/`#57`/`#58` each
+    duplicated by the merge — `#56` (backend, done) appeared twice verbatim, and `#57` appeared as **two different
+    rows**: an older "surface before building, default to view-only" draft (this branch's/`main`'s copy, no
+    `needs`) and a newer "persisted rotate — the correction must SAVE" version quoting Radu's own clarifying
+    message (`ios-staging`'s copy, `needs 59`). The persisted version supersedes the draft (Radu answered the
+    scope question the draft itself raised), so kept that one and deleted the stale duplicate, plus the byte-
+    identical `#56`/`#58` repeats. Fixed in its own commit before starting `#58`'s actual code, per
+    `status/README.md`'s "correcting a task means correcting this file" rule — a future session reading either
+    branch's copy would otherwise see contradictory `#57` rows and not know which is current.
+  - **Picked `#58`** (lowest-numbered `ready` `ios-ux` row with `needs` satisfied — `#57` is `ready` but blocked,
+    it needs `#59`, data lane, still only `ready` not `done`). `CoffeesListView.swift`'s `.searchable` docked in the
+    nav bar; iOS 26 anchors search near the tab bar instead (thumb-reach). Extracted the existing `List` into a
+    `searchableList` computed property so the same `List` value can pick its `.searchable` placement per OS version
+    without duplicating the list body: `if #available(iOS 26.0, *)` uses `SearchFieldPlacement.tabBar`, else falls
+    back to today's default placement. Same `$store.filter.query` binding and prompt either way — placement only,
+    per the row's own scope; didn't touch `RootTabView.swift` (the row flagged it as a *possible* need if the iOS
+    26 pattern hangs search off the tab view instead, but `.tabBar` placement applied directly to the tab's own
+    content is the documented mechanism, no `TabView`-level change needed).
+  - **Flagging the one real risk**: `SearchFieldPlacement.tabBar` is the least-precedented API touched this
+    session — new in the iOS 26 SDK, no local Xcode to confirm the exact case name or that it behaves as expected
+    when applied to a `NavigationStack`'s content nested inside a `TabView` tab (rather than the `TabView` itself).
+    If the compile lane goes red here, this is the first thing to check; the `#available` fallback means 17–25
+    behavior is unchanged regardless.
+  - **Also swept `git branch -r --list 'origin/claude/*'`** (87 branches) per the integrate-before-you-start rule:
+    spot-checked the four highest-ahead-count candidates in this lane's owned paths
+    (`confident-cerf-{01kgu0,0ol0nh,r7skfk}`, `relaxed-thompson-uq5f21`, each showing 13 commits ahead) by actual
+    diff content, not just count — all four are the identical stale pre-`#37`/`#47`-era snapshot (223 insertions,
+    1384 deletions net against current `ios-staging` — i.e. missing `ReviewFeedCache.swift`, `WhatsNewView.swift`,
+    etc. that have since landed), confirming the well-established "net deletion, nothing to adopt" pattern this
+    file's prior sessions have documented dozens of times over. Did not exhaustively diff all 87 (infeasible at
+    that scale and unwarranted given the pattern), but every branch this session actually inspected matched it.
+  - **Landed on this session's own designated branch (`claude/hopeful-johnson-bdpy3r`), not `ios-staging`
+    directly** — per this session's harness instructions ("develop on `claude/hopeful-johnson-bdpy3r`", "never push
+    to a different branch without explicit permission"), which is the same "CCR session commits to its own branch"
+    situation `CLAUDE.md` §12 already documents for other lanes. The branch does carry `origin/ios-staging`'s full
+    history (merged in before this row's code, see above), so it's a strict superset, not a divergent fork — a
+    later session (or a human) that can push to `ios-staging` should merge this branch in; nothing here should be
+    redone. Flagging for integration rather than assuming it landed.
+  - Not locally compiled (no Xcode here) — see the `SearchFieldPlacement.tabBar` flag above for the first thing to
+    check on a red compile.
+  - `ios/MyCoffee/Sources/Features/Coffees/CoffeesListView.swift`, `status/BACKLOG.md`
+  - Commit: (see `git log` on `claude/hopeful-johnson-bdpy3r`) — **not yet on `ios-staging`**
+
 - [2026-08-15 UTC, later session] Integrated #50 with the off-lane #52 redesign, then landed #53/#54/#55 — branch `ios-staging`
   - **Integration, not new scope, came first.** Merging `origin/main` into `ios-staging` conflicted in
     `Features/Insights/{InsightsCharts,InsightsView}.swift` — both branches had edited the same files
