@@ -3,6 +3,19 @@
 Autonomous operating guide for this repo (`Climb-Again/MyCoffee`), modeled on
 MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 
+> ## ⛔ Intake rule (Radu, 2026-08-15) — read this first
+>
+> **Every request, bug report, or feature idea Radu sends gets written into
+> `status/BACKLOG.md` as a row for the lanes to pick up. Do NOT implement it in
+> the same turn.** Add the backlog row (lane, phase, status `ready`, `needs`, a
+> spec-level one-liner), point him at it, and stop. **Only implement when Radu
+> explicitly says so or approves that specific item** — "do it now", "implement
+> #NN", "ship this", or an equivalent yes to a direct ask. Absent that, the
+> answer to "here's a bug/feature" is a backlog row, not a code change.
+>
+> This applies to interactive sessions too, not just fired lane runs. When in
+> doubt whether he wants it built now, file the row and ask.
+
 ## 0. Filled-in tokens (the once-and-done decisions)
 
 | Token | Meaning | Value |

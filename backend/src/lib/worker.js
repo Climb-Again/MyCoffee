@@ -25,6 +25,7 @@ import { config } from '../config.js';
 import { derivativeAbsPath } from '../media.js';
 import { adjudicateRecord } from './adjudicate.js';
 import { getOrCreateVocabEntry } from './resolveField.js';
+import { extractRoasterCountryOverride } from './deterministic.js';
 import {
   loadCountryVocab,
   loadRoasterVocab,
@@ -108,7 +109,14 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
       case 'roaster_id': {
         set('roaster_id', value ?? null);
         const roaster = value != null ? (ctx.vocab?.roasters?.candidates ?? []).find((r) => r.id === value) : null;
-        set('roaster_country_id', roaster?.country_id ?? null);
+        // #48(b)/#51 -- a caption that unambiguously states the roaster's own
+        // city/country (e.g. "Prajitorie: Uncommon (Amsterdam, Olanda)") beats
+        // the vocab-derived country, which can be wrong when two real-world
+        // roasters of the same name collapse into one vocab row (#48a). Falls
+        // back to the vocab-derived country when the caption says nothing or
+        // is ambiguous (`extractRoasterCountryOverride` returns null).
+        const override = ctx.rawText ? extractRoasterCountryOverride(ctx.rawText, ctx.vocab?.countries) : null;
+        set('roaster_country_id', override ?? roaster?.country_id ?? null);
         break;
       }
       case 'roaster_country_id':
@@ -527,7 +535,7 @@ export async function adjudicateAndApply(photo, photoText, sharedCtx) {
     `UPDATE coffees SET raw_title = $1, raw_caption = $2, raw_description = $3, updated_at = now() WHERE id = $4`,
     [photo.title, photoText?.caption ?? null, photoText?.description ?? null, coffee.id],
   );
-  await applyResolutionsToCoffee(coffee.id, photo.id, resolutions, { ...sharedCtx, photoDate: photo.captured_on });
+  await applyResolutionsToCoffee(coffee.id, photo.id, resolutions, { ...sharedCtx, photoDate: photo.captured_on, rawText });
 
   return { photoId: photo.id, coffeeId: coffee.id, reviewCount: reviews.length };
 }

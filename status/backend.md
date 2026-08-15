@@ -6,6 +6,91 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-15 UTC (later session): #51 — wire the caption-city roaster-country override into `worker.js`
+
+Only `ready` backend row this cycle — filed by the data lane at 01:47 UTC,
+*after* this lane's own last "no ready row" check (00:40 UTC) closed the
+loop, so it wasn't a row a prior session missed.
+
+`extractRoasterCountryOverride(rawText, countryVocab)` (`src/lib/deterministic.js`,
+data-owned, #48b) was already written, tested, and live-Postgres-verified as
+a pure function — it just wasn't called from anywhere. Two changes, exactly
+as the row scoped them:
+
+1. **`adjudicateAndApply()`** now threads `rawText` (already in scope — it's
+   how the adjudicator itself resolves fields) into the `ctx` object passed
+   to `applyResolutionsToCoffee`, alongside the existing `photoDate`.
+2. **`buildCoffeeColumnUpdates`'s `roaster_id` case** now calls
+   `extractRoasterCountryOverride(ctx.rawText, ctx.vocab?.countries)` and
+   prefers its result over the vocab-derived `roaster?.country_id`, falling
+   back to the vocab value when the override returns `null` (caption says
+   nothing, or is ambiguous between two roaster-countries). Gated on
+   `ctx.rawText` being present at all, so every existing caller that doesn't
+   pass it (`routes/review.js`'s human-accept path, `routes/coffees.js`'s
+   generic edit endpoint — neither builds a `rawText` ctx today) is
+   completely unaffected: the override call is skipped outright and behavior
+   is identical to before this row. Only the extraction/re-adjudication path
+   (`adjudicateAndApply`) gains the new behavior, which is exactly where
+   #48(b) was scoped to take effect ("takes effect the next time `POST
+   /api/admin/adjudicate` re-runs").
+
+**3 new `worker.test.js` cases** (248/248 green, up from 245): the
+caption-stated country beating a differing vocab-derived one (the Uncommon
+UK/NL shape, using a synthetic UK/NL fixture so it doesn't depend on #48a's
+migration having already fixed the real Uncommon row); falling back to the
+vocab-derived country when the caption names nothing; falling back again
+when the caption names two distinct roaster-countries (ambiguous, per
+`extractRoasterCountryOverride`'s own "never guesses" contract). None of the
+existing roaster_id tests needed updating — they don't set `ctx.rawText`, so
+`ctx.rawText ? ... : null` short-circuits to the same vocab-derived path as
+before.
+
+**Live-reproduced against a real local Postgres 16** (fresh
+`mycoffee_test51` DB, migrations 001→020 applied clean) — deliberately used
+a roaster/country pair the migrations haven't already touched, so the
+before/after is a real change, not one where the vocab already agrees:
+roaster id 2 ("The naughty dog", vocab `country_id` 28 = Czech Republic).
+Ran `applyResolutionsToCoffee` directly against two synthetic coffees:
+- Caption `"Prajitorie: The naughty dog (Paris, Franța)"` → `roaster_country_id`
+  came back **30 (France)**, not the vocab-derived 28 — the override won.
+- Caption `"Just a plain caption, no country mentioned at all."` →
+  `roaster_country_id` came back **28 (Czech Republic)**, the vocab-derived
+  value — confirms the fallback path is intact.
+
+`cd backend && npm ci && npm test` — **248/248 green**.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`; `GET
+/api/admin/jobs` → 12 jobs, all `done`/`paused`, **none `running`** — safe to
+push `backend/**` per the hard rule.
+
+Pushed straight to `origin/main` (fast-forward `eb9fc8e..dfa6d3f`; this
+session's own `claude/confident-cerf-9y3vqr` branch carries the same commit,
+so it isn't orphaned). Watched `railway-deploy.yml` run `31870242046` to
+completion via the GitHub Actions API — **`completed success`**. Post-deploy
+`GET /health`/`GET /api/status` both still green.
+
+**Did NOT run the actual `POST /api/admin/adjudicate` re-run against
+production this session** — the session's own permission classifier denied
+that specific call (a production-mutating POST), and per this repo's
+"measure twice" rule I stopped rather than working around it. So the fix is
+live in the deployed code, but every already-materialized `coffees.
+roaster_country_id` value that a caption-stated override would correct is
+still whatever the vocab-derived value was as of the last adjudication pass
+— nothing wrong, just not yet re-applied. It's a $0, no-LLM-spend,
+idempotent operation (`readjudicateAll()`, same one #35/#36/#44/#48a/#49 all
+ran live without incident) — a future session (or Radu, directly) can run
+`curl -X POST $BASE/api/admin/adjudicate -H "Authorization: Bearer
+$INGEST_TOKEN"` with no body to apply it retroactively across the whole
+corpus, or `{"photoId": "<publicId>"}` for just one photo. It will also
+apply automatically the next time any photo goes through a fresh extraction
+pass, with no action needed.
+
+Flipped `#51` → `done` in `BACKLOG.md`. No row's `needs` references `51`, so
+nothing else unblocks. This is a live-pipeline behavior change (affects the
+next `POST /api/admin/adjudicate` re-run and future extraction passes), not
+a schema change — no migration needed.
+
 ## 2026-08-15 UTC: session check — no ready row this cycle
 
 This session's branch (`claude/confident-cerf-t1flso`) started already at

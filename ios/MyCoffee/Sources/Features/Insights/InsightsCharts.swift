@@ -119,6 +119,8 @@ struct CategoryPieChart: View {
         }
     }
 
+    /// "Label · 12 · ★4.3" — the rating clause is dropped when the slice has
+    /// no rated coffees (e.g. the "Other" bucket, or an all-unrated category).
     private func legendText(for slice: PieSlice) -> String {
         var text = "\(slice.label) · \(slice.count)"
         if let averageRating = slice.averageRating {
@@ -162,42 +164,6 @@ struct YearlyStackedChart: View {
                     .foregroundStyle(by: .value("Category", point.category))
                 }
                 .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
-                .frame(height: 200)
-            }
-        }
-    }
-}
-
-/// Average rating by year with a dashed `RuleMark` at the all-time mean, so
-/// a given year reads as above/below the corpus baseline at a glance.
-struct RatingByYearChart: View {
-    struct Point: Identifiable {
-        let year: Int
-        let averageRating: Double
-        var id: Int { year }
-    }
-
-    let points: [Point]
-    let allTimeMean: Double
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Average rating by year").font(.headline)
-            if points.isEmpty {
-                Text("Not enough rated coffees yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(height: 80)
-            } else {
-                Chart {
-                    ForEach(points) { point in
-                        LineMark(x: .value("Year", point.year), y: .value("Rating", point.averageRating))
-                        PointMark(x: .value("Year", point.year), y: .value("Rating", point.averageRating))
-                    }
-                    RuleMark(y: .value("All-time mean", allTimeMean))
-                        .foregroundStyle(.secondary)
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                }
                 .frame(height: 200)
             }
         }
