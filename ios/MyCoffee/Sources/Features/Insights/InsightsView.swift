@@ -136,17 +136,58 @@ struct InsightsView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(findings) { finding in
-                    Text(finding.text)
+                    Text(findingAttributedText(finding))
                         .font(.subheadline)
                 }
             }
         }
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == Self.findingLinkScheme,
+                  let uuid = UUID(uuidString: url.host ?? ""),
+                  let finding = findings.first(where: { $0.id == uuid }),
+                  let subject = finding.subject
+            else { return .discarded }
+            selectInCoffees(dimension: subject.dimension, key: subject.key)
+            return .handled
+        })
+    }
+
+    private static let findingLinkScheme = "mycoffee-finding"
+
+    /// Renders `finding.text` as plain text, except the `subjectText` phrase
+    /// (when present) becomes a tappable link — only the subject phrase, per
+    /// the row's own "not the whole sentence" ask (PLAN.md §13/#53). The link
+    /// target is a synthetic URL carrying just the finding's `id`; tapping it
+    /// is intercepted by the `openURL` environment above and routed to the
+    /// same `selectInCoffees` deep-link the Charts tab's legends use (#50).
+    private func findingAttributedText(_ finding: InsightsFinding) -> AttributedString {
+        var attributed = AttributedString(finding.text)
+        guard let subjectText = finding.subjectText,
+              let range = attributed.range(of: subjectText)
+        else { return attributed }
+        attributed[range].link = URL(string: "\(Self.findingLinkScheme)://\(finding.id.uuidString)")
+        attributed[range].foregroundColor = .accentColor
+        return attributed
     }
 
     // MARK: - Data section
 
     private var dataSection: some View {
-        DataQualityCard(fields: InsightsAggregation.dataQuality(coffees: coffees))
+        DataQualityCard(
+            fields: InsightsAggregation.dataQuality(coffees: coffees),
+            onSelect: { dimension in selectUnknownInCoffees(dimension: dimension) }
+        )
+    }
+
+    /// Tapping a Data-quality row deep-links to the Coffees tab filtered to
+    /// that field's Unknown/missing bucket (PLAN.md §13/#54) — a fresh
+    /// filter, same "replaces, doesn't layer onto whatever was active"
+    /// semantics as `selectInCoffees`.
+    private func selectUnknownInCoffees(dimension: FilterDimension) {
+        var filter = CoffeeFilter()
+        filter.unknownDimensions.insert(dimension)
+        store.filter = filter
+        store.selectedTab = .coffees
     }
 
     // MARK: - Charts section

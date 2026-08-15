@@ -73,7 +73,7 @@ struct CoffeeDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showFullPhoto) {
-            FullPhotoView(urlString: coffee.images?.display)
+            ZoomableImageView(urlString: coffee.images?.display)
         }
         .sheet(isPresented: $showEdit) {
             CoffeeEditSheet(coffee: coffee)
@@ -496,56 +496,3 @@ private struct NoteBlock: View {
     }
 }
 
-/// Full-screen photo viewer: the whole image (`scaledToFit`, not the cropped
-/// hero), pinch-to-zoom / double-tap-to-reset, on black, with an X to close.
-private struct FullPhotoView: View {
-    let urlString: String?
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1
-    @State private var lastScale: CGFloat = 1
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            if let url = urlString.flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .scaleEffect(scale)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in scale = max(1, min(5, lastScale * value)) }
-                                    .onEnded { _ in lastScale = scale }
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation { scale = 1; lastScale = 1 }
-                            }
-                    case .failure:
-                        Image(systemName: Symbols.emptyCup)
-                            .font(.system(size: 56))
-                            .foregroundStyle(.white.opacity(0.5))
-                    default:
-                        ProgressView().tint(.white)
-                    }
-                }
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: Symbols.close)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(12)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .padding()
-        }
-    }
-}

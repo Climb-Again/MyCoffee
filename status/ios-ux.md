@@ -8,6 +8,69 @@ _none_
 
 ## Session notes
 
+- [2026-08-15 UTC, later session] Integrated #50 with the off-lane #52 redesign, then landed #53/#54/#55 — branch `ios-staging`
+  - **Integration, not new scope, came first.** Merging `origin/main` into `ios-staging` conflicted in
+    `Features/Insights/{InsightsCharts,InsightsView}.swift` — both branches had edited the same files
+    off the same parent commit (`5b23df7`): this lane's own `#50` (tap-to-filter + per-label average,
+    `348b8cc`, on `ios-staging`) and `#52` (the Insights 3-tab/time-window redesign, `85d6911`,
+    **committed directly to `main`, never through `ios-staging`** — a real instance of the exact
+    "commits bypass the dev branch" footgun `CLAUDE.md` §12 already warns about, just in the
+    `main`-instead-of-`claude/*` direction this time). `status/BACKLOG.md`'s own copy on `main`
+    still showed `#50` `ready` (unaware `348b8cc` had landed on `ios-staging`); `ios-staging`'s copy
+    had no idea `#52` existed at all. Resolved by keeping `#52`'s windowed 3-tab structure (it's
+    what's live in production/TestFlight) and re-threading `#50`'s `PieSlice.key`/`onSelect` tap
+    wiring through the windowed `chartsSection` and `slices(for:facets:)`; kept `#52`'s "Other
+    carries no average" decision over `#50`'s own draft weighted-average variant, since `#52` is the
+    already-shipped behavior and the row didn't ask for an Other average, just per-label + tap.
+    `RootTabView`'s `TabView(selection:)` wiring and `FilterSheetView`'s new `(.decaf, .bool)` case
+    (both part of `#50`) survived the merge untouched — neither conflicted with `#52`. Flipped `#50`
+    to `done` (it always was, just not visible from `main`'s stale copy), `#51`/`#52` to their
+    already-true `done`, in `status/BACKLOG.md`. Pushed the merge (`8cbeb5c`) before writing any new
+    code, per the integrate-before-you-start rule.
+  - **53 (findings deep-link)**: `InsightsFinding` gained `subjectText`/`subject: FindingSubject?`
+    (a `dimension`+`FacetKey` pair), populated only for categorical findings (profile, decaf, origin
+    country, roaster country, roaster) — ordinal findings (altitude/price/year) have no single
+    filterable value, so both stay `nil` and those sentences render as plain text. The view builds
+    an `AttributedString` per finding and marks just the `subjectText` span with a `.link` attribute
+    (a synthetic `mycoffee-finding://<finding-id>` URL) rather than splitting the sentence into
+    separate `Text`/`Button` views — that would have broken natural line-wrapping mid-sentence. An
+    `.environment(\.openURL, OpenURLAction { ... })` on `findingsSection` intercepts taps on that
+    scheme, looks the finding up by id, and calls the same `selectInCoffees(dimension:key:)` `#50`
+    already built for the Charts tab's legends — no new deep-link mechanism, straight reuse.
+  - **54 (data-quality deep-link)**: `InsightsAggregation.DataQualityField` gained
+    `dimension: FilterDimension?` — set for the six fields with a real Unknown facet (Rating,
+    Process, Origin country, Roaster country, Altitude, Price), left `nil` for Weight (not a listing
+    facet at all — the row's own called-out exception). `DataQualityCard` wraps a row in a `Button`
+    only when `dimension != nil`; the rest render as plain, non-interactive text exactly as before.
+    New `InsightsView.selectUnknownInCoffees(dimension:)` builds a fresh `CoffeeFilter` with just
+    that dimension's Unknown bucket selected (not layered onto whatever filter was already active,
+    same "replaces" semantics as `#50`/`#53`) and switches to Coffees.
+  - **55 (review photo zoom)**: confirmed the row's own diagnosis by reading `ReviewCardView.swift`
+    directly — the zoom icon really was a decorative `.overlay`, not a `Button`; the only tap gesture
+    was `.onTapGesture(count: 2)` which *resets* scale rather than zooming; the `MagnificationGesture`
+    really was nested inside the card's scrolling content, where the enclosing `ScrollView`'s own
+    drag recognizer competes for the gesture. New `DesignSystem/ZoomableImageView.swift`: a shared
+    full-screen viewer (`MagnificationGesture` for pinch, double-tap to zoom in/out, a `DragGesture`
+    gated on `scale > 1` for pan, both combined via `SimultaneousGesture` so pinch-then-drag doesn't
+    fight itself, bounded 1×–5×, black background, real `Button` ✕ to dismiss), presented via
+    `.fullScreenCover` instead of embedded in the scrolling card — sidesteps the gesture-competition
+    problem entirely rather than trying to win it. `ReviewPhoto` now opens it from either the photo
+    tap or the (now-real-`Button`) zoom icon. **Also swapped `CoffeeDetailView.swift`'s
+    near-identical private `FullPhotoView`** (same broken-adjacent pattern, though it was already a
+    dedicated full-screen sheet so its pinch-to-zoom did work — it just couldn't pan once zoomed) for
+    the same shared component, deleting the now-dead duplicate — closes the row's own "would benefit
+    from the same viewer" aside for free.
+  - Not locally compiled (no Xcode here). Most likely first things to check on a red compile: the
+    `AttributedString.range(of:)` + `.link`/`.foregroundColor` subscript-attribute pattern in
+    `InsightsView.findingAttributedText` (not used elsewhere in this codebase); the
+    `SimultaneousGesture(pinchGesture, dragGesture)` composition in `ZoomableImageView`; and the
+    `Group { if let ... Button ... else ... }` pattern in `DataQualityCard.row` (mirrors
+    `InsightsCharts.legendRow`'s already-landed shape from `#50`, so lower risk).
+  - `ios/MyCoffee/Sources/{Features/Insights/{InsightsView,InsightsCharts,InsightsFindings,
+    InsightsAggregation,DataQualityCard},Features/Review/ReviewCardView,
+    Features/Coffees/CoffeeDetailView,DesignSystem/ZoomableImageView}.swift`
+  - Commit: `8cbeb5c` (merge) + one follow-up commit on `ios-staging` (see `git log`)
+
 - [2026-08-14 UTC, later session] 50 Insights charts: per-label average rating + tap-to-filter — branch `ios-staging`
   - Picked up as the only `ready` `ios-ux` row (the no-op check right below this entry ran before
     Radu's `#50` landed on `origin/main`/was merged in here). Its `needs` (`#46`) was already
