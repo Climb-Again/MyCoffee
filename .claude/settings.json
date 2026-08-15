@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ops/start-extraction-batch.sh)",
+      "Bash(ops/start-extraction-batch.sh:*)",
+      "Bash(./ops/start-extraction-batch.sh)",
+      "Bash(./ops/start-extraction-batch.sh:*)",
+      "Bash(bash ops/start-extraction-batch.sh)",
+      "Bash(bash ops/start-extraction-batch.sh:*)"
+    ]
+  }
+}
