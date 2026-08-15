@@ -4,7 +4,55 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-15 18:40 UTC] #60 Add Hong Kong to roaster countries — branch `main`
+_none_
+
+## 2026-08-15 UTC (later session still, second follow-up): #60 — add Hong Kong to roaster countries
+
+Only `ready` backend row this cycle (filed by Radu the same day, phase 6, no
+`needs`). `git branch -r --list 'origin/claude/*'` showed only this session's
+own branch — nothing stranded to adopt.
+
+**`backend/migrations/021_add_hong_kong_roaster_country.sql`** (new) — same
+shape as `017_add_switzerland_roaster_country.sql`: `INSERT INTO countries
+(name, iso2, is_origin, is_roaster, kind) VALUES ('Hong Kong','HK',false,true,
+'country') ON CONFLICT (name) DO NOTHING;`. Roaster-only (Hong Kong roasts,
+doesn't grow coffee) — `is_origin` false, `is_roaster` true.
+
+`cd backend && npm ci && npm test` — **252/252 green**, matching #56's
+landing count exactly, no drift (this row needed no test changes — it's a
+pure data migration, no code path to unit-test).
+
+**Verified end-to-end against a real local Postgres 16** (started the
+sandbox's local cluster, fresh `mycoffee_test60` DB, ran `node src/migrate.js`
+against the full chain): all 21 migrations (001→021) applied clean.
+`SELECT id, name, iso2, is_origin, is_roaster, kind FROM countries WHERE
+name='Hong Kong'` → `id 51, iso2 HK, is_origin f, is_roaster t, kind
+country` — exactly as specified. Re-ran `node src/migrate.js` a second time
+against the same DB to confirm idempotency: `up to date, 0 applied`, country
+count for `'Hong Kong'` still `1` (the `ON CONFLICT (name) DO NOTHING` holds).
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 13 jobs, all `done`/`paused`,
+**none `running`** — safe to push `backend/**` per the hard rule.
+
+Pushed straight to `origin/main` (fast-forward `d84804e..aaec93e`; this
+session's own `claude/confident-cerf-tumacs` branch carries the same commit,
+so it isn't orphaned). Watched `railway-deploy.yml` run `31901891985` to
+completion via the GitHub Actions API — **`completed success`**.
+
+**Live-verified in production** — the row's own "verify Hong Kong appears in
+the roaster-country picker" ask: the iOS roaster-country picker's vocab comes
+from `GET /api/snapshot`'s `vocab.countries` (not `/api/config`, which is only
+a small self-diagnostic with no vocab — checked `routes/config.js` directly
+to confirm this before guessing at the wrong endpoint). `GET /api/snapshot`
+against production now returns `{"id":51,"name":"Hong Kong","iso2":"HK",
+"is_origin":false,"is_roaster":true,"kind":"country"}` in `vocab.countries` —
+confirms the row's ask end-to-end, not just via the local-Postgres
+reproduction above.
+
+Flipped `#60` → `done` in `BACKLOG.md`. No row's `needs` references `60`, so
+nothing else unblocks — this is a standalone vocab addition, no schema/API
+shape change (the client already consumes `vocab.countries`, unchanged).
 
 ## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
 
