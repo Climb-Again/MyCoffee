@@ -29,7 +29,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-_none_
+- [2026-08-15 00:00 UTC] #48(b) caption-city override for roaster country (durable rule) — branch `main`
 
 ## 2026-08-09 UTC: session check — no ready row this cycle
 
