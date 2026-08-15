@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-15 20:00 UTC] #56 listing search doesn't hit full text — populate `search_labels_blob`/`search_prose_blob` — branch `claude/confident-cerf-4pqkin`
 
 ## 2026-08-15 UTC (later session): #51 — wire the caption-city roaster-country override into `worker.js`
 
