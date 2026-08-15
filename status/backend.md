@@ -4,7 +4,100 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-15 20:00 UTC] #56 listing search doesn't hit full text — populate `search_labels_blob`/`search_prose_blob` — branch `claude/confident-cerf-4pqkin`
+_none_
+
+## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
+
+Only `ready` backend row this cycle (filed by Radu himself the same day, phase
+6, no `needs`). Live-checked the row's own claim before touching code:
+`GET /api/snapshot/text` on production returned 120 coffees, **0 non-empty
+blobs** — confirmed, not assumed.
+
+**Root cause exactly as diagnosed**: `009_search.sql` declared
+`search_labels_blob`/`search_prose_blob` (+ the generated `search_tsv`), and
+`GET /api/snapshot/text` (`routes/coffees.js`) has always read them — but no
+code anywhere ever wrote them, so every row sat at its `''` default forever.
+
+**`src/lib/worker.js`**:
+- `buildSearchBlobs(coffee, ctx)` (new, pure) — takes the coffee's resolved
+  column values (`roaster_id`, `roaster_country_id`, `origin_country_ids`,
+  `origin_farm_id`, `profile_id`, `profile_detail`, `raw_title`/`raw_caption`/
+  `raw_description`) and `ctx.vocab` (already-loaded countries/roasters/farms
+  candidates, same shape `buildCoffeeColumnUpdates` already consumes) plus a
+  new `ctx.profileNameById` map, and returns `{labelsBlob, proseBlob}`, both
+  run through `normalize.js`'s `foldDiacritics` (data-owned, imported not
+  edited) per the migration's own "blobs are pre-folded" comment. Labels =
+  roaster name + roaster country name + every origin country name + farm name
+  + profile name + `profile_detail` (all `.filter(Boolean)`'d, so an
+  unresolved id is skipped rather than stringifying to `"undefined"`). Prose =
+  `raw_title`+`raw_caption`+`raw_description` (no separate OCR text field
+  exists beyond what already lands in `raw_caption`/`raw_description` via
+  `photo_texts`).
+- `refreshSearchBlobs(coffeeId, ctx)` (new, DB-touching) — re-SELECTs the
+  coffee row **after** `buildCoffeeColumnUpdates`'s UPDATE has landed (so a
+  save that only touches e.g. `weight_g` still reflects whatever
+  roaster/origin/farm was already on the row, not just this call's own
+  resolutions), builds the blobs, writes them in one more UPDATE.
+- `applyResolutionsToCoffee` now calls `refreshSearchBlobs` right after its
+  existing column UPDATE and before `finalizeCoffeeStatus`. This is the single
+  call site both of the row's two asks route through: the adjudication path
+  (`adjudicateAndApply`) **and** `routes/coffees.js`'s generic per-field edit
+  endpoint (#40) both already call `applyResolutionsToCoffee` — no separate
+  wiring needed in `routes/coffees.js` itself, one shared fix covers both.
+- `loadSharedContext()` now also selects `name` from `profiles` (previously
+  only `id, slug`) and exposes `profileNameById` alongside the existing
+  `profileIdBySlug`, so `buildSearchBlobs` can turn a `profile_id` back into a
+  display name like "Washed"/"Experimental".
+- `rebuildAllSearchBlobs()` (new, exported) — the row's own "add a one-time
+  backfill" ask: loads shared vocab once, then calls `refreshSearchBlobs` for
+  every non-deleted coffee. Deliberately scoped to just the two blob columns
+  rather than reusing `readjudicateAll()` (which would also re-run full
+  adjudication and could touch unrelated fields) — narrower, faster, and
+  can't have any side effect beyond the two columns this row is about.
+
+**`src/routes/admin.js`**: `POST /api/admin/rebuild-search-blobs`
+(ingest-token-gated, same tier as every other admin mutation) calls
+`rebuildAllSearchBlobs()` and returns `{updated}`.
+
+**8 new `worker.test.js` cases** (252/252 green, up from 245): `buildSearchBlobs`
+folding every label source + `profile_detail` together, prose joining with
+diacritic-folding (a real Romanian caption fixture — "Prăjitorie"/"Panamá" →
+"Prajitorie"/"Panama"), an unresolved id or missing vocab entry producing an
+empty string rather than a stringified `undefined`, and a completely-empty
+coffee/ctx producing empty blobs rather than throwing.
+
+**Live-reproduced against a real local Postgres 16** (fresh `mycoffee_test56`
+DB, migrations 001→020 applied clean, all clean — no migration errors):
+- Inserted a coffee via `upsertCoffeeBase` with a Romanian raw caption/
+  description, then ran `applyResolutionsToCoffee` resolving `roaster_id` +
+  `origin_country_ids`. Blobs were empty beforehand (confirms the bug
+  reproduces locally, not just in production) and came back non-empty and
+  correctly folded afterward: `search_labels_blob` = `"Roastlab coffee
+  roasters Ethiopia"`, `search_prose_blob` = `"Test title Cafea din Panama,
+  prajitorie deosebita Prajitorie: Test"` (diacritics folded). The generated
+  `search_tsv` computed correctly too — labels-derived lexemes carry weight
+  `A` (`'roastlab':1A 'coffee':2A 'roasters':3A 'ethiopia':4A`), prose-derived
+  ones the default weight, confirming `009_search.sql`'s `setweight` ranking
+  actually engages now that the blobs are non-empty.
+- Seeded a **second** coffee directly via SQL (bypassing the worker path
+  entirely) with real `roaster_id`/`origin_country_ids` but empty blobs —
+  simulating one of the 120 already-extracted production rows. Confirmed its
+  blobs were empty pre-backfill, then ran `rebuildAllSearchBlobs()` and
+  confirmed both populated correctly (`"Roastlab coffee roasters Ethiopia"` /
+  `"Old title Cafea veche"`) — proves the backfill path independently of the
+  live-write path.
+
+`cd backend && npm ci && npm test` — **252/252 green**.
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 12 jobs, all `done`/`paused`, **none
+`running`** — safe to push `backend/**` per the hard rule. Also confirmed the
+bug live on production before pushing the fix: `GET /api/snapshot/text` → 120
+coffees, 0 non-empty blobs, exactly matching the row's own claim.
+
+Flipped `#56` → `done` in `BACKLOG.md`. No row's `needs` references `56`, so
+nothing else unblocks — this is a search-quality fix, not a schema/API-shape
+change (the client already consumes `GET /api/snapshot/text`, unchanged).
 
 ## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
 
