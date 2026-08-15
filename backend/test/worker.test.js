@@ -163,6 +163,67 @@ test('buildCoffeeColumnUpdates: roaster_id also denormalizes the roaster\'s coun
   assert.deepEqual(values, [1, 5]);
 });
 
+test('buildCoffeeColumnUpdates: #51 a caption-stated roaster country beats the vocab-derived one', () => {
+  // The Uncommon UK/NL bug (#48a/#48b): the vocab guessed UK (country 5, per
+  // vocabCtx's roaster fixture), but the caption itself says "Olanda"
+  // (Netherlands, id 35) -- that should win.
+  const ctx = {
+    ...vocabCtx,
+    vocab: {
+      ...vocabCtx.vocab,
+      countries: {
+        candidates: [
+          { id: 5, name: 'United Kingdom', is_roaster: true },
+          { id: 35, name: 'Netherlands', is_roaster: true },
+        ],
+        aliasIndex: new Map([['olanda', { id: 35, alias: 'Olanda' }]]),
+      },
+    },
+    rawText: 'Prajitorie: Uncommon (Amsterdam, Olanda)',
+  };
+  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'accepted', value: 1 } }, ctx);
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 35]);
+});
+
+test('buildCoffeeColumnUpdates: #51 falls back to the vocab-derived roaster country when the caption says nothing', () => {
+  const ctx = {
+    ...vocabCtx,
+    vocab: {
+      ...vocabCtx.vocab,
+      countries: { candidates: [{ id: 5, name: 'United Kingdom', is_roaster: true }], aliasIndex: new Map() },
+    },
+    rawText: 'a caption that never names the roaster\'s own country',
+  };
+  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'accepted', value: 1 } }, ctx);
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 5]);
+});
+
+test('buildCoffeeColumnUpdates: #51 an ambiguous caption (two distinct roaster countries) also falls back to the vocab-derived one', () => {
+  const ctx = {
+    ...vocabCtx,
+    vocab: {
+      ...vocabCtx.vocab,
+      countries: {
+        candidates: [
+          { id: 5, name: 'United Kingdom', is_roaster: true },
+          { id: 35, name: 'Netherlands', is_roaster: true },
+          { id: 40, name: 'Czech Republic', is_roaster: true },
+        ],
+        aliasIndex: new Map([
+          ['olanda', { id: 35, alias: 'Olanda' }],
+          ['cehia', { id: 40, alias: 'Cehia' }],
+        ]),
+      },
+    },
+    rawText: 'Roasted somewhere between Olanda and Cehia, not sure which',
+  };
+  const { sets, values } = buildCoffeeColumnUpdates({ roaster_id: { decision: 'accepted', value: 1 } }, ctx);
+  assert.deepEqual(sets, ['roaster_id = $1', 'roaster_country_id = $2']);
+  assert.deepEqual(values, [1, 5]);
+});
+
 test('buildCoffeeColumnUpdates: roaster_country_id can be set directly, without a roaster_id edit', () => {
   // The generic edit endpoint (PLAN.md §12 #40) can edit the roaster's country
   // on its own, unlike normal extraction where it's only ever a side effect
