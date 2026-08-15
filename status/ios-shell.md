@@ -8,6 +8,23 @@ _none_
 
 ## Done
 
+- [2026-08-15 UTC, later session] Session check — no ready `ios-shell` row. #17/
+  #22/#41/#46 are all `done`; the seam this lane added for #50 on 2026-08-14
+  (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) has since been fully consumed
+  by ios-ux — #50/#53/#54/#55 all landed `done` on `origin/ios-staging` before
+  this session started (`348b8cc`, `8cbeb5c`, `06dd1aa`), confirmed by reading
+  `Sources/Store/CoffeeStore.swift` and `Features/Root/RootTabView.swift`
+  directly rather than trusting `BACKLOG.md`'s text alone. Only `ready` rows in
+  the whole backlog are `#29` (data), `#57`/`#58` (ios-ux) — none name a
+  shell-owned gap (`#57` even flags persistence as a *possible* cross-lane
+  pull into shell, but only if Radu opts into that over the default
+  view-only scope, which hasn't happened). Checked `git branch -r --list
+  'origin/claude/*'`: only this session's own fresh branch exists, 0 commits
+  ahead of `ios-staging` in any owned path — nothing stranded to adopt. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts — backend's #51/#56
+  session-check and code commits) before stopping. Stopping cleanly rather
+  than inventing work or touching UX-owned paths.
+
 - [2026-08-15 UTC] Session check — no ready `ios-shell` row. Only rows tagged
   `ios-shell` are #17/#22/#41/#46, all `done`. Both `ready` rows this cycle,
   #29 (data) and #51 (backend, wiring #48(b)'s caption-city override into
