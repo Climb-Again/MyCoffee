@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-15 07:00 UTC] #51 wire #48(b)'s caption-city roaster-country override into `worker.js` — branch `claude/confident-cerf-9y3vqr`
 
 ## 2026-08-15 UTC: session check — no ready row this cycle
 
