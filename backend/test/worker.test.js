@@ -8,7 +8,7 @@
 // is fully unit-tested here without any DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeInputSha, isDueForExtraction, buildCoffeeColumnUpdates } from '../src/lib/worker.js';
+import { computeInputSha, isDueForExtraction, buildCoffeeColumnUpdates, buildSearchBlobs } from '../src/lib/worker.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
   const opts = {
@@ -296,4 +296,59 @@ test('buildCoffeeColumnUpdates: altitude writes both min and max', () => {
   );
   assert.deepEqual(sets, ['altitude_min_m = $1', 'altitude_max_m = $2']);
   assert.deepEqual(values, [1300, 1600]);
+});
+
+// #56 -- search_labels_blob/search_prose_blob were declared in 009_search.sql
+// but nothing ever wrote them.
+const searchCtx = {
+  vocab: {
+    roasters: { candidates: [{ id: 1, name: 'DAK' }] },
+    countries: {
+      candidates: [
+        { id: 5, name: 'Netherlands' },
+        { id: 10, name: 'Ethiopia' },
+        { id: 11, name: 'Panamá' },
+      ],
+    },
+    farms: { candidates: [{ id: 7, name: 'Finca El Diamante' }] },
+  },
+  profileNameById: new Map([[2, 'Washed']]),
+};
+
+test('buildSearchBlobs: labels blob folds in roaster, roaster country, every origin, farm, profile name + detail', () => {
+  const { labelsBlob } = buildSearchBlobs(
+    {
+      roaster_id: 1,
+      roaster_country_id: 5,
+      origin_country_ids: [10, 11],
+      origin_farm_id: 7,
+      profile_id: 2,
+      profile_detail: 'Yellow Honey',
+    },
+    searchCtx,
+  );
+  assert.equal(labelsBlob, 'DAK Netherlands Ethiopia Panama Finca El Diamante Washed Yellow Honey');
+});
+
+test('buildSearchBlobs: prose blob joins raw title/caption/description, diacritic-folded', () => {
+  const { proseBlob } = buildSearchBlobs(
+    { raw_title: 'Prăjitorie Uncommon', raw_caption: 'Cafea din Panamá', raw_description: null },
+    searchCtx,
+  );
+  assert.equal(proseBlob, 'Prajitorie Uncommon Cafea din Panama');
+});
+
+test('buildSearchBlobs: an unresolved id or missing vocab entry is skipped, not "undefined"', () => {
+  const { labelsBlob, proseBlob } = buildSearchBlobs(
+    { roaster_id: 999, origin_country_ids: [], raw_title: null, raw_caption: null, raw_description: null },
+    searchCtx,
+  );
+  assert.equal(labelsBlob, '');
+  assert.equal(proseBlob, '');
+});
+
+test('buildSearchBlobs: a coffee with nothing resolved yet produces empty blobs, not a crash', () => {
+  const { labelsBlob, proseBlob } = buildSearchBlobs({}, {});
+  assert.equal(labelsBlob, '');
+  assert.equal(proseBlob, '');
 });
