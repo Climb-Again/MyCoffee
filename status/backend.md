@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-15 18:40 UTC] #60 Add Hong Kong to roaster countries — branch `main`
 
 ## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
 
