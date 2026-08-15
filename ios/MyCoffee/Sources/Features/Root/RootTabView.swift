@@ -9,16 +9,19 @@ struct RootTabView: View {
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
 
     var body: some View {
-        TabView {
+        TabView(selection: $store.selectedTab) {
             CoffeesListView()
                 .tabItem { Label("Coffees", systemImage: Symbols.tabCoffees) }
+                .tag(RootTab.coffees)
 
             InsightsView()
                 .tabItem { Label("Insights", systemImage: Symbols.tabInsights) }
+                .tag(RootTab.insights)
 
             ReviewQueueView()
                 .tabItem { Label("Review", systemImage: Symbols.tabReview) }
                 .badge(store.reviewQueueCount)
+                .tag(RootTab.review)
         }
         .environmentObject(store)
         .task {

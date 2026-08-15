@@ -182,15 +182,19 @@ private struct ReviewChip: View {
     }
 }
 
-/// Pinch-zoomable source photo (PLAN.md §6.5's "killer feature": the source
-/// photo the extracted values came from). Loads the signed `thumbUrl` the
-/// review feed now carries; falls back to a placeholder when a row has no
-/// photo URL (or while it's loading), staying zoomable in both states.
+/// Full-screen-zoomable source photo (PLAN.md §6.5's "killer feature": the
+/// source photo the extracted values came from). Loads the signed `thumbUrl`
+/// the review feed now carries; falls back to a placeholder when a row has
+/// no photo URL (or while it's loading). Tapping the photo (or the zoom
+/// icon, now a real button) opens `ZoomableImageView` full-screen — the
+/// in-card pinch/double-tap this replaced never actually worked: the
+/// enclosing scroll view's own drag recognizer swallowed the pinch, and even
+/// when it fired, `.scaleEffect` inside the card's fixed 260pt frame had no
+/// way to pan the zoomed-in region into view (PLAN.md §13/#55).
 private struct ReviewPhoto: View {
     let urlString: String?
 
-    @State private var scale: CGFloat = 1
-    @State private var lastScale: CGFloat = 1
+    @State private var showFullScreen = false
 
     var body: some View {
         ZStack {
@@ -212,22 +216,22 @@ private struct ReviewPhoto: View {
         }
         .frame(height: 260)
         .frame(maxWidth: .infinity)
-        .scaleEffect(scale)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .gesture(
-            MagnificationGesture()
-                .onChanged { value in scale = max(1, min(4, lastScale * value)) }
-                .onEnded { _ in lastScale = scale }
-        )
-        .onTapGesture(count: 2) {
-            withAnimation { scale = 1; lastScale = 1 }
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { showFullScreen = true }
         .overlay(alignment: .bottomTrailing) {
-            Image(systemName: Symbols.reviewZoom)
-                .font(.caption)
-                .padding(8)
-                .background(.thinMaterial, in: Circle())
-                .padding(10)
+            Button {
+                showFullScreen = true
+            } label: {
+                Image(systemName: Symbols.reviewZoom)
+                    .font(.caption)
+                    .padding(8)
+                    .background(.thinMaterial, in: Circle())
+            }
+            .padding(10)
+        }
+        .fullScreenCover(isPresented: $showFullScreen) {
+            ZoomableImageView(urlString: urlString)
         }
     }
 

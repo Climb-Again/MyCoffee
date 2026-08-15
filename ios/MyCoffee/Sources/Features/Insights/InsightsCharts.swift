@@ -36,23 +36,27 @@ enum ChartPalette {
     }
 }
 
-/// One slice of a category pie. `averageRating` is the mean rating among the
-/// rated coffees in this slice (`nil` when none are rated) — surfaced in the
-/// legend next to the count so every breakdown reads "how many" *and* "how
-/// good" at a glance (Radu's ask).
+/// One slice of a category pie. `key` is `nil` for the aggregate "Other"
+/// bucket, which doesn't correspond to a single filterable value and so isn't
+/// tappable. `averageRating` is `nil` when the slice has no rated coffees.
 struct PieSlice: Identifiable {
     let label: String
     let count: Int
-    var averageRating: Double?
+    let key: FacetKey?
+    let averageRating: Double?
     var id: String { label }
 }
 
 /// A donut/pie breakdown of one filterable dimension (origin, roaster, process,
-/// price band, year, …) with a wrapped legend showing each slice's count.
-/// Colors are pinned by label so the same category keeps its hue.
+/// price band, year, …) with a wrapped legend showing each slice's count and
+/// average rating. Colors are pinned by label so the same category keeps its
+/// hue. Tapping a legend label deep-links to the Coffees listing filtered to
+/// that value (PLAN.md §13/#50) — `onSelect` is nil-able so previews/tests can
+/// render a non-interactive chart.
 struct CategoryPieChart: View {
     let title: String
     let slices: [PieSlice]
+    var onSelect: ((FacetKey) -> Void)?
 
     private var scale: (domain: [String], range: [Color]) {
         ChartPalette.scale(for: slices.map(\.label))
@@ -89,15 +93,28 @@ struct CategoryPieChart: View {
         let colors = Dictionary(uniqueKeysWithValues: zip(scale.domain, scale.range))
         return WrapLayout() {
             ForEach(slices) { slice in
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(colors[slice.label] ?? .gray)
-                        .frame(width: 9, height: 9)
-                    Text(legendText(for: slice))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.trailing, 4)
+                legendRow(slice, color: colors[slice.label] ?? .gray)
+            }
+        }
+    }
+
+    private func legendRow(_ slice: PieSlice, color: Color) -> some View {
+        let content = HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 9, height: 9)
+            Text(legendText(for: slice))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.trailing, 4)
+
+        return Group {
+            if let key = slice.key, let onSelect {
+                Button { onSelect(key) } label: { content }
+                    .buttonStyle(.plain)
+            } else {
+                content
             }
         }
     }
@@ -106,8 +123,8 @@ struct CategoryPieChart: View {
     /// no rated coffees (e.g. the "Other" bucket, or an all-unrated category).
     private func legendText(for slice: PieSlice) -> String {
         var text = "\(slice.label) · \(slice.count)"
-        if let average = slice.averageRating {
-            text += " · ★\(String(format: "%.1f", average))"
+        if let averageRating = slice.averageRating {
+            text += " · ★\(String(format: "%.1f", averageRating))"
         }
         return text
     }

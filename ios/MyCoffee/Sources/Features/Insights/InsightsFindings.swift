@@ -2,10 +2,23 @@ import Foundation
 
 /// One gated, plain-language correlation sentence (PLAN.md §6.4). Always
 /// states its `n`; never a p-value; ordered by `effectSize` (never shown).
+/// `subject`/`subjectText` are only set for categorical findings, which have
+/// one discrete filterable value — an ordinal finding ("Higher altitude
+/// tends toward...") has no single value to deep-link to, so both stay nil.
 struct InsightsFinding: Identifiable {
     let id = UUID()
     let text: String
+    let subjectText: String?
+    let subject: FindingSubject?
     let effectSize: Double
+}
+
+/// The filterable value a finding's subject phrase deep-links to (PLAN.md
+/// §13/#53) — the same `(dimension, key)` shape `InsightsView.selectInCoffees`
+/// already consumes for the Charts tab's tap-to-filter (#50).
+struct FindingSubject: Hashable {
+    let dimension: FilterDimension
+    let key: FacetKey
 }
 
 /// Builds the capped, effect-size-ordered finding list. Every comparison
@@ -20,7 +33,7 @@ enum InsightsFindings {
 
         var findings: [InsightsFinding] = []
 
-        func addCategorical(subject: String, isIn: (Coffee) -> Bool) {
+        func addCategorical(subject: String, filterSubject: FindingSubject? = nil, isIn: (Coffee) -> Bool) {
             let group = scored.filter { isIn($0.coffee) }.map(\.value)
             let outGroup = scored.filter { !isIn($0.coffee) }.map(\.value)
             guard let (delta, groupN, outN) = InsightsStats.categoricalDelta(group: group, outGroup: outGroup) else { return }
@@ -28,23 +41,37 @@ enum InsightsFindings {
             let magnitude = String(format: "%.2f", abs(delta))
             findings.append(InsightsFinding(
                 text: "\(subject) tend to rate \(direction) than the rest — by \(magnitude)\(unit) (n=\(groupN) vs \(outN)).",
+                subjectText: filterSubject != nil ? subject : nil,
+                subject: filterSubject,
                 effectSize: abs(delta)
             ))
         }
 
         for profile in Profile.allCases {
-            addCategorical(subject: "\(profile.displayName) coffees") { $0.profile == profile }
+            addCategorical(
+                subject: "\(profile.displayName) coffees",
+                filterSubject: FindingSubject(dimension: .profile, key: .profile(profile))
+            ) { $0.profile == profile }
         }
-        addCategorical(subject: "Decaf coffees") { $0.isDecaf }
+        addCategorical(
+            subject: "Decaf coffees",
+            filterSubject: FindingSubject(dimension: .decaf, key: .bool(true))
+        ) { $0.isDecaf }
 
         for countryID in Set(scored.compactMap(\.coffee.originCountryId)) {
             guard let country = vocabulary.countries[countryID] else { continue }
-            addCategorical(subject: "\(country.name) origin coffees") { $0.originCountryId == countryID }
+            addCategorical(
+                subject: "\(country.name) origin coffees",
+                filterSubject: FindingSubject(dimension: .originCountry, key: .vocabID(countryID))
+            ) { $0.originCountryId == countryID }
         }
 
         for countryID in Set(scored.compactMap(\.coffee.roasterCountryId)) {
             guard let country = vocabulary.countries[countryID] else { continue }
-            addCategorical(subject: "Roasters from \(country.name)") { $0.roasterCountryId == countryID }
+            addCategorical(
+                subject: "Roasters from \(country.name)",
+                filterSubject: FindingSubject(dimension: .roasterCountry, key: .vocabID(countryID))
+            ) { $0.roasterCountryId == countryID }
         }
 
         // Capped to the 15 best-represented roasters — with n ≥ 5 already
@@ -56,7 +83,10 @@ enum InsightsFindings {
         let topRoasterIDs = roasterCounts.sorted { $0.value > $1.value }.prefix(15).map(\.key)
         for roasterID in topRoasterIDs {
             guard let roaster = vocabulary.roasters[roasterID] else { continue }
-            addCategorical(subject: roaster.name) { $0.roasterId == roasterID }
+            addCategorical(
+                subject: roaster.name,
+                filterSubject: FindingSubject(dimension: .roaster, key: .vocabID(roasterID))
+            ) { $0.roasterId == roasterID }
         }
 
         func addOrdinal(subject: String, x: (Coffee) -> Double?) {
@@ -67,6 +97,8 @@ enum InsightsFindings {
             let direction = rho > 0 ? "higher" : "lower"
             findings.append(InsightsFinding(
                 text: "\(subject) tends toward \(direction) ratings (ρ = \(String(format: "%.2f", rho)), n=\(n)).",
+                subjectText: nil,
+                subject: nil,
                 effectSize: abs(rho)
             ))
         }

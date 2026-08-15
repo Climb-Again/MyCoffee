@@ -8,6 +8,157 @@ _none_
 
 ## Session notes
 
+- [2026-08-15 UTC, later session] Integrated #50 with the off-lane #52 redesign, then landed #53/#54/#55 — branch `ios-staging`
+  - **Integration, not new scope, came first.** Merging `origin/main` into `ios-staging` conflicted in
+    `Features/Insights/{InsightsCharts,InsightsView}.swift` — both branches had edited the same files
+    off the same parent commit (`5b23df7`): this lane's own `#50` (tap-to-filter + per-label average,
+    `348b8cc`, on `ios-staging`) and `#52` (the Insights 3-tab/time-window redesign, `85d6911`,
+    **committed directly to `main`, never through `ios-staging`** — a real instance of the exact
+    "commits bypass the dev branch" footgun `CLAUDE.md` §12 already warns about, just in the
+    `main`-instead-of-`claude/*` direction this time). `status/BACKLOG.md`'s own copy on `main`
+    still showed `#50` `ready` (unaware `348b8cc` had landed on `ios-staging`); `ios-staging`'s copy
+    had no idea `#52` existed at all. Resolved by keeping `#52`'s windowed 3-tab structure (it's
+    what's live in production/TestFlight) and re-threading `#50`'s `PieSlice.key`/`onSelect` tap
+    wiring through the windowed `chartsSection` and `slices(for:facets:)`; kept `#52`'s "Other
+    carries no average" decision over `#50`'s own draft weighted-average variant, since `#52` is the
+    already-shipped behavior and the row didn't ask for an Other average, just per-label + tap.
+    `RootTabView`'s `TabView(selection:)` wiring and `FilterSheetView`'s new `(.decaf, .bool)` case
+    (both part of `#50`) survived the merge untouched — neither conflicted with `#52`. Flipped `#50`
+    to `done` (it always was, just not visible from `main`'s stale copy), `#51`/`#52` to their
+    already-true `done`, in `status/BACKLOG.md`. Pushed the merge (`8cbeb5c`) before writing any new
+    code, per the integrate-before-you-start rule.
+  - **53 (findings deep-link)**: `InsightsFinding` gained `subjectText`/`subject: FindingSubject?`
+    (a `dimension`+`FacetKey` pair), populated only for categorical findings (profile, decaf, origin
+    country, roaster country, roaster) — ordinal findings (altitude/price/year) have no single
+    filterable value, so both stay `nil` and those sentences render as plain text. The view builds
+    an `AttributedString` per finding and marks just the `subjectText` span with a `.link` attribute
+    (a synthetic `mycoffee-finding://<finding-id>` URL) rather than splitting the sentence into
+    separate `Text`/`Button` views — that would have broken natural line-wrapping mid-sentence. An
+    `.environment(\.openURL, OpenURLAction { ... })` on `findingsSection` intercepts taps on that
+    scheme, looks the finding up by id, and calls the same `selectInCoffees(dimension:key:)` `#50`
+    already built for the Charts tab's legends — no new deep-link mechanism, straight reuse.
+  - **54 (data-quality deep-link)**: `InsightsAggregation.DataQualityField` gained
+    `dimension: FilterDimension?` — set for the six fields with a real Unknown facet (Rating,
+    Process, Origin country, Roaster country, Altitude, Price), left `nil` for Weight (not a listing
+    facet at all — the row's own called-out exception). `DataQualityCard` wraps a row in a `Button`
+    only when `dimension != nil`; the rest render as plain, non-interactive text exactly as before.
+    New `InsightsView.selectUnknownInCoffees(dimension:)` builds a fresh `CoffeeFilter` with just
+    that dimension's Unknown bucket selected (not layered onto whatever filter was already active,
+    same "replaces" semantics as `#50`/`#53`) and switches to Coffees.
+  - **55 (review photo zoom)**: confirmed the row's own diagnosis by reading `ReviewCardView.swift`
+    directly — the zoom icon really was a decorative `.overlay`, not a `Button`; the only tap gesture
+    was `.onTapGesture(count: 2)` which *resets* scale rather than zooming; the `MagnificationGesture`
+    really was nested inside the card's scrolling content, where the enclosing `ScrollView`'s own
+    drag recognizer competes for the gesture. New `DesignSystem/ZoomableImageView.swift`: a shared
+    full-screen viewer (`MagnificationGesture` for pinch, double-tap to zoom in/out, a `DragGesture`
+    gated on `scale > 1` for pan, both combined via `SimultaneousGesture` so pinch-then-drag doesn't
+    fight itself, bounded 1×–5×, black background, real `Button` ✕ to dismiss), presented via
+    `.fullScreenCover` instead of embedded in the scrolling card — sidesteps the gesture-competition
+    problem entirely rather than trying to win it. `ReviewPhoto` now opens it from either the photo
+    tap or the (now-real-`Button`) zoom icon. **Also swapped `CoffeeDetailView.swift`'s
+    near-identical private `FullPhotoView`** (same broken-adjacent pattern, though it was already a
+    dedicated full-screen sheet so its pinch-to-zoom did work — it just couldn't pan once zoomed) for
+    the same shared component, deleting the now-dead duplicate — closes the row's own "would benefit
+    from the same viewer" aside for free.
+  - Not locally compiled (no Xcode here). Most likely first things to check on a red compile: the
+    `AttributedString.range(of:)` + `.link`/`.foregroundColor` subscript-attribute pattern in
+    `InsightsView.findingAttributedText` (not used elsewhere in this codebase); the
+    `SimultaneousGesture(pinchGesture, dragGesture)` composition in `ZoomableImageView`; and the
+    `Group { if let ... Button ... else ... }` pattern in `DataQualityCard.row` (mirrors
+    `InsightsCharts.legendRow`'s already-landed shape from `#50`, so lower risk).
+  - `ios/MyCoffee/Sources/{Features/Insights/{InsightsView,InsightsCharts,InsightsFindings,
+    InsightsAggregation,DataQualityCard},Features/Review/ReviewCardView,
+    Features/Coffees/CoffeeDetailView,DesignSystem/ZoomableImageView}.swift`
+  - Commit: `8cbeb5c` (merge) + one follow-up commit on `ios-staging` (see `git log`)
+
+- [2026-08-14 UTC, later session] 50 Insights charts: per-label average rating + tap-to-filter — branch `ios-staging`
+  - Picked up as the only `ready` `ios-ux` row (the no-op check right below this entry ran before
+    Radu's `#50` landed on `origin/main`/was merged in here). Its `needs` (`#46`) was already
+    `done`; the seam it flagged for ios-shell (`CoffeeStore.selectedTab`/`RootTab`) had also
+    already landed the same day (`47f2934`) — confirmed by reading `Sources/Store/CoffeeStore.swift`
+    directly rather than trusting the row text alone, per the integrate-before-you-start rule.
+    `git branch -r --list 'origin/claude/*'` showed only this session's own branch — nothing else
+    stranded to adopt.
+  - **(a) Per-label average rating**: `PieSlice` (`Features/Insights/InsightsCharts.swift`) gained
+    `key: FacetKey?` (`nil` only for the synthetic "Other" slice) and `averageRating: Double?`.
+    `InsightsView.slices(for:facets:)` threads both straight from `FacetCounts.Entry` — no new
+    computation needed, the facet layer already carries `averageRating` (same value the filter
+    sheet's pills already show). Legend rows now render `Label · N · ★X.X` via a small
+    `legendText(for:)` helper, omitting the `★` segment entirely when `averageRating` is `nil`
+    (unrated slice) — same "missing fields omit their row" convention as everywhere else, applied
+    at the segment level here. The "Other" bucket's average is a count-weighted mean over only its
+    *rated* sub-entries (`weightedAverageRating`) so a pile of unrated overflow values can't drag
+    it toward 0 — an overflow bucket that's, say, 80% unrated coffees at ★4.5 now still shows
+    ★4.5, not ★0.9.
+  - **(b) Tap-to-filter**: each legend row with a non-nil `key` is wrapped in a `Button`
+    (`.buttonStyle(.plain)`, so it doesn't inherit accent-color tinting); "Other" stays plain text
+    since it doesn't correspond to one filterable value. `CategoryPieChart` takes an optional
+    `onSelect: ((FacetKey) -> Void)?` (nil-able so a future preview/test can render a
+    non-interactive chart without wiring a handler). `InsightsView.selectInCoffees(dimension:key:)`
+    builds a **fresh** `CoffeeFilter()` and calls the existing `toggleFacet(_:dimension:in:)`
+    helper (already shared from `FilterSheetView.swift`) to set exactly that one value — starting
+    from empty rather than layering onto whatever filter was already active, matching the row's
+    "replaces the whole filter" framing (same semantics as the top filter cards' `.replacing`).
+    Then sets `store.filter` and `store.selectedTab = .coffees` in one call. The Unknown slice
+    works for free: `toggleFacet`'s existing `(_, .unknown)` case already flips
+    `unknownDimensions`, exactly the row's own ask.
+  - **One real gap found and closed, not just threaded through**: `.decaf` is one of
+    `InsightsView.pieDimensions` (already rendering a pie before this row), but
+    `toggleFacet`/`isFacetSelected` (`FilterSheetView.swift`) had no `(.decaf, .bool)` case — dead
+    code until now, because the filter sheet always special-cases decaf as a segmented
+    `DecafRow` control and never routes it through the generic per-dimension pill loop. Without
+    this case, tapping the decaf legend in Insights would have silently no-opped (`default: break`
+    on toggle, `default: false` on selected-check). Added both cases so decaf deep-links exactly
+    like every other dimension; verified this is additive only — the filter sheet's own decaf UI
+    never calls either function, so no existing behavior changes.
+  - **`RootTabView.swift`**: `TabView(selection: $store.selectedTab)` + a `.tag(RootTab.*)` per
+    tab, the wiring half of the seam ios-shell's row explicitly left for this lane. No other
+    behavior change — `store.reviewQueueCount` badge, `.environmentObject`, and the two `.task`
+    blocks are untouched.
+  - Not locally compiled (no Xcode here) — if the next compile check goes red, the two most likely
+    spots are `legendRow`'s `Group { if let ... { Button ... } else { content } }` pattern (not
+    used elsewhere in this codebase — a local `content` view value built once and referenced from
+    both branches) and the two new `(.decaf, .bool(...))` switch cases in `FilterSheetView.swift`.
+  - `ios/MyCoffee/Sources/Features/{Insights/{InsightsView,InsightsCharts},Coffees/FilterSheetView,
+    Root/RootTabView}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-14 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
+  `ios-ux`-tagged row (`18/27/28/37/42/47`) is still `done`; no new `ios-ux`
+  row has appeared since `#47`. The only rows touched this cycle were
+  backend's `#49` (retract a stale `coffees` column on re-adjudication —
+  landed and verified live) and data's `#39`/`#48(b)` — none in this lane's
+  owned paths. Swept `git branch -r --list 'origin/claude/*'` — only
+  `origin/claude/hopeful-johnson-mu7ff6` exists (this session's own assigned
+  branch, 0 commits ahead of `main` under `Sources/Features`,
+  `Sources/DesignSystem`, or `Resources`), so nothing stranded to adopt.
+  Merged `origin/main` into `ios-staging` (two conflicts: `status/BACKLOG.md`
+  row `#49` — HEAD's stale `ready` copy vs. `main`'s newer `done` writeup,
+  kept `main`'s; `status/backend.md` — HEAD's side was empty at that spot,
+  `main` had the full `#49` session writeup, kept it whole). Stopping cleanly
+  per the lane's documented no-op behaviour; no feature code changed.
+
+- [2026-08-13 UTC, later session] No-op session. `status/BACKLOG.md`: every
+  `ios-ux`-tagged row (`#18/#27/#28/#37/#42/#47`) is `done`; the only `ready`
+  rows (`#29`/`#39`/`#48`) are all `data`-lane. Merged `origin/main` into
+  `ios-staging` (clean, no conflicts — picked up backend/publish status-note
+  additions, no code). Swept `git branch -r --list 'origin/claude/*'` (87
+  branches, up from prior sweeps) via `git rev-list --count
+  ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` — 51 non-zero
+  hits, a much larger set than any prior sweep. Spot-checked a representative
+  sample across every distinct branch-name family (`determined-thompson-*`,
+  `confident-cerf-*`, `peaceful-mccarthy-*`, `hopeful-johnson-*`,
+  `wizardly-thompson-*`, `relaxed-thompson-*`) with `git diff --stat`: every
+  one is a **net-negative diff** against current `ios-staging` (e.g. "140
+  insertions, 3069 deletions"), including deleting `Features/WhatsNew/
+  WhatsNewView.swift` — i.e. every one of these branches forked *before* the
+  current state (pre-#47, several pre-#37/#42) and has nothing to contribute;
+  same "stale pre-current fork" shape every prior sweep in this file has
+  already documented, just at higher branch count. Nothing stranded to adopt.
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-13 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: every
   `ios-ux`-tagged row is `done` (`18/27/28/37/42/47`) — `#37`/`#42`/`#47` were
   already landed in prior sessions and merely stale on `main`'s copy of the

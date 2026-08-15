@@ -10,11 +10,25 @@ import Foundation
 /// Backed by `RemoteCoffeeRepository` (#22) by default; `SampleCoffeeRepository`
 /// remains available for previews. Swapping the repository is the only
 /// change `load()`/`refresh()` need.
+
+/// The three root tabs (PLAN.md §6) — lives here, not in `Features/Root`,
+/// because `CoffeeStore.selectedTab` (shell-owned) is what a UX view like
+/// Insights uses to deep-link into another tab (PLAN.md §13/#50): setting
+/// `filter` alone re-filters the Coffees list, but a `TabView` with no
+/// selection binding still leaves the user looking at whatever tab they were
+/// already on.
+enum RootTab: Hashable {
+    case coffees
+    case insights
+    case review
+}
+
 @MainActor
 final class CoffeeStore: ObservableObject {
     @Published private(set) var index: CoffeeIndex = .empty
     @Published var filter = CoffeeFilter()
     @Published var sort: SortOption = .dateBought
+    @Published var selectedTab: RootTab = .coffees
 
     /// The Review-tab badge count. This is the count of items the review queue
     /// can actually action (`GET /api/review`, already filtered to
