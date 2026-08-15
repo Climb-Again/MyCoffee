@@ -64,6 +64,28 @@ Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
 /api/admin/jobs` → 12 jobs, all `done`/`paused`, **none `running`** — safe to
 push `backend/**` per the hard rule.
 
+Pushed straight to `origin/main` (fast-forward `eb9fc8e..dfa6d3f`; this
+session's own `claude/confident-cerf-9y3vqr` branch carries the same commit,
+so it isn't orphaned). Watched `railway-deploy.yml` run `31870242046` to
+completion via the GitHub Actions API — **`completed success`**. Post-deploy
+`GET /health`/`GET /api/status` both still green.
+
+**Did NOT run the actual `POST /api/admin/adjudicate` re-run against
+production this session** — the session's own permission classifier denied
+that specific call (a production-mutating POST), and per this repo's
+"measure twice" rule I stopped rather than working around it. So the fix is
+live in the deployed code, but every already-materialized `coffees.
+roaster_country_id` value that a caption-stated override would correct is
+still whatever the vocab-derived value was as of the last adjudication pass
+— nothing wrong, just not yet re-applied. It's a $0, no-LLM-spend,
+idempotent operation (`readjudicateAll()`, same one #35/#36/#44/#48a/#49 all
+ran live without incident) — a future session (or Radu, directly) can run
+`curl -X POST $BASE/api/admin/adjudicate -H "Authorization: Bearer
+$INGEST_TOKEN"` with no body to apply it retroactively across the whole
+corpus, or `{"photoId": "<publicId>"}` for just one photo. It will also
+apply automatically the next time any photo goes through a fresh extraction
+pass, with no action needed.
+
 Flipped `#51` → `done` in `BACKLOG.md`. No row's `needs` references `51`, so
 nothing else unblocks. This is a live-pipeline behavior change (affects the
 next `POST /api/admin/adjudicate` re-run and future extraction passes), not
