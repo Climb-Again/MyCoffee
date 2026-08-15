@@ -6,6 +6,32 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-15 UTC: session check — no ready row this cycle
+
+This session's branch (`claude/confident-cerf-t1flso`) started already at
+`origin/main`'s tip (`b48f5ae` — the immediately-preceding session's own
+"no ready row" note). No fast-forward needed.
+
+All backend-tagged `BACKLOG.md` rows are still `done`. The only `ready` rows
+are `#29`/`#48(b)` (data-owned) and `#50` (ios-ux, needs `#46`, already done).
+Nothing backend-tagged to pick up.
+
+`git branch -r --list 'origin/claude/*'` — 1 result (this session's own
+branch only). Nothing stranded to integrate.
+
+Ran `cd backend && npm ci && npm test` — **238/238 green**, matching the
+last check exactly, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`. `GET
+/api/admin/jobs` → 12 jobs (unchanged); **none `running`** — safe to push
+`backend/**` this session, though there was no code to push. `GET
+/api/review?limit=200` → **57** open items, unchanged from the last check —
+no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-14 UTC (later session still, second follow-up check): session check — no ready row this cycle
 
 This session's branch (`claude/confident-cerf-j8in2k`) started already at
