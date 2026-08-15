@@ -95,6 +95,20 @@ Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
 bug live on production before pushing the fix: `GET /api/snapshot/text` → 120
 coffees, 0 non-empty blobs, exactly matching the row's own claim.
 
+Pushed straight to `origin/main` (fast-forward `002c7b5..3a95d3e`). Watched
+`railway-deploy.yml` run `31885457608` to completion via the GitHub Actions
+API — **`completed success`**. Post-deploy: `GET /health`/`GET /api/status`
+both still green, `GET /api/admin/jobs` still shows none `running`.
+
+Ran the new backfill against **production**: `POST
+/api/admin/rebuild-search-blobs` → `{"updated":120}`. Re-checked `GET
+/api/snapshot/text` immediately after: **120 coffees, 120 non-empty
+blobs** (up from 0), e.g. `"Public Coffee Roasters Germany Panama Elida
+Estate Farm Washed"` for one real coffee — roaster, roaster country, origin
+country, farm, and profile name all present and correctly space-joined. This
+closes the row's "add a one-time backfill" ask against the real 120-coffee
+corpus, not just the local-Postgres reproduction above.
+
 Flipped `#56` → `done` in `BACKLOG.md`. No row's `needs` references `56`, so
 nothing else unblocks — this is a search-quality fix, not a schema/API-shape
 change (the client already consumes `GET /api/snapshot/text`, unchanged).
@@ -1744,6 +1758,7 @@ that isn't actually mergeable from here.
 
 ## Done
 
+- [2026-08-15 UTC] #56 populate search_labels_blob/search_prose_blob — `3a95d3e`
 - [2026-08-04 UTC] #24 — Migrations `010_extractions`/`011_resolutions` (extractions,
   field_candidates, field_resolutions, review_items, extraction_jobs, plus a
   lease pair on `photos`) + `src/lib/adjudicate.js` (the pure
