@@ -8,6 +8,29 @@ _none_
 
 ## Done
 
+- [2026-08-15 UTC] Session check — no ready `ios-shell` row. Only rows tagged
+  `ios-shell` are #17/#22/#41/#46, all `done`. Both `ready` rows this cycle,
+  #29 (data) and #51 (backend, wiring #48(b)'s caption-city override into
+  `worker.js`), are outside this lane's owned paths. #50 (ios-ux)'s shell seam
+  (`CoffeeStore.selectedTab`/`RootTab`) is already landed (`47f2934`) and
+  already consumed by ios-ux's own #50 commit (`348b8cc`) — verified by
+  reading `Sources/Store/CoffeeStore.swift` directly, not just the row text.
+  `ios-staging` and `main` had diverged the usual way (this lane's #50 seam
+  landed on `ios-staging` while data's #48(b)/#51 landed on `main`, neither
+  branch aware of the other) — merged `origin/main` into `ios-staging`
+  (`96e3f24`, clean auto-merge, no conflicts) to reconcile `status/BACKLOG.md`
+  and pick up #48(b)/#51. Re-swept all 92 `origin/claude/*` branches for
+  stranded work in this lane's owned paths per the integrate-before-you-start
+  rule: 68 candidates show nonzero commits ahead, but every naming cluster
+  sampled (`confident-cerf-*`, `determined-thompson-*`, `peaceful-mccarthy-*`,
+  `hopeful-johnson-*`, `modest-newton-*`, plus the long-known
+  `coffee-app-plan-9jdh0c`/`new-app-infrastructure-setup-h3r3wz`/
+  `wizardly-thompson-0g9i90`) diffs as a **net deletion** against current
+  `ios-staging` — pre-#42/#46-era snapshots missing `MutationOutbox`/
+  `SyncEngine`/`RemoteCoffeeRepository` work that's since landed, not new work
+  to adopt. Nothing stranded. Stopping cleanly rather than inventing work or
+  touching UX/backend/data-owned paths.
+
 - [2026-08-14 UTC] Seam for #50 (ios-ux) — `CoffeeStore.selectedTab` — branch `ios-staging`
   - No `ios-shell`-tagged row was `ready` this cycle (`#29`/`#48` are data-owned). But `#50`
     (ios-ux, ready, needs 46 — done) explicitly names a gap in a shell-owned file: tapping an
