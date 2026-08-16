@@ -110,6 +110,17 @@ test('buildRequestBody() honours thinkingBudget, including 0 (thinking off)', ()
   assert.equal('thinkingConfig' in omitted.generationConfig, false);
 });
 
+test('buildRequestBody() attaches billing labels when given, omits the key when empty', () => {
+  const withLabels = buildRequestBody({ prompt: 'x', labels: { app: 'mycoffee', agent: 'extract_a' } });
+  assert.deepEqual(withLabels.labels, { app: 'mycoffee', agent: 'extract_a' });
+
+  const noLabels = buildRequestBody({ prompt: 'x' });
+  assert.equal('labels' in noLabels, false);
+
+  const emptyLabels = buildRequestBody({ prompt: 'x', labels: {} });
+  assert.equal('labels' in emptyLabels, false);
+});
+
 test('buildRequestBody() keeps maxOutputTokens/temperature overridable', () => {
   const body = buildRequestBody({ prompt: 'x', maxOutputTokens: 16384, temperature: 0 });
   assert.equal(body.generationConfig.maxOutputTokens, 16384);

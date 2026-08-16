@@ -117,6 +117,10 @@ export function isConfigured() {
  *   `src/lib/normalize.js`; enums are enforceable and should be used.
  * @param {number} [opts.thinkingBudget] - 0 disables thinking (a cost lever for
  *   the flash extractor); omit to use the model default.
+ * @param {Object<string,string>} [opts.labels] - billing labels propagated to
+ *   the Vertex billing export (e.g. `{ app: 'mycoffee', agent: 'extract_a' }`).
+ *   Omitted from the body when empty. Keys/values must be lowercase
+ *   letters/digits/`-`/`_`.
  * @returns {object}
  */
 export function buildRequestBody({
@@ -128,6 +132,7 @@ export function buildRequestBody({
   json = false,
   responseSchema,
   thinkingBudget,
+  labels,
 } = {}) {
   const parts = [
     { text: prompt },
@@ -145,6 +150,7 @@ export function buildRequestBody({
       ...(responseSchema ? { responseSchema } : {}),
       ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
     },
+    ...(labels && Object.keys(labels).length ? { labels } : {}),
   };
   if (system) {
     body.systemInstruction = { parts: [{ text: system }] };
@@ -190,13 +196,20 @@ export async function generateContent(opts = {}) {
   // "The model does not support setting thinking_budget to 0", failing every
   // photo. The per-voter model was being recorded for bookkeeping but never
   // actually requested.
-  const model = opts.model || config.vertex.model || 'gemini-2.5-pro';
+  const model = opts.model || config.vertex.model || 'gemini-2.5-flash';
+
+  // Billing labels: always stamp `app` (from config) so every call is
+  // attributable in the Vertex billing export, and merge any per-voter labels
+  // the caller passed (e.g. `agent: 'extract_a'`) so cost can be broken down by
+  // voter too. Caller-supplied keys win on collision.
+  const labels = { app: config.vertex.labelApp, ...(opts.labels || {}) };
 
   // Belt and braces: a 2.5-pro model cannot disable thinking at all, so a
   // budget of 0 is a hard 400 rather than a hint. Drop it instead of failing,
   // so a VERTEX_MODEL override can't resurrect that exact outage.
+  const base = { ...opts, labels };
   const effectiveOpts =
-    opts.thinkingBudget === 0 && /pro/i.test(model) ? { ...opts, thinkingBudget: undefined } : opts;
+    base.thinkingBudget === 0 && /pro/i.test(model) ? { ...base, thinkingBudget: undefined } : base;
 
   const url =
     `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}` +
