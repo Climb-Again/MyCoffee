@@ -6,6 +6,89 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-16 UTC (later session): #64 — close out (code already live from a prior session)
+
+Only `ready` backend row this cycle. `git branch -r --list 'origin/claude/*'`
+showed nothing of this row stranded on a scratch branch — but `origin/main`'s
+own history had `52eab3f` ("backend #64: stop the worker looping forever on an
+always-failing photo") already on it, authored by the same stranded session
+that did #61 (`session_01JLFd9wZxpbWRZ959RrcSM3`, co-authored "Claude Opus
+4.8"): it had written, tested, and pushed the fix straight to `main`, but
+never flipped the `BACKLOG.md` row or logged an entry here — identical to the
+exact pattern the #61 close-out (just above) already documented for the same
+session. Confirmed via `mcp__github__actions_list`/`actions_get`: the
+`railway-deploy.yml` run for `52eab3f` (run `31943189056`) completed
+`success` at `2026-08-16T11:04:23Z`.
+
+**What's actually live** (`backend/src/lib/worker.js`,
+`backend/migrations/022_add_extraction_failures.sql`): `photos` gained
+`extraction_failures INT NOT NULL DEFAULT 0`. `claimBatch(limit, {
+includeImages, maxFailures })` now excludes any photo with
+`extraction_failures >= maxFailures` (config `EXTRACTION_MAX_FAILURES`,
+default 3), and — in text-only mode (`includeImages:false`, the daily
+routine's own mode) — no longer claims `awaiting_text` photos at all (no text
+ever arrived, so parsing them is a guaranteed Gemini 400 every time); image
+mode still claims them since an OCR run can read the bag from the photo
+pixels. On a per-photo failure, `runWorker` now increments
+`extraction_failures` in the same write that releases the lease; on success
+it resets the counter to 0. Either half of the fix eventually makes
+`claimBatch` return empty for a batch that's all permanently-failing photos,
+so `runWorker` reaches `no_work` and releases the advisory lock instead of
+spinning forever holding it (today's root cause: an image-only `awaiting_text`
+photo past its `text_wait_until` got re-claimed every round in text-only mode,
+400'd every time, never counted toward `photosDone`, and `claimBatch` never
+went empty).
+
+**Verification this session**: `cd backend && npm ci && npm test` —
+**249/249 green** (matching the fix commit's own count exactly, no drift).
+`claimBatch` is DB-touching and carries no unit coverage (same
+node:test-no-DB convention the rest of `worker.js`'s DB-touching helpers
+follow), so rather than trust the commit message's test count alone, ran a
+live-Postgres reproduction of the actual mechanism: started the sandbox's
+local Postgres 16, fresh `mycoffee_test64` DB, `node src/migrate.js` — the
+full chain (001→023) applied clean. Seeded three photos directly: (a)
+`awaiting_text`, `text_wait_until` an hour in the past (the exact #64
+trigger — image-only, no text, ready to be mis-claimed); (b) `text_received`
+with `extraction_failures = 3` (simulating a photo that's already exhausted
+its retries); (c) `text_received` with `extraction_failures = 0` (the normal
+claimable control). Called `claimBatch(10, { includeImages: false })` (the
+daily routine's own mode) — claimed **only (c)**; both (a) and (b) were
+correctly excluded. Called `claimBatch(10, { includeImages: true })` — claimed
+**(a) and (c)**, still excluding (b) — confirms image mode can still reach an
+`awaiting_text` photo for OCR while the failure-count exclusion applies
+regardless of mode. Both halves of the row's own fix (a) and (b) options are
+confirmed live against a real Postgres, not just asserted by the diff.
+
+**Production live-check**: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`. `GET /api/admin/jobs` → 24 jobs; the two
+prior-session incidents this row itself was filed from (jobs 20/21, both
+`text_received`-mode 400 loops) now pause within ~4–5 minutes instead of
+spinning for 30+ minutes at `photosDone:0` the way jobs 14/15 did pre-fix
+(documented in the #61/#62 close-out above) — consistent with, though not
+conclusive proof of, the fix (something/someone paused them manually rather
+than the worker reaching `no_work` on its own within that window; the direct
+Postgres reproduction above is the load-bearing evidence, this is
+corroborating). Job 23's `paused` state (`Gemini 429`, `RESOURCE_EXHAUSTED`,
+free-tier quota) is an unrelated rate-limit issue, not this bug — noting so
+it isn't mistaken for a regression.
+
+**Could not re-enable the daily extraction routine
+(`trig_01JWhQADZK8RqfP8r9ugXen1`)** that the row said was disabled as
+mitigation — it's an external scheduled-prompt trigger, not a `backend/**`
+code path, and this session's own `CronList` returns nothing (it only manages
+this session's in-memory jobs, unrelated to that trigger). Flagged in
+`BACKLOG.md`'s `#64` row for whoever manages it (Radu) to flip back on now
+that the fix is verified both by direct Postgres reproduction and by
+production behavior.
+
+No `backend/**` code change this session (the fix was already on `main`) — so
+nothing new to push there or gate on the "no job running" rule; only
+`status/BACKLOG.md` and this file changed. Flipped `#64` → `done` in
+`BACKLOG.md`; added an informational note to `#65`'s own row (data-owned,
+stays `human` — not this lane's call to change) that its `#64` blocker is
+cleared. No row's `needs` references `64`, so nothing else formally unblocks.
+
 ## 2026-08-16 UTC: #61 — close out (code already live from a prior session); #62 filed (human) — GCP project spend cap blocks all Vertex calls
 
 `git branch -r --list 'origin/claude/*'` showed nothing of this row stranded;
