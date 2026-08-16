@@ -1,6 +1,7 @@
-// isConfigured() must agree with loadCredentials() about which credential
-// shapes are usable (issue #33) — both the individual GOOGLE_* vars and a
-// full service-account JSON pasted into GOOGLE_PRIVATE_KEY.
+// Since the Gemini Developer API migration (2026-08-16), auth is a single API
+// key (GEMINI_API_KEY / GOOGLE_API_KEY → config.vertex.apiKey), so isConfigured()
+// is just "is the key present". The old service-account credential shapes no
+// longer apply.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config.js';
@@ -8,7 +9,7 @@ import { isConfigured, buildRequestBody, parseResponse } from '../src/vertex.js'
 
 function withVertexConfig(overrides, fn) {
   const original = { ...config.vertex };
-  Object.assign(config.vertex, { projectId: '', serviceAccountEmail: '', privateKey: '' }, overrides);
+  Object.assign(config.vertex, { apiKey: '' }, overrides);
   try {
     return fn();
   } finally {
@@ -16,42 +17,15 @@ function withVertexConfig(overrides, fn) {
   }
 }
 
-test('isConfigured() is false with nothing set', () => {
-  withVertexConfig({}, () => {
+test('isConfigured() is false when no API key is set', () => {
+  withVertexConfig({ apiKey: '' }, () => {
     assert.equal(isConfigured(), false);
   });
 });
 
-test('isConfigured() is true with the three individual GOOGLE_* vars', () => {
-  withVertexConfig(
-    { projectId: 'proj', serviceAccountEmail: 'sa@proj.iam.gserviceaccount.com', privateKey: '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----' },
-    () => {
-      assert.equal(isConfigured(), true);
-    },
-  );
-});
-
-test('isConfigured() is true with a full service-account JSON in GOOGLE_PRIVATE_KEY', () => {
-  const json = JSON.stringify({
-    project_id: 'proj-from-json',
-    client_email: 'sa@proj.iam.gserviceaccount.com',
-    private_key: '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----',
-  });
-  withVertexConfig({ privateKey: json }, () => {
+test('isConfigured() is true when an API key is set', () => {
+  withVertexConfig({ apiKey: 'AIza-test-key' }, () => {
     assert.equal(isConfigured(), true);
-  });
-});
-
-test('isConfigured() is false when the JSON shape is missing private_key', () => {
-  const json = JSON.stringify({ project_id: 'proj', client_email: 'sa@proj.iam.gserviceaccount.com' });
-  withVertexConfig({ privateKey: json }, () => {
-    assert.equal(isConfigured(), false);
-  });
-});
-
-test('isConfigured() is false when only privateKey is set (individual-var shape)', () => {
-  withVertexConfig({ privateKey: '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----' }, () => {
-    assert.equal(isConfigured(), false);
   });
 });
 
@@ -108,17 +82,6 @@ test('buildRequestBody() honours thinkingBudget, including 0 (thinking off)', ()
 
   const omitted = buildRequestBody({ prompt: 'x' });
   assert.equal('thinkingConfig' in omitted.generationConfig, false);
-});
-
-test('buildRequestBody() attaches billing labels when given, omits the key when empty', () => {
-  const withLabels = buildRequestBody({ prompt: 'x', labels: { app: 'mycoffee', agent: 'extract_a' } });
-  assert.deepEqual(withLabels.labels, { app: 'mycoffee', agent: 'extract_a' });
-
-  const noLabels = buildRequestBody({ prompt: 'x' });
-  assert.equal('labels' in noLabels, false);
-
-  const emptyLabels = buildRequestBody({ prompt: 'x', labels: {} });
-  assert.equal('labels' in emptyLabels, false);
 });
 
 test('buildRequestBody() keeps maxOutputTokens/temperature overridable', () => {

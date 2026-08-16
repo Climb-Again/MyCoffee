@@ -72,30 +72,35 @@ export const config = {
   // required env var.
   mediaSigningKey: str('MEDIA_SIGNING_KEY'),
 
+  // Named `vertex` for history; as of 2026-08-16 this targets the **Gemini
+  // Developer API** (Google AI Studio, `generativelanguage.googleapis.com`),
+  // NOT Vertex AI. Migrated off Vertex to escape the GCP-project spend cap that
+  // was refusing every call — the Gemini free tier has no GCP billing. Auth is
+  // a single API key; the old SA vars (GOOGLE_*) are unused now and can be
+  // deleted from the Railway env once this is confirmed live.
   vertex: {
+    // The only credential the Gemini Developer API needs. Set GEMINI_API_KEY
+    // (preferred) or GOOGLE_API_KEY in the runtime env — get one at
+    // https://aistudio.google.com/apikey.
+    apiKey: str('GEMINI_API_KEY') || str('GOOGLE_API_KEY'),
+    // Legacy Vertex service-account fields — read for backward compat / status
+    // reporting only; no longer used to authenticate. Safe to remove from env.
     projectId: str('GOOGLE_PROJECT_ID'),
     serviceAccountEmail: str('GOOGLE_SERVICE_ACCOUNT_EMAIL'),
     privateKey: str('GOOGLE_PRIVATE_KEY'),
     privateKeyId: str('GOOGLE_PRIVATE_KEY_ID'),
     clientId: str('GOOGLE_CLIENT_ID'),
-    region: str('VERTEX_AI_REGION', 'us-central1'),
-    // Default to flash (Radu, 2026-08-15: "move everything to flash"). Flash is
-    // ~4x cheaper on output than 2.5-pro and can disable thinking entirely
-    // (`thinkingBudget: 0`), which pro cannot — and thinking tokens are what
-    // dominated the extraction bill. Every voter also names flash explicitly in
-    // agents.js; this only governs any code path that falls back to the config.
-    model: str('VERTEX_MODEL', 'gemini-2.5-flash'),
-    // Billing label applied to every Vertex generateContent request. Vertex
-    // propagates request `labels` to the billing export, so `app=mycoffee`
-    // lets these costs be grouped/filtered in billing reports (Radu, 2026-08-15).
-    // Label values must be lowercase letters/digits/`-`/`_`.
-    labelApp: str('VERTEX_LABEL_APP', 'mycoffee'),
-    // Hard per-request ceiling. gaxios (via google-auth-library) defaults to NO
-    // timeout, so a request that is never answered hangs the caller forever —
-    // and in the extraction worker that means hanging while holding the
-    // `pg_advisory_lock`, which silently blocks every subsequent job with no
-    // error anywhere. Generous enough for a thinking-heavy 2.5-pro call on an
-    // image (those can run minutes), but finite.
+    // Rolling `-latest` alias, NOT a pinned id: 2026 AI Studio keys 404 on
+    // pinned `gemini-2.5-*` ("no longer available to new users"). Flash is the
+    // right free-tier default — good quality with real RPM/RPD headroom; Pro
+    // 429s on the free tier. Every voter names `gemini-flash-latest` explicitly
+    // in agents.js; this only governs a fallback path.
+    model: str('VERTEX_MODEL', 'gemini-flash-latest'),
+    // Hard per-request ceiling via AbortController. Without it a request that is
+    // never answered hangs the caller forever — and in the extraction worker
+    // that means hanging while holding the `pg_advisory_lock`, which silently
+    // blocks every subsequent job with no error anywhere. Generous enough for a
+    // thinking call, but finite.
     timeoutMs: int('VERTEX_TIMEOUT_MS', 180000),
   },
 

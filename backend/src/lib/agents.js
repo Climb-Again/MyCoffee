@@ -243,6 +243,13 @@ export function parseCriticResponse(text) {
 const MODEL_RATES = {
   'gemini-2.5-pro': { inputPerMTok: 1.25, outputPerMTok: 10 },
   'gemini-2.5-flash': { inputPerMTok: 0.3, outputPerMTok: 2.5 },
+  // Rolling aliases used since the Gemini Developer API migration (2026-08-16).
+  // On the free tier the real charge is $0; these paid-tier rates keep
+  // `spentUsd` a meaningful volume estimate so the per-job `spendCapUsd` guard
+  // still brakes runaway loops even though nothing is billed.
+  'gemini-flash-latest': { inputPerMTok: 0.3, outputPerMTok: 2.5 },
+  'gemini-flash-lite-latest': { inputPerMTok: 0.1, outputPerMTok: 0.4 },
+  'gemini-pro-latest': { inputPerMTok: 1.25, outputPerMTok: 10 },
 };
 
 export function estimateCostUsd(model, usage) {
@@ -257,7 +264,7 @@ export function estimateCostUsd(model, usage) {
 // ---- Network-touching voters ----
 
 export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-flash-latest';
   const { system, prompt } = buildExtractPrompt('extract_a', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
@@ -267,7 +274,6 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
     temperature: 0,
     thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
-    labels: { agent: 'extract_a' },
   });
   return {
     agent: 'extract_a',
@@ -281,7 +287,7 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
 }
 
 export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-flash-latest';
   const { system, prompt } = buildExtractPrompt('extract_b', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
@@ -291,7 +297,6 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
     temperature: 0.4,
     thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
-    labels: { agent: 'extract_b' },
   });
   return {
     agent: 'extract_b',
@@ -308,7 +313,7 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
 // voters' confidence for a field (see `adjudicate.js`'s `criticVerdicts` ctx),
 // not as a `field_candidates` row of its own.
 export async function runCritic({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-flash-latest';
   const { system, prompt } = buildCriticPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
@@ -318,7 +323,6 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
     temperature: 0,
     thinkingBudget: 0,
     responseSchema: CRITIC_RESPONSE_SCHEMA,
-    labels: { agent: 'critic' },
   });
   return {
     agent: 'critic',
@@ -332,7 +336,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
 }
 
 export async function runReconciler({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-flash-latest';
   const { system, prompt } = buildReconcilerPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
@@ -342,7 +346,6 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
     temperature: 0,
     thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
-    labels: { agent: 'reconciler' },
   });
   return {
     agent: 'reconciler',
