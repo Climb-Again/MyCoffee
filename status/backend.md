@@ -6,6 +6,33 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-16 UTC: session check — no ready row this cycle
+
+This session's branch (`claude/confident-cerf-xis3ue`) started already at
+`origin/main`'s tip (`e7280a5` — the prior session's own #60 close-out). No
+fast-forward needed.
+
+All backend-tagged `BACKLOG.md` rows are `done`. The only `ready` rows
+remaining are data-owned (`#29` harden incremental path, `#59` sips EXIF
+orientation root cause) and ios-ux-owned (`#50`(b), `#53`, `#54`, `#55`,
+`#57` needs 59, `#58`) — none backend-tagged.
+
+`git branch -r --list 'origin/claude/*'` — 1 result (this session's own
+branch only). Nothing stranded to integrate.
+
+Ran `cd backend && npm ci && npm test` — **252/252 green**, matching #56/#60's
+landing count exactly, no drift.
+
+Live-verified: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/status` → `vertex:true`, `db:true`. `GET
+/api/admin/jobs` → 13 jobs, all `done`/`paused`, **none `running`** — would
+have been safe to push `backend/**` this session, though there was no code
+to push. `GET /api/review?limit=200` → **2** open items, unchanged from the
+count recorded after #51's live deploy — no regressions.
+
+No code changes this session — stopping cleanly per the work loop (do not
+invent work).
+
 ## 2026-08-15 UTC (later session still, second follow-up): #60 — add Hong Kong to roaster countries
 
 Only `ready` backend row this cycle (filed by Radu the same day, phase 6, no
