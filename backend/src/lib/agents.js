@@ -271,9 +271,7 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'extract_a',
@@ -294,9 +292,7 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
     system,
     prompt,
     images,
-    temperature: 0.4,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0.4,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'extract_b',
@@ -320,9 +316,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: CRITIC_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: CRITIC_RESPONSE_SCHEMA,
   });
   return {
     agent: 'critic',
@@ -343,9 +337,7 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'reconciler',
