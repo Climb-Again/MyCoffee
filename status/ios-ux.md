@@ -4,7 +4,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-16 12:00 UTC] 58 Move the listing search box to the bottom (iOS 26 style) — branch `ios-staging`
 
 ## Session notes
 
