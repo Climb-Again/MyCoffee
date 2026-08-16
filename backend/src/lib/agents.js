@@ -350,6 +350,24 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
   };
 }
 
+// Verbatim OCR transcription of the bag image, appended to the coffee's "Full
+// text" under an "OCR text" heading (Radu). Schema-less plain text — we want the
+// raw words the bag shows, not structured fields — and default thinking (the
+// current Gemini models 400 on thinkingBudget:0). For an image-only photo (no
+// caption/description) this transcription IS the only full text the coffee has.
+export async function runOcrTranscribe({ images } = {}) {
+  const model = 'gemini-flash-lite-latest';
+  const { text, usage } = await generateContent({
+    model,
+    system: 'You transcribe text from photographs of coffee bags.',
+    prompt:
+      'Transcribe ALL text visible on this coffee bag, verbatim, preserving line breaks and the original language(s). Output only the transcription — no commentary, no translation. If no text is legible, output nothing.',
+    images,
+    temperature: 0,
+  });
+  return { agent: 'ocr_transcribe', provider: 'vertex', model, text: text ?? '', usage, costUsd: estimateCostUsd(model, usage) };
+}
+
 // P3 (rules) is the data lane's `src/lib/deterministic.js` (#25) -- pure JS,
 // no network, and per PLAN.md §2 "better than any LLM" on numbers/units/
 // vocab. It doesn't exist yet, so this resolves to `null` and the worker

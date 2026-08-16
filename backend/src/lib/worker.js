@@ -35,7 +35,7 @@ import {
   computeIsBlend,
 } from './vocab.js';
 import { toEur } from './fx.js';
-import { runExtractA, runExtractB, runCritic, runReconciler, loadRulesVoter, PROMPT_VERSION } from './agents.js';
+import { runExtractA, runExtractB, runCritic, runReconciler, runOcrTranscribe, loadRulesVoter, PROMPT_VERSION } from './agents.js';
 
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
@@ -676,12 +676,40 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
 
   const result = await adjudicateAndApply(photo, photoText, sharedCtx);
 
+  // Append a verbatim OCR transcription of the bag to the coffee's Full text
+  // under an "OCR text" heading (Radu). Image mode only — that's when we have a
+  // photo to read — and for an image-only coffee this is its only full text.
+  // Isolated + best-effort: an OCR failure must not fail the whole photo.
+  if (includeImages && image && result?.coffeeId) {
+    try {
+      const ocr = await runOcrTranscribe({ images: [image] });
+      if (!ocr.reused) spentUsd += Number(ocr.costUsd ?? 0);
+      await appendOcrTextToCoffee(result.coffeeId, ocr.text);
+    } catch {
+      // leave the coffee's text as-is; structured fields already applied
+    }
+  }
+
   await query(
     `UPDATE photos SET state = 'processed', extraction_failures = 0, extraction_leased_until = NULL, extraction_leased_by = NULL, updated_at = now() WHERE id = $1`,
     [photo.id],
   );
 
   return { ...result, spentUsd };
+}
+
+// Append the OCR transcription to a coffee's Full text (raw_description) under an
+// "OCR text" heading, once. Idempotent: a re-run that already added the block is
+// a no-op, so re-processing a photo never stacks duplicate transcriptions.
+const OCR_HEADING = 'OCR text';
+async function appendOcrTextToCoffee(coffeeId, ocrText) {
+  const trimmed = (ocrText || '').trim();
+  if (!trimmed) return;
+  const { rows } = await query('SELECT raw_description FROM coffees WHERE id = $1', [coffeeId]);
+  const existing = (rows[0]?.raw_description ?? '').trim();
+  if (existing.includes(`${OCR_HEADING}\n`)) return; // already appended
+  const combined = existing ? `${existing}\n\n${OCR_HEADING}\n${trimmed}` : `${OCR_HEADING}\n${trimmed}`;
+  await query('UPDATE coffees SET raw_description = $1, updated_at = now() WHERE id = $2', [combined, coffeeId]);
 }
 
 // The SIGTERM-safe loop. Guarded by a process-wide advisory lock so a
