@@ -6,6 +6,99 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-16 UTC: #61 — close out (code already live from a prior session); #62 filed (human) — GCP project spend cap blocks all Vertex calls
+
+`git branch -r --list 'origin/claude/*'` showed nothing of this row stranded;
+`origin/main` was already at `5ac265a` when this session's fetch ran (a prior
+session — `session_01JLFd9wZxpbWRZ959RrcSM3`, co-authored "Claude Opus 4.8" —
+had written and pushed the #61 code straight to `main` but never flipped the
+`BACKLOG.md` row or logged a claim/close-out entry here, so the row still read
+`ready` even though the fix was live). No re-coding needed; this session's job
+was to verify and close the loop properly.
+
+**What's actually live** (`backend/src/config.js`, `backend/src/lib/agents.js`,
+`backend/src/vertex.js`, per `5ac265a`'s own commit message): `runExtractA` and
+`runReconciler` moved off `gemini-2.5-pro` to `gemini-2.5-flash` with
+`thinkingBudget:0` — matching `extract_b`/`critic`, which were already flash —
+so no voter can land on pro any more; `config.vertex.model`'s default is now
+`gemini-2.5-flash` too. Every `generateContent` call now also carries a
+`labels` object (`VERTEX_LABEL_APP` → `app=mycoffee`, plus `agent=<voter
+name>` per call site), so Vertex's billing export can group/filter spend by
+label going forward.
+
+**Verification this session**: `cd backend && npm ci && npm test` —
+**253/253 green** (up from 252 at #60's close — the 1 new case is `5ac265a`'s
+own `vertex.test.js` label attach/omit coverage). `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true` — the deploy is live and the auth/db/vertex wiring
+still works post-migration.
+
+**Could not do the row's own "validate before committing the corpus" ask**
+(diff a live 5-photo flash-model batch against the old pro-model output) —
+see the GCP spend-cap block below, which makes *any* live Vertex call fail
+right now, not just a fresh validation batch. Flagged inside #61's own closed
+row rather than silently skipping it.
+
+**Found while checking `GET /api/admin/jobs` for the "no job running" push
+gate**: two jobs stuck in a failure loop —
+
+```
+job 15: status running, spendCapUsd $8, spentUsd 0, photosDone 0,
+        startedAt 06:11:13Z, lastError "photo 172: Spend cap breached for
+        project: projects/663615238938 for service: aiplatform.googleapis.com"
+job 14: status paused (already paused by something/someone before this
+        session), spendCapUsd $1, spentUsd 0, photosDone 0,
+        startedAt 05:59:44Z, lastError "photo 171: Spend cap breached ..."
+```
+
+Re-polled job 15 after a real 32-minute gap (06:11 → 06:43): `lastError`'s
+photo id had only advanced from 171 to 172 — one photo in half an hour,
+`photosDone` still 0, `spentUsd` still 0. Every attempt is failing at the same
+point, slowly, forever (`claimBatch`/`processPhoto`'s per-photo `catch` in
+`worker.js` treats this like any other single-photo error: log it, release
+the lease, move to the next photo — there's no circuit breaker for "every
+photo is failing on the identical non-retryable error", so the job just grinds
+through the whole remaining queue for nothing).
+
+Ran the diagnostic built for exactly this ambiguity — `GET
+/api/admin/vertex-check` (the "reply with pong", no-image, minimal live
+call) — to rule out "the app's own spend accounting is wrong" vs "Vertex
+itself is refusing us": it failed too, immediately (117ms), with the identical
+403:
+
+```json
+{"ok":false,"code":403,"httpStatus":403,
+ "error":"Spend cap breached for project: projects/663615238938 for service: aiplatform.googleapis.com",
+ "detail":"{\"error\":{\"code\":403,...,\"status\":\"PERMISSION_DENIED\"}}"}
+```
+
+**This is a GCP Cloud Billing budget hard cap on the GCP project itself**
+(`projects/663615238938` — the project this app's Vertex AI reuses from
+MyHealthOS, per `CLAUDE.md` §1), not our app's own `spendCapUsd` — two jobs
+with different app-level caps (`$1` and `$8`) hit the *identical* error on
+their very first photo, before a single token could be billed. No code change
+in this repo can lift a GCP-account-level billing cap; it needs Radu (or
+whoever holds the GCP billing console) to raise it, or to confirm it's an
+intentional monthly cap and say when it clears.
+
+**Paused both stuck jobs** (`POST /api/admin/jobs/15/pause` — 14 was already
+paused) to stop the pointless retry loop; this is a reversible, ingest-token
+admin action, not a `backend/**` code push, so it needed no "job running" gate
+of its own. `GET /api/admin/jobs` immediately after confirms both `paused`,
+`spentUsd` still `0` — no money was spent by any of this. Filed **#62** in
+`BACKLOG.md` as `human` (per `status/README.md`'s "set status to human so no
+lane claims it" rule) with the full repro, since no backend lane can act on a
+GCP billing setting. Once Radu lifts it, resuming is a single `POST
+/api/admin/jobs/{14,15}/resume` (or just let the next 06:00 UTC cron fire a
+fresh job) — no code involved.
+
+**No `backend/**` push this session** — no code changed (the code fix was
+already on `main`), so nothing to push there; only `status/BACKLOG.md` and
+this file changed, which don't touch `backend/**` and don't trigger a Railway
+redeploy, so they're safe to push regardless of job state. Flipped `#61` →
+`done` in `BACKLOG.md`; no row's `needs` references `61`, so nothing else
+unblocks. Added `#62` as `human`.
+
 ## 2026-08-15 UTC (later session still, second follow-up): #60 — add Hong Kong to roaster countries
 
 Only `ready` backend row this cycle (filed by Radu the same day, phase 6, no
