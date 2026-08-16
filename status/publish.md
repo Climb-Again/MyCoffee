@@ -111,5 +111,11 @@ _none_
   compile-check run (`31969394595`); dispatched `publish=true` on `main@e094e8a`
   anyway per CLAUDE.md's own note that the workflow's serial concurrency group
   (`cancel-in-progress: false`) queues a publish behind a compile safely, rather
-  than idle-waiting ~15–20 min for the compile check first. Result recorded below
-  once the run completes.
+  than idle-waiting ~15–20 min for the compile check first. Run **`31969422531`**
+  completed **success** in ~2 min — job log confirms `Build & upload to
+  TestFlight` actually ran (80 s, 20:05:08→20:06:28 UTC, not skipped); `Compile
+  check (no upload)` was skipped as expected for a `publish=true` ref. First
+  dispatch this session was green, so the loop's fix-and-retry path was never
+  needed — the only real work this cycle was the ios-staging→main merge itself.
+  Processing (~20 min, async, `skip_waiting_for_build_processing`) unconfirmed —
+  check TestFlight/email.
