@@ -4,9 +4,50 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-16 12:00 UTC] 58 Move the listing search box to the bottom (iOS 26 style) — branch `ios-staging`
+_none_
 
 ## Session notes
+
+- [2026-08-16 UTC] 58 Move the listing search box to the bottom (iOS 26 style) — branch `ios-staging`
+  - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — nothing stranded touching
+    `Sources/Features`/`Sources/DesignSystem`/`Resources`. Merged `origin/main` into `ios-staging`
+    (two conflicts, both in `status/BACKLOG.md`/`status/backend.md` — pure additive session-note
+    entries appended at the same spot on divergent history, same recurring pattern; resolved as a
+    union, kept both). **Also found and fixed a real pre-existing bug while merging**: `BACKLOG.md`
+    carried rows `#56`–`#60` duplicated verbatim (a merge artifact from an earlier reconciliation,
+    not new content) — removed the duplicate copy so a future lowest-number scan doesn't get
+    confused by phantom repeat rows. Re-scanned after dedup: the only `ios-ux` row genuinely `ready`
+    this cycle was `#58` (`#57` lists `needs: 59`, and `#59` — data lane, EXIF-orientation fix — is
+    itself still `ready`, not `done`, so `#57` isn't actually pickable despite its own `ready` status
+    predating that check).
+  - **Root cause**: `RootTabView.swift` built its `TabView` with the legacy `.tabItem`/`.tag()` pair.
+    iOS 26's new bottom-tab-bar-integrated search treatment only applies to tabs declared with the
+    value-based `Tab(_:systemImage:value:)` builder (iOS 18+) — the legacy `.tabItem` form keeps
+    rendering the old top-nav-bar search field regardless of SDK/OS version.
+  - **Fix, gated for the iOS 17.0 deployment target** (`CLAUDE.md` §9 — no post-17 API without
+    `#available`): `RootTabView.swift`'s body now branches `if #available(iOS 18.0, *)` between the
+    modern `Tab("Coffees", systemImage:value:) { CoffeesListView() }` / `Tab("Insights", …)` /
+    `Tab("Review", …) { ReviewQueueView() }.badge(store.reviewQueueCount)` builders, and an `else`
+    branch keeping the original `.tabItem`/`.tag()` structure byte-for-byte as the iOS 17 fallback.
+    `CoffeesListView.swift`'s `.searchable(text: $store.filter.query, prompt:…)` call is untouched —
+    same binding, same prompt — per the row's own "placement only" framing; only the tab declaration
+    it's nested under changed, which is what iOS 26 keys off to relocate the field.
+  - **Flagging, not guessing past it**: the exact trigger for iOS 26's bottom-search placement (does
+    plain `Tab(value:)` + `.searchable` on its content suffice, or does it need an explicit `role:`
+    or placement modifier too?) can't be visually confirmed without a simulator/device — no Xcode in
+    this sandbox. Deliberately did **not** reach for `Tab(role: .search)` — that adds a distinct
+    4th tab-bar affordance, which would break the "three tabs: Coffees/Insights/Review" decision
+    already made (`CLAUDE.md`, `RootTabView`'s own doc comment). If the compile lane's build still
+    renders search at the top on a real device, next thing to check is whether an explicit role/
+    placement modifier is needed — a behavior gap, not a syntax one (the `Tab(...)` initializer
+    itself is real, stable API since iOS 18, so a red compile check here is more likely a typo in
+    my usage than the API not existing).
+  - Not locally compiled (no Xcode here) — flag the compile lane to `RootTabView.swift` first if the
+    next check goes red; the `#available(iOS 18.0, *)`/`Tab(...)` branch is the only unproven-by-
+    precedent piece in this file, everything else (the `.tabItem` fallback, `CoffeesListView`'s
+    unchanged `.searchable` call) mirrors what was already there.
+  - `ios/MyCoffee/Sources/Features/{Root/RootTabView,Coffees/CoffeesListView}.swift`
+  - Commit: (see `git log` on `ios-staging`)
 
 - [2026-08-15 UTC, later session] Integrated #50 with the off-lane #52 redesign, then landed #53/#54/#55 — branch `ios-staging`
   - **Integration, not new scope, came first.** Merging `origin/main` into `ios-staging` conflicted in
