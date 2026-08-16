@@ -8,6 +8,186 @@ _none_
 
 ## Done
 
+- [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
+  in the whole backlog are ios-ux (#50, #53, #54, #55, #57, #58, #66, #68) and
+  data (#29, #67) — #50/#53/#54/#57 each note a possible "seam" surface
+  (`CoffeeStore`/tab-selection/rotation field) this lane might eventually need
+  to add, but none of them is itself an `ios-shell` row yet, so not inventing
+  that work ahead of an actual claim.
+  - **Found and fixed a real problem while merging `origin/main` in**:
+    `ios-staging` hadn't merged `main` since before backend's Vertex→Gemini
+    migration (#61/#64/#65 era) — `git merge-base` showed the two branches'
+    common ancestor was `a3ca39c` (the #55 backlog filing), well behind both
+    tips. Worse, `ios-staging` itself carried two backend commits
+    (`08b6185`/`ed33303`, same "migrate to Gemini Developer API" /
+    "gemini-2.5-flash + billing labels" work as `main`'s `fbe0879`/`5ac265a`)
+    that some prior session pushed to the wrong branch — a lane-boundary
+    violation (`backend/**` is backend-owned, not `ios-shell`'s to touch, and
+    backend pushes to `main` not `ios-staging`). Those stray commits diverged
+    just enough from `main`'s own (further-evolved, e.g. `9b6ffcd`'s
+    retryDelay-body-parsing fix) that `git merge origin/main` produced real
+    content conflicts in `backend/src/{config,vertex}.js` and
+    `backend/src/lib/agents.js`, plus additive conflicts in
+    `status/BACKLOG.md`/`status/backend.md` (duplicated Right-now entries).
+    Resolved by taking `origin/main`'s content wholesale for every
+    backend/data-owned path (`backend/**`, `ops/**`, `status/BACKLOG.md`,
+    `status/backend.md`) — confirmed post-merge the working tree is
+    byte-identical to `origin/main` for all of those paths (`git diff
+    origin/main -- backend/ ops/ status/BACKLOG.md status/backend.md` empty)
+    and that no `ios-shell`-owned path was touched by the merge. Pushed the
+    merge commit (`fc57a67`) to `ios-staging`.
+  - Re-swept all 100 `origin/claude/*` branches for stranded `ios-shell` work
+    per the integrate-before-you-start rule (`git rev-list --count
+    origin/ios-staging..<branch> -- ios-shell-owned paths`): 44 candidates
+    show a nonzero count, but every one checked by actual diff content
+    (`determined-thompson-*` ×24 identical net-deletion pattern,
+    `peaceful-mccarthy-*` ×6, `wizardly-thompson-{0g9i90,eurlj6}`,
+    `hopeful-johnson-{3xcwg7,bdpy3r,icvqmr}`, plus the long-known
+    `coffee-app-plan-9jdh0c`/`new-app-infrastructure-setup-h3r3wz`/
+    `relaxed-thompson-ceai5p`/`modest-newton-oxaddt`/
+    `mycoffee-publish-autopilot-rv8cve`/`lanes-status-blockers-wws2lc`) is a
+    pure net-deletion against current `ios-staging` — stale pre-#22/#41/#46
+    snapshots, same pattern every prior sweep has found. Nothing stranded to
+    adopt. Stopping cleanly rather than inventing work or touching
+    UX-owned paths.
+
+- [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The #50 cross-tab seam
+  (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) is confirmed fully consumed —
+  #50/#52/#53/#54/#55 are all `done` on `origin/ios-staging`. `#57` (ios-ux,
+  ready, "persisted rotate photo") names a shell piece (`CoffeeImage`/detail
+  model field + API surface for a per-photo `rotation_quarter_turns`), but it
+  depends on a backend column + write endpoint + snapshot field that don't
+  exist yet — no backend row is even filed for that half — so there is nothing
+  concrete for this lane to build against yet; picking a wire shape blind would
+  just be guessing. `#58` (ios-ux, search-bar placement) and `#59` (data, EXIF
+  fix) are outside this lane's owned paths.
+  - **Found and fixed a real data-integrity bug while merging `origin/main` in**:
+    the merge duplicated the entire `#56`–`#59` table block (two copies of
+    `#56`/`#58`/the dup-note, and two different versions of `#57` — an older
+    "view-only, scope question for Radu" row and the newer "persistence
+    required" row that supersedes it after Radu's follow-up directive). Git's
+    line-based merge didn't recognize the two `#57` texts as the same logical
+    row, so it kept both instead of replacing. Deduped by removing the stale
+    block and keeping the newer `#57` (Radu's persistence directive is later
+    and explicit: "I need a permanent fix. So rotate should save."). Verified
+    afterward that every row number 1–60 now appears exactly once in the table.
+  - Swept `git branch -r --list 'origin/claude/*'` (98 candidates after
+    fetching): sampled the highest commit-ahead-count candidates in this
+    lane's owned paths (`confident-cerf-{01kgu0,0ol0nh,r7skfk}`,
+    `relaxed-thompson-uq5f21`, all showing 8 commits ahead) and confirmed by
+    `git diff --stat` they're pure net deletions (296 lines removed, 7 added,
+    against `MutationOutbox`/`SyncEngine`/`RemoteCoffeeRepository`) — stale
+    pre-batch-edit snapshots, same pattern every prior sweep has found.
+    Nothing stranded to adopt.
+  - Merged `origin/main` into `ios-staging`, resolving one additive conflict
+    in `status/backend.md` (backend's own `#60` session-check entry landing
+    independently on each branch — kept both, no factual conflict, same as
+    prior sessions' precedent for this exact file).
+  - Stopping cleanly rather than inventing work or touching UX/backend/data-owned paths.
+
+- [2026-08-15 UTC, later session] Session check — no ready `ios-shell` row. #17/
+  #22/#41/#46 are all `done`; the seam this lane added for #50 on 2026-08-14
+  (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) has since been fully consumed
+  by ios-ux — #50/#53/#54/#55 all landed `done` on `origin/ios-staging` before
+  this session started (`348b8cc`, `8cbeb5c`, `06dd1aa`), confirmed by reading
+  `Sources/Store/CoffeeStore.swift` and `Features/Root/RootTabView.swift`
+  directly rather than trusting `BACKLOG.md`'s text alone. Only `ready` rows in
+  the whole backlog are `#29` (data), `#57`/`#58` (ios-ux) — none name a
+  shell-owned gap (`#57` even flags persistence as a *possible* cross-lane
+  pull into shell, but only if Radu opts into that over the default
+  view-only scope, which hasn't happened). Checked `git branch -r --list
+  'origin/claude/*'`: only this session's own fresh branch exists, 0 commits
+  ahead of `ios-staging` in any owned path — nothing stranded to adopt. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts — backend's #51/#56
+  session-check and code commits) before stopping. Stopping cleanly rather
+  than inventing work or touching UX-owned paths.
+
+- [2026-08-15 UTC] Session check — no ready `ios-shell` row. Only rows tagged
+  `ios-shell` are #17/#22/#41/#46, all `done`. Both `ready` rows this cycle,
+  #29 (data) and #51 (backend, wiring #48(b)'s caption-city override into
+  `worker.js`), are outside this lane's owned paths. #50 (ios-ux)'s shell seam
+  (`CoffeeStore.selectedTab`/`RootTab`) is already landed (`47f2934`) and
+  already consumed by ios-ux's own #50 commit (`348b8cc`) — verified by
+  reading `Sources/Store/CoffeeStore.swift` directly, not just the row text.
+  `ios-staging` and `main` had diverged the usual way (this lane's #50 seam
+  landed on `ios-staging` while data's #48(b)/#51 landed on `main`, neither
+  branch aware of the other) — merged `origin/main` into `ios-staging`
+  (`96e3f24`, clean auto-merge, no conflicts) to reconcile `status/BACKLOG.md`
+  and pick up #48(b)/#51. Re-swept all 92 `origin/claude/*` branches for
+  stranded work in this lane's owned paths per the integrate-before-you-start
+  rule: 68 candidates show nonzero commits ahead, but every naming cluster
+  sampled (`confident-cerf-*`, `determined-thompson-*`, `peaceful-mccarthy-*`,
+  `hopeful-johnson-*`, `modest-newton-*`, plus the long-known
+  `coffee-app-plan-9jdh0c`/`new-app-infrastructure-setup-h3r3wz`/
+  `wizardly-thompson-0g9i90`) diffs as a **net deletion** against current
+  `ios-staging` — pre-#42/#46-era snapshots missing `MutationOutbox`/
+  `SyncEngine`/`RemoteCoffeeRepository` work that's since landed, not new work
+  to adopt. Nothing stranded. Stopping cleanly rather than inventing work or
+  touching UX/backend/data-owned paths.
+
+- [2026-08-14 UTC] Seam for #50 (ios-ux) — `CoffeeStore.selectedTab` — branch `ios-staging`
+  - No `ios-shell`-tagged row was `ready` this cycle (`#29`/`#48` are data-owned). But `#50`
+    (ios-ux, ready, needs 46 — done) explicitly names a gap in a shell-owned file: tapping an
+    Insights legend label needs to both set `CoffeeStore.filter` (already writable — no shell
+    work needed there) *and* switch `RootTabView`'s active tab to Coffees, and there is
+    currently no tab-selection surface at all — `RootTabView.swift`'s `TabView` has no
+    `selection:` binding. The row's own text asks shell to claim this seam if a surface has
+    to be added; picked it up instead of stopping on a no-op session, same precedent as the
+    2026-08-06/08-11 entries below (`loadBrief()`, `editCoffeeFields`).
+  - Added `enum RootTab { case coffees, insights, review }` + `@Published var selectedTab:
+    RootTab = .coffees` to `Sources/Store/CoffeeStore.swift`, next to `filter`/`sort` (same
+    seam pattern the file's own doc comment describes — shell publishes, UX consumes).
+  - **UX lane: wiring, not new plumbing.** `RootTabView.swift`'s `TabView` needs a `selection:
+    $store.selectedTab` binding plus a `.tag(RootTab.x)` on each of the three tab views; the
+    Insights tap handler for #50(b) then sets `store.filter`/`unknownDimensions` and
+    `store.selectedTab = .coffees` in the same action. Not making this change myself —
+    `Features/Root/**` and `Features/Insights/**` are UX-owned.
+  - No `BACKLOG.md` row number for this (not new scope, just unblocking a flagged seam in an
+    already-owned file) — left `#50`'s own row text as the pointer, per the "no invented
+    scope" convention this file already follows.
+  - Not locally compiled (no Xcode here) — a 9-line addition (one enum, one `@Published`
+    property) to a file that already compiles, so a red compile check here would be a typo.
+  - `ios/MyCoffee/Sources/Store/CoffeeStore.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-14 UTC] Session check — no ready `ios-shell` row. Only rows tagged
+  `ios-shell` are #17/#22/#41/#46, all `done`. All `ready` rows this cycle are
+  data-owned (#29, #48(b)) or backend-owned (#49) — nothing in
+  `Sources/{App,Store,API,Models,Query,Utilities}` or `project.yml` to pick up.
+  Checked `git branch -r --list 'origin/claude/*'` per the
+  integrate-before-you-start rule: only stranded branch is this session's own
+  (`claude/wizardly-thompson-1bgub6`), 0 commits ahead of `ios-staging` in any
+  owned path — nothing to adopt. Merged `origin/main` into `ios-staging`
+  (`e09c928`) to pick up backend's #39/#49 and data's #48(a) — resolved one
+  additive conflict in `status/backend.md` (two same-day backend session-check
+  entries; kept both) and picked up the accompanying `status/BACKLOG.md`/
+  `status/data.md` changes cleanly. No code changes this session — stopping
+  cleanly per the work loop rather than inventing work.
+
+- [2026-08-13 UTC, later session] Session check — no ready `ios-shell` row.
+  Only rows tagged `ios-shell` are #17/#22/#41/#46, all `done`. Found `main`
+  had moved strictly ahead of `ios-staging` since the earlier session today —
+  `git merge-base origin/main origin/ios-staging` equaled `origin/ios-staging`'s
+  own tip, i.e. `main` had already merged `ios-staging` in and then added data
+  lane commits on top (`#48(a)` migration `015_fix_uncommon_roaster_country.sql`,
+  a new AppIcon, `status/BACKLOG.md`/`status/backend.md` updates) — the opposite
+  direction from the usual "ios-staging is stale" case, so checked
+  `git merge-base`/`git rev-parse` explicitly rather than assuming which side
+  needed the merge. `git merge origin/main` into `ios-staging` was a clean
+  fast-forward (`14b0e34..fb86696`), no conflicts. Post-merge, the only `ready`
+  rows in `BACKLOG.md` are `#29`/`#48`/`#39`, all `data`-tagged — confirmed none
+  are `ios-shell`. Re-swept all 85 `origin/claude/*` branches per the
+  integrate-before-you-start rule: 44 show nonzero commits ahead in this lane's
+  owned paths, but every one sampled (`determined-thompson-*`, `confident-cerf-*`,
+  `peaceful-mccarthy-*`, `hopeful-johnson-*`, `wizardly-thompson-*`, plus the
+  known scaffolding branches) diffs as a large net deletion (e.g. `33 files
+  changed, 1 insertion(+), 2746 deletions(-)`) against current `ios-staging` —
+  stale pre-#22/#41 snapshots, not new work. Nothing stranded to adopt. Pushed
+  the fast-forward merge to `ios-staging`. Stopping cleanly rather than
+  inventing work or touching UX-owned paths.
+
 - [2026-08-13 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46 are all
   `done` (this session's own designated branch had a stale copy of `status/BACKLOG.md`
   showing #41/#46 as `ready` — checking out `origin/ios-staging` directly showed both

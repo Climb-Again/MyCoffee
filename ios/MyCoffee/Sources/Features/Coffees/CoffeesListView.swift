@@ -47,6 +47,9 @@ struct CoffeesListView: View {
                 }
             }
             .listStyle(.plain)
+            // Placement itself is set by `RootTabView`'s `Tab(value:)` builder
+            // (#58) — on iOS 26 that docks this field near the bottom tab bar
+            // instead of the top nav bar; the binding/prompt are unchanged.
             .searchable(text: $store.filter.query, prompt: "Search coffees, roasters, farms")
             .navigationTitle("Coffees")
             .navigationDestination(for: String.self) { coffeeID in
