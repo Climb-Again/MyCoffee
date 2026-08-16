@@ -264,7 +264,7 @@ export function estimateCostUsd(model, usage) {
 // ---- Network-touching voters ----
 
 export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildExtractPrompt('extract_a', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
@@ -287,7 +287,7 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
 }
 
 export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildExtractPrompt('extract_b', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
@@ -313,7 +313,7 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
 // voters' confidence for a field (see `adjudicate.js`'s `criticVerdicts` ctx),
 // not as a `field_candidates` row of its own.
 export async function runCritic({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildCriticPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
@@ -336,7 +336,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
 }
 
 export async function runReconciler({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildReconcilerPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,

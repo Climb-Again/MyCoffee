@@ -91,11 +91,13 @@ export const config = {
     privateKeyId: str('GOOGLE_PRIVATE_KEY_ID'),
     clientId: str('GOOGLE_CLIENT_ID'),
     // Rolling `-latest` alias, NOT a pinned id: 2026 AI Studio keys 404 on
-    // pinned `gemini-2.5-*` ("no longer available to new users"). Flash is the
-    // right free-tier default — good quality with real RPM/RPD headroom; Pro
-    // 429s on the free tier. Every voter names `gemini-flash-latest` explicitly
-    // in agents.js; this only governs a fallback path.
-    model: str('VERTEX_MODEL', 'gemini-flash-latest'),
+    // pinned `gemini-2.5-*` ("no longer available to new users"). Using
+    // `gemini-flash-lite-latest`: the plain `gemini-flash-latest` alias resolves
+    // to `gemini-3.7-flash`, whose free tier is only ~20 requests/day — far too
+    // little for the 4-calls-per-photo backfill. Flash-Lite has much higher free
+    // daily headroom (Radu, 2026-08-16). Every voter names it explicitly in
+    // agents.js; this only governs a fallback path.
+    model: str('VERTEX_MODEL', 'gemini-flash-lite-latest'),
     // Hard per-request ceiling via AbortController. Without it a request that is
     // never answered hangs the caller forever — and in the extraction worker
     // that means hanging while holding the `pg_advisory_lock`, which silently
