@@ -95,3 +95,21 @@ _none_
   "First build" section that still described the first `publish=true` dispatch as
   pending, several ships after run #14 proved it. Processing (~20 min, async,
   `skip_waiting_for_build_processing`) unconfirmed — check TestFlight/email.
+
+- **2026-08-16 (autopilot session, Sun cron) — merged real unmerged `ios-staging`
+  work into `main` before shipping (CLAUDE.md §5 step 3), not just a docs-only
+  session check this time.** `git diff origin/main..origin/ios-staging --stat`
+  showed substantial real code: `ZoomableImageView.swift` (new), `CoffeeDetailView`,
+  `CoffeesListView`, `FilterSheetView`, `DataQualityCard`, `InsightsAggregation`,
+  `InsightsCharts`, `InsightsFindings`, `InsightsView`, `ReviewCardView`,
+  `RootTabView`, `CoffeeStore` — matches backlog rows **#53/#54/#55** (Insights
+  findings + data-quality deep-links, real full-screen photo zoom), landed on
+  `ios-staging` in `06dd1aa` but never merged to `main`. `ios-staging` itself had
+  already compile-checked green (`31905698072`, 2026-08-15). Merged
+  `origin/ios-staging` into local `main` — clean, no conflicts (`ort` strategy,
+  14 files) — and pushed as `e094e8a`. That push (touches `ios/**`) auto-queued a
+  compile-check run (`31969394595`); dispatched `publish=true` on `main@e094e8a`
+  anyway per CLAUDE.md's own note that the workflow's serial concurrency group
+  (`cancel-in-progress: false`) queues a publish behind a compile safely, rather
+  than idle-waiting ~15–20 min for the compile check first. Result recorded below
+  once the run completes.
