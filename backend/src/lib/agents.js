@@ -257,7 +257,7 @@ export function estimateCostUsd(model, usage) {
 // ---- Network-touching voters ----
 
 export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-2.5-flash';
   const { system, prompt } = buildExtractPrompt('extract_a', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
@@ -265,7 +265,9 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
     prompt,
     images,
     temperature: 0,
+    thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    labels: { agent: 'extract_a' },
   });
   return {
     agent: 'extract_a',
@@ -289,6 +291,7 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
     temperature: 0.4,
     thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    labels: { agent: 'extract_b' },
   });
   return {
     agent: 'extract_b',
@@ -315,6 +318,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
     temperature: 0,
     thinkingBudget: 0,
     responseSchema: CRITIC_RESPONSE_SCHEMA,
+    labels: { agent: 'critic' },
   });
   return {
     agent: 'critic',
@@ -328,7 +332,7 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
 }
 
 export async function runReconciler({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-2.5-flash';
   const { system, prompt } = buildReconcilerPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
@@ -336,7 +340,9 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
     prompt,
     images,
     temperature: 0,
+    thinkingBudget: 0,
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    labels: { agent: 'reconciler' },
   });
   return {
     agent: 'reconciler',

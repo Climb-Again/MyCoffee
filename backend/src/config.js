@@ -79,7 +79,17 @@ export const config = {
     privateKeyId: str('GOOGLE_PRIVATE_KEY_ID'),
     clientId: str('GOOGLE_CLIENT_ID'),
     region: str('VERTEX_AI_REGION', 'us-central1'),
-    model: str('VERTEX_MODEL', 'gemini-2.5-pro'),
+    // Default to flash (Radu, 2026-08-15: "move everything to flash"). Flash is
+    // ~4x cheaper on output than 2.5-pro and can disable thinking entirely
+    // (`thinkingBudget: 0`), which pro cannot — and thinking tokens are what
+    // dominated the extraction bill. Every voter also names flash explicitly in
+    // agents.js; this only governs any code path that falls back to the config.
+    model: str('VERTEX_MODEL', 'gemini-2.5-flash'),
+    // Billing label applied to every Vertex generateContent request. Vertex
+    // propagates request `labels` to the billing export, so `app=mycoffee`
+    // lets these costs be grouped/filtered in billing reports (Radu, 2026-08-15).
+    // Label values must be lowercase letters/digits/`-`/`_`.
+    labelApp: str('VERTEX_LABEL_APP', 'mycoffee'),
     // Hard per-request ceiling. gaxios (via google-auth-library) defaults to NO
     // timeout, so a request that is never answered hangs the caller forever —
     // and in the extraction worker that means hanging while holding the
