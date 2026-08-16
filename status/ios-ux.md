@@ -8,6 +8,49 @@ _none_
 
 ## Session notes
 
+- [2026-08-16 UTC, later session] 68 "Unknown" bucket not selectable outside Process — branch `ios-staging`
+  - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — only this session's own branch
+    exists, 0 commits ahead of `ios-staging` in any owned path, nothing stranded to adopt. Merged
+    `origin/main` into `ios-staging` first (clean fast-forward, no conflicts — picked up backend's #56/#60
+    write-ups and publish's routine-ship note, no code touching owned paths).
+  - **Found the backlog's own copy of this file badly stale before touching any code**: `status/BACKLOG.md`
+    on `ios-staging` still listed `#50`/`#53`/`#54`/`#55`/`#58` as `ready`, but the code (and this lane's own
+    prior session write-ups just above/below) already fully implements every one of them —
+    `Features/Insights/{InsightsView,InsightsCharts,InsightsFindings,DataQualityCard}.swift` all have the
+    `onSelect`/`selectInCoffees`/`FindingSubject`/`dimension`-gated-`Button` wiring `#50`/`#53`/`#54`
+    describe; `DesignSystem/ZoomableImageView.swift` exists and is wired into both
+    `Features/Review/ReviewCardView.swift` and `Features/Coffees/CoffeeDetailView.swift` per `#55`;
+    `Features/Root/RootTabView.swift` already branches `#available(iOS 18.0, *)` into the value-based
+    `Tab(...)` builder per `#58`. `status/ios-shell.md`'s own latest entry independently confirms the same
+    ("#50/#52/#53/#54/#55 are all `done` on `origin/ios-staging`"). Also re-verified `#66` (Review per-item
+    save) directly against `ReviewQueueEngine.accept`/`.markNotPresent` (call `onAccept`/`onDismiss`
+    synchronously, same call as the local queue mutation, no batching), `CoffeeStore.resolveReview`/
+    `.dismissReview` (fire immediately, not deferred to a "done" step), and `MutationOutbox.enqueueReviewResolve`/
+    `.enqueueReviewDismiss` (call `persist()` synchronously right after enqueueing) — the exact
+    force-quit-after-2-of-N scenario the row asks to verify is already durable. Corrected all six rows to
+    `done` in `status/BACKLOG.md` (same "correcting a task means correcting this file" rule
+    `status/README.md` names) rather than re-implementing already-shipped work. `#57` stays `ready` but
+    unpicked — confirmed via `status/ios-shell.md`/`status/backend.md` that no backend column/endpoint or
+    shell model/API exists yet for the rotation seam, so there's nothing concrete for this lane's half
+    (rotate button + wiring) to call yet; building it blind would be guessing at a wire shape, the exact
+    thing this lane's own precedent (`#27`/`#28`'s flagged gaps) avoids.
+  - **The actual `#68` fix**: `Features/Coffees/FacetFullListView.swift`'s `isTappable()` special-cased
+    `dimension == .profile` as the only dimension allowed to select its Unknown bucket — a stray leftover
+    gate, since `FilterSheetView.swift`'s inline pill grid (`DimensionPills`) already had the correct
+    5-dimension allowlist (`unknownSelectable: [.roaster, .roasterCountry, .originCountry, .farm, .profile]`)
+    the row's own diagnosis names. Promoted that allowlist out of `DimensionPills` (where it was
+    `private`) to a file-scope `unknownSelectableDimensions` constant next to the already-shared
+    `isFacetSelected`/`toggleFacet` helpers, and pointed both `DimensionPills.isTappable` and
+    `FacetFullListView.isTappable` at the single shared constant — closes the row's own "check the inline
+    filter-sheet path uses the same gate" ask by construction (one definition, not two copies that can
+    drift again) rather than just copy-pasting the same five-dimension list a second time.
+  - Not locally compiled (no Xcode here) — a small, mechanical change against an existing pattern
+    (`unknownSelectableDimensions` is used exactly the way the old `private static` set was), so a red
+    compile check here would most likely be a typo, not a design gap.
+  - `ios/MyCoffee/Sources/Features/Coffees/{FacetFullListView,FilterSheetView}.swift`
+  - No `BACKLOG.md` row lists `68` as a `needs` dependency, so nothing to unblock.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-16 UTC] 58 Move the listing search box to the bottom (iOS 26 style) — branch `ios-staging`
   - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — nothing stranded touching
     `Sources/Features`/`Sources/DesignSystem`/`Resources`. Merged `origin/main` into `ios-staging`

@@ -151,15 +151,8 @@ private struct DimensionPills: View {
         )
     }
 
-    /// The "Unknown / missing" bucket is selectable on the vocab dimensions
-    /// (roaster, roaster country, origin, farm, profile) so you can filter to
-    /// coffees lacking that field — i.e. what still needs editing. The band
-    /// dimensions don't carry an Unknown bucket, so it's shown-only there.
-    private static let unknownSelectable: Set<FilterDimension> =
-        [.roaster, .roasterCountry, .originCountry, .farm, .profile]
-
     private func isTappable(_ key: FacetKey) -> Bool {
-        if case .unknown = key { return Self.unknownSelectable.contains(dimension) }
+        if case .unknown = key { return unknownSelectableDimensions.contains(dimension) }
         return true
     }
 
@@ -171,6 +164,16 @@ private struct DimensionPills: View {
         toggleFacet(key, dimension: dimension, in: &draft)
     }
 }
+
+/// The "Unknown / missing" bucket is selectable on the vocab dimensions
+/// (roaster, roaster country, origin, farm, profile) so you can filter to
+/// coffees lacking that field — i.e. what still needs editing (#68). The band
+/// dimensions don't carry an Unknown bucket, so it's shown-only there. Shared
+/// between the truncated pill grid (`DimensionPills`) and the full searchable
+/// list (`FacetFullListView`) so the two never drift apart on which
+/// dimensions allow it.
+let unknownSelectableDimensions: Set<FilterDimension> =
+    [.roaster, .roasterCountry, .originCountry, .farm, .profile]
 
 /// Whether a facet value is part of the active filter, given its dimension.
 func isFacetSelected(_ key: FacetKey, dimension: FilterDimension, in filter: CoffeeFilter) -> Bool {
