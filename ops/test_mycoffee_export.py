@@ -127,6 +127,36 @@ class StateTests(unittest.TestCase):
             self.assertEqual([p.name for p in Path(d).iterdir()], ["state.json"])
 
 
+class SipsOrientationArgsTests(unittest.TestCase):
+    """#59: the source's EXIF orientation must be baked into pixels via
+    rotate/flip flags in the same `sips` call that does format+resize --
+    that conversion is what was silently dropping the tag, leaving pixels
+    unrotated and the image sideways in the app."""
+
+    CASES = [
+        (1, []),  # already upright -- no-op
+        (2, ["--flip", "horizontal"]),
+        (3, ["--rotate", "180"]),
+        (4, ["--flip", "vertical"]),
+        (5, ["--flip", "horizontal", "--rotate", "90"]),
+        (6, ["--rotate", "90"]),  # the common "phone held sideways" case
+        (7, ["--flip", "horizontal", "--rotate", "270"]),
+        (8, ["--rotate", "270"]),  # the other common sideways case
+    ]
+
+    def test_all_eight_exif_orientations(self):
+        for orientation, expected in self.CASES:
+            with self.subTest(orientation=orientation):
+                self.assertEqual(export.sips_orientation_args(orientation), expected)
+
+    def test_unknown_orientation_value_is_a_no_op(self):
+        # A source with no EXIF orientation at all reads as 1 upstream
+        # (read_exif_orientation), but guard the mapping itself too: an
+        # unexpected value must never invent a rotation.
+        self.assertEqual(export.sips_orientation_args(0), [])
+        self.assertEqual(export.sips_orientation_args(9), [])
+
+
 class NeedsConversionTests(unittest.TestCase):
     def test_true_when_no_cache_entry(self):
         self.assertTrue(export.needs_conversion(make_record(), {}))

@@ -75,8 +75,12 @@ Gate checklist (PLAN.md §8, not yet run — needs Radu's Mac):
 - [ ] Re-running the same 20 photos is a no-op (manifest `need: "none"` for
       all, zero PUTs, matching the log's "0 photo(s) need an image upload")
 - [ ] Spot-check one `GET /media/:publicId/ocr.jpg?...` signed URL round-trips
-      a real, correctly-oriented image (`sharp .rotate()` bakes in EXIF
-      orientation before stripping it server-side)
+      a real, correctly-oriented image. **Not `sharp .rotate()` server-side**
+      as this line used to say — that assumed the orientation tag survives
+      the exporter's `sips` conversion, and it doesn't (#59). The exporter
+      itself now bakes the correction into pixels before upload; `sharp` never
+      sees a tag to act on either way. Take one deliberately-sideways photo
+      in the test batch and confirm it uploads upright.
 
 ### Design notes worth knowing before changing this
 
@@ -111,6 +115,23 @@ Gate checklist (PLAN.md §8, not yet run — needs Radu's Mac):
   `INGEST_RATE_LIMIT_MAX` (1200/min) server-side specifically for a cold
   ~900-photo backfill (`backend/src/config.js`) — no client-side throttling
   needed for a single-run backfill.
+- **EXIF orientation is baked into pixels here, not left to the server (#59).**
+  `sips`'s own format/resize conversion above silently drops the orientation
+  tag without rotating the pixels — the root cause of photos that display
+  upright on the Mac but sideways in the app. `convert_to_jpeg` now calls
+  `read_exif_orientation` (a `sips -g orientation` query) on the *source*
+  first, maps the result through the pure `sips_orientation_args` (table-
+  driven tests, all 8 EXIF values), and passes the matching `--rotate`/
+  `--flip` flags in the same `sips` invocation that does the format/resize —
+  so the JPEG that leaves this script is already upright, tag or no tag.
+  **Not verified against a real `sips` binary** — this sandbox has no macOS
+  runner, same limitation as the rest of this file's macOS-only glue; the
+  EXIF-orientation → rotate/flip mapping itself is the standard one used by
+  every image library (not `sips`-specific), but the exact `sips` flag names
+  (`--rotate`, `--flip {horizontal|vertical}`) are unverified pending a real
+  run. Photos already uploaded sideways before this fix need #57's persisted
+  client-side rotate (their retained `ocr` source is already baked sideways)
+  or a re-export from the Mac — this only fixes photos ingested from here on.
 
 ### Not built here (later work)
 

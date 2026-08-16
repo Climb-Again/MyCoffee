@@ -153,6 +153,41 @@ def save_state(path, state: dict) -> None:
     tmp.replace(path)
 
 
+def sips_orientation_args(orientation: int) -> list:
+    """Map a EXIF/TIFF orientation tag value (1-8) to the `sips` rotate/flip
+    arguments that bake the correction into the output pixels (#59).
+
+    Root cause of "photos upright on the Mac, sideways in the app": `sips`'s
+    own `-s format jpeg` + `--resampleHeightWidthMax` conversion emits a JPEG
+    whose pixels are unrotated but whose orientation tag is gone -- the tag
+    that told any downstream reader (the server's `sharp(...).rotate()`
+    auto-orient pass included) how to display them. Once the tag is stripped,
+    nothing is left to act on, so the image serves sideways. Fix: read the
+    *source's* orientation before that conversion runs, and pass the matching
+    rotate/flip flags in the SAME `sips` invocation so the pixels themselves
+    come out upright -- no tag needed afterward.
+
+    Standard EXIF orientation semantics (used identically by every image
+    library, not a `sips`-specific table): 1 is already upright (no-op); 2/4
+    are pure mirrors; 3 is a half-turn; 5/6/7/8 combine a mirror with a
+    quarter-turn. Radu's phone photos are never mirrored in practice, but all
+    8 values are handled so an unusual source doesn't silently regress.
+    Any value outside 1-8 (including a source with no orientation tag at
+    all, which `read_exif_orientation` below already reports as 1) is treated
+    as already-correct -- there is nothing to bake in.
+    """
+    return {
+        1: [],
+        2: ["--flip", "horizontal"],
+        3: ["--rotate", "180"],
+        4: ["--flip", "vertical"],
+        5: ["--flip", "horizontal", "--rotate", "90"],
+        6: ["--rotate", "90"],
+        7: ["--flip", "horizontal", "--rotate", "270"],
+        8: ["--rotate", "270"],
+    }.get(orientation, [])
+
+
 def needs_conversion(record: PhotoRecord, state: dict) -> bool:
     """True unless a prior successful run already converted+hashed this exact
     file (matched by (size, mtime)) -- lets a repeat run skip the sips
@@ -198,16 +233,50 @@ def iter_album_photos(album: str, limit: Optional[int] = None) -> Iterator[Photo
             return
 
 
+def read_exif_orientation(src_path: str) -> int:
+    """Query the source's EXIF/TIFF orientation tag via `sips -g orientation`
+    (#59) -- read BEFORE any format/resize conversion runs, since that
+    conversion is exactly what drops the tag (see `sips_orientation_args`).
+    A source with no orientation tag at all (a plain screenshot, an already
+    -normalized JPEG) means "use pixels as stored", identical in effect to an
+    explicit tag value of 1 -- so no-tag and orientation-1 are not
+    distinguished here, both return 1.
+    """
+    result = subprocess.run(
+        ["sips", "-g", "orientation", src_path],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if line.startswith("orientation:"):
+            try:
+                return int(line.split(":", 1)[1].strip())
+            except ValueError:
+                return 1
+    return 1
+
+
 def convert_to_jpeg(src_path: str, max_dim: int = OCR_MAX_DIM, quality: int = OCR_JPEG_QUALITY) -> bytes:
     """Resize+convert via macOS `sips` (no new Python deps) to the same
     2048px JPEG shape as the server's 'ocr' derivative (routes/photos.js) --
     a HEIC original should never reach sharp, since prebuilt sharp/libvips
-    binaries commonly lack HEIF decode support."""
+    binaries commonly lack HEIF decode support.
+
+    Bakes in the source's EXIF orientation (#59) as rotate/flip flags in this
+    SAME `sips` invocation, before the format/resize step would otherwise
+    strip the tag with the pixels left unrotated -- see `sips_orientation_args`
+    for why, and `ops/README.md` for why this can't be end-to-end verified
+    outside a real Mac.
+    """
+    orient_args = sips_orientation_args(read_exif_orientation(src_path))
     with tempfile.TemporaryDirectory(prefix="mycoffee-sips-") as tmp:
         out_path = os.path.join(tmp, "converted.jpg")
         subprocess.run(
             [
                 "sips",
+                *orient_args,
                 "-s", "format", "jpeg",
                 "-s", "formatOptions", str(quality),
                 "--resampleHeightWidthMax", str(max_dim),

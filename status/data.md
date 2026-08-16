@@ -43,7 +43,115 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-- [2026-08-16 UTC] #59 Root-cause fix: `ops/mycoffee_export.py`'s `sips` step drops EXIF orientation, uploading sideways photos as sideways pixels — branch `main`
+_none_
+
+## 2026-08-16 — #59 is code-complete on this session's own branch; #29's remaining scope isn't this lane's
+
+**Branch note first:** this session was harness-assigned to branch
+`claude/peaceful-mccarthy-erypad`, not `main` — same restriction the
+`rwi2ql`/`kix48i`/`6n4yw7` sessions documented above hit. Verified before
+starting: `git rev-parse HEAD origin/main` were identical at session start
+(`e7280a5`), so this branch began as a clean copy of the real `main`, not a
+stale fork — nothing to reconcile going in. Also swept `git branch -r
+--list 'origin/claude/*'` (96 branches after a full `--prune` fetch) for
+stranded data-owned work before claiming anything: scripted a check of
+`git rev-list --count main..<branch> -- <data-owned paths>` for every one,
+found exactly one with a non-empty diffstat
+(`claude/peaceful-mccarthy-24z886`, `normalize.js` + its tests), inspected it
+directly, and confirmed it's an earlier, already-superseded attempt at #39 —
+`main` already has the identical hard-envelope checks (`grams < 1 ||
+grams > 5000`, `max < 200 || min > 4000`) from #39's real landing
+(`b23cc2b`). Nothing to adopt.
+
+**#59 — sips drops EXIF orientation — implemented, tests green, NOT yet on
+`main`.** Root cause per the row: `convert_to_jpeg`'s `sips -s format jpeg
+-s formatOptions <q> --resampleHeightWidthMax <dim>` call emits a JPEG whose
+pixels are unrotated but whose orientation tag is gone, so nothing downstream
+(including the server's `sharp(...).rotate()` auto-orient pass) has a tag left
+to act on. Fix, in `ops/mycoffee_export.py`:
+- `sips_orientation_args(orientation: int) -> list` — pure function, the
+  standard EXIF-orientation → rotate/flip mapping (1 no-op, 2/4 pure flips, 3
+  a half-turn, 5–8 a flip+quarter-turn combination), table-driven-tested for
+  all 8 values plus an out-of-range guard (10 new tests).
+- `read_exif_orientation(src_path)` — macOS-specific glue (`sips -g
+  orientation`), added next to the existing macOS-only functions
+  (`iter_album_photos`, the old `convert_to_jpeg`), same "not testable off a
+  Mac" bucket. Reads the *source's* tag before the format/resize conversion
+  would otherwise strip it.
+- `convert_to_jpeg` now calls both and passes the resulting `--rotate`/
+  `--flip` flags in the **same** `sips` invocation as the format/resize, so
+  the uploaded JPEG is already upright — no tag needed by the server at all.
+
+`ops/test_mycoffee_export.py`: 31/31 green (up from 29), all new coverage in
+the pure `sips_orientation_args` function per the file's own pure/macOS-
+split convention. `cd backend && npm ci && npm test`: 252/252 green,
+unaffected (this touched only `ops/**`). Checked `GET /api/admin/jobs` first
+per the "never push `backend/**` while a job is `running`" rule even though
+this push touches no `backend/**` file — all jobs `done`/`paused`.
+
+**Not verified against a real `sips` binary** — this sandbox has no macOS
+runner, the same limitation #20's own gate note already documents for this
+file's other macOS-only glue. The EXIF-orientation→rotation mapping itself is
+standard (used identically by every image library), but the specific `sips`
+flag spelling (`--rotate <deg>`, `--flip {horizontal|vertical}`) is unverified
+pending a real run on Radu's Mac — flagged in `ops/README.md`'s own updated
+gate checklist rather than claimed as proven. Also updated a stale line in
+that same checklist that assumed `sharp .rotate()` server-side would bake in
+orientation — it can't, since the tag is already gone by the time the server
+sees the bytes; that was the bug.
+
+**Scope note, not fixed here:** already-uploaded sideways photos have their
+retained `ocr` source baked sideways already — this fix only helps photos
+ingested from here on. Fixing the ones already live needs #57's persisted
+client-side rotate (ios) or a fresh re-export from the Mac, per the row's own
+text.
+
+**This session's push is restricted to `claude/peaceful-mccarthy-erypad`, not
+`main`** (see branch note above — explicit harness instruction this session,
+"never push to a different branch without explicit permission"). Per
+`status/README.md`'s "done means on the shared branch" rule, **`#59` stays
+`claimed`, not `done`, in `BACKLOG.md`** until an authorized session
+fast-forwards `main` to this branch's tip (a clean fast-forward — this branch
+started at `main`'s exact tip and only adds commits) — same shape as the
+`rwi2ql`/`kix48i` resolutions above, not a new problem.
+
+**#29 — investigated, not claimed: its remaining scope isn't data-owned.**
+Read the row plus PLAN.md §6.7/§8/§9's three-part spec ("`launchd` monthly
+schedule on the Mac, the `awaiting_text` deadline sweep, and `POST
+/api/admin/sync` on a backend cron") against what's actually already built,
+rather than assuming the row's text was still current (the row's own
+annotation already conceded the `launchd` part is covered):
+1. **`launchd` monthly Mac schedule** — hardware-dependent, and the row's own
+   note already says the CCR daily-extraction routine substitutes for it.
+   Nothing to build.
+2. **`awaiting_text` deadline sweep** — already fully implemented, and has
+   been since #24 landed on 2026-08-04: `claimBatch`'s claim query
+   (`backend/src/lib/worker.js:291`) is literally `state = 'text_received' OR
+   (state = 'awaiting_text' AND text_wait_until <= now())` — a photo whose
+   caption never arrived is picked up automatically the moment its deadline
+   passes, on every `POST /api/admin/jobs` run. Since the daily routine
+   (`ops/start-extraction-batch.sh`, landed for the classifier-blocking issue
+   flagged above) already fires this trigger once a day, the sweep is not
+   just implemented but already running in production, unprompted. Nothing
+   to build. The row's own "still worth doing" framing for this part appears
+   to predate checking whether #24 already covered it — correcting that here
+   per `status/README.md`'s "correcting a task means correcting this file"
+   rule, same shape as the #14 lane-tag correction and #38's premise
+   correction.
+3. **`POST /api/admin/sync` on a backend cron** — genuinely not built, and the
+   one real gap. But `routes/admin.js` is squarely `backend/src/**` —
+   Backend-owned per `CLAUDE.md` §4's table, not `ops/**` or any of this
+   lane's `src/lib/*` files. Its purpose beyond what the existing
+   `POST /api/admin/jobs` (start a batch) and `POST /api/admin/adjudicate`
+   (re-run resolution) endpoints already cover is unspecified in `PLAN.md` —
+   guessing a shape for an underspecified endpoint risks exactly the
+   "half-finished implementation" this repo's own conventions warn against.
+**Correcting #29's lane tag `data` → `backend` in `BACKLOG.md`** (same
+precedent as #14) rather than leaving a mistagged row that no lane will ever
+pick up, or inventing scope to force a data-lane deliverable out of it.
+Backend can either spec-and-build the sync endpoint or decide the daily-
+routine + built-in sweep already satisfies "harden the incremental path" and
+close the row outright — that judgment call is backend's, not guessed here.
 
 ## 2026-08-15 — #48(b) is DONE: caption-city roaster-country override
 
