@@ -43,7 +43,7 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 ## Claimed
 
-_none_
+- [2026-08-16 UTC] #59 Root-cause fix: `ops/mycoffee_export.py`'s `sips` step drops EXIF orientation, uploading sideways photos as sideways pixels — branch `main`
 
 ## 2026-08-15 — #48(b) is DONE: caption-city roaster-country override
 
