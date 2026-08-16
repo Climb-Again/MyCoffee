@@ -129,6 +129,10 @@ export const config = {
       leaseMinutes: 10,
       concurrency: 2,
       backoffSeconds: [2, 5, 15, 45, 120],
+      // Stop re-claiming a photo that keeps failing. Without this a permanently
+      // failing photo is re-claimed forever (its lease is released on failure),
+      // so runWorker never terminates and holds the advisory lock (#64).
+      maxFailures: int('EXTRACTION_MAX_FAILURES', 3),
     },
   },
 };

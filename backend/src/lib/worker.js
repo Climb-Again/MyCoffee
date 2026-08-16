@@ -276,8 +276,16 @@ export async function defaultVoters() {
 
 // ---- DB-touching helpers ----
 
-export async function claimBatch(limit, { leaseMinutes, workerId } = {}) {
+export async function claimBatch(limit, { leaseMinutes, workerId, includeImages = true, maxFailures } = {}) {
   const minutes = leaseMinutes ?? config.extraction.worker.leaseMinutes;
+  const maxFail = maxFailures ?? config.extraction.worker.maxFailures;
+  // In text-only mode there is nothing to parse for an `awaiting_text` photo
+  // (its caption/description never arrived) — claiming it only produces a
+  // Gemini 400 and, pre-#64, an infinite re-claim loop. Only image mode
+  // (includeImages) can extract those, by reading the bag from the photo.
+  const stateClause = includeImages
+    ? `(state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))`
+    : `state = 'text_received'`;
   return withTransaction(async (client) => {
     // Reap stale leases first -- what recovers a SIGTERM'd worker.
     await client.query(
@@ -288,12 +296,13 @@ export async function claimBatch(limit, { leaseMinutes, workerId } = {}) {
       `SELECT * FROM photos
        WHERE has_image
          AND state <> 'processed'
-         AND (state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))
+         AND ${stateClause}
+         AND extraction_failures < $2
          AND extraction_leased_until IS NULL
        ORDER BY id
        LIMIT $1
        FOR UPDATE SKIP LOCKED`,
-      [limit],
+      [limit, maxFail],
     );
     if (rows.length > 0) {
       const ids = rows.map((r) => r.id);
@@ -668,7 +677,7 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
   const result = await adjudicateAndApply(photo, photoText, sharedCtx);
 
   await query(
-    `UPDATE photos SET state = 'processed', extraction_leased_until = NULL, extraction_leased_by = NULL, updated_at = now() WHERE id = $1`,
+    `UPDATE photos SET state = 'processed', extraction_failures = 0, extraction_leased_until = NULL, extraction_leased_by = NULL, updated_at = now() WHERE id = $1`,
     [photo.id],
   );
 
@@ -725,7 +734,7 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
       }
 
       const batchSize = Math.min(config.extraction.worker.concurrency, limit - photosDone);
-      const batch = await claimBatch(batchSize, { workerId });
+      const batch = await claimBatch(batchSize, { workerId, includeImages });
       if (batch.length === 0) {
         stopped = 'no_work';
         break;
@@ -747,7 +756,15 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
               [jobId, `photo ${photo.id}: ${err.message}`.slice(0, 2000)],
             ).catch(() => {});
           }
-          await releaseLease(photo.id);
+          // Count the failure AND release the lease in one write (#64): a photo
+          // that fails `maxFailures` times is then excluded by claimBatch, so a
+          // permanently-failing photo can't spin the worker forever.
+          await query(
+            `UPDATE photos SET extraction_failures = extraction_failures + 1,
+                    extraction_leased_until = NULL, extraction_leased_by = NULL
+             WHERE id = $1`,
+            [photo.id],
+          ).catch(() => {});
           return null;
         }
       });
