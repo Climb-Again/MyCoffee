@@ -8,6 +8,41 @@ _none_
 
 ## Done
 
+- [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The #50 cross-tab seam
+  (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) is confirmed fully consumed —
+  #50/#52/#53/#54/#55 are all `done` on `origin/ios-staging`. `#57` (ios-ux,
+  ready, "persisted rotate photo") names a shell piece (`CoffeeImage`/detail
+  model field + API surface for a per-photo `rotation_quarter_turns`), but it
+  depends on a backend column + write endpoint + snapshot field that don't
+  exist yet — no backend row is even filed for that half — so there is nothing
+  concrete for this lane to build against yet; picking a wire shape blind would
+  just be guessing. `#58` (ios-ux, search-bar placement) and `#59` (data, EXIF
+  fix) are outside this lane's owned paths.
+  - **Found and fixed a real data-integrity bug while merging `origin/main` in**:
+    the merge duplicated the entire `#56`–`#59` table block (two copies of
+    `#56`/`#58`/the dup-note, and two different versions of `#57` — an older
+    "view-only, scope question for Radu" row and the newer "persistence
+    required" row that supersedes it after Radu's follow-up directive). Git's
+    line-based merge didn't recognize the two `#57` texts as the same logical
+    row, so it kept both instead of replacing. Deduped by removing the stale
+    block and keeping the newer `#57` (Radu's persistence directive is later
+    and explicit: "I need a permanent fix. So rotate should save."). Verified
+    afterward that every row number 1–60 now appears exactly once in the table.
+  - Swept `git branch -r --list 'origin/claude/*'` (98 candidates after
+    fetching): sampled the highest commit-ahead-count candidates in this
+    lane's owned paths (`confident-cerf-{01kgu0,0ol0nh,r7skfk}`,
+    `relaxed-thompson-uq5f21`, all showing 8 commits ahead) and confirmed by
+    `git diff --stat` they're pure net deletions (296 lines removed, 7 added,
+    against `MutationOutbox`/`SyncEngine`/`RemoteCoffeeRepository`) — stale
+    pre-batch-edit snapshots, same pattern every prior sweep has found.
+    Nothing stranded to adopt.
+  - Merged `origin/main` into `ios-staging`, resolving one additive conflict
+    in `status/backend.md` (backend's own `#60` session-check entry landing
+    independently on each branch — kept both, no factual conflict, same as
+    prior sessions' precedent for this exact file).
+  - Stopping cleanly rather than inventing work or touching UX/backend/data-owned paths.
+
 - [2026-08-15 UTC, later session] Session check — no ready `ios-shell` row. #17/
   #22/#41/#46 are all `done`; the seam this lane added for #50 on 2026-08-14
   (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) has since been fully consumed
