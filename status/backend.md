@@ -6,6 +6,89 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 _none_
 
+## 2026-08-16 UTC (later session): #64 — close out (code already live from a prior session)
+
+Only `ready` backend row this cycle. `git branch -r --list 'origin/claude/*'`
+showed nothing of this row stranded on a scratch branch — but `origin/main`'s
+own history had `52eab3f` ("backend #64: stop the worker looping forever on an
+always-failing photo") already on it, authored by the same stranded session
+that did #61 (`session_01JLFd9wZxpbWRZ959RrcSM3`, co-authored "Claude Opus
+4.8"): it had written, tested, and pushed the fix straight to `main`, but
+never flipped the `BACKLOG.md` row or logged an entry here — identical to the
+exact pattern the #61 close-out (just above) already documented for the same
+session. Confirmed via `mcp__github__actions_list`/`actions_get`: the
+`railway-deploy.yml` run for `52eab3f` (run `31943189056`) completed
+`success` at `2026-08-16T11:04:23Z`.
+
+**What's actually live** (`backend/src/lib/worker.js`,
+`backend/migrations/022_add_extraction_failures.sql`): `photos` gained
+`extraction_failures INT NOT NULL DEFAULT 0`. `claimBatch(limit, {
+includeImages, maxFailures })` now excludes any photo with
+`extraction_failures >= maxFailures` (config `EXTRACTION_MAX_FAILURES`,
+default 3), and — in text-only mode (`includeImages:false`, the daily
+routine's own mode) — no longer claims `awaiting_text` photos at all (no text
+ever arrived, so parsing them is a guaranteed Gemini 400 every time); image
+mode still claims them since an OCR run can read the bag from the photo
+pixels. On a per-photo failure, `runWorker` now increments
+`extraction_failures` in the same write that releases the lease; on success
+it resets the counter to 0. Either half of the fix eventually makes
+`claimBatch` return empty for a batch that's all permanently-failing photos,
+so `runWorker` reaches `no_work` and releases the advisory lock instead of
+spinning forever holding it (today's root cause: an image-only `awaiting_text`
+photo past its `text_wait_until` got re-claimed every round in text-only mode,
+400'd every time, never counted toward `photosDone`, and `claimBatch` never
+went empty).
+
+**Verification this session**: `cd backend && npm ci && npm test` —
+**249/249 green** (matching the fix commit's own count exactly, no drift).
+`claimBatch` is DB-touching and carries no unit coverage (same
+node:test-no-DB convention the rest of `worker.js`'s DB-touching helpers
+follow), so rather than trust the commit message's test count alone, ran a
+live-Postgres reproduction of the actual mechanism: started the sandbox's
+local Postgres 16, fresh `mycoffee_test64` DB, `node src/migrate.js` — the
+full chain (001→023) applied clean. Seeded three photos directly: (a)
+`awaiting_text`, `text_wait_until` an hour in the past (the exact #64
+trigger — image-only, no text, ready to be mis-claimed); (b) `text_received`
+with `extraction_failures = 3` (simulating a photo that's already exhausted
+its retries); (c) `text_received` with `extraction_failures = 0` (the normal
+claimable control). Called `claimBatch(10, { includeImages: false })` (the
+daily routine's own mode) — claimed **only (c)**; both (a) and (b) were
+correctly excluded. Called `claimBatch(10, { includeImages: true })` — claimed
+**(a) and (c)**, still excluding (b) — confirms image mode can still reach an
+`awaiting_text` photo for OCR while the failure-count exclusion applies
+regardless of mode. Both halves of the row's own fix (a) and (b) options are
+confirmed live against a real Postgres, not just asserted by the diff.
+
+**Production live-check**: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`. `GET /api/admin/jobs` → 24 jobs; the two
+prior-session incidents this row itself was filed from (jobs 20/21, both
+`text_received`-mode 400 loops) now pause within ~4–5 minutes instead of
+spinning for 30+ minutes at `photosDone:0` the way jobs 14/15 did pre-fix
+(documented in the #61/#62 close-out above) — consistent with, though not
+conclusive proof of, the fix (something/someone paused them manually rather
+than the worker reaching `no_work` on its own within that window; the direct
+Postgres reproduction above is the load-bearing evidence, this is
+corroborating). Job 23's `paused` state (`Gemini 429`, `RESOURCE_EXHAUSTED`,
+free-tier quota) is an unrelated rate-limit issue, not this bug — noting so
+it isn't mistaken for a regression.
+
+**Could not re-enable the daily extraction routine
+(`trig_01JWhQADZK8RqfP8r9ugXen1`)** that the row said was disabled as
+mitigation — it's an external scheduled-prompt trigger, not a `backend/**`
+code path, and this session's own `CronList` returns nothing (it only manages
+this session's in-memory jobs, unrelated to that trigger). Flagged in
+`BACKLOG.md`'s `#64` row for whoever manages it (Radu) to flip back on now
+that the fix is verified both by direct Postgres reproduction and by
+production behavior.
+
+No `backend/**` code change this session (the fix was already on `main`) — so
+nothing new to push there or gate on the "no job running" rule; only
+`status/BACKLOG.md` and this file changed. Flipped `#64` → `done` in
+`BACKLOG.md`; added an informational note to `#65`'s own row (data-owned,
+stays `human` — not this lane's call to change) that its `#64` blocker is
+cleared. No row's `needs` references `64`, so nothing else formally unblocks.
+
 ## 2026-08-16 UTC: #61 — close out (code already live from a prior session); #62 filed (human) — GCP project spend cap blocks all Vertex calls
 
 `git branch -r --list 'origin/claude/*'` showed nothing of this row stranded;
@@ -146,268 +229,6 @@ reproduction above.
 Flipped `#60` → `done` in `BACKLOG.md`. No row's `needs` references `60`, so
 nothing else unblocks — this is a standalone vocab addition, no schema/API
 shape change (the client already consumes `vocab.countries`, unchanged).
-
-## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
-
-Only `ready` backend row this cycle (filed by Radu himself the same day, phase
-6, no `needs`). Live-checked the row's own claim before touching code:
-`GET /api/snapshot/text` on production returned 120 coffees, **0 non-empty
-blobs** — confirmed, not assumed.
-
-**Root cause exactly as diagnosed**: `009_search.sql` declared
-`search_labels_blob`/`search_prose_blob` (+ the generated `search_tsv`), and
-`GET /api/snapshot/text` (`routes/coffees.js`) has always read them — but no
-code anywhere ever wrote them, so every row sat at its `''` default forever.
-
-**`src/lib/worker.js`**:
-- `buildSearchBlobs(coffee, ctx)` (new, pure) — takes the coffee's resolved
-  column values (`roaster_id`, `roaster_country_id`, `origin_country_ids`,
-  `origin_farm_id`, `profile_id`, `profile_detail`, `raw_title`/`raw_caption`/
-  `raw_description`) and `ctx.vocab` (already-loaded countries/roasters/farms
-  candidates, same shape `buildCoffeeColumnUpdates` already consumes) plus a
-  new `ctx.profileNameById` map, and returns `{labelsBlob, proseBlob}`, both
-  run through `normalize.js`'s `foldDiacritics` (data-owned, imported not
-  edited) per the migration's own "blobs are pre-folded" comment. Labels =
-  roaster name + roaster country name + every origin country name + farm name
-  + profile name + `profile_detail` (all `.filter(Boolean)`'d, so an
-  unresolved id is skipped rather than stringifying to `"undefined"`). Prose =
-  `raw_title`+`raw_caption`+`raw_description` (no separate OCR text field
-  exists beyond what already lands in `raw_caption`/`raw_description` via
-  `photo_texts`).
-- `refreshSearchBlobs(coffeeId, ctx)` (new, DB-touching) — re-SELECTs the
-  coffee row **after** `buildCoffeeColumnUpdates`'s UPDATE has landed (so a
-  save that only touches e.g. `weight_g` still reflects whatever
-  roaster/origin/farm was already on the row, not just this call's own
-  resolutions), builds the blobs, writes them in one more UPDATE.
-- `applyResolutionsToCoffee` now calls `refreshSearchBlobs` right after its
-  existing column UPDATE and before `finalizeCoffeeStatus`. This is the single
-  call site both of the row's two asks route through: the adjudication path
-  (`adjudicateAndApply`) **and** `routes/coffees.js`'s generic per-field edit
-  endpoint (#40) both already call `applyResolutionsToCoffee` — no separate
-  wiring needed in `routes/coffees.js` itself, one shared fix covers both.
-- `loadSharedContext()` now also selects `name` from `profiles` (previously
-  only `id, slug`) and exposes `profileNameById` alongside the existing
-  `profileIdBySlug`, so `buildSearchBlobs` can turn a `profile_id` back into a
-  display name like "Washed"/"Experimental".
-- `rebuildAllSearchBlobs()` (new, exported) — the row's own "add a one-time
-  backfill" ask: loads shared vocab once, then calls `refreshSearchBlobs` for
-  every non-deleted coffee. Deliberately scoped to just the two blob columns
-  rather than reusing `readjudicateAll()` (which would also re-run full
-  adjudication and could touch unrelated fields) — narrower, faster, and
-  can't have any side effect beyond the two columns this row is about.
-
-**`src/routes/admin.js`**: `POST /api/admin/rebuild-search-blobs`
-(ingest-token-gated, same tier as every other admin mutation) calls
-`rebuildAllSearchBlobs()` and returns `{updated}`.
-
-**8 new `worker.test.js` cases** (252/252 green, up from 245): `buildSearchBlobs`
-folding every label source + `profile_detail` together, prose joining with
-diacritic-folding (a real Romanian caption fixture — "Prăjitorie"/"Panamá" →
-"Prajitorie"/"Panama"), an unresolved id or missing vocab entry producing an
-empty string rather than a stringified `undefined`, and a completely-empty
-coffee/ctx producing empty blobs rather than throwing.
-
-**Live-reproduced against a real local Postgres 16** (fresh `mycoffee_test56`
-DB, migrations 001→020 applied clean, all clean — no migration errors):
-- Inserted a coffee via `upsertCoffeeBase` with a Romanian raw caption/
-  description, then ran `applyResolutionsToCoffee` resolving `roaster_id` +
-  `origin_country_ids`. Blobs were empty beforehand (confirms the bug
-  reproduces locally, not just in production) and came back non-empty and
-  correctly folded afterward: `search_labels_blob` = `"Roastlab coffee
-  roasters Ethiopia"`, `search_prose_blob` = `"Test title Cafea din Panama,
-  prajitorie deosebita Prajitorie: Test"` (diacritics folded). The generated
-  `search_tsv` computed correctly too — labels-derived lexemes carry weight
-  `A` (`'roastlab':1A 'coffee':2A 'roasters':3A 'ethiopia':4A`), prose-derived
-  ones the default weight, confirming `009_search.sql`'s `setweight` ranking
-  actually engages now that the blobs are non-empty.
-- Seeded a **second** coffee directly via SQL (bypassing the worker path
-  entirely) with real `roaster_id`/`origin_country_ids` but empty blobs —
-  simulating one of the 120 already-extracted production rows. Confirmed its
-  blobs were empty pre-backfill, then ran `rebuildAllSearchBlobs()` and
-  confirmed both populated correctly (`"Roastlab coffee roasters Ethiopia"` /
-  `"Old title Cafea veche"`) — proves the backfill path independently of the
-  live-write path.
-
-`cd backend && npm ci && npm test` — **252/252 green**.
-
-Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
-"mycoffee-api"}`; `GET /api/admin/jobs` → 12 jobs, all `done`/`paused`, **none
-`running`** — safe to push `backend/**` per the hard rule. Also confirmed the
-bug live on production before pushing the fix: `GET /api/snapshot/text` → 120
-coffees, 0 non-empty blobs, exactly matching the row's own claim.
-
-Pushed straight to `origin/main` (fast-forward `002c7b5..3a95d3e`). Watched
-`railway-deploy.yml` run `31885457608` to completion via the GitHub Actions
-API — **`completed success`**. Post-deploy: `GET /health`/`GET /api/status`
-both still green, `GET /api/admin/jobs` still shows none `running`.
-
-Ran the new backfill against **production**: `POST
-/api/admin/rebuild-search-blobs` → `{"updated":120}`. Re-checked `GET
-/api/snapshot/text` immediately after: **120 coffees, 120 non-empty
-blobs** (up from 0), e.g. `"Public Coffee Roasters Germany Panama Elida
-Estate Farm Washed"` for one real coffee — roaster, roaster country, origin
-country, farm, and profile name all present and correctly space-joined. This
-closes the row's "add a one-time backfill" ask against the real 120-coffee
-corpus, not just the local-Postgres reproduction above.
-
-Flipped `#56` → `done` in `BACKLOG.md`. No row's `needs` references `56`, so
-nothing else unblocks — this is a search-quality fix, not a schema/API-shape
-change (the client already consumes `GET /api/snapshot/text`, unchanged).
-
-## 2026-08-15 UTC (later session still, second follow-up): #60 — add Hong Kong to roaster countries
-
-Only `ready` backend row this cycle (filed by Radu the same day, phase 6, no
-`needs`). `git branch -r --list 'origin/claude/*'` showed only this session's
-own branch — nothing stranded to adopt.
-
-**`backend/migrations/021_add_hong_kong_roaster_country.sql`** (new) — same
-shape as `017_add_switzerland_roaster_country.sql`: `INSERT INTO countries
-(name, iso2, is_origin, is_roaster, kind) VALUES ('Hong Kong','HK',false,true,
-'country') ON CONFLICT (name) DO NOTHING;`. Roaster-only (Hong Kong roasts,
-doesn't grow coffee) — `is_origin` false, `is_roaster` true.
-
-`cd backend && npm ci && npm test` — **252/252 green**, matching #56's
-landing count exactly, no drift (this row needed no test changes — it's a
-pure data migration, no code path to unit-test).
-
-**Verified end-to-end against a real local Postgres 16** (started the
-sandbox's local cluster, fresh `mycoffee_test60` DB, ran `node src/migrate.js`
-against the full chain): all 21 migrations (001→021) applied clean.
-`SELECT id, name, iso2, is_origin, is_roaster, kind FROM countries WHERE
-name='Hong Kong'` → `id 51, iso2 HK, is_origin f, is_roaster t, kind
-country` — exactly as specified. Re-ran `node src/migrate.js` a second time
-against the same DB to confirm idempotency: `up to date, 0 applied`, country
-count for `'Hong Kong'` still `1` (the `ON CONFLICT (name) DO NOTHING` holds).
-
-Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
-"mycoffee-api"}`; `GET /api/admin/jobs` → 13 jobs, all `done`/`paused`,
-**none `running`** — safe to push `backend/**` per the hard rule.
-
-Pushed straight to `origin/main` (fast-forward `d84804e..aaec93e`; this
-session's own `claude/confident-cerf-tumacs` branch carries the same commit,
-so it isn't orphaned). Watched `railway-deploy.yml` run `31901891985` to
-completion via the GitHub Actions API — **`completed success`**.
-
-**Live-verified in production** — the row's own "verify Hong Kong appears in
-the roaster-country picker" ask: the iOS roaster-country picker's vocab comes
-from `GET /api/snapshot`'s `vocab.countries` (not `/api/config`, which is only
-a small self-diagnostic with no vocab — checked `routes/config.js` directly
-to confirm this before guessing at the wrong endpoint). `GET /api/snapshot`
-against production now returns `{"id":51,"name":"Hong Kong","iso2":"HK",
-"is_origin":false,"is_roaster":true,"kind":"country"}` in `vocab.countries` —
-confirms the row's ask end-to-end, not just via the local-Postgres
-reproduction above.
-
-Flipped `#60` → `done` in `BACKLOG.md`. No row's `needs` references `60`, so
-nothing else unblocks — this is a standalone vocab addition, no schema/API
-shape change (the client already consumes `vocab.countries`, unchanged).
-
-## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
-
-Only `ready` backend row this cycle (filed by Radu himself the same day, phase
-6, no `needs`). Live-checked the row's own claim before touching code:
-`GET /api/snapshot/text` on production returned 120 coffees, **0 non-empty
-blobs** — confirmed, not assumed.
-
-**Root cause exactly as diagnosed**: `009_search.sql` declared
-`search_labels_blob`/`search_prose_blob` (+ the generated `search_tsv`), and
-`GET /api/snapshot/text` (`routes/coffees.js`) has always read them — but no
-code anywhere ever wrote them, so every row sat at its `''` default forever.
-
-**`src/lib/worker.js`**:
-- `buildSearchBlobs(coffee, ctx)` (new, pure) — takes the coffee's resolved
-  column values (`roaster_id`, `roaster_country_id`, `origin_country_ids`,
-  `origin_farm_id`, `profile_id`, `profile_detail`, `raw_title`/`raw_caption`/
-  `raw_description`) and `ctx.vocab` (already-loaded countries/roasters/farms
-  candidates, same shape `buildCoffeeColumnUpdates` already consumes) plus a
-  new `ctx.profileNameById` map, and returns `{labelsBlob, proseBlob}`, both
-  run through `normalize.js`'s `foldDiacritics` (data-owned, imported not
-  edited) per the migration's own "blobs are pre-folded" comment. Labels =
-  roaster name + roaster country name + every origin country name + farm name
-  + profile name + `profile_detail` (all `.filter(Boolean)`'d, so an
-  unresolved id is skipped rather than stringifying to `"undefined"`). Prose =
-  `raw_title`+`raw_caption`+`raw_description` (no separate OCR text field
-  exists beyond what already lands in `raw_caption`/`raw_description` via
-  `photo_texts`).
-- `refreshSearchBlobs(coffeeId, ctx)` (new, DB-touching) — re-SELECTs the
-  coffee row **after** `buildCoffeeColumnUpdates`'s UPDATE has landed (so a
-  save that only touches e.g. `weight_g` still reflects whatever
-  roaster/origin/farm was already on the row, not just this call's own
-  resolutions), builds the blobs, writes them in one more UPDATE.
-- `applyResolutionsToCoffee` now calls `refreshSearchBlobs` right after its
-  existing column UPDATE and before `finalizeCoffeeStatus`. This is the single
-  call site both of the row's two asks route through: the adjudication path
-  (`adjudicateAndApply`) **and** `routes/coffees.js`'s generic per-field edit
-  endpoint (#40) both already call `applyResolutionsToCoffee` — no separate
-  wiring needed in `routes/coffees.js` itself, one shared fix covers both.
-- `loadSharedContext()` now also selects `name` from `profiles` (previously
-  only `id, slug`) and exposes `profileNameById` alongside the existing
-  `profileIdBySlug`, so `buildSearchBlobs` can turn a `profile_id` back into a
-  display name like "Washed"/"Experimental".
-- `rebuildAllSearchBlobs()` (new, exported) — the row's own "add a one-time
-  backfill" ask: loads shared vocab once, then calls `refreshSearchBlobs` for
-  every non-deleted coffee. Deliberately scoped to just the two blob columns
-  rather than reusing `readjudicateAll()` (which would also re-run full
-  adjudication and could touch unrelated fields) — narrower, faster, and
-  can't have any side effect beyond the two columns this row is about.
-
-**`src/routes/admin.js`**: `POST /api/admin/rebuild-search-blobs`
-(ingest-token-gated, same tier as every other admin mutation) calls
-`rebuildAllSearchBlobs()` and returns `{updated}`.
-
-**8 new `worker.test.js` cases** (252/252 green, up from 245): `buildSearchBlobs`
-folding every label source + `profile_detail` together, prose joining with
-diacritic-folding (a real Romanian caption fixture — "Prăjitorie"/"Panamá" →
-"Prajitorie"/"Panama"), an unresolved id or missing vocab entry producing an
-empty string rather than a stringified `undefined`, and a completely-empty
-coffee/ctx producing empty blobs rather than throwing.
-
-**Live-reproduced against a real local Postgres 16** (fresh `mycoffee_test56`
-DB, migrations 001→020 applied clean, all clean — no migration errors):
-- Inserted a coffee via `upsertCoffeeBase` with a Romanian raw caption/
-  description, then ran `applyResolutionsToCoffee` resolving `roaster_id` +
-  `origin_country_ids`. Blobs were empty beforehand (confirms the bug
-  reproduces locally, not just in production) and came back non-empty and
-  correctly folded afterward: `search_labels_blob` = `"Roastlab coffee
-  roasters Ethiopia"`, `search_prose_blob` = `"Test title Cafea din Panama,
-  prajitorie deosebita Prajitorie: Test"` (diacritics folded). The generated
-  `search_tsv` computed correctly too — labels-derived lexemes carry weight
-  `A` (`'roastlab':1A 'coffee':2A 'roasters':3A 'ethiopia':4A`), prose-derived
-  ones the default weight, confirming `009_search.sql`'s `setweight` ranking
-  actually engages now that the blobs are non-empty.
-- Seeded a **second** coffee directly via SQL (bypassing the worker path
-  entirely) with real `roaster_id`/`origin_country_ids` but empty blobs —
-  simulating one of the 120 already-extracted production rows. Confirmed its
-  blobs were empty pre-backfill, then ran `rebuildAllSearchBlobs()` and
-  confirmed both populated correctly (`"Roastlab coffee roasters Ethiopia"` /
-  `"Old title Cafea veche"`) — proves the backfill path independently of the
-  live-write path.
-
-`cd backend && npm ci && npm test` — **252/252 green**.
-
-Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
-"mycoffee-api"}`; `GET /api/admin/jobs` → 12 jobs, all `done`/`paused`, **none
-`running`** — safe to push `backend/**` per the hard rule. Also confirmed the
-bug live on production before pushing the fix: `GET /api/snapshot/text` → 120
-coffees, 0 non-empty blobs, exactly matching the row's own claim.
-
-Pushed straight to `origin/main` (fast-forward `002c7b5..3a95d3e`). Watched
-`railway-deploy.yml` run `31885457608` to completion via the GitHub Actions
-API — **`completed success`**. Post-deploy: `GET /health`/`GET /api/status`
-both still green, `GET /api/admin/jobs` still shows none `running`.
-
-Ran the new backfill against **production**: `POST
-/api/admin/rebuild-search-blobs` → `{"updated":120}`. Re-checked `GET
-/api/snapshot/text` immediately after: **120 coffees, 120 non-empty
-blobs** (up from 0), e.g. `"Public Coffee Roasters Germany Panama Elida
-Estate Farm Washed"` for one real coffee — roaster, roaster country, origin
-country, farm, and profile name all present and correctly space-joined. This
-closes the row's "add a one-time backfill" ask against the real 120-coffee
-corpus, not just the local-Postgres reproduction above.
-
-Flipped `#56` → `done` in `BACKLOG.md`. No row's `needs` references `56`, so
-nothing else unblocks — this is a search-quality fix, not a schema/API-shape
-change (the client already consumes `GET /api/snapshot/text`, unchanged).
 
 ## 2026-08-15 UTC (later session still): #56 — populate `search_labels_blob`/`search_prose_blob`
 

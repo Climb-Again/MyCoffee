@@ -264,16 +264,14 @@ export function estimateCostUsd(model, usage) {
 // ---- Network-touching voters ----
 
 export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildExtractPrompt('extract_a', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'extract_a',
@@ -287,16 +285,14 @@ export async function runExtractA({ rawText, images, vocabShortlist } = {}) {
 }
 
 export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildExtractPrompt('extract_b', { rawText, vocabShortlist });
   const { text, usage } = await generateContent({
     model,
     system,
     prompt,
     images,
-    temperature: 0.4,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0.4,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'extract_b',
@@ -313,16 +309,14 @@ export async function runExtractB({ rawText, images, vocabShortlist } = {}) {
 // voters' confidence for a field (see `adjudicate.js`'s `criticVerdicts` ctx),
 // not as a `field_candidates` row of its own.
 export async function runCritic({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildCriticPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: CRITIC_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: CRITIC_RESPONSE_SCHEMA,
   });
   return {
     agent: 'critic',
@@ -336,16 +330,14 @@ export async function runCritic({ rawText, images, vocabShortlist, candidatesByF
 }
 
 export async function runReconciler({ rawText, images, vocabShortlist, candidatesByField } = {}) {
-  const model = 'gemini-flash-latest';
+  const model = 'gemini-flash-lite-latest';
   const { system, prompt } = buildReconcilerPrompt({ rawText, vocabShortlist, candidatesByField });
   const { text, usage } = await generateContent({
     model,
     system,
     prompt,
     images,
-    temperature: 0,
-    thinkingBudget: 0,
-    responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    temperature: 0,    responseSchema: EXTRACT_RESPONSE_SCHEMA,
   });
   return {
     agent: 'reconciler',
@@ -356,6 +348,24 @@ export async function runReconciler({ rawText, images, vocabShortlist, candidate
     usage,
     costUsd: estimateCostUsd(model, usage),
   };
+}
+
+// Verbatim OCR transcription of the bag image, appended to the coffee's "Full
+// text" under an "OCR text" heading (Radu). Schema-less plain text — we want the
+// raw words the bag shows, not structured fields — and default thinking (the
+// current Gemini models 400 on thinkingBudget:0). For an image-only photo (no
+// caption/description) this transcription IS the only full text the coffee has.
+export async function runOcrTranscribe({ images } = {}) {
+  const model = 'gemini-flash-lite-latest';
+  const { text, usage } = await generateContent({
+    model,
+    system: 'You transcribe text from photographs of coffee bags.',
+    prompt:
+      'Transcribe ALL text visible on this coffee bag, verbatim, preserving line breaks and the original language(s). Output only the transcription — no commentary, no translation. If no text is legible, output nothing.',
+    images,
+    temperature: 0,
+  });
+  return { agent: 'ocr_transcribe', provider: 'vertex', model, text: text ?? '', usage, costUsd: estimateCostUsd(model, usage) };
 }
 
 // P3 (rules) is the data lane's `src/lib/deterministic.js` (#25) -- pure JS,

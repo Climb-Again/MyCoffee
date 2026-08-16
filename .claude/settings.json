@@ -6,7 +6,13 @@
       "Bash(./ops/start-extraction-batch.sh)",
       "Bash(./ops/start-extraction-batch.sh:*)",
       "Bash(bash ops/start-extraction-batch.sh)",
-      "Bash(bash ops/start-extraction-batch.sh:*)"
+      "Bash(bash ops/start-extraction-batch.sh:*)",
+      "Bash(ops/start-ocr-batch.sh)",
+      "Bash(ops/start-ocr-batch.sh:*)",
+      "Bash(./ops/start-ocr-batch.sh)",
+      "Bash(./ops/start-ocr-batch.sh:*)",
+      "Bash(bash ops/start-ocr-batch.sh)",
+      "Bash(bash ops/start-ocr-batch.sh:*)"
     ]
   }
 }

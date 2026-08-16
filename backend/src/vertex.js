@@ -92,13 +92,30 @@ export function parseResponse(data) {
 }
 
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 7;
+const MAX_BACKOFF_MS = 65_000; // a bit over a minute — the free-tier window is per-minute
 
-function backoffMs(attempt, retryAfterHeader) {
-  // Honour a server-sent Retry-After (seconds) when present, else exponential.
+// The Gemini free tier caps requests per MINUTE (e.g. "limit: 20 requests"),
+// and on a 429 it tells you exactly how long to wait — but in the response
+// *body* (`error.details[].retryDelay: "26.7s"`), NOT the Retry-After header.
+// Honouring that is the difference between the batch pacing itself and failing
+// every photo: a naive exponential backoff that caps below ~30s gives up just
+// before the per-minute window clears.
+function parseRetryDelayMs(bodyText) {
+  const m = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(bodyText ?? '');
+  if (!m) return null;
+  return Math.ceil(Number.parseFloat(m[1]) * 1000);
+}
+
+function backoffMs(attempt, { retryAfterHeader, bodyText } = {}) {
+  // 1) server-sent body retryDelay (Gemini) wins; 2) Retry-After header
+  // (seconds); 3) exponential. Always add a 1s buffer so we clear the window,
+  // and cap at just over a minute.
+  const fromBody = parseRetryDelayMs(bodyText);
+  if (fromBody != null) return Math.min(fromBody + 1000, MAX_BACKOFF_MS);
   const retryAfter = Number.parseInt(retryAfterHeader ?? '', 10);
-  if (Number.isFinite(retryAfter) && retryAfter > 0) return Math.min(retryAfter * 1000, 32_000);
-  return Math.min(1500 * 2 ** attempt, 32_000);
+  if (Number.isFinite(retryAfter) && retryAfter > 0) return Math.min(retryAfter * 1000 + 1000, MAX_BACKOFF_MS);
+  return Math.min(1500 * 2 ** attempt, MAX_BACKOFF_MS);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -147,7 +164,7 @@ export async function generateContent(opts = {}) {
       const errText = await res.text().catch(() => '');
       if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_ATTEMPTS - 1) {
         lastErr = new Error(`Gemini ${res.status}: ${errText.slice(0, 300)}`);
-        await sleep(backoffMs(attempt, res.headers.get('retry-after')));
+        await sleep(backoffMs(attempt, { retryAfterHeader: res.headers.get('retry-after'), bodyText: errText }));
         continue;
       }
       throw new Error(`Gemini ${res.status}: ${errText.slice(0, 500)}`);

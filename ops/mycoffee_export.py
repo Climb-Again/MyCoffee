@@ -198,11 +198,65 @@ def iter_album_photos(album: str, limit: Optional[int] = None) -> Iterator[Photo
             return
 
 
+# EXIF orientation (1-8) -> the sips ops that bake the image upright. Root cause
+# of sideways photos (#59): `sips` resize+convert drops the source EXIF
+# orientation tag WITHOUT rotating the pixels, so the backend's
+# `sharp().rotate()` auto-orient has no tag left to act on and serves a photo
+# sideways even though it looked fine in Photos. Baking the rotation at export
+# time (and resetting the tag to 1) fixes it at the source. `sips --rotate` is
+# clockwise degrees; `--flip` mirrors. 2/4/5/7 are mirrored orientations (rare
+# for phone photos) handled for completeness.
+_ORIENTATION_SIPS_OPS = {
+    1: [],
+    2: ["--flip", "horizontal"],
+    3: ["--rotate", "180"],
+    4: ["--flip", "vertical"],
+    5: ["--rotate", "90", "--flip", "horizontal"],
+    6: ["--rotate", "90"],
+    7: ["--rotate", "270", "--flip", "horizontal"],
+    8: ["--rotate", "270"],
+}
+
+
+def exif_orientation_ops(orientation: int) -> list:
+    """sips args that make an image with the given EXIF orientation upright.
+    Pure and unit-testable on any platform; an unknown value is a no-op."""
+    return list(_ORIENTATION_SIPS_OPS.get(orientation, []))
+
+
+def read_exif_orientation(src_path: str) -> int:
+    """Read the source EXIF orientation (1-8) via `sips -g orientation`.
+    Returns 1 (upright / unknown) when the value is missing or unreadable."""
+    try:
+        out = subprocess.run(
+            ["sips", "-g", "orientation", src_path],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return 1
+    for line in out.stdout.splitlines():
+        if "orientation:" in line:
+            try:
+                return int(line.split(":")[-1].strip())
+            except ValueError:
+                return 1
+    return 1
+
+
 def convert_to_jpeg(src_path: str, max_dim: int = OCR_MAX_DIM, quality: int = OCR_JPEG_QUALITY) -> bytes:
     """Resize+convert via macOS `sips` (no new Python deps) to the same
     2048px JPEG shape as the server's 'ocr' derivative (routes/photos.js) --
     a HEIC original should never reach sharp, since prebuilt sharp/libvips
-    binaries commonly lack HEIF decode support."""
+    binaries commonly lack HEIF decode support.
+
+    Also bakes the source EXIF orientation into the pixels and resets the tag
+    to 1 (#59), so a rotated original is stored upright rather than served
+    sideways. NOTE: assumes `sips` does NOT auto-apply orientation on
+    resample (consistent with the observed sideways bug); verify on the Mac
+    with a known-rotated photo, since sips can't run in CI."""
+    ops = exif_orientation_ops(read_exif_orientation(src_path))
     with tempfile.TemporaryDirectory(prefix="mycoffee-sips-") as tmp:
         out_path = os.path.join(tmp, "converted.jpg")
         subprocess.run(
@@ -210,6 +264,8 @@ def convert_to_jpeg(src_path: str, max_dim: int = OCR_MAX_DIM, quality: int = OC
                 "sips",
                 "-s", "format", "jpeg",
                 "-s", "formatOptions", str(quality),
+                *ops,
+                "-s", "orientation", "1",
                 "--resampleHeightWidthMax", str(max_dim),
                 src_path,
                 "--out", out_path,

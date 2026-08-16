@@ -31,6 +31,7 @@ import { query } from '../db.js';
 import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
+import { EXTRACT_RESPONSE_SCHEMA } from '../lib/agents.js';
 
 function toJobJson(r) {
   return {
@@ -63,14 +64,21 @@ export default async function adminRoutes(app) {
   // learns *why* -- unreachable host, bad credentials, wrong model name.
   app.get('/api/admin/vertex-check', { preHandler: requireIngestToken }, async (req, reply) => {
     const timeoutMs = req.query?.timeoutMs != null ? Math.max(1000, Math.min(120000, Number(req.query.timeoutMs))) : 20000;
+    // Diagnostic toggles (default off): `?thinking=0` forces thinkingBudget:0,
+    // `?schema=1` attaches the real EXTRACT_RESPONSE_SCHEMA. Lets us isolate
+    // which request feature a model 400s on, without a live extraction job.
+    const thinking = req.query?.thinking;
+    const withSchema = req.query?.schema === '1' || req.query?.schema === 'true';
     const startedAt = Date.now();
     try {
       const res = await generateContent({
         prompt: 'Reply with the single word: pong',
         maxOutputTokens: 8192,
         timeoutMs,
+        ...(thinking !== undefined && thinking !== '' ? { thinkingBudget: Number(thinking) } : {}),
+        ...(withSchema ? { json: true, responseSchema: EXTRACT_RESPONSE_SCHEMA } : {}),
       });
-      return { ok: true, ms: Date.now() - startedAt, model: config.vertex.model, text: res?.text ?? null, usage: res?.usage ?? null };
+      return { ok: true, ms: Date.now() - startedAt, model: config.vertex.model, thinking: thinking ?? 'default', schema: withSchema, text: res?.text ?? null, usage: res?.usage ?? null };
     } catch (err) {
       return reply.code(200).send({
         ok: false,

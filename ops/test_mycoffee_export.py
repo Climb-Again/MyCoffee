@@ -34,6 +34,27 @@ def make_record(**overrides):
     return export.PhotoRecord(**defaults)
 
 
+class ExifOrientationTests(unittest.TestCase):
+    def test_upright_and_unknown_are_noops(self):
+        self.assertEqual(export.exif_orientation_ops(1), [])
+        self.assertEqual(export.exif_orientation_ops(0), [])
+        self.assertEqual(export.exif_orientation_ops(99), [])
+
+    def test_quarter_turns_map_to_clockwise_rotations(self):
+        self.assertEqual(export.exif_orientation_ops(6), ["--rotate", "90"])
+        self.assertEqual(export.exif_orientation_ops(3), ["--rotate", "180"])
+        self.assertEqual(export.exif_orientation_ops(8), ["--rotate", "270"])
+
+    def test_mirrored_orientations_flip(self):
+        self.assertIn("--flip", export.exif_orientation_ops(2))
+        self.assertIn("--flip", export.exif_orientation_ops(5))
+
+    def test_ops_are_copies_not_shared_mutable_state(self):
+        a = export.exif_orientation_ops(6)
+        a.append("--extra")
+        self.assertEqual(export.exif_orientation_ops(6), ["--rotate", "90"])
+
+
 class Sha256Tests(unittest.TestCase):
     def test_sha256_bytes_matches_known_digest(self):
         self.assertEqual(
