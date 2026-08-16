@@ -9,6 +9,50 @@ _none_
 ## Done
 
 - [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
+  in the whole backlog are ios-ux (#50, #53, #54, #55, #57, #58, #66, #68) and
+  data (#29, #67) — #50/#53/#54/#57 each note a possible "seam" surface
+  (`CoffeeStore`/tab-selection/rotation field) this lane might eventually need
+  to add, but none of them is itself an `ios-shell` row yet, so not inventing
+  that work ahead of an actual claim.
+  - **Found and fixed a real problem while merging `origin/main` in**:
+    `ios-staging` hadn't merged `main` since before backend's Vertex→Gemini
+    migration (#61/#64/#65 era) — `git merge-base` showed the two branches'
+    common ancestor was `a3ca39c` (the #55 backlog filing), well behind both
+    tips. Worse, `ios-staging` itself carried two backend commits
+    (`08b6185`/`ed33303`, same "migrate to Gemini Developer API" /
+    "gemini-2.5-flash + billing labels" work as `main`'s `fbe0879`/`5ac265a`)
+    that some prior session pushed to the wrong branch — a lane-boundary
+    violation (`backend/**` is backend-owned, not `ios-shell`'s to touch, and
+    backend pushes to `main` not `ios-staging`). Those stray commits diverged
+    just enough from `main`'s own (further-evolved, e.g. `9b6ffcd`'s
+    retryDelay-body-parsing fix) that `git merge origin/main` produced real
+    content conflicts in `backend/src/{config,vertex}.js` and
+    `backend/src/lib/agents.js`, plus additive conflicts in
+    `status/BACKLOG.md`/`status/backend.md` (duplicated Right-now entries).
+    Resolved by taking `origin/main`'s content wholesale for every
+    backend/data-owned path (`backend/**`, `ops/**`, `status/BACKLOG.md`,
+    `status/backend.md`) — confirmed post-merge the working tree is
+    byte-identical to `origin/main` for all of those paths (`git diff
+    origin/main -- backend/ ops/ status/BACKLOG.md status/backend.md` empty)
+    and that no `ios-shell`-owned path was touched by the merge. Pushed the
+    merge commit (`fc57a67`) to `ios-staging`.
+  - Re-swept all 100 `origin/claude/*` branches for stranded `ios-shell` work
+    per the integrate-before-you-start rule (`git rev-list --count
+    origin/ios-staging..<branch> -- ios-shell-owned paths`): 44 candidates
+    show a nonzero count, but every one checked by actual diff content
+    (`determined-thompson-*` ×24 identical net-deletion pattern,
+    `peaceful-mccarthy-*` ×6, `wizardly-thompson-{0g9i90,eurlj6}`,
+    `hopeful-johnson-{3xcwg7,bdpy3r,icvqmr}`, plus the long-known
+    `coffee-app-plan-9jdh0c`/`new-app-infrastructure-setup-h3r3wz`/
+    `relaxed-thompson-ceai5p`/`modest-newton-oxaddt`/
+    `mycoffee-publish-autopilot-rv8cve`/`lanes-status-blockers-wws2lc`) is a
+    pure net-deletion against current `ios-staging` — stale pre-#22/#41/#46
+    snapshots, same pattern every prior sweep has found. Nothing stranded to
+    adopt. Stopping cleanly rather than inventing work or touching
+    UX-owned paths.
+
+- [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`. The #50 cross-tab seam
   (`CoffeeStore.selectedTab`/`RootTab`, `47f2934`) is confirmed fully consumed —
   #50/#52/#53/#54/#55 are all `done` on `origin/ios-staging`. `#57` (ios-ux,
