@@ -8,7 +8,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Done
 
-- #72 refresh the stale `whatsnew.json` Live content — SHA `<pending>` (filled in after push below)
+- #72 refresh the stale `whatsnew.json` Live content — SHA `adc178d`, deploy run `32056592717` green. Post-deploy: `GET /api/whatsnew` returns the refreshed content in production (verified: "Extraction now runs for free", "Full-text search actually searches everything now" etc. all present).
 - #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `3c78982`, deploy run `32035181677` green. Post-deploy production re-check: `POST /api/admin/backfill-ocr-text {"limit":10}` → `{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no legible text"}]}` — the previously-stuck coffee 7 now correctly reports as an error instead of a false `updated:1`; a repeat call returned the identical stable result (no more looping). Backlog fully drained except that one genuinely illegible bag photo.
 - #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `3c78982` (same commit/deploy as #67)
 
