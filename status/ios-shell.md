@@ -8,6 +8,60 @@ _none_
 
 ## Done
 
+- [2026-08-17 UTC] 71(a) `RelativeWindow` seam for the listing filter — branch `ios-staging`
+  - No `ios-shell`-tagged row was `ready` this cycle (`#17`/`#22`/`#41`/`#46` all `done`). But
+    `#71` (ios-ux, ready, no needs) explicitly names a shell-owned seam — `status/ios-ux.md`'s
+    2026-08-17 entry confirms the UX lane already looked at this row, found part (a) touches
+    `Query/{CoffeeFilter,CoffeeIndex,FilterDimension}.swift` (shell-owned), and deliberately
+    left it rather than guess the wire shape — same precedent as `#50`'s tab-selection seam
+    (2026-08-14 entry below). Picked it up instead of stopping on a no-op session.
+  - Checked `#57` (the other `ready` row naming a shell seam, persisted photo rotation) first:
+    still nothing to build against — no backend column/endpoint exists yet (confirmed via
+    `status/backend.md` and a repo-wide grep for `rotation_quarter_turns`), same conclusion
+    every prior session reached. Left it for whenever backend lands its half.
+  - **New `Query/RelativeWindow.swift`**: `enum RelativeWindow { case last12m, last18m }` with
+    `months: Int` and a `cutoff(now:)` that reuses `Calendar.utc` (`Utilities/PlainDate.swift`,
+    already shell-owned) — the exact same `Calendar.utc.date(byAdding: .month, value: -months,
+    to: Date())` computation `InsightsView.coffeesSince(months:)` already does for the Charts
+    tab's own `ChartWindow.last12m`/`.last18m`, so the listing filter and the Charts tab agree
+    on what "last 12 months" means. Deliberately has no `.all`/`.years` cases — those are
+    already covered by `relativeWindow == nil` and the existing `years: Set<Int>` field
+    respectively, per the row's own "kept distinct from years" framing.
+  - **`CoffeeFilter`**: added `var relativeWindow: RelativeWindow?` (nil = no window
+    constraint) and folded it into `isEmpty`. Deliberately did **not** add a `FilterDimension`
+    case for it — `clearing(_:)`/`facets(for:)`/`topFilterCards()` all key off
+    `FilterDimension` to compute per-value pill counts, but a relative window isn't a
+    multi-select vocab-style facet (there's no "count if the other window were selected"
+    question to answer), it's a single active toggle exactly like the Charts tab's own
+    segmented control — which is a plain `Picker`, not a facet pill list. Modeling it as a
+    bare optional keeps `clearing(_:)` correct for free: since no dimension case owns it,
+    `clearing(.roaster)` (etc.) leaves `relativeWindow` untouched, exactly the "only clear
+    the one dimension being cleared" contract every other cross-cutting field (`query`,
+    `isDecaf`, `favoritesOnly`) already relies on.
+  - **`CoffeeIndex.matches(_:)`**: applies the cutoff directly (`coffees.indices.filter {
+    $0.purchasedOn.utcMidnight >= cutoff }`) right after the free-text `query` intersection,
+    with the same one-line justification `query` already has in a comment: both depend on
+    "now"/live input, so neither can live in the prebuilt `postings` map (built once from
+    static data) the way vocab/band/bool dimensions do.
+  - **UX lane: two wiring pieces remain, not new plumbing.** (a) The filter sheet needs a
+    control that sets `store.filter.relativeWindow` — no existing pill loop fits (it's not a
+    `FilterDimension`), so this is a new small section, e.g. a segmented control mirroring
+    `InsightsView`'s own Charts-tab window picker. (b) `InsightsView.selectInCoffees(dimension:
+    key:)` (`#50`/`#53`/`#54`'s existing deep-link, `InsightsView.swift:310`) builds a fresh
+    `CoffeeFilter()` and should also copy the Charts tab's current `window` across as the
+    matching `RelativeWindow` case (`.last12m`→`.last12m`, `.last18m`→`.last18m`, `.all`/
+    `.years` → leave `relativeWindow` `nil`) before setting `store.filter` — the row's own
+    part (b) ask. Not making either UI change myself — `Features/Coffees/**` and
+    `Features/Insights/**` are UX-owned.
+  - Not locally compiled (no Xcode here) — the new file mirrors `RatingBand.swift`'s exact
+    shape (a plain `CaseIterable`/`Hashable`/`Sendable` enum with computed properties, no
+    associated values), and both edited files are small, additive, single-purpose insertions
+    into already-compiling functions — a red compile check here should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/Query/{CoffeeFilter,RelativeWindow}.swift`,
+    `ios/MyCoffee/Sources/Store/CoffeeIndex.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-17 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
   in the whole backlog this cycle are backend (#67, #69) and ios-ux (#50,
