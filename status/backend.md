@@ -4,12 +4,83 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-17 12:00 UTC] #72 refresh the stale `whatsnew.json` Live content — branch `main`
+(none — #72 finished and moved to Done this session)
 
 ## Done
 
+- #72 refresh the stale `whatsnew.json` Live content — SHA `<pending>` (filled in after push below)
 - #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `3c78982`, deploy run `32035181677` green. Post-deploy production re-check: `POST /api/admin/backfill-ocr-text {"limit":10}` → `{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no legible text"}]}` — the previously-stuck coffee 7 now correctly reports as an error instead of a false `updated:1`; a repeat call returned the identical stable result (no more looping). Backlog fully drained except that one genuinely illegible bag photo.
 - #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `3c78982` (same commit/deploy as #67)
+
+## 2026-08-17 UTC (seventh session): #72 — refresh the stale What's New content
+
+Only `ready` backend row this cycle (`#72`, phase 6, no `needs`). Started at
+`origin/main`'s tip `2c189c9` — fast-forwarded to it cleanly, no stranded
+`claude/*` branch carried this row (`git branch -r --list 'origin/claude/*'`,
+105 branches, none newer than this session's own touching
+`backend/src/data/whatsnew.json`).
+
+**Read the actual current state before writing prose** — walked the full
+`BACKLOG.md` table rather than trusting the row's own summary of what shipped,
+since the row itself turned out to have a wrong premise (see below). Confirmed
+via `routes/whatsnew.js`: it serves the *same* static `whatsnew.json` for both
+`live` and `plan` — there is no backlog-to-JSON generation anywhere in the
+codebase. **The row's parenthetical "the Plan tab is generated from the
+backlog via the API and should already be current" is false** — `plan.byLane`
+is exactly as hand-curated as `live`, and was just as stale (the `ios` list
+still had 5 items already shipped: field-edit API, edit sheet, What's New API
+surface, What's New screen itself). Corrected the row's own premise when
+closing it out, per `status/README.md`'s "correcting a task means correcting
+this file" rule — flagging here too since a future curation session reading
+only the row would otherwise skip re-checking `plan`.
+
+**Rebuilt `live`** (11 items, up from 6): kept the four still-accurate entries
+(bag-photo extraction, farm auto-vocab, smaller cached photos, per-field
+edit — the last one's stale "an edit sheet is next" clause dropped since #42
+shipped it), and added: the Gemini free-tier migration (#61, superseded to
+Gemini Developer API — $0 extraction, no more spend caps); nonsense-value
+rejection folded into the "picks applied by default" line (#39/#49); the
+roaster-country line updated to name Hong Kong/Japan/Greece (#60/#63/024) and
+fold in the caption-beats-guess override (#48/#51); full-text search actually
+working (#56/#67 — the search blobs were never populated before #56, a real
+regression the row itself called out as needing to land in the same commit as
+the fix, which is exactly what #56's own close-out did); the OCR-transcription
+fallback for image-only photos + its daily drain routine (#65/#67); the
+Insights redesign (#52 — three sub-tabs, time windows, average rating
+everywhere); and the What's New screen itself (#45–#47), closing the loop
+since this very refresh is proof the screen reads live backend data.
+**Deliberately did NOT claim Insights tap-to-filter is live** — #50(b)/#53/#54
+(tapping a chart/finding to deep-link into the filtered list) are still
+`ready`, not `done`, so that stayed in `plan` instead, matching the row's own
+implicit request not to overclaim.
+
+**Rebuilt `plan.byLane`**: `backend`/`data` now correctly empty — every
+`ready`/`blocked` row in the current table tagged either lane is `done` (or
+`human`, already resolved). `ios` now lists the 8 real open ios-ux rows
+(chart/finding tap-to-filter #50b/#53/#54 merged into one item since they're
+the same seam; #55 review-photo zoom; #57 persisted rotate; #58 bottom search;
+#66 per-item review save; #68 Unknown-everywhere filter; #70 single-value
+altitude edit) instead of the 5 stale already-shipped ones.
+
+**Trimmed `needsApproval`** from 3 to 1: dropped "publish the accumulated iOS
+batch" (multiple publishes have happened since, e.g. #52's own close-out notes
+"published to TestFlight same session") and "launch the ~$62 backfill"
+(superseded — extraction is now $0 on the Gemini free tier and the daily
+routine has already ground through most of the backlog per #65/#67). Kept the
+standing 50 MB app+data cap rule (CLAUDE.md §12) — that's a durable product
+constraint, not a one-off decision.
+
+No code change beyond the JSON — `whatsnew.test.js`'s existing shape assertion
+(`live[].{title,detail,area}`, `plan.byLane.{backend,data,ios}[].{title,detail}`,
+`needsApproval[].{title,detail}`) covers structural regressions, and the
+content itself is prose, not logic, so no new test was warranted.
+`cd backend && npm test` — **252/252 green**, unchanged (no test count drift
+expected or seen).
+
+**Pre-push safety check**: `GET /api/admin/jobs` — job 24 is `paused`
+(`spentUsd $0.0318`, `photosDone 20`, last error a Gemini 429 free-tier daily
+quota exhaustion), **no job `running`** — safe to push `backend/**` per
+CLAUDE.md §12's hard rule.
 
 ## 2026-08-17 UTC (sixth session): #67 finished (found + fixed a real bug in its own code) + #69 shipped
 
