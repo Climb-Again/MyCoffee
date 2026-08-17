@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-_none_
+- [2026-08-17 06:47 UTC] #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — branch `main`
 
 ## 2026-08-17 UTC (later session, fourth check): session check — no ready row this cycle
 
