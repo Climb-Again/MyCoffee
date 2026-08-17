@@ -4,12 +4,12 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-17 12:49 UTC] #69 per-photo image-inclusion in `claimBatch`/`runWorker` (see below, done same session)
+(none — both #67 and #69 finished and moved to Done this session)
 
 ## Done
 
-- #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `<fill in after commit>`
-- #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `<fill in after commit>`
+- #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `3c78982`, deploy run `32035181677` green. Post-deploy production re-check: `POST /api/admin/backfill-ocr-text {"limit":10}` → `{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no legible text"}]}` — the previously-stuck coffee 7 now correctly reports as an error instead of a false `updated:1`; a repeat call returned the identical stable result (no more looping). Backlog fully drained except that one genuinely illegible bag photo.
+- #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `3c78982` (same commit/deploy as #67)
 
 ## 2026-08-17 UTC (sixth session): #67 finished (found + fixed a real bug in its own code) + #69 shipped
 
@@ -97,14 +97,20 @@ in this file carry no unit coverage per its own established convention):
 session's own count; +2 from `shouldUseImage`'s tests below, landed in the
 same commit).
 
-**Drained the production backlog**: after the fix, running
-`POST /api/admin/backfill-ocr-text {"limit":15}` against production is
-expected to report the same one stuck photo as `errors:[...]` instead of a
-false `updated:1` (deploy + re-verify happens after this commit lands — see
-"Post-deploy verification" below). Everything else in the original ~95-photo
-population that could be resolved, was — dozens of coffees across roughly a
-dozen small batches this session, on top of whatever the prior session's own
-`{"limit":5}`/`{"limit":10}` calls had already done.
+**Drained the production backlog**: pushed `3c78982`, watched
+`railway-deploy.yml` run `32035181677` to completion via the GitHub Actions
+API — **`completed success`**. Post-deploy `GET /health`/`GET /api/status`
+both green. Re-ran `POST /api/admin/backfill-ocr-text {"limit":10}` against
+production twice: both calls returned the identical
+`{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no
+legible text"}]}` — coffee 7 (the same stuck row from before the fix) now
+correctly reports as an honest error instead of a false `updated:1`, and the
+result is stable across repeat calls (no more looping). Everything else in
+the original ~95-photo population that could be resolved, was — dozens of
+coffees across roughly a dozen small batches this session, on top of
+whatever the prior session's own `{"limit":5}`/`{"limit":10}` calls had
+already done. Coffee 7's bag photo is genuinely illegible to Gemini; nothing
+further to do for it programmatically.
 
 Flipped `#67` → `done` in `BACKLOG.md`.
 
