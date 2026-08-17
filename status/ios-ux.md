@@ -4,7 +4,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-17 08:00 UTC] 70 Altitude edit won't save a single value (only max) — branch `ios-staging`
 
 ## Session notes
 
