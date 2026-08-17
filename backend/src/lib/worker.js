@@ -712,6 +712,52 @@ async function appendOcrTextToCoffee(coffeeId, ocrText) {
   await query('UPDATE coffees SET raw_description = $1, updated_at = now() WHERE id = $2', [combined, coffeeId]);
 }
 
+// #67: coffees whose photo was OCR'd (image mode) before the OCR-text-append
+// feature above landed still have no "OCR text" block -- and since their
+// `raw_caption` is null (image-only: no caption text ever arrived for that
+// photo), that block would be their *only* readable transcription. Targeted
+// re-OCR, not a full re-extraction: runs only `runOcrTranscribe` against the
+// photo's already-stored `ocr` asset (same source `rederive-photos` reads),
+// then reuses `appendOcrTextToCoffee`'s own idempotent write. `spendCapUsd`
+// bounds total spend for one call so this can be re-run across several days
+// against the flash-lite daily quota (per the row's own note) -- each run's
+// SELECT naturally excludes whatever a prior run already appended, so a
+// partial run never re-does work.
+export async function backfillOcrText({ limit = 200, spendCapUsd = null } = {}) {
+  const { rows } = await query(
+    `SELECT c.id AS coffee_id, p.id AS photo_id
+     FROM coffees c
+     JOIN photos p ON p.id = c.photo_id
+     JOIN assets a ON a.photo_id = p.id AND a.variant = 'ocr'
+     WHERE c.deleted_at IS NULL
+       AND c.raw_caption IS NULL
+       AND p.state = 'processed'
+       AND (c.raw_description IS NULL OR c.raw_description NOT LIKE '%' || $1 || '%')
+     ORDER BY c.id
+     LIMIT $2`,
+    [OCR_HEADING, limit],
+  );
+
+  let updated = 0;
+  let spentUsd = 0;
+  const errors = [];
+  for (const row of rows) {
+    if (spendCapUsd != null && spentUsd >= spendCapUsd) break;
+    try {
+      const image = await fetchImageBuffer({ id: row.photo_id });
+      if (!image) continue; // no 'ocr' asset despite the join -- shouldn't happen, skip defensively
+      const ocr = await runOcrTranscribe({ images: [image] });
+      spentUsd += Number(ocr.costUsd ?? 0);
+      await appendOcrTextToCoffee(row.coffee_id, ocr.text);
+      updated += 1;
+    } catch (err) {
+      errors.push({ coffeeId: row.coffee_id, error: err.message });
+    }
+  }
+
+  return { scanned: rows.length, updated, spentUsd, errors };
+}
+
 // The SIGTERM-safe loop. Guarded by a process-wide advisory lock so a
 // redeploy overlap never runs two workers at once; `jobId` (an
 // `extraction_jobs` row) is optional and only used for progress/pause

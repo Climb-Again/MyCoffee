@@ -19,6 +19,9 @@
 //   POST /api/admin/rebuild-search-blobs  one-time backfill (#56) --
 //                                    recomputes search_labels_blob/
 //                                    search_prose_blob for every coffee
+//   POST /api/admin/backfill-ocr-text     targeted re-OCR (#67) -- appends
+//                                    the "OCR text" block to image-only
+//                                    coffees OCR'd before that feature landed
 //
 // All ingest-token-gated: these are write/spend-triggering operations, same
 // tier as every other mutation in the API.
@@ -28,7 +31,7 @@ import path from 'node:path';
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs } from '../lib/worker.js';
+import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 import { EXTRACT_RESPONSE_SCHEMA } from '../lib/agents.js';
@@ -169,6 +172,16 @@ export default async function adminRoutes(app) {
   // -- re-derives from whatever the row already holds.
   app.post('/api/admin/rebuild-search-blobs', { preHandler: requireIngestToken }, async () => {
     return rebuildAllSearchBlobs();
+  });
+
+  // #67: image-only coffees OCR'd before the OCR-text-append feature landed
+  // (jobs 22/23, per BACKLOG.md) still have no "OCR text" block. Bounded by
+  // `limit`/`spendCapUsd` (both optional) so it can be re-run across several
+  // days against the flash-lite daily quota rather than needing one huge run.
+  app.post('/api/admin/backfill-ocr-text', { preHandler: requireIngestToken }, async (req) => {
+    const limit = req.body?.limit != null ? Math.max(1, Math.min(1000, Number(req.body.limit))) : 200;
+    const spendCapUsd = req.body?.spendCapUsd != null ? Number(req.body.spendCapUsd) : null;
+    return backfillOcrText({ limit, spendCapUsd });
   });
 
   // Re-derives `display`/`thumb` (never `ocr` -- it's the source, and it's
