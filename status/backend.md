@@ -156,15 +156,104 @@ Two things follow, and the second matters more than the first:
   breach, `spentUsd` pinned at 0 across a real 32-minute gap); a 429
   retry-after is a different animal and should not be treated the same way.
 
+## 🔴🔴 2026-08-17 UTC — MY OWN PROCESS ERROR: the #67 code DID land on `main`, and it DID redeploy while job 24 was running
+
+**Everything above about "held off `main`" is wrong as of `b2a2861`. Read this
+section, not that one, for where the code actually is.** Leaving the earlier
+text in place deliberately — it's the reasoning that led to the mistake, and
+overwriting it would hide the lesson.
+
+**What I did wrong.** I correctly decided to keep `backend/**` off `main` while
+job 24 ran, and correctly structured the first two pushes to carry only
+`status/**` (`d6a74e1`, `ba3ee18`). Then I committed the code as `e99cdc2` on
+the session branch, and afterwards committed the job-24 *correction docs* as
+`b2a2861` **on top of it** and pushed `HEAD:main`. **Git pushes commits, not
+files** — `b2a2861`'s ancestry includes `e99cdc2`, so the backend code went to
+`main` with it. The entire point of the stash-and-split dance earlier was to
+avoid exactly this, and I undid it one commit later by not re-checking ancestry
+before a push I'd mentally filed as "docs only".
+
+**The rule that would have caught it**: before any push to `main`, diff what
+the push actually carries against the remote — `git diff --name-only
+origin/main..HEAD` — and gate on *that*, never on "what I just edited". I'd
+even run that check for `ba3ee18` and then skipped it for `b2a2861`.
+
+**Consequence**: `railway-deploy.yml` run **`32004154142`** triggered at
+07:03:37Z on `b2a2861` and redeployed while job 24 was `running` — the precise
+thing CLAUDE.md §12 forbids. Job 24 was at `photosDone` 18 / `spentUsd`
+$0.0283 and progressing when the push landed.
+
+**Why I did NOT revert.** A revert commit touching `backend/**` would trigger a
+**second** deploy and therefore a **second** SIGTERM — strictly worse than the
+one already in flight — and force-push/history-rewrite is forbidden outright
+(CLAUDE.md §3). The code itself is the verified-good #67 implementation that
+was going to land anyway, and `npm test` gates the deploy job, so the deploy
+content is not in question; only its *timing* was wrong. The cheapest correct
+move is to let the one deploy finish and then verify recovery, which is what I
+did.
+
+**Why the damage is bounded** (design, not luck): the worker is explicitly
+built for this — `extractions.input_sha` makes every voter call idempotent, so
+the $0.0283 already spent is stored and a resumed run gets **cache hits rather
+than re-spends**; claim-with-lease means the photos job 24 held are released by
+the lease reaper (10-min-old leases are reaped on the next claim); and #64's
+`extraction_failures` counter prevents a re-claim loop. So the loss is the
+in-flight photo(s) at SIGTERM, not the paid work.
+
+**Post-deploy verification (all done this session):**
+- `railway-deploy.yml` run **`32004154142`** → **`completed success`** (both
+  `test` and `deploy` jobs; the 250/250 suite gated it).
+- Observed the expected redeploy window directly: `GET /health` returned
+  Railway's `502 "Application failed to respond"` at 07:05:31Z (old container
+  SIGTERM'd — this *is* the documented cost of the mistimed push), then
+  recovered by 07:06:33Z.
+- Post-deploy: `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+  `GET /api/status` → `vertex:true`, `db:true`.
+- **New route is live and correctly gated**: unauthenticated `POST
+  /api/admin/backfill-ocr-text` → **401** (route exists, ingest-token-gated —
+  not a 404).
+- **The paid extraction work survived, as designed**: job 24 read `photosDone`
+  **18** / `spentUsd` **$0.0283** just before the push and `photosDone` **20** /
+  `spentUsd` **$0.0318** just after the new container came up — it *advanced
+  across* the redeploy rather than losing ground. `extractions.input_sha`
+  idempotency + claim-with-lease did exactly what the module header promises.
+
+**⚠️ Residual state for the next session / Radu — job 24's row is very likely
+ORPHANED.** It still reads `status: running`, but `photosDone`/`spentUsd` have
+been frozen at **20 / $0.0318** across three polls over ~2.5 minutes since the
+new container booted. `runWorker` is fire-and-forget *in-process* and nothing
+re-invokes it on boot, so the SIGTERM almost certainly killed the worker while
+leaving the `extraction_jobs` row at `running`. Consequences: (a) it will keep
+tripping the "no job `running`" push gate for every future `backend/**` push
+until it's cleared, and (b) the remainder of #65's image-only OCR backlog isn't
+being drained right now. **I deliberately did not touch it** — `POST
+/api/admin/jobs/24/pause` was already denied for this session, and taking the
+mirror-image action (`/resume`) unilaterally after that denial would be the same
+overreach in the opposite direction. Clearing it is a one-liner for whoever
+holds the call: `POST /api/admin/jobs/24/pause` (then `/resume`, or simply let
+the next daily OCR routine fire a fresh job — the lease reaper has already
+released job 24's photos, so a new job picks them up cleanly). Caveat per the
+correction above: **2.5 minutes is not a long window**, so re-check
+`spentUsd` before concluding it's dead — if it has moved, a worker is alive and
+should be left alone.
+
+**Not run this session: the actual production backfill.** `POST
+/api/admin/backfill-ocr-text` is live but I did not fire it. Unlike every other
+backfill this lane has shipped, **this one costs real flash-lite calls** (~1 per
+coffee × ~95 coffees), and the Gemini free-tier quota is currently under enough
+pressure to 429 job 24 continuously — so a run now would mostly land in
+`errors` while consuming quota that #65's backlog drain needs. It's the one
+remaining step, and it's explicitly designed to be run bounded across several
+days (`{"limit":50}` / `spendCapUsd`).
+
 **To finish #67** (a few minutes, no rebuild — the code is written and
-verified):
-1. Confirm no job is `running`: `GET /api/admin/jobs`. **Let job 24 finish on
-   its own** — as of 07:02 UTC it is throttled but progressing (12 photos,
-   $0.0175) and draining the #65 image-only OCR backlog, which is real work.
-   Do not pause it. Just wait for it to reach `done`, then land #67.
-2. Land it: `git merge --ff-only claude/confident-cerf-86fp01` onto `main` and
-   push (it's a clean fast-forward from `c1e63f8`+claim). Watch
-   `railway-deploy.yml` green.
+verified; note per the section above the CODE IS ALREADY ON `main` and
+deployed, so steps 1–2 are done, and only the production backfill run and the
+bookkeeping remain):
+1. ~~Confirm no job is `running`~~ — **moot, the code is already deployed.** But
+   see the orphaned-job-24 note above: clear that row so it stops tripping the
+   push gate for the *next* `backend/**` change.
+2. ~~Land it~~ — **done**, `e99cdc2` on `main`, deploy run `32004154142` green.
 3. Run the backfill against production, bounded, since it's quota-limited:
    `curl -X POST $BASE/api/admin/backfill-ocr-text -H "Authorization: Bearer
    $INGEST_TOKEN" -H 'Content-Type: application/json' -d '{"limit":50}'`.
