@@ -4,9 +4,57 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-17 08:00 UTC] 70 Altitude edit won't save a single value (only max) — branch `ios-staging`
+_none_
 
 ## Session notes
+
+- [2026-08-17 UTC] 70 Altitude edit won't save a single value (only max) — branch `ios-staging`
+  - **Before claiming**: merged `origin/main` into `ios-staging` (one real conflict in
+    `status/BACKLOG.md` rows `#66`/`#67` — both sides had edited the same rows off a
+    common parent: `ios-staging` had verified `#66` `done` and origin/main had the fuller
+    `#67` `claimed` write-up; kept `ios-staging`'s `#66` and `main`'s `#67`, both are the
+    newer/more-complete version of their respective row). Swept `git branch -r --list
+    'origin/claude/*'` (105 branches) via `git rev-list --count ios-staging..<branch> --
+    ios/MyCoffee/Sources/Features ios/MyCoffee/Sources/DesignSystem
+    ios/MyCoffee/Resources` — dozens of non-zero hits, spot-checked the most-recently-dated
+    ones plus every `hopeful-johnson-*` (this lane's own naming family): all but one are
+    non-ios-ux branches (0 hits after checkout) or pre-#18/#27/#28 stale forks (net
+    deletions), same pattern every prior sweep in this file found. The one real candidate,
+    `hopeful-johnson-bdpy3r` ("iOS UX #58: dock listing search near the tab bar", dated
+    2026-08-15), is an earlier alternate attempt at `#58` — confirmed superseded, not
+    stranded: `#58` is already `done` and live on `ios-staging` via a different, later
+    commit (`4f10408`, the `#available(iOS 18.0,*)` + `Tab(value:)` approach documented in
+    this file's 2026-08-16 entry). Not adopted.
+  - Rescanned `BACKLOG.md` for the actual next `ios-ux` row: `#57` (`ready`, needs `59`
+    which is `done`) is next by number, but its own text and `status/ios-shell.md`'s
+    2026-08-17 session check both confirm the backend column/write-endpoint and the
+    ios-shell model/API surface it needs don't exist yet — "nothing concrete to build
+    against" per that lane's own words. Picked `#70` instead (lowest number that's
+    actually buildable standalone in ios-ux-owned files), same judgment call the shell
+    lane made skipping `#57` for the identical reason.
+  - **Root cause, confirmed by reading the code directly**: `CoffeeEditSheet.swift`
+    `buildEdits()`'s altitude block gated the entire edit on `if let minValue =
+    Int(altitudeMin)` — leaving `min` blank and only filling `max` skipped the block
+    entirely, so nothing saved, exactly the row's own repro.
+  - **Fix**: `let lo = Int(altitudeMin) ?? Int(altitudeMax)`, `let hi = Int(altitudeMax) ??
+    Int(altitudeMin)`, then `minValue = min(lo, hi)` / `maxValue = max(lo, hi)` — fires
+    when either field parses (both blank → both `nil` → skipped, as before), and as a
+    bonus sanity-orders the pair if the user enters them swapped (min > max), which the
+    row's own text asked for as a secondary fix. A single value in either field now sends
+    a point altitude (`"2000 m"`), which `backend/src/lib/normalize.js`'s `parseAltitude`
+    already accepts.
+  - Not locally compiled (no Xcode here) — a narrow, mechanical change to one `if let`
+    condition inside an already-existing, already-used function; low compile risk.
+  - `ios/MyCoffee/Sources/Features/Coffees/CoffeeEditSheet.swift`
+  - Commit: (see `git log` on `ios-staging`)
+  - **Flagging, not building past ownership**: `#71` (chart time-window on the listing
+    filter) is the next `ios-ux` row by number, but part (a) is a seam change to
+    `Query/{CoffeeFilter,CoffeeIndex,FilterDimension}.swift` — shell-owned, not this
+    lane's to edit — before there's a `relativeWindow`/equivalent field for a filter-sheet
+    UI or a tap-carry-window fix to build against. Same judgment as `#57`: don't guess at
+    the wire shape, wait for the shell half to land. Nothing written to
+    `status/ios-shell.md` (never edit another lane's file) — the row's own text in
+    `BACKLOG.md` already documents the seam for whichever lane picks it up next.
 
 - [2026-08-16 UTC, later session] 68 "Unknown" bucket not selectable outside Process — branch `ios-staging`
   - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — only this session's own branch

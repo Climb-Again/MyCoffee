@@ -336,8 +336,10 @@ struct CoffeeEditSheet: View {
             edits.append(CoffeeFieldEdit(field: "profile", value: text))
         }
 
-        if let minValue = Int(altitudeMin) {
-            let maxValue = Int(altitudeMax) ?? minValue
+        if let lo = Int(altitudeMin) ?? Int(altitudeMax),
+           let hi = Int(altitudeMax) ?? Int(altitudeMin) {
+            let minValue = min(lo, hi)
+            let maxValue = max(lo, hi)
             if Optional(minValue) != originalAltitudeMin || Optional(maxValue) != originalAltitudeMax {
                 let text = minValue == maxValue ? "\(minValue) m" : "\(minValue)-\(maxValue) m"
                 edits.append(CoffeeFieldEdit(field: "altitude", value: text))
