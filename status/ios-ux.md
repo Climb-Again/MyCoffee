@@ -8,6 +8,43 @@ _none_
 
 ## Session notes
 
+- [2026-08-17 UTC] 71 (ios-ux half) Filter-sheet time window + carry window/years on chart-tap deep-link — branch `ios-staging`
+  - `git branch -r --list 'origin/claude/*'` showed only this session's own branch, nothing stranded
+    touching `Sources/Features`/`Sources/DesignSystem`/`Resources` to adopt. Fetched and rebuilt
+    `ios-staging` from `origin/ios-staging` (which already carried ios-shell's same-day #71(a) seam —
+    `Query/{CoffeeFilter,RelativeWindow}.swift`, `Store/CoffeeIndex.swift` — confirmed live by
+    grepping for `relativeWindow` in `CoffeeIndex.swift` before writing anything). #57 (the other
+    `ready` row) checked and confirmed still unbuildable — no backend column/endpoint or shell model
+    field for photo rotation exists yet (repo-wide grep for `rotation_quarter_turns` empty), same
+    conclusion `status/ios-shell.md`'s same-day entry independently reached. Picked #71 instead of
+    stopping.
+  - **(a) Filter sheet**: `Features/Coffees/FilterSheetView.swift` gets a new "Time window" `Section`
+    (added after the `ForEach(FilterDimension.allCases)` loop, so it sits right after the Year
+    section) holding a new private `RelativeWindowRow` — a plain segmented `Picker` (All/12m/18m)
+    bound directly to `draft.relativeWindow`, using the same `Optional<T>`-tag pattern
+    `CoffeeEditSheet.swift`'s Process picker already established (`Text("All").tag(RelativeWindow?
+    .none)`, `Text("12m").tag(Optional(RelativeWindow.last12m))`). Deliberately kept off the
+    `FilterDimension`/`DimensionPills` per-value-count loop — same reasoning ios-shell's own #71(a)
+    write-up gives: it's a single active toggle, not a multi-select facet with a "count if cleared"
+    question to answer. Labels are the short "12m"/"18m" already used by `InsightsView.windowControls`
+    rather than `RelativeWindow.label`'s longer "Last 12 months" (that string exists for
+    accessibility/other call sites, not this segmented control).
+  - **(b) Chart-tap carries the window**: `Features/Insights/InsightsView.swift`'s
+    `selectInCoffees(dimension:key:)` now also sets `filter.relativeWindow` from a new
+    `currentRelativeWindow` computed property (`.last12m`/`.last18m` map straight across, `.all`/
+    `.years` → `nil`) and, when the Charts tab's own `window == .years`, copies `selectedYears` into
+    `filter.years` too — the row's own "window/selectedYears" phrasing named both. Both existing call
+    sites (`chartsSection`'s per-dimension legends, `#50`; `findingsSection`'s subject links, `#53`)
+    get this for free since they both go through the one `selectInCoffees` function.
+    `selectUnknownInCoffees` (`#54`, Data tab) is untouched — the Data tab has no window control to
+    carry.
+  - Not locally compiled (no Xcode here) — both changes are small, additive, and mirror an
+    already-compiling pattern each (`Profile?` optional-Picker-tag; the existing
+    `.last12m`/`.last18m` short-label convention), so a red compile check here is more likely a typo
+    than a design gap.
+  - `ios/MyCoffee/Sources/Features/{Coffees/FilterSheetView,Insights/InsightsView}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-17 UTC] 70 Altitude edit won't save a single value (only max) — branch `ios-staging`
   - **Before claiming**: merged `origin/main` into `ios-staging` (one real conflict in
     `status/BACKLOG.md` rows `#66`/`#67` — both sides had edited the same rows off a

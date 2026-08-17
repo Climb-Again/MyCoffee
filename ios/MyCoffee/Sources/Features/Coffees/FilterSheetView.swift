@@ -45,6 +45,9 @@ struct FilterSheetView: View {
                         }
                     }
                 }
+                Section("Time window") {
+                    RelativeWindowRow(selection: $draft.relativeWindow)
+                }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Filters")
@@ -82,6 +85,23 @@ private struct FavoriteRow: View {
 
     var body: some View {
         Toggle("Favourites only", isOn: $isOn)
+    }
+}
+
+/// A relative-to-today purchase window, matching the Charts tab's own
+/// window control (#71) — kept out of `FilterDimension`/`DimensionPills`
+/// since it's a single active toggle, not a multi-select vocab facet with
+/// per-value counts (ios-shell's own framing for the `CoffeeFilter` seam).
+private struct RelativeWindowRow: View {
+    @Binding var selection: RelativeWindow?
+
+    var body: some View {
+        Picker("Time window", selection: $selection) {
+            Text("All").tag(RelativeWindow?.none)
+            Text("12m").tag(Optional(RelativeWindow.last12m))
+            Text("18m").tag(Optional(RelativeWindow.last18m))
+        }
+        .pickerStyle(.segmented)
     }
 }
 

@@ -310,8 +310,22 @@ struct InsightsView: View {
     private func selectInCoffees(dimension: FilterDimension, key: FacetKey) {
         var filter = CoffeeFilter()
         toggleFacet(key, dimension: dimension, in: &filter)
+        filter.relativeWindow = currentRelativeWindow
+        if window == .years { filter.years = selectedYears }
         store.filter = filter
         store.selectedTab = .coffees
+    }
+
+    /// Maps the Charts tab's own month-window control onto the listing
+    /// filter's `RelativeWindow` (#71(b)) — the `.years` case carries its
+    /// picked years across separately (`CoffeeFilter.years`, the existing
+    /// specific-calendar-years field), not through `RelativeWindow`.
+    private var currentRelativeWindow: RelativeWindow? {
+        switch window {
+        case .all, .years: return nil
+        case .last12m: return .last12m
+        case .last18m: return .last18m
+        }
     }
 
     // MARK: - Windowing
