@@ -4,7 +4,148 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-17 06:47 UTC] #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — branch `main`
+- [2026-08-17 06:47 UTC] #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — code COMPLETE + verified, held on branch `claude/confident-cerf-86fp01`, **NOT on `main`** (push gate: job 24 `running`; see below)
+
+## 2026-08-17 UTC (later session, fifth check): #67 — code complete + live-verified, but HELD OFF `main` (job 24 `running`, pause denied)
+
+**⚠️ Next session: the work is done and verified. Do not rebuild it.** It is
+committed on `origin/claude/confident-cerf-86fp01`. All that remains is landing
+it on `main` once no extraction job is `running` (see "What's left" below).
+
+Picked `#67` per lowest-phase-then-lowest-number among the three `ready`
+backend rows (`#67`, `#69`, `#72` — all phase 6, no `needs`). This session
+started already at `origin/main`'s tip (`c1e63f8`), no fast-forward needed.
+`git fetch origin --prune` — 103 `origin/claude/*` branches; nothing stranded
+carrying this row (no session note since the last check mentions pushing
+backend code anywhere but `main`), so this was genuinely unbuilt.
+
+**What the row asked for**: the ~95 image-only photos OCR'd by jobs 22/23 on
+2026-08-16 were processed *before* `189eab6` added the OCR-text-append, so
+those coffees carry no "OCR text" block — and since they have no caption
+(`raw_caption IS NULL`, image-only), that block would be their *only* readable
+full text. They're `state='processed'`, so the daily OCR routine will never
+re-touch them. Needed: a targeted re-OCR path that re-runs `runOcrTranscribe`
+on the stored `ocr` asset and appends via the existing
+`appendOcrTextToCoffee`, *without* a full re-extraction.
+
+**`src/lib/worker.js`** — `backfillOcrText({ limit, spendCapUsd })` (new,
+exported). Selects exactly the affected population with one join:
+
+```sql
+FROM coffees c JOIN photos p ON p.id = c.photo_id
+               JOIN assets a ON a.photo_id = p.id AND a.variant = 'ocr'
+WHERE c.deleted_at IS NULL AND c.raw_caption IS NULL AND p.state = 'processed'
+  AND (c.raw_description IS NULL OR c.raw_description NOT LIKE '%' || $1 || '%')
+```
+
+i.e. image-only (`raw_caption IS NULL`), already processed, has a retained
+`ocr` asset to read, and does not already carry the `OCR text` heading. Per
+row it calls only `runOcrTranscribe` (the single flash-lite call) against the
+stored `ocr` asset — the same source `POST /api/admin/rederive-photos` reads,
+since the raw upload isn't retained past the original PUT — then reuses
+`appendOcrTextToCoffee`'s own idempotent write. Deliberately NOT a
+re-extraction: no voters run, no `field_candidates`, no re-adjudication, so it
+cannot disturb any already-extracted structured field (the row's own
+"structured fields for these are already extracted; this only adds the
+readable transcription"). A per-row `try/catch` collects into `errors` so one
+bad row can't abort the sweep, and `spendCapUsd` breaks the loop so a run can
+be bounded against the flash-lite daily quota — the row's own "may need to run
+over a few days". Because the SELECT excludes anything already carrying the
+heading, a later run *resumes* rather than restarting, and can never stack a
+second transcription onto the same coffee.
+
+**`src/routes/admin.js`** — `POST /api/admin/backfill-ocr-text`
+(ingest-token-gated, same tier as every other admin mutation), body
+`{limit?, spendCapUsd?}`, returns `{scanned, updated, spentUsd, errors}`.
+
+**Tests**: 1 new `admin.test.js` auth smoke test in the established
+`node:test` + `app.inject()` no-DB pattern — `cd backend && npm ci && npm test`
+**250/250 green** (up from 249). `backfillOcrText` is DB- and
+network-touching, so per this repo's convention (same as `claimBatch`,
+`refreshSearchBlobs`, `rebuildAllSearchBlobs`) it carries no unit coverage;
+the mechanism was instead verified against a real Postgres, three separate
+ways, rather than asserted from the diff:
+
+**Live-verified against a real local Postgres 16** (fresh DBs, full migration
+chain 001→024 applied clean each time; `runOcrTranscribe`'s network call
+mocked at the `src/vertex.js` boundary via `node --experimental-test-module-mocks`,
+so zero live Gemini spend and no dependence on the exhausted daily quota):
+
+1. **Population selection** — seeded four coffees: (a) image-only, processed,
+   no OCR block; (b) image-only, processed, *already* carrying an `OCR text`
+   block; (c) processed but *with* a caption (not image-only); (d) image-only
+   but still `awaiting_text` (not processed). `backfillOcrText()` returned
+   `{scanned:1, updated:1}` — picked up **only (a)**, correctly excluding all
+   three others. (a)'s `raw_description` came back as
+   `"OCR text\nMOCKED TRANSCRIPTION FROM BAG"`; (b)/(c)/(d) were byte-identical
+   to before. A second run returned `{scanned:0, updated:0}` — idempotent.
+2. **Spend cap + resume** — seeded 5 image-only coffees and mocked a usage
+   payload with the *real* Gemini field names (`promptTokenCount`/
+   `candidatesTokenCount`, so `estimateCostUsd` yields a genuinely nonzero
+   per-call cost — worth noting, my first mock used made-up field names and
+   silently produced `$0`, which would have made this a vacuous test).
+   `spendCapUsd: 0.05` stopped the run after **1 of 5** at `$0.12`; the 4
+   untouched rows were still pending, and a subsequent uncapped run processed
+   **exactly those 4**. Asserted every row ends with exactly **one**
+   `OCR text` occurrence — no stacking — and that a third run finds nothing.
+3. **Error isolation** — seeded a coffee whose `assets` row points at a file
+   missing from the volume, deliberately ordered *first* (lowest id) so an
+   aborting loop would visibly skip the two good rows after it. Result:
+   `{scanned:3, updated:2, errors:[{coffeeId:1, error:"ENOENT..."}]}` — the
+   two good rows were still backfilled, the broken one was left wholly
+   untouched (not half-written) and stays selectable so a later run retries it
+   once the volume is fixed.
+
+**Production live-check**: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`.
+
+**⛔ Why this did NOT land on `main` — and what's left.** `GET
+/api/admin/jobs` shows **job 24 `running`** (started 05:17 UTC, still
+`running` at 06:58). It is definitively stuck, not slow: polled it **five
+times over ~4 minutes** and it never advanced — `photosDone` **0**,
+`spentUsd` **0**, `lastError` pinned to the same `photo 269` every poll, a
+Gemini **429** `RESOURCE_EXHAUSTED` (`generate_content_free_tier_requests`,
+`limit: 500`, `gemini-3.5-flash-lite`). The free-tier *daily* request quota is
+spent, so it cannot progress today no matter how long it runs — the same shape
+as jobs 14/15 in the #61/#62 close-out above, and jobs 20/21.
+
+Per CLAUDE.md §12's hard rule (**never push `backend/**` while a job is
+`running`** — the push redeploys and SIGTERMs the worker), the correct
+sequence was to pause job 24 first, exactly as the #61/#62 session did for
+jobs 14/15. **`POST /api/admin/jobs/24/pause` was denied by this session's own
+permission classifier**, so — following the same judgment the #51 close-out
+recorded for its denied `POST /api/admin/adjudicate` — I stopped rather than
+working around it. Notably I did **not** substitute the *larger* action the
+pause was meant to make safe (pushing `backend/**`, which would auto-deploy
+and SIGTERM the worker); taking the bigger blast-radius action right after
+being denied the smaller, reversible one would defeat the point of the denial.
+
+So the code sits on **`origin/claude/confident-cerf-86fp01`**, and this row
+stays **`claimed`, not `done`** — per `status/README.md`, `done` means "on the
+shared branch". Only `status/**` was pushed to `main` (docs don't match
+`railway-deploy.yml`'s `backend/**` path filter, so they trigger no deploy and
+are safe regardless of job state).
+
+**To finish #67** (a few minutes, no rebuild — the code is written and
+verified):
+1. Confirm no job is `running`: `GET /api/admin/jobs`. Job 24 either needs
+   `POST /api/admin/jobs/24/pause` (it's wedged on an exhausted daily quota
+   and has spent $0 / done 0 photos, so nothing is lost) or will be moot once
+   the quota resets and it drains or is superseded.
+2. Land it: `git merge --ff-only claude/confident-cerf-86fp01` onto `main` and
+   push (it's a clean fast-forward from `c1e63f8`+claim). Watch
+   `railway-deploy.yml` green.
+3. Run the backfill against production, bounded, since it's quota-limited:
+   `curl -X POST $BASE/api/admin/backfill-ocr-text -H "Authorization: Bearer
+   $INGEST_TOKEN" -H 'Content-Type: application/json' -d '{"limit":50}'`.
+   Expect `updated` > 0 and `errors` empty; re-run on later days until
+   `scanned` reaches 0. **Unlike every other backfill this lane has shipped
+   this one costs real Gemini calls** (one flash-lite OCR per coffee, ~95
+   coffees), so it is quota-bound, not $0 — bound each run with `limit` and/or
+   `spendCapUsd` rather than firing it unbounded.
+4. Flip `#67` → `done` in `BACKLOG.md` and move this claim to `## Done` with
+   the landed SHA. No row's `needs` references `67`, so nothing else unblocks.
 
 ## 2026-08-17 UTC (later session, fourth check): session check — no ready row this cycle
 
