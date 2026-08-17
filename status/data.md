@@ -45,6 +45,94 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-17 — #29 closed out: all three sub-parts already resolved, no data-owned code change needed; #69 filed (backend) for the one real residual gap; #67's lane tag corrected to `backend`
+
+Picked `#29` (phase 6, needs `26` — done) over `#67` (phase 6, needs `—`) per the
+lowest-phase-then-lowest-number rule. `main`/`origin/main` agree (`git ls-remote
+origin main` matches this session's own `HEAD` exactly — the local
+`origin/main` ref was just a stale shallow-clone cache showing an older sha;
+no fast-forward needed, nothing stranded). `cd backend && npm test` —
+249/249 green (unchanged; this session touches no code).
+
+**Row #29's ask, PLAN.md §8 phase 6**: "harden the incremental path: `launchd`
+monthly schedule on the Mac, the `awaiting_text` deadline sweep, and `POST
+/api/admin/sync` on a backend cron." Went through all three pieces rather than
+assuming the row was stale busywork; none needed a change in a data-owned path
+(`ops/**`, `005_vocab_seed.sql`, `src/lib/{normalize,fuzzy,vocab,fx,
+deterministic,prompts}.js`):
+
+1. **`launchd` monthly on the Mac** — the row's own note already calls this
+   "effectively covered by the CCR daily-extraction routine," and literally
+   installing a `launchd` plist is a Mac-side system-service step this sandbox
+   has no way to perform, same class as #20's own on-Mac gate. Nothing to add.
+
+2. **`awaiting_text` deadline sweep** — already built and tested, just never
+   credited to this row. `isDueForExtraction()`/`claimBatch()`
+   (`backend/src/lib/worker.js`, backend-owned) implement PLAN.md §3 step 3
+   exactly ("deadline passes, still no caption → full pass image-only"):
+   `claimBatch`'s SQL predicate when `includeImages:true` is
+   `(state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until
+   <= now()))`. The pure predicate has direct unit coverage
+   (`test/worker.test.js`: `"isDueForExtraction: awaiting_text is due only
+   once the 10-day deadline passes"`); the DB-touching half (`claimBatch`
+   itself has no unit coverage — it's `FOR UPDATE SKIP LOCKED` SQL) was
+   live-Postgres-verified in #64's own session: an `awaiting_text` photo
+   seeded past its `text_wait_until` was correctly excluded in text-only mode
+   and correctly claimed in image mode. It also already fires for real
+   operationally: the standing daily OCR routine
+   (`trig_017RR9aMaL8fpvqPZNAv8mn4`, `includeImages:true`) claims exactly
+   this state on every run, alongside plain `text_received` photos — checked
+   `GET /api/admin/jobs` live and confirmed it's been running daily (jobs
+   16-23, 2026-08-16).
+
+3. **`POST /api/admin/sync` on a backend cron** — never built as a literally
+   named route, but superseded by how the system actually evolved rather than
+   missing: the "backend cron" role is filled by two external CCR-scheduled
+   triggers hitting the existing `POST /api/admin/jobs`
+   (`trig_01JWhQADZK8RqfP8r9ugXen1` daily text-only,
+   `trig_017RR9aMaL8fpvqPZNAv8mn4` daily image-OCR) instead of a
+   Fastify-internal cron calling a dedicated sync route. `claimBatch`'s own
+   query already re-derives "what's newly eligible" on every job start — the
+   entire job a `/sync` endpoint would have done. Treating this as
+   resolved-by-design, not outstanding.
+
+**One real gap this pass surfaced, filed as `#69` (backend) instead of patched
+here**: `#65` documents the daily OCR routine as *self-deleting* once a run
+finds zero image-only photos left — correct for draining today's backlog, but
+it means the ongoing per-photo deadline sweep (point 2 above) stops firing
+entirely once that happens, for any *future* photo that lands in
+`awaiting_text` and later goes 10 days with no caption. The standing
+text-only routine can't safely take over that job: its `includeImages` is a
+whole-job flag, not per-photo, so flipping it to `true` would also send every
+plain `text_received` photo's image to Gemini for no reason — directly
+against Radu's "keep the daily routine text-only, keep it cheap" instruction
+(this file's 2026-08-15 note; `ops/start-extraction-batch.sh`'s own comment,
+"MUST stay false — text-only"). A real fix needs per-photo image-inclusion
+inside `claimBatch`/`runWorker` (claim `text_received` photos text-only but
+still OCR the *specific* overdue `awaiting_text` rows in the same pass) —
+that's `backend/src/lib/worker.js` + `routes/admin.js`, entirely outside
+every data-owned path, so filed rather than guessed at here. Not urgent:
+today's existing backlog is fully covered by the current OCR routine; this is
+a latent risk for the steady state *after* that routine finishes draining and
+deletes itself, not an active bug today.
+
+**`#67`'s lane tag corrected `data` → `backend`.** Its own body names only
+`src/routes/admin.js` and `src/lib/worker.js` as the files to touch — both
+backend-owned; nothing in `ops/**` or a data-owned `src/lib/*` file. Unlike
+`#48(b)`→`#51`, where a real data-ownable half existed and shipped, there's no
+data-lane sliver to peel off `#67` — the whole thing is one backend-owned
+admin endpoint. Re-tagged so a data-lane session doesn't keep reading past it
+as "its own `ready` row" for a lane that structurally can't implement any of
+it; a backend session can now pick it up cleanly. No code touched by this
+correction, just the row's own `Lane` column and a note
+(`status/README.md`'s "correcting a task means correcting THIS file" — the
+same kind of premise-correction #38 and #48 did for their own rows).
+
+No `ops/**` / `005_vocab_seed.sql` / data-owned `src/lib/*` file changed this
+session — this was entirely a verification-and-bookkeeping pass, closing out
+work that (per points 1-3 above) was already done, plus filing/correcting two
+rows so the next lane sees an accurate backlog. — branch `main`, this commit.
+
 ## 2026-08-15 — #48(b) is DONE: caption-city roaster-country override
 
 **Integration note first:** this session's assigned branch
@@ -207,6 +295,22 @@ vocabulary-confirmation queue #25 was built to produce.
 tuning run. `#26` is `human` in `BACKLOG.md` for exactly that reason.
 
 ## Done
+
+- [2026-08-17] #29 — **Harden the incremental path — closed out, no code
+  needed.** All three PLAN.md §8-phase-6 sub-parts were already resolved:
+  `launchd` monthly is a Mac-only step (unchanged from the row's own note);
+  the `awaiting_text` deadline sweep is implemented + tested in
+  `backend/src/lib/worker.js` (`isDueForExtraction`/`claimBatch`, verified
+  live in #64's session and operationally firing daily via the
+  `trig_017RR9aMaL8fpvqPZNAv8mn4` OCR routine); `POST /api/admin/sync` was
+  superseded by the external daily triggers hitting `POST /api/admin/jobs`.
+  Filed **#69** (backend, ready) for the one real residual gap this pass
+  found — the OCR routine self-deletes once today's backlog drains, so the
+  *ongoing* per-photo sweep needs per-photo image-inclusion in
+  `claimBatch`/`runWorker`, which is backend-owned. Also corrected `#67`'s
+  lane tag `data`→`backend` (its files are exclusively backend-owned). See
+  the full write-up above. `npm test` 249/249 green (no data-owned file
+  touched). — branch `main`, this commit.
 
 - [2026-08-14 UTC, sha `b23cc2b`] #39 — **Accept-by-default needs field sanity
   envelopes** (PLAN.md §11 addendum). Radu's own words: "I know I said accept
