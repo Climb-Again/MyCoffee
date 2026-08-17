@@ -126,7 +126,19 @@ around it, and specifically did *not* substitute the larger action (pushing
 `backend/**`, which auto-deploys and SIGTERMs the worker) that the pause was
 meant to make safe. Only `status/**` went to `main` (no `backend/**` path
 match → no deploy). Row left **`claimed`**, since `done` means "on the shared
-branch". Exact 4-step finish sequence is in `status/backend.md`; note the
+branch". **Correction recorded on a final re-check at 07:02 UTC: job 24 was
+NOT wedged** — it read `photosDone` 12 / `spentUsd` $0.0175, up from 0/0. The
+429 was Gemini's *per-minute* rate limit with a ~59 s retry-after throttling
+throughput, not the daily cap being spent; a 4-minute poll window was too short
+to see it move. So the hold was right for a stronger reason than the session
+thought (a push would have SIGTERM'd a worker doing real paid work), and the
+**pause would have been wrong too** — the denial prevented actual harm, not
+just a procedural violation. Lesson for the next session: `photosDone 0` +
+`spentUsd 0` + a repeated `lastError` photo id is **not** proof of a wedged job
+when the error is a 429 with a retry-after; watch over tens of minutes, or use
+`spentUsd` creeping up as the tell, and don't equate it with jobs 14/15's
+genuinely-wedged non-retryable 403. **Let job 24 finish on its own; do not
+pause it.** Exact 4-step finish sequence is in `status/backend.md`; note the
 production backfill itself **costs real flash-lite calls (~1 per coffee, ~95
 coffees)**, so it must be run bounded (`{"limit":50}`) across days, unlike this
 lane's earlier $0 backfills.

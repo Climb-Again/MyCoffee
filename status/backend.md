@@ -127,12 +127,41 @@ shared branch". Only `status/**` was pushed to `main` (docs don't match
 `railway-deploy.yml`'s `backend/**` path filter, so they trigger no deploy and
 are safe regardless of job state).
 
+**🔴 CORRECTION to my own diagnosis above — job 24 was NOT stuck, and holding
+the push was right for a better reason than I thought.** On a final re-check at
+07:02 UTC (~4 min after the last poll above) job 24 read **`photosDone` 12,
+`spentUsd` $0.0175** — up from 0 and $0. It had been making real progress all
+along; the 429 was Gemini's **per-minute** rate limit throttling it hard
+(hence the `"Please retry in 59.367s"` in the error body), not the *daily*
+request cap being spent as I concluded from five flat polls. A 4-minute
+observation window simply wasn't long enough to see a job whose throughput is
+throttled to roughly one photo per 20 seconds *behind* a minute-long backoff,
+and `photosDone` only increments on a *completed* photo, so a partially-retried
+batch reads as 0 for a long time.
+
+Two things follow, and the second matters more than the first:
+- **Pushing `backend/**` would have SIGTERM'd a worker doing real, paid OCR
+  work** — exactly the harm CLAUDE.md §12's rule exists to prevent. The hold
+  was correct.
+- **Pausing job 24 would also have been wrong** — I had judged it a
+  zero-cost, reversible stop of a pointless loop, and that judgment was simply
+  mistaken. The permission denial prevented a real (if modest) harm, not just
+  a procedural one. Worth remembering next time this shape appears: **`photosDone
+  0` + `spentUsd 0` + a repeated `lastError` photo id is NOT sufficient
+  evidence of a wedged job when the error is a 429 with a retry-after.**
+  Distinguish "throttled" from "wedged" by watching over a window several times
+  the retry-after (tens of minutes, not 4), or by comparing `spentUsd` — a
+  throttled job's creeps up, a wedged one's stays exactly 0. Jobs 14/15 in the
+  #61/#62 close-out were genuinely wedged (a non-retryable 403 spend-cap
+  breach, `spentUsd` pinned at 0 across a real 32-minute gap); a 429
+  retry-after is a different animal and should not be treated the same way.
+
 **To finish #67** (a few minutes, no rebuild — the code is written and
 verified):
-1. Confirm no job is `running`: `GET /api/admin/jobs`. Job 24 either needs
-   `POST /api/admin/jobs/24/pause` (it's wedged on an exhausted daily quota
-   and has spent $0 / done 0 photos, so nothing is lost) or will be moot once
-   the quota resets and it drains or is superseded.
+1. Confirm no job is `running`: `GET /api/admin/jobs`. **Let job 24 finish on
+   its own** — as of 07:02 UTC it is throttled but progressing (12 photos,
+   $0.0175) and draining the #65 image-only OCR backlog, which is real work.
+   Do not pause it. Just wait for it to reach `done`, then land #67.
 2. Land it: `git merge --ff-only claude/confident-cerf-86fp01` onto `main` and
    push (it's a clean fast-forward from `c1e63f8`+claim). Watch
    `railway-deploy.yml` green.
