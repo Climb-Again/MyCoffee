@@ -8,6 +8,48 @@ _none_
 
 ## Done
 
+- [2026-08-17 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
+  in the whole backlog this cycle are backend (#67, #69) and ios-ux (#50,
+  #53, #54, #55, #57, #58, #66, #68 per `main`'s stale copy of the table —
+  but a later `ios-ux` session already flipped #50/#53/#54/#55/#58/#66/#68 to
+  `done` on `ios-staging` itself, confirmed live in `Features/Insights/**`,
+  `DesignSystem/ZoomableImageView.swift`, and `RootTabView.swift`; only #57
+  is genuinely still open). `#57` (persisted rotate photo) names a shell
+  piece (`CoffeeImage`/detail model field + API surface for a per-photo
+  `rotation_quarter_turns`), but its own row and the ios-ux session note
+  both confirm no backend column/write-endpoint/snapshot field exists yet —
+  nothing concrete for this lane's half to build against, so not guessing a
+  wire shape blind.
+  - **Merged `origin/main` into `ios-staging`** (`d27b4e5`) — the two
+    branches had diverged the usual way: `ios-staging` already knew
+    #50/#53/#54/#55/#58/#66 were `done` (a later ios-ux session verified and
+    flipped them) while `main`'s copy (last touched from the data lane's
+    #29/#67 close-out) still showed them `ready` and had #67's lane
+    corrected to `backend` plus a new #69 row `ios-staging` didn't have yet.
+    Resolved the `status/BACKLOG.md` conflict as the union of both sides'
+    newer knowledge (kept `ios-staging`'s `done` status for #66/#68, kept
+    `main`'s corrected #67 lane tag + new #69 row) and kept both `status/
+    backend.md` session-check entries (additive, no factual conflict, same
+    precedent as every prior session-check merge in this file). Confirmed
+    post-merge every row number in the table appears exactly once (no
+    duplicate rows from the conflict) and that no `ios-shell`-owned path was
+    touched by the merge (`git diff origin/ios-staging HEAD --stat` shows
+    only `status/*.md`).
+  - Re-swept all 122 `origin/claude/*` branches (up from ~100 at the last
+    check) for stranded `ios-shell` work per the integrate-before-you-start
+    rule: dozens show a nonzero `git rev-list --count` in this lane's owned
+    paths, but every naming cluster sampled (`confident-cerf-*` including
+    four new branches at the highest ahead-count of 14, `determined-
+    thompson-*`, `peaceful-mccarthy-*`, `modest-newton-oml7h8`, `hopeful-
+    johnson-3hio6h`, `relaxed-thompson-uq5f21`) diffs as a **net deletion**
+    against current `ios-staging` (missing `SyncEngine`/`SampleCoffeeRepository`
+    content later commits added) — the same stale pre-#22/#41/#46 snapshot
+    pattern every prior sweep in this file has found. Nothing stranded to
+    adopt.
+  - Stopping cleanly rather than inventing work or touching UX/backend/
+    data-owned paths.
+
 - [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
   in the whole backlog are ios-ux (#50, #53, #54, #55, #57, #58, #66, #68) and
