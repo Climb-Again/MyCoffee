@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none — both #67 and #69 finished and moved to Done this session)
+- [2026-08-17 12:00 UTC] #72 refresh the stale `whatsnew.json` Live content — branch `main`
 
 ## Done
 
