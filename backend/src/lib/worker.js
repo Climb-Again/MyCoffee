@@ -74,6 +74,17 @@ export function isDueForExtraction(photo, now = new Date()) {
   return false;
 }
 
+// #69: an `awaiting_text` photo has no caption/description and never will --
+// image mode is the only way it can ever be extracted -- so it always sends
+// its image once claimed, regardless of the job's own `includeImages` flag.
+// That flag only governs whether an already-texted `text_received` photo
+// *also* burns a needless vision call. This is what lets one standing
+// text-only daily job cover both the cheap normal case and the overdue
+// `awaiting_text` sweep, without a separate image-mode routine.
+export function shouldUseImage(photo, includeImages) {
+  return Boolean(includeImages) || photo?.state === 'awaiting_text';
+}
+
 // Turns adjudicated field resolutions into the `coffees` column set to write.
 // Pure -- `ctx` carries the already-loaded vocab/profile/fx data, no queries
 // here -- so the field-to-column mapping is testable without a live Postgres.
@@ -276,16 +287,16 @@ export async function defaultVoters() {
 
 // ---- DB-touching helpers ----
 
-export async function claimBatch(limit, { leaseMinutes, workerId, includeImages = true, maxFailures } = {}) {
+export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } = {}) {
   const minutes = leaseMinutes ?? config.extraction.worker.leaseMinutes;
   const maxFail = maxFailures ?? config.extraction.worker.maxFailures;
-  // In text-only mode there is nothing to parse for an `awaiting_text` photo
-  // (its caption/description never arrived) — claiming it only produces a
-  // Gemini 400 and, pre-#64, an infinite re-claim loop. Only image mode
-  // (includeImages) can extract those, by reading the bag from the photo.
-  const stateClause = includeImages
-    ? `(state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))`
-    : `state = 'text_received'`;
+  // #69: claim overdue `awaiting_text` photos regardless of the job's own
+  // `includeImages` -- they have no text and never will, so `runWorker`
+  // (via `shouldUseImage`) always sends their image once claimed, whatever
+  // the job-level flag says. This is what lets a standing text-only daily
+  // job also drain the deadline sweep, instead of needing a separate
+  // image-mode routine that has to know when to self-delete (#65).
+  const stateClause = `(state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))`;
   return withTransaction(async (client) => {
     // Reap stale leases first -- what recovers a SIGTERM'd worker.
     await client.query(
@@ -701,15 +712,19 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
 // Append the OCR transcription to a coffee's Full text (raw_description) under an
 // "OCR text" heading, once. Idempotent: a re-run that already added the block is
 // a no-op, so re-processing a photo never stacks duplicate transcriptions.
+// Returns whether it actually wrote -- callers that count "did this succeed"
+// (backfillOcrText) need to distinguish a real write from a silent no-op,
+// since a blank/illegible transcription must not be reported as resolved.
 const OCR_HEADING = 'OCR text';
 async function appendOcrTextToCoffee(coffeeId, ocrText) {
   const trimmed = (ocrText || '').trim();
-  if (!trimmed) return;
+  if (!trimmed) return false;
   const { rows } = await query('SELECT raw_description FROM coffees WHERE id = $1', [coffeeId]);
   const existing = (rows[0]?.raw_description ?? '').trim();
-  if (existing.includes(`${OCR_HEADING}\n`)) return; // already appended
+  if (existing.includes(`${OCR_HEADING}\n`)) return false; // already appended
   const combined = existing ? `${existing}\n\n${OCR_HEADING}\n${trimmed}` : `${OCR_HEADING}\n${trimmed}`;
   await query('UPDATE coffees SET raw_description = $1, updated_at = now() WHERE id = $2', [combined, coffeeId]);
+  return true;
 }
 
 // #67: coffees whose photo was OCR'd (image mode) before the OCR-text-append
@@ -748,8 +763,14 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null } = {}) 
       if (!image) continue; // no 'ocr' asset despite the join -- shouldn't happen, skip defensively
       const ocr = await runOcrTranscribe({ images: [image] });
       spentUsd += Number(ocr.costUsd ?? 0);
-      await appendOcrTextToCoffee(row.coffee_id, ocr.text);
-      updated += 1;
+      const wrote = await appendOcrTextToCoffee(row.coffee_id, ocr.text);
+      // A blank/illegible transcription leaves raw_description untouched, so
+      // this row still matches the SELECT above and would look identical to
+      // "not tried yet" on the next run -- report it as an error, not a
+      // false success, so a stuck row is visible instead of silently
+      // re-billing the same $0 non-progress forever.
+      if (wrote) updated += 1;
+      else errors.push({ coffeeId: row.coffee_id, error: 'OCR returned no legible text' });
     } catch (err) {
       errors.push({ coffeeId: row.coffee_id, error: err.message });
     }
@@ -808,7 +829,7 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
       }
 
       const batchSize = Math.min(config.extraction.worker.concurrency, limit - photosDone);
-      const batch = await claimBatch(batchSize, { workerId, includeImages });
+      const batch = await claimBatch(batchSize, { workerId });
       if (batch.length === 0) {
         stopped = 'no_work';
         break;
@@ -816,7 +837,7 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
 
       const results = await runWithConcurrency(batch, config.extraction.worker.concurrency, async (photo) => {
         try {
-          return await processPhoto(photo, resolvedVoters, sharedCtx, { includeImages });
+          return await processPhoto(photo, resolvedVoters, sharedCtx, { includeImages: shouldUseImage(photo, includeImages) });
         } catch (err) {
           log.error?.(`[worker] photo ${photo.id} failed: ${err.message}`);
           // Also persist it: a per-photo failure used to exist ONLY in the

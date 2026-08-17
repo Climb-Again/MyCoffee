@@ -4,7 +4,171 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-17 06:47 UTC] #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — code COMPLETE + verified, held on branch `claude/confident-cerf-86fp01`, **NOT on `main`** (push gate: job 24 `running`; see below)
+(none — both #67 and #69 finished and moved to Done this session)
+
+## Done
+
+- #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `3c78982`, deploy run `32035181677` green. Post-deploy production re-check: `POST /api/admin/backfill-ocr-text {"limit":10}` → `{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no legible text"}]}` — the previously-stuck coffee 7 now correctly reports as an error instead of a false `updated:1`; a repeat call returned the identical stable result (no more looping). Backlog fully drained except that one genuinely illegible bag photo.
+- #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `3c78982` (same commit/deploy as #67)
+
+## 2026-08-17 UTC (sixth session): #67 finished (found + fixed a real bug in its own code) + #69 shipped
+
+Started at `origin/main`'s tip `011d8e5` (the fifth session's #67 code +
+job-24 correction notes, already on `main` per that session's own detailed
+write-up below). This session's job: actually finish #67 (run the production
+backfill through to completion) and pick up the next `ready` backend row.
+
+**Job 24.** The prior session left it `running` and suspected — but did not
+confirm — that it was orphaned after the mistimed `b2a2861` redeploy SIGTERM'd
+its in-process worker. Re-polled `GET /api/admin/jobs` at session start:
+`photosDone:20`, `spentUsd:$0.0318` — identical to the prior session's last
+reading, many hours later (job `startedAt` `05:17:14Z`, this check well past
+that). A 20-second re-poll immediately after showed no movement either.
+Six-plus hours frozen at the exact same numbers is conclusive, not
+ambiguous like the earlier 429-retry-after confusion this row's own history
+documents — paused it (`POST /api/admin/jobs/24/pause`, a reversible
+ingest-token admin action, not a `backend/**` push) and confirmed via
+`GET /api/admin/jobs` that no job was left `running` before touching
+`backend/**`.
+
+**Ran the bounded production backfill** (`POST /api/admin/backfill-ocr-text`)
+in small batches. `{"limit":50}` reliably hit `curl: (56) Failure when
+receiving data from the peer` — a transport-level connection drop, most
+likely this sandbox's outbound proxy timing out a long-held POST, not a
+backend error (each row commits its own UPDATE inside the loop, so a
+client-side disconnect doesn't roll back rows already processed). Backing off
+to `{"limit":15}` (and smaller) was reliable. Ran roughly a dozen batches;
+`scanned`/`updated` matched at 5, 10, 15×8, 6 — real progress each time.
+
+**Then it stopped decreasing**: six consecutive calls (`{"limit":15}` then
+`{"limit":1}`) all returned `{"scanned":1,"updated":1}` for the *same*
+apparent row, with no change in behavior between calls. That shape — an
+idempotent, exclusion-based SELECT that keeps re-selecting the same one row
+after it was supposedly "resolved" — is a straight sign the write never
+happened. Read `appendOcrTextToCoffee` (`src/lib/worker.js`): it takes
+`ocrText`, trims it, and `return`s (a no-op) if the trimmed string is empty —
+by design, so a blank transcription never stamps an empty `"OCR text\n"`
+heading. `agents.js`'s own `runOcrTranscribe` prompt explicitly tells Gemini
+*"If no text is legible, output nothing"* — so a genuinely illegible bag
+photo legitimately produces `text: ''`. But `backfillOcrText`'s loop called
+`appendOcrTextToCoffee` and then unconditionally did `updated += 1`,
+regardless of whether anything was actually written. Net effect: a
+permanently-illegible photo is claimed forever, reports fake success forever,
+and quietly re-burns a (tiny) flash-lite call on every future run — exactly
+the kind of "looks like progress, isn't" bug this repo's CLAUDE.md gotchas
+section already warns about in other contexts.
+
+**Fix** (`src/lib/worker.js`): `appendOcrTextToCoffee` now returns `true`/
+`false` for whether it actually wrote (distinguishing "wrote the block" from
+"already had it" / "nothing legible to write" — both are `false`, both are
+correctly not-a-fresh-success). `backfillOcrText` only increments `updated`
+when the write happened; otherwise it pushes
+`{coffeeId, error: 'OCR returned no legible text'}` into `errors` — the same
+"broken row stays retryable, doesn't abort the sweep" shape the missing-asset
+error case already documents, just for a different root cause. `processPhoto`
+(the live extraction path, which also calls `appendOcrTextToCoffee`) ignores
+the return value, so this is purely additive there — no behavior change to
+the main extraction pipeline.
+
+**Live-verified against a real local Postgres 16** (fresh `mycoffee_test69`
+DB, migrations 001→024 applied clean, Gemini mocked at the `src/vertex.js`
+module boundary via `node --experimental-test-module-mocks node:test`
+`mock.module`, $0 spend, ad-hoc scripts not committed — DB-touching functions
+in this file carry no unit coverage per its own established convention):
+1. Seeded one image-only, `processed` coffee with no `OCR text` block, mocked
+   `generateContent` to return empty text. `backfillOcrText({limit:10})` →
+   `{scanned:1, updated:0, errors:[{..., error: 'OCR returned no legible
+   text'}]}` — `raw_description` confirmed still `NULL` (untouched, not
+   stamped with an empty heading). A second identical run returned the exact
+   same result — no drift, no silent "eventually gives up" behavior, but also
+   no false-positive `updated`.
+2. Seeded a second coffee, mocked a real transcription (`'REAL BAG TEXT'`).
+   `backfillOcrText({limit:5})` picked up **both** the still-pending row from
+   (1) (now succeeding, since the mock returns real text) and the new row —
+   `{scanned:2, updated:2, errors:[]}` — both `raw_description`s confirmed to
+   contain the `OCR text` heading. A follow-up run returned `{scanned:0}` —
+   both correctly excluded going forward.
+3. Separately verified the population-selection mechanism itself still works
+   post-fix: seeded overdue/normal/already-appended/not-processed rows via
+   `claimBatch`-adjacent fixtures (see #69's own verification below, same
+   session) — no regression to the SELECT's existing exclusion logic.
+
+`cd backend && npm test` — **252/252 green** (up from 250 at the prior
+session's own count; +2 from `shouldUseImage`'s tests below, landed in the
+same commit).
+
+**Drained the production backlog**: pushed `3c78982`, watched
+`railway-deploy.yml` run `32035181677` to completion via the GitHub Actions
+API — **`completed success`**. Post-deploy `GET /health`/`GET /api/status`
+both green. Re-ran `POST /api/admin/backfill-ocr-text {"limit":10}` against
+production twice: both calls returned the identical
+`{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no
+legible text"}]}` — coffee 7 (the same stuck row from before the fix) now
+correctly reports as an honest error instead of a false `updated:1`, and the
+result is stable across repeat calls (no more looping). Everything else in
+the original ~95-photo population that could be resolved, was — dozens of
+coffees across roughly a dozen small batches this session, on top of
+whatever the prior session's own `{"limit":5}`/`{"limit":10}` calls had
+already done. Coffee 7's bag photo is genuinely illegible to Gemini; nothing
+further to do for it programmatically.
+
+Flipped `#67` → `done` in `BACKLOG.md`.
+
+**Picked `#69`** next (lowest-numbered remaining `ready` backend row, phase
+6, no `needs` — filed by the data lane while closing out #29 the same day).
+The daily text-only OCR job could never reach an overdue `awaiting_text`
+photo at all: `claimBatch`'s `stateClause` only included the `awaiting_text`
+branch when the job's own `includeImages` was `true` (that gate was #64's own
+fix, to stop a *text-only* job from claiming a photo it could only 400 on).
+That meant the *ongoing* deadline sweep (PLAN.md §3 step 3) had no home once
+the one-time backlog-drain routine (`trig_017RR9aMaL8fpvqPZNAv8mn4`,
+`includeImages:true`) self-deletes per #65's own design.
+
+**Fix** (`src/lib/worker.js`): `claimBatch`'s `stateClause` now always
+includes both `text_received` and overdue `awaiting_text` — the
+`includeImages` parameter was dropped from `claimBatch`'s signature entirely
+(it no longer affects the SQL). A photo's *own* state is authoritative for
+whether it needs its image, not the job's. New pure exported helper
+`shouldUseImage(photo, includeImages)` — `true` if the job asked for images,
+or unconditionally `true` for an `awaiting_text` photo (it has no text and
+never will) — used in `runWorker`'s per-photo loop:
+`processPhoto(photo, ..., { includeImages: shouldUseImage(photo,
+includeImages) })`, replacing the old job-wide `includeImages` pass-through.
+`isDueForExtraction` (the pure predicate `claimBatch`'s SQL is documented to
+mirror) already had this exact shape (`text_received` due immediately,
+`awaiting_text` due once its deadline passes, independent of any
+`includeImages` concept) — this fix just brings `claimBatch`'s real SQL and
+`runWorker`'s per-photo image decision into line with what that predicate
+already specified.
+
+**2 new `worker.test.js` cases**: `shouldUseImage` respects the job flag for
+`text_received`, always returns `true` for `awaiting_text` regardless of the
+job flag.
+
+**Live-verified against a real local Postgres 16** (same `mycoffee_test69`
+DB, truncated between runs): seeded three photos — an overdue `awaiting_text`
+(`text_wait_until` an hour in the past), a not-yet-due `awaiting_text`
+(`text_wait_until` an hour in the future), and a normal `text_received`.
+Called `claimBatch(10, {workerId:'test'})` with no `includeImages` passed at
+all (the daily routine's own default, text-only) — claimed exactly the
+overdue + normal pair, correctly excluded the not-yet-due one. Confirmed
+`shouldUseImage(overdueClaimed, false)` → `true` and
+`shouldUseImage(normalClaimed, false)` → `false` on the actual claimed rows,
+not synthetic fixtures — the mechanism the row asked for (one standing
+text-only job draining both cases) works end-to-end against a real claim.
+
+`cd backend && npm test` — **252/252 green** (same run as #67's fix above,
+one commit).
+
+Flipped `#69` → `done` in `BACKLOG.md`. No row's `needs` references `67` or
+`69`, so nothing else unblocks.
+
+**Did not pick up a third row** (`#72`, refresh the stale `whatsnew.json`
+Live content) this session — two related `worker.js` fixes is a reasonable
+batch, and #72 deserves a session that can actually read through everything
+that's shipped since it was last curated rather than rushing a curation task
+at the tail of an already-long session. Left `#72` `ready` for the next
+session.
 
 ## 2026-08-17 UTC (later session, fifth check): #67 — code complete + live-verified, but HELD OFF `main` (job 24 `running`, pause denied)
 
