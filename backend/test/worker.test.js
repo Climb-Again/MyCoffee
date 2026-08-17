@@ -8,7 +8,7 @@
 // is fully unit-tested here without any DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeInputSha, isDueForExtraction, buildCoffeeColumnUpdates, buildSearchBlobs } from '../src/lib/worker.js';
+import { computeInputSha, isDueForExtraction, shouldUseImage, buildCoffeeColumnUpdates, buildSearchBlobs } from '../src/lib/worker.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
   const opts = {
@@ -43,6 +43,16 @@ test('isDueForExtraction: awaiting_text is due only once the 10-day deadline pas
   const overdue = { has_image: true, state: 'awaiting_text', text_wait_until: '2026-01-10T00:00:00Z' };
   assert.equal(isDueForExtraction(notYet, now), false);
   assert.equal(isDueForExtraction(overdue, now), true);
+});
+
+test('shouldUseImage: text_received respects the job-level includeImages flag', () => {
+  assert.equal(shouldUseImage({ state: 'text_received' }, false), false);
+  assert.equal(shouldUseImage({ state: 'text_received' }, true), true);
+});
+
+test('shouldUseImage: awaiting_text always uses its image, even in a text-only job (#69)', () => {
+  assert.equal(shouldUseImage({ state: 'awaiting_text' }, false), true);
+  assert.equal(shouldUseImage({ state: 'awaiting_text' }, true), true);
 });
 
 const vocabCtx = {
