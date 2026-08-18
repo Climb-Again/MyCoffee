@@ -66,8 +66,14 @@ export function parseNumber(raw, { field } = {}) {
 
 // ---- Altitude ----
 
-const ALTITUDE_RANGE_RE = /(\d[\d.,]*)\s*(?:-|–|to|ro)\s*(\d[\d.,]*)\s*(?:m\.?a\.?s\.?l\.?|masl|m)?\b/i;
-const ALTITUDE_SINGLE_RE = /(\d[\d.,]*)\s*(?:m\.?a\.?s\.?l\.?|masl|m)\b/i;
+// Altitude unit tokens. Longest/most-specific first so "meter" isn't matched as
+// a bare "m" (the alternation is ordered): "2000 meter" / "2000 metres" /
+// "2000 metros" and the Spanish "m.s.n.m."/"msnm" now parse, not just "m"/
+// "masl". Root cause of a review accept 422'ing on a candidate like
+// "2000 meter" (the extractor kept the bag's own wording).
+const ALTITUDE_UNIT = String.raw`m\.?a\.?s\.?l\.?|masl|m\.?s\.?n\.?m?\.?|met(?:er|re)s?|metros?|mts?|m`;
+const ALTITUDE_RANGE_RE = new RegExp(String.raw`(\d[\d.,]*)\s*(?:-|–|to|ro)\s*(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})?\b`, 'i');
+const ALTITUDE_SINGLE_RE = new RegExp(String.raw`(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})\b`, 'i');
 
 export function parseAltitude(text) {
   if (!text) return null;

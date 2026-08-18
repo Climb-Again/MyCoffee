@@ -80,6 +80,26 @@ test('parseAltitude: ranges, single values, the brief\'s own typo', () => {
   assert.equal(parseAltitude(''), null);
 });
 
+test('parseAltitude: word/locale unit spellings parse, not just m/masl (review accept 422 fix)', () => {
+  // A review candidate kept the bag's own wording, e.g. "2000 meter", and
+  // resolving it 422'd because only m/masl/m.a.s.l were recognised.
+  for (const [text, expected] of [
+    ['2000 meter', 2000],
+    ['2000 metres', 2000],
+    ['1900 metros', 1900],
+    ['2100 msnm', 2100],
+    ['2,100 MSN', 2100], // truncated m.s.n.m.
+    ['1800 mt', 1800],
+  ]) {
+    const a = parseAltitude(text);
+    assert.ok(a, `expected ${text} to parse`);
+    assert.equal(a.min, expected);
+    assert.equal(a.max, expected);
+  }
+  // Guard: a stray unit word without a plausible elevation still doesn't match.
+  assert.equal(parseAltitude('a note with 5 meter clearance'), null);
+});
+
 test('parseAltitude: hard plausibility envelope — impossible elevations are absent, not a bogus value (#39)', () => {
   // Radu's own example: "1-5 m" is a roast-level scale/count bleeding into the
   // parse, not a real elevation — accept-by-default has no confidence gate to
