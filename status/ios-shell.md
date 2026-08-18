@@ -8,6 +8,36 @@ _none_
 
 ## Done
 
+- [2026-08-18 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`; #71(a)'s seam (this
+  lane's own prior session, same day as this file's most recent entry below)
+  is confirmed consumed by ios-ux's #71 half. The only `ready` row anywhere in
+  `BACKLOG.md` is `#57` (ios-ux, persisted photo rotation) — re-checked its
+  named shell seam (`CoffeeImage`/detail model field + API surface for a
+  per-photo `rotation_quarter_turns`) and confirmed again there is still
+  nothing concrete to build against: no backend column, write endpoint, or
+  snapshot field exists yet (repo-wide grep for `rotation_quarter_turns` and
+  `rotationQuarterTurns` still empty outside status-file prose), same
+  conclusion as every prior check. #72 (backend, What's New refresh) landed
+  `done` on `main` since this lane's last check but hadn't been merged into
+  `ios-staging` yet — merged `origin/main` in (`199f5cf`), resolving one
+  additive conflict in `status/BACKLOG.md`: `ios-staging` and `main` each had
+  an independent, correct `done` update to a different row in the same
+  `#71`/`#72` table block (this lane's own #71 close-out vs. backend's #72
+  close-out) — kept both rather than picking one side, same precedent as
+  every prior session's handling of this exact conflict shape.
+  - Swept `git branch -r --list 'origin/claude/*'` (109 candidates after
+    fetching) per the integrate-before-you-start rule: sampled the highest
+    commit-ahead-count candidates in this lane's owned paths
+    (`confident-cerf-{t1flso,j8in2k}` ×17, `modest-newton-oml7h8`/
+    `confident-cerf-fti5j5` ×14, `peaceful-mccarthy-71uw7l`/
+    `relaxed-thompson-uq5f21` ×8, `hopeful-johnson-3xcwg7` ×6,
+    `determined-thompson-yjymsr` ×4) and confirmed by `git diff --stat` that
+    every one is a **net deletion** against current `ios-staging` — stale
+    pre-#71(a)/pre-#46/pre-#41 snapshots, same pattern every prior sweep has
+    found. Nothing stranded to adopt.
+  - Stopping cleanly rather than inventing work or touching UX-owned paths.
+
 - [2026-08-17 UTC] 71(a) `RelativeWindow` seam for the listing filter — branch `ios-staging`
   - No `ios-shell`-tagged row was `ready` this cycle (`#17`/`#22`/`#41`/`#46` all `done`). But
     `#71` (ios-ux, ready, no needs) explicitly names a shell-owned seam — `status/ios-ux.md`'s
