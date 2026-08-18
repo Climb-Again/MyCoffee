@@ -8,6 +8,23 @@ _none_
 
 ## Session notes
 
+- [2026-08-18 UTC] Session check — no ready `ios-ux` row. Merged `origin/main`
+  into `ios-staging` (clean, only `status/backend.md` gained a new entry —
+  no conflicts with `Features/`/`DesignSystem/`/`Resources/`). Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) is the only `ready`
+  row anywhere in the table, tagged `ios-ux`, `needs: 59` (done). But it's a
+  seam row — the backend column/write-endpoint and the shell model/API
+  surface it depends on don't exist yet (confirmed via a repo-wide grep for
+  `rotation_quarter_turns`/`rotationQuarterTurns`: zero hits outside
+  status-file prose). `status/ios-shell.md`'s own 2026-08-18 entry reached
+  the identical conclusion the same day. Nothing in `#57`'s ios-ux half
+  (rotate button in `CoffeeDetailView` + the #55 viewer) can be built without
+  a concrete field to write through, so building ahead of the backend/shell
+  halves would mean guessing the wire shape. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  exists, nothing stranded to adopt. Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
 - [2026-08-17 UTC] 71 (ios-ux half) Filter-sheet time window + carry window/years on chart-tap deep-link — branch `ios-staging`
   - `git branch -r --list 'origin/claude/*'` showed only this session's own branch, nothing stranded
     touching `Sources/Features`/`Sources/DesignSystem`/`Resources` to adopt. Fetched and rebuilt
