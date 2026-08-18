@@ -129,13 +129,14 @@ struct ReviewQueueView: View {
             let feed = try await client.reviewFeed()
             ReviewFeedCache.shared.adopt(feed)
             engine.load(feed.items.compactMap(ReviewTask.init(dto:)))
-            // Durable through the outbox — survives offline/app restart,
-            // unlike a raw fire-and-forget `APIClient` call.
+            // Confirmed per-item save (#66): awaited, returns whether it
+            // round-tripped so the engine can re-queue an item that didn't
+            // save instead of silently dropping it.
             engine.onAccept = { task, value in
-                store.resolveReview(taskId: task.id, value: value)
+                await store.resolveReview(taskId: task.id, value: value)
             }
             engine.onDismiss = { task in
-                store.dismissReview(taskId: task.id)
+                await store.dismissReview(taskId: task.id)
             }
         } catch {
             loadError = error.localizedDescription

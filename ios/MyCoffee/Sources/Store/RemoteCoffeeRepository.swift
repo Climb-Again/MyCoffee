@@ -28,14 +28,15 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         return try await engine.loadDetail(coffeeId: coffeeId, using: client)
     }
 
-    func resolveReview(taskId: Int, value: String) async {
-        let client = try? await APIClient(config: AppConfig.shared)
-        await engine.resolveReview(taskId: taskId, value: value, client: client)
+    func resolveReview(taskId: Int, value: String) async throws {
+        // `try` (not `try?`): a missing client must surface, not silently no-op.
+        let client = try await APIClient(config: AppConfig.shared)
+        try await engine.resolveReview(taskId: taskId, value: value, client: client)
     }
 
-    func dismissReview(taskId: Int) async {
-        let client = try? await APIClient(config: AppConfig.shared)
-        await engine.dismissReview(taskId: taskId, client: client)
+    func dismissReview(taskId: Int) async throws {
+        let client = try await APIClient(config: AppConfig.shared)
+        try await engine.dismissReview(taskId: taskId, client: client)
     }
 
     func editField(coffeeId: String, field: String, value: String) async throws -> Coffee {

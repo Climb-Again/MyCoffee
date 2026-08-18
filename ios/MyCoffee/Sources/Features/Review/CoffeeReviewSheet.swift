@@ -65,11 +65,11 @@ struct CoffeeReviewSheet: View {
             engine.load(tasks)
             engine.onAccept = { task, value in
                 didResolveAny = true
-                store.resolveReview(taskId: task.id, value: value)
+                return await store.resolveReview(taskId: task.id, value: value)
             }
             engine.onDismiss = { task in
                 didResolveAny = true
-                store.dismissReview(taskId: task.id)
+                return await store.dismissReview(taskId: task.id)
             }
         } catch {
             loadError = error.localizedDescription

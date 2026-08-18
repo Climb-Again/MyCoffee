@@ -40,11 +40,15 @@ final class ReviewQueueEngine: ObservableObject {
     private(set) var initialTotal: Int
 
     /// Persistence hooks, injected by the view once it has an `APIClient`.
-    /// Fire-and-forget: the queue advances optimistically, the network call
-    /// trails behind (a 422 from an unresolvable value is swallowed — the row
-    /// simply stays open server-side for a later pass).
-    var onAccept: ((ReviewTask, String) -> Void)?
-    var onDismiss: ((ReviewTask) -> Void)?
+    /// The queue advances optimistically, but the hook is now **awaited and
+    /// confirmed**: it returns whether the save round-tripped, and a `false`
+    /// puts the item back in the queue (#66) — so a partial review session
+    /// never silently loses accepts (the old fire-and-forget hook only
+    /// persisted reliably once a later full sync flushed the outbox, i.e.
+    /// "saves only when you finish all"). Returning `true` when nil keeps
+    /// previews (no injected hook) behaving as before.
+    var onAccept: ((ReviewTask, String) async -> Bool)?
+    var onDismiss: ((ReviewTask) async -> Bool)?
 
     init(tasks: [ReviewTask] = ReviewSampleData.tasks) {
         self.openTasks = tasks
@@ -121,8 +125,8 @@ final class ReviewQueueEngine: ObservableObject {
         openTasks.remove(at: index)
         deferredIDs.removeAll { $0 == task.id }
         pushUndo(UndoSnapshot(tasks: [task], indices: [index], createdRule: nil))
-        onAccept?(task, value)
         showToast("\(task.field.label) → \(value)")
+        confirmSave(task, at: index) { [onAccept] in await onAccept?(task, value) ?? true }
     }
 
     /// Long-press a chip: accept **and** create a mapping rule applied to
@@ -162,8 +166,8 @@ final class ReviewQueueEngine: ObservableObject {
         openTasks.remove(at: index)
         deferredIDs.removeAll { $0 == task.id }
         pushUndo(UndoSnapshot(tasks: [task], indices: [index], createdRule: nil))
-        onDismiss?(task)
         showToast("Marked not present")
+        confirmSave(task, at: index) { [onDismiss] in await onDismiss?(task) ?? true }
     }
 
     func undo() {
@@ -191,9 +195,10 @@ final class ReviewQueueEngine: ObservableObject {
         deferredIDs.removeAll { removedIDs.contains($0) }
 
         // Each accepted task resolves independently server-side (the rule is a
-        // client-side convenience; the backend has no bulk-rule endpoint wired).
-        for removed in removedTasks {
-            onAccept?(removed, value)
+        // client-side convenience; the backend has no bulk-rule endpoint wired),
+        // and each is confirmed — a failed one comes back to the queue (#66).
+        for (removed, idx) in zip(removedTasks, matches.map(\.offset)) {
+            confirmSave(removed, at: idx) { [onAccept] in await onAccept?(removed, value) ?? true }
         }
 
         var createdRule: ReviewRule?
@@ -206,6 +211,26 @@ final class ReviewQueueEngine: ObservableObject {
 
         let plural = removedTasks.count == 1 ? "coffee" : "coffees"
         showToast("\(removedTasks.count) \(plural): \"\(rawValue)\" → \(value)")
+    }
+
+    /// Await the injected save after the optimistic removal; if it doesn't
+    /// round-trip, put the task back where it was and warn — so no review step
+    /// is ever silently lost (#66). No-op hook (previews) reports success.
+    private func confirmSave(_ task: ReviewTask, at index: Int, _ save: @escaping () async -> Bool) {
+        Task { [weak self] in
+            let ok = await save()
+            guard let self, !ok else { return }
+            self.restore(task, at: index)
+        }
+    }
+
+    private func restore(_ task: ReviewTask, at index: Int) {
+        guard !openTasks.contains(where: { $0.id == task.id }) else { return }
+        let insertAt = min(max(index, 0), openTasks.count)
+        openTasks.insert(task, at: insertAt)
+        // Drop the now-stale undo entry so an Undo can't double-insert it.
+        undoStack.removeAll { $0.tasks.contains { $0.id == task.id } }
+        showToast("⚠︎ Couldn't save \(task.field.label) — it's back in the queue")
     }
 
     private func pushUndo(_ snapshot: UndoSnapshot) {
