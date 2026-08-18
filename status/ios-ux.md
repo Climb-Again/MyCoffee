@@ -8,6 +8,37 @@ _none_
 
 ## Session notes
 
+- [2026-08-18 UTC, later session] Integrated a stray `main`-direct #66 fix; still no buildable `ios-ux` row.
+  - `git fetch origin main ios-staging` showed `origin/main` had moved two commits ahead of what
+    `ios-staging` had merged: `3234d68` ("iOS #66: save each review action live") and a backend
+    `parseAltitude` fix. `3234d68` touches **both** `Features/Review/**` (this lane) and `Store/**`
+    (shell) — a real code change landed straight to `main` instead of `ios-staging`, the exact
+    "commits bypass the dev branch" footgun `CLAUDE.md` §12 documents, just in the reverse direction
+    from its own worked examples. It also **corrects this lane's own 2026-08-16 "VERIFIED ALREADY
+    CORRECT" call on #66** — that trace found the outbox enqueue was synchronous (true) but missed
+    that the outbox only reliably *flushes* to the server on a later full sync, so a partial review
+    session's accepts could sit un-sent, exactly matching Radu's "a 150-item queue can't be cleared
+    in one sitting" report. `git merge origin/main` into `ios-staging` was clean (no conflicts —
+    `ios-staging` had never touched these files since the earlier no-op verification made no code
+    change). Read the full diff before accepting it: `resolveReview`/`dismissReview` now send
+    directly and `throw`; `ReviewQueueEngine.onAccept`/`.onDismiss` became `async -> Bool` hooks
+    awaited via a new `confirmSave(_:at:_:)` that re-inserts a task on a failed save instead of
+    dropping it — mirrors the already-landed `#41`/`#42` edit-field confirm pattern, coherent with
+    this codebase's conventions. Corrected `status/BACKLOG.md` #66's own text to record the real fix
+    over the superseded verification note.
+  - Re-checked `#57` (the only `ready` row): still unbuildable — repo-wide grep for
+    `rotation_quarter_turns`/`rotationQuarterTurns` still empty outside status-file prose, no
+    backend column/endpoint or shell model field exists yet. Swept `git branch -r --list
+    'origin/claude/*'` — nothing new touching `Sources/Features`/`Sources/DesignSystem`/`Resources`
+    beyond what prior sweeps already dismissed. Stopping cleanly — no `ios-ux`-owned feature work to
+    do this cycle, but the integration itself was real, not a pure no-op.
+  - Not locally compiled (no Xcode here) — the merged-in diff is a stray session's own work, already
+    described as landed; flag `ReviewQueueEngine.swift`'s new `confirmSave`/`restore` pair first if a
+    compile check goes red here.
+  - `ios/MyCoffee/Sources/Features/Review/{CoffeeReviewSheet,ReviewQueueEngine,ReviewQueueView}.swift`
+    (+ shell's `Store/**` half, same commit)
+  - Commit: merge on `ios-staging` (see `git log`)
+
 - [2026-08-18 UTC] Session check — no ready `ios-ux` row. Merged `origin/main`
   into `ios-staging` (clean, only `status/backend.md` gained a new entry —
   no conflicts with `Features/`/`DesignSystem/`/`Resources/`). Re-scanned
