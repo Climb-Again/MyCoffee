@@ -19,12 +19,16 @@ protocol CoffeeRepository: Sendable {
     /// signed image URLs) without a full resync.
     func loadDetail(coffeeId: String) async throws -> Coffee
 
-    /// Records a review-task resolution for the outbox to flush when online,
-    /// the same offline-durable pattern `setFavorite` uses (PLAN.md §5).
-    func resolveReview(taskId: Int, value: String) async
+    /// Resolves a review task server-side, SYNCHRONOUSLY (not through the
+    /// fire-and-forget outbox) and **throws** on any failure — so each accept
+    /// is confirmed saved the moment it's actioned, and a save that didn't
+    /// round-trip surfaces instead of being silently dropped (the review
+    /// analogue of `editField`'s fix — a 150-item queue can't be reviewed in
+    /// one sitting, so every step must persist on its own).
+    func resolveReview(taskId: Int, value: String) async throws
 
-    /// Records a review-task dismissal ("not on the bag") the same way.
-    func dismissReview(taskId: Int) async
+    /// Dismisses a review task ("not on the bag") the same confirmed way.
+    func dismissReview(taskId: Int) async throws
 
     /// Applies a per-field edit via the backend's locked/human-decided
     /// resolve path (PLAN.md §12 #40/#41), then re-fetches detail so any

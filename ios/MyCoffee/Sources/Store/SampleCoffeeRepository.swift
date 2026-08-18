@@ -31,9 +31,9 @@ actor SampleCoffeeRepository: CoffeeRepository {
 
     // No live backend to enqueue against in previews — the sample fixture
     // has no review-task feed at all, so these are deliberate no-ops.
-    func resolveReview(taskId: Int, value: String) async {}
+    func resolveReview(taskId: Int, value: String) async throws {}
 
-    func dismissReview(taskId: Int) async {}
+    func dismissReview(taskId: Int) async throws {}
 
     // Same reasoning: canonicalizing an edit's raw value the way the backend
     // does isn't fixture logic worth duplicating here, so previews see no

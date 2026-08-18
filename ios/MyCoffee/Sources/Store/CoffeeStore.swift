@@ -88,13 +88,36 @@ final class CoffeeStore: ObservableObject {
     /// favorites use (PLAN.md §5), unlike a raw `APIClient.resolveReview` call:
     /// this survives app restart or a dropped connection instead of leaving a
     /// failed write to be silently forgotten.
-    func resolveReview(taskId: Int, value: String) {
-        Task { await repository.resolveReview(taskId: taskId, value: value) }
+    /// Human-readable reason the last review resolve/dismiss failed, for a
+    /// toast in the queue. `nil` after a success.
+    @Published var reviewErrorText: String?
+
+    /// Resolve a review task and report whether it round-tripped. Awaited +
+    /// confirmed (not fire-and-forget) so the queue can re-insert an item that
+    /// didn't save instead of silently dropping it — the whole point of #66.
+    @discardableResult
+    func resolveReview(taskId: Int, value: String) async -> Bool {
+        do {
+            try await repository.resolveReview(taskId: taskId, value: value)
+            reviewErrorText = nil
+            return true
+        } catch {
+            reviewErrorText = error.localizedDescription
+            return false
+        }
     }
 
-    /// Dismiss a review task ("not on the bag"), same durability.
-    func dismissReview(taskId: Int) {
-        Task { await repository.dismissReview(taskId: taskId) }
+    /// Dismiss a review task ("not on the bag"), same confirmed round-trip.
+    @discardableResult
+    func dismissReview(taskId: Int) async -> Bool {
+        do {
+            try await repository.dismissReview(taskId: taskId)
+            reviewErrorText = nil
+            return true
+        } catch {
+            reviewErrorText = error.localizedDescription
+            return false
+        }
     }
 
     /// Applies a per-field edit (PLAN.md §12 #41) — durable through the same

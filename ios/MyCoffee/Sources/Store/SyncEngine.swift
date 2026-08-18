@@ -111,18 +111,23 @@ actor SyncEngine {
     /// same shape as `setFavorite`, but a review task isn't part of the
     /// coffee index, so there's no local state to mutate here beyond the
     /// outbox itself.
-    func resolveReview(taskId: Int, value: String, client: APIClient?) async {
-        await outbox.enqueueReviewResolve(taskId: taskId, value: value)
-        if let client {
-            await outbox.flush(using: client)
-        }
+    /// Sends the resolution directly and **throws** on failure (offline, HTTP
+    /// error, rejected value) — NOT through the outbox, whose fire-and-forget
+    /// flush made a review accept "advance now, maybe persist later," so a
+    /// partial review session silently lost items until a later full sync
+    /// flushed the backlog (Radu: "saves only when I finish all"). Confirmed
+    /// per-item now, same shape as `editField`. Also drains any review
+    /// mutations a prior (outbox-era) build left queued.
+    func resolveReview(taskId: Int, value: String, client: APIClient?) async throws {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        _ = try await client.resolveReview(id: String(taskId), value: value)
+        await outbox.flush(using: client)
     }
 
-    func dismissReview(taskId: Int, client: APIClient?) async {
-        await outbox.enqueueReviewDismiss(taskId: taskId)
-        if let client {
-            await outbox.flush(using: client)
-        }
+    func dismissReview(taskId: Int, client: APIClient?) async throws {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        _ = try await client.dismissReview(id: String(taskId))
+        await outbox.flush(using: client)
     }
 
     /// Queues the edit and flushes immediately if online (same shape as
