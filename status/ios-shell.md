@@ -8,6 +8,21 @@ _none_
 
 ## Done
 
+- [2026-08-18 UTC, later session] Session check — unchanged from the check
+  right below. No ready `ios-shell` row: #17/#22/#41/#46 all `done`, #71(a)'s
+  seam confirmed consumed. Only `ready` row anywhere in `BACKLOG.md` is `#57`
+  (ios-ux, persisted photo rotation) — re-confirmed independently (repo-wide
+  grep for `rotation_quarter_turns`/`rotationQuarterTurns` still empty outside
+  status-file prose) there is nothing concrete on the backend side yet for
+  this lane's named seam to build against. Re-swept the top commit-ahead-count
+  `origin/claude/*` candidates in this lane's owned paths
+  (`confident-cerf-{t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`,
+  `confident-cerf-fti5j5`) — all confirmed net-deletions against current
+  `ios-staging`, nothing stranded to adopt. Merged `origin/main` into
+  `ios-staging` (`8647fcd`), resolving one additive conflict in
+  `status/backend.md` (two independent same-day backend session-check
+  entries) by keeping both. Stopping cleanly rather than inventing work.
+
 - [2026-08-18 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`; #71(a)'s seam (this
   lane's own prior session, same day as this file's most recent entry below)
