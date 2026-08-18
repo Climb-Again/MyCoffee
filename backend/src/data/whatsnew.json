@@ -6,9 +6,19 @@
       "area": "data"
     },
     {
-      "title": "Extraction picks are applied by default",
-      "detail": "The engine's picks now land directly on the coffee instead of sitting in a review queue; review only shows genuine disagreements between voters.",
+      "title": "Extraction now runs for free",
+      "detail": "Photo extraction moved off paid Vertex AI onto Gemini's free developer tier — no more spend caps to manage, and it costs $0.",
       "area": "backend"
+    },
+    {
+      "title": "Extraction picks are applied by default",
+      "detail": "The engine's picks land directly on the coffee instead of sitting in a review queue, and implausible values (like a 2m altitude) are dropped instead of shown; review only shows genuine disagreements between voters.",
+      "area": "backend"
+    },
+    {
+      "title": "Any coffee field can be corrected, right in the app",
+      "detail": "Roaster, farm, origin, process, price, weight, rating and roast date can all be fixed from an in-app edit sheet with vocab dropdowns — corrections save for real, not just locally.",
+      "area": "ios"
     },
     {
       "title": "Farm names are learned automatically",
@@ -16,8 +26,8 @@
       "area": "backend"
     },
     {
-      "title": "Roaster countries filled in",
-      "detail": "80 of the 89 known roasters now have a home country on file, so origin filters and insights work for roaster country too.",
+      "title": "Roaster countries filled in — and a caption beats a guess",
+      "detail": "Most known roasters now have a home country on file, including Switzerland, Hong Kong, Japan and Greece; an explicit caption like 'Amsterdam, Olanda' now overrides a mistaken vocab guess.",
       "area": "data"
     },
     {
@@ -26,56 +36,66 @@
       "area": "backend"
     },
     {
-      "title": "Any coffee field can be corrected",
-      "detail": "Roaster, farm, origin, process, price, weight, rating and roast date can all be fixed from the backend now; an in-app edit sheet with dropdowns is next.",
+      "title": "Full-text search actually searches everything now",
+      "detail": "Roaster, origin, farm, process and the bag's own caption/description text are all indexed for search — it used to silently return nothing because the index was never populated.",
       "area": "backend"
+    },
+    {
+      "title": "Image-only bag photos get a readable transcription",
+      "detail": "Photos with no caption or description get an OCR pass so the bag's text is still readable in the app, with a daily routine automatically draining the backlog of stragglers.",
+      "area": "data"
+    },
+    {
+      "title": "Insights got a redesign",
+      "detail": "Three sub-tabs (Insights / Charts / Data), a time-window control (All / last 12m / last 18m / by year), and an average rating shown next to every breakdown, down to each chart legend.",
+      "area": "ios"
+    },
+    {
+      "title": "See what's shipped and what's next, from inside the app",
+      "detail": "A Live/Plan screen reachable from Settings — this is that screen, reading its own data straight from the backend.",
+      "area": "ios"
     }
   ],
   "plan": {
     "byLane": {
       "backend": [],
-      "data": [
-        {
-          "title": "Reject nonsense extracted numbers",
-          "detail": "An altitude of '1-5 m' or a similarly implausible weight/rating should be dropped instead of shown, even though the engine applies picks by default now."
-        },
-        {
-          "title": "Trust an explicit caption over the vocab guess for roaster country",
-          "detail": "Fix the 'Uncommon' roaster mixup (Amsterdam vs. a same-named UK roaster) and prefer what a caption actually says over a derived guess going forward."
-        }
-      ],
+      "data": [],
       "ios": [
         {
-          "title": "Hide the review affordance when there's nothing to actually review",
-          "detail": "A coffee's Review button shouldn't open an empty sheet when its only open items aren't client-reviewable."
+          "title": "Tap a chart or finding to jump to the filtered list",
+          "detail": "Tapping an Insights legend, a 'what tends to score well' finding, or a data-quality row should deep-link into the Coffees list already filtered to that value."
         },
         {
-          "title": "Wire up the field-edit API on the client",
-          "detail": "Let the app call the backend's edit endpoint so a correction saves for real, not just locally."
+          "title": "Add a time window to the coffee list filter",
+          "detail": "The Insights charts already have an All/12m/18m/by-year control; the Coffees list filter should get the same one, and carry it through when you tap into a chart."
         },
         {
-          "title": "Edit sheet with consistency dropdowns",
-          "detail": "A form to fix a coffee's roaster, origin, farm, process and other fields, with vocab pickers instead of free text."
+          "title": "Make the review photo actually zoom",
+          "detail": "The zoom icon, tap, and pinch on the Review screen's photo currently do nothing — needs a real full-screen pan/zoom viewer."
         },
         {
-          "title": "What's New API surface on the client",
-          "detail": "Fetch this screen's own data from the backend so it always reflects the real current state of the project."
+          "title": "Save each review decision as you make it",
+          "detail": "Accepting or dismissing a review item should save immediately, so quitting partway through doesn't lose the ones you already did."
         },
         {
-          "title": "What's New screen",
-          "detail": "A Live/Plan view reachable from Settings so you can see what's shipped and what's queued, from inside the app."
+          "title": "A rotate fix that actually saves",
+          "detail": "Some photos are sideways even though they're upright in the Photos app; the fix needs to persist across launches and devices, not just correct the on-screen view."
+        },
+        {
+          "title": "Move search to the bottom of the list",
+          "detail": "Match the iOS 26 pattern of anchoring search at the bottom of the screen instead of the top."
+        },
+        {
+          "title": "Let 'Unknown' be a real filter everywhere",
+          "detail": "Filtering to 'no roaster yet' or 'no origin yet' only works for Process today; it should work for every field."
+        },
+        {
+          "title": "Fix single-value altitude edits",
+          "detail": "Entering just a max altitude (with no min) doesn't currently save — it should be treated as a single point value."
         }
       ]
     },
     "needsApproval": [
-      {
-        "title": "Publish the accumulated iOS batch to TestFlight",
-        "detail": "The review queue UI, insights, roaster/country pages and several fixes are done and compile-green on main, waiting on the scheduled publish run — not pushed manually per your instruction."
-      },
-      {
-        "title": "Launch the full photo backfill (~$62)",
-        "detail": "Extracting all remaining photos needs your go-ahead per the spend gate; the free rules-only pass and the 5-photo sample are already validated."
-      },
       {
         "title": "Anything that would exceed the 50 MB app+data cap",
         "detail": "A bigger image cache, larger bundled assets, or a fatter snapshot all need your sign-off before shipping."
