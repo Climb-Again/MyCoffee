@@ -6,7 +6,15 @@
 // silently undoes either kind of human decision (PLAN.md §1).
 import { query } from '../db.js';
 import { canonicalize, denormalize } from './adjudicate.js';
-import { normalizeVocabString } from './normalize.js';
+import { normalizeVocabString, parsePrice } from './normalize.js';
+
+// A human typing a bare number for price (e.g. "95" via the review "Other…"
+// box) knows the currency in their head; default it rather than 422. The corpus
+// is RON-dominant and such amounts sit squarely in RON range (95 EUR/GBP for a
+// bag is absurd), so RON is the safe default; type "95 eur" to override. Only
+// the human resolve/edit path reaches resolveField — the automated extraction
+// pipeline never does — so this never makes the pipeline guess a currency.
+const DEFAULT_PRICE_CURRENCY = (process.env.DEFAULT_PRICE_CURRENCY || 'RON').trim();
 
 // The app's review UI (ReviewField, ios/.../Features/Review) only understands
 // these fields; map each DB field name onto the client enum's raw value.
@@ -121,6 +129,14 @@ export async function resolveField(photoId, field, rawValue, ctx) {
       // no entry in VOCAB_GET_OR_CREATE, so an unknown country still 422s.
       const newId = await getOrCreateVocabEntry(field, String(value));
       if (newId != null) canonical = { id: newId, confidenceFactor: 1 };
+    }
+    // Bare human-entered price with no currency marker -> assume the default
+    // currency instead of refusing (see DEFAULT_PRICE_CURRENCY above).
+    if (!canonical && field === 'price') {
+      const p = parsePrice(value);
+      if (p && p.amount != null && p.currency == null) {
+        canonical = { amount: p.amount, currency: DEFAULT_PRICE_CURRENCY, confidenceFactor: 0.9 };
+      }
     }
     if (!canonical) return { error: 'unresolvable_value' };
     value = denormalize(field, canonical);
