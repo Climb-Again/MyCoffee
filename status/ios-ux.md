@@ -8,6 +8,29 @@ _none_
 
 ## Session notes
 
+- [2026-08-19 UTC] No-op session. `origin/ios-staging` was already up to date with `origin/main`
+  (`git pull origin ios-staging` reported "Already up to date") — nothing to merge. Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) remains the only `ready` `ios-ux` row
+  anywhere in the table, `needs: 59` (done). Independently re-verified it's still unbuildable —
+  `grep -rn "rotation_quarter_turns\|rotationQuarterTurns" .` (excluding `status/`) across the whole
+  repo returns zero hits in `backend/**`, `ios/**` Swift, or SQL migrations, confirming neither the
+  backend column/write-endpoint/snapshot field nor the ios-shell model/API surface this row's
+  ios-ux half needs to write through exist yet. Same conclusion every session back to 2026-08-17
+  has independently reached.
+  Swept `git branch -r --list 'origin/claude/*'` — **114 branches**, up sharply from the last
+  documented count (87, per this file's 2026-08-13 entry). Spot-checked the largest by diff size
+  touching `Sources/Features`/`Sources/DesignSystem`/`Resources`
+  (`confident-cerf-{9y3vqr,j8in2k,t1flso}`, `hopeful-johnson-bdpy3r`): all are net-negative diffs
+  against current `ios-staging` (e.g. "221 insertions, 660 deletions"), the same stale-pre-fork
+  shape every prior sweep in this file has documented — nothing to adopt. Also grepped every one of
+  the 114 branches' diffs for `rotation_quarter_turns`/`rotationQuarterTurns` specifically (in case a
+  stranded branch had built exactly the seam `#57` is waiting on) — zero hits anywhere. **Flagging,
+  not fixing**: 114 stranded `claude/*` branches is a lot of dead weight for future sweeps to wade
+  through; this is the kind of thing `CLAUDE.md` §12's "if lanes keep producing orphan branches, add
+  a small integration routine" note anticipated, but pruning/merging them isn't this lane's call to
+  make unilaterally. Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-18 UTC, later session] Integrated a stray `main`-direct #66 fix; still no buildable `ios-ux` row.
   - `git fetch origin main ios-staging` showed `origin/main` had moved two commits ahead of what
     `ios-staging` had merged: `3234d68` ("iOS #66: save each review action live") and a backend
