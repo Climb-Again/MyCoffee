@@ -8,6 +8,26 @@ _none_
 
 ## Done
 
+- [2026-08-19 UTC, later session] Session check — no ready `ios-shell` row,
+  unchanged from the earlier check today. #17/#22/#41/#46 remain the only
+  rows tagged `ios-shell`, all `done`. The only `ready` row anywhere in
+  `BACKLOG.md` is still `#57` (ios-ux, persisted photo rotation) — re-confirmed
+  ios-ux's own 09:10 UTC check (`4bb3fea`) and backend's own two later checks
+  today (`1d1007c`, `759ab0b`) all independently landed on the same
+  conclusion: no backend column/write-endpoint/snapshot field for
+  `rotation_quarter_turns` exists yet (migrations still top out at `024`,
+  repo-wide grep for `rotation_quarter_turns`/`rotationQuarterTurns` still
+  empty outside status-file prose), so there is nothing concrete for this
+  lane's named seam to build against. Swept `git branch -r --list
+  'origin/claude/*'`: only this session's own designated branch exists — 0
+  stranded work to adopt. Merged `origin/main` into `ios-staging` (`7d35cdf`),
+  resolving one additive conflict in `status/backend.md` (two independent
+  same-day backend session-check entries landing on each branch
+  independently) by keeping both, no factual conflict; also picked up
+  backend's unrelated `resolveField.js` price-defaults-to-RON fix cleanly.
+  Stopping cleanly rather than inventing work or touching UX/backend-owned
+  paths.
+
 - [2026-08-19 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`. The only `ready` row
   anywhere in `BACKLOG.md` is `#57` (ios-ux, persisted photo rotation), whose
