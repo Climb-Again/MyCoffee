@@ -8,6 +8,29 @@ _none_
 
 ## Session notes
 
+- [2026-08-19 UTC] No-op session. `status/BACKLOG.md`: `#57` (persisted photo
+  rotation) remains the only `ready` `ios-ux` row (`needs: 59`, and `#59` is
+  `done`), but its own row still names a seam this lane can't build alone —
+  backend owns the `rotation_quarter_turns` column + write endpoint +
+  snapshot field, ios-shell owns the model field + API + apply-on-display.
+  Repo-wide grep for `rotation_quarter_turns`/`rotationQuarterTurns` outside
+  `status/*.md` prose: still zero hits — neither piece exists yet, same
+  conclusion every prior session since 2026-08-16 reached. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts). Swept
+  `git branch -r --list 'origin/claude/*'` (114 branches) for stranded work
+  touching `Sources/{Features,DesignSystem}/**` or `Resources/**`: an initial
+  `git rev-list --count` pass flagged ~90 branches with non-zero diffs (a
+  much larger set than prior sweeps), but a targeted `git grep` for the
+  rotation seam symbols across every branch found matches only inside
+  `status/*.md` narrative text (a red herring from `ref:path`-prefixed output
+  not matching a naive `^status/` filter) — zero real code hits. Spot-checked
+  two of the largest-diff branches (`hopeful-johnson-bdpy3r`,
+  `confident-cerf-9y3vqr`) directly: both net-negative against current
+  `ios-staging` (120/155 insertions vs. 198/445 deletions), the same
+  stale-pre-fork shape every previous sweep in this file has already
+  documented. Nothing to adopt. Stopping cleanly per the lane's documented
+  no-op behaviour; no feature code changed.
+
 - [2026-08-19 UTC] No-op session. `origin/ios-staging` was already up to date with `origin/main`
   (`git pull origin ios-staging` reported "Already up to date") — nothing to merge. Re-scanned
   `status/BACKLOG.md`: `#57` (persisted photo rotation) remains the only `ready` `ios-ux` row
