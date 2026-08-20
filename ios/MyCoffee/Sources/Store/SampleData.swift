@@ -250,6 +250,7 @@ enum SampleData {
             rawDescription: rawDescription,
             reviewState: reviewState,
             minFieldConfidence: minFieldConfidence,
+            rotationQuarterTurns: nil,
             images: nil
         )
     }

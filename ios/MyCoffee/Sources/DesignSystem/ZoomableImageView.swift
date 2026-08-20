@@ -11,10 +11,17 @@ import SwiftUI
 /// page's hero photo, which both had this exact broken in-card pattern.
 struct ZoomableImageView: View {
     let urlString: String?
+    /// Starting display rotation (#57), quarter-turns clockwise. Persisted via
+    /// `onRotate` when the user taps the rotate control; the control only shows
+    /// when a handler is provided (so the Review card, whose photo has no coffee
+    /// row yet, gets a plain zoomable viewer with no rotate button).
+    var initialRotationQuarterTurns: Int = 0
+    var onRotate: ((Int) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1
     @State private var offset: CGSize = .zero
+    @State private var rotationTurns: Int = 0
     @GestureState private var pinchDelta: CGFloat = 1
     @GestureState private var dragDelta: CGSize = .zero
 
@@ -38,6 +45,23 @@ struct ZoomableImageView: View {
             }
             .padding()
         }
+        .overlay(alignment: .bottomTrailing) {
+            if onRotate != nil {
+                Button {
+                    let next = (rotationTurns + 1) % 4
+                    withAnimation { rotationTurns = next }
+                    onRotate?(next)
+                } label: {
+                    Image(systemName: Symbols.rotate)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding()
+            }
+        }
+        .onAppear { rotationTurns = ((initialRotationQuarterTurns % 4) + 4) % 4 }
     }
 
     private var content: some View {
@@ -49,6 +73,7 @@ struct ZoomableImageView: View {
                         image
                             .resizable()
                             .scaledToFit()
+                            .rotationEffect(.degrees(Double(rotationTurns) * 90))
                             .scaleEffect(displayScale)
                             .offset(displayOffset)
                             .gesture(SimultaneousGesture(pinchGesture, dragGesture))

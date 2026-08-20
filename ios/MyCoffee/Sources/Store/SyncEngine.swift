@@ -130,6 +130,20 @@ actor SyncEngine {
         await outbox.flush(using: client)
     }
 
+    /// Persisted photo rotation (#57/#73). Confirmed then applied: the local
+    /// coffee is only rotated once the write round-trips, so a failed save
+    /// leaves the shown orientation unchanged and the caller can surface the
+    /// error — no optimistic flicker to revert.
+    func setRotation(coffeeId: String, quarterTurns: Int, client: APIClient?) async throws -> CoffeeIndex {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        _ = try await client.setRotation(publicId: coffeeId, quarterTurns: quarterTurns)
+        if let coffee = coffees[coffeeId] {
+            coffees[coffeeId] = coffee.withRotation(quarterTurns)
+            persist()
+        }
+        return currentIndex()
+    }
+
     /// Queues the edit and flushes immediately if online (same shape as
     /// `setFavorite`/`resolveReview`), then re-fetches detail so any
     /// backend-derived side effect lands exactly as the server computed it —

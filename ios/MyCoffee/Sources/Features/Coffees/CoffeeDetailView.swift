@@ -73,7 +73,13 @@ struct CoffeeDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showFullPhoto) {
-            ZoomableImageView(urlString: coffee.images?.display)
+            ZoomableImageView(
+                urlString: coffee.images?.display,
+                initialRotationQuarterTurns: coffee.rotationTurns,
+                onRotate: { turns in
+                    Task { await store.setRotation(coffeeId: coffee.id, quarterTurns: turns) }
+                }
+            )
         }
         .sheet(isPresented: $showEdit) {
             CoffeeEditSheet(coffee: coffee)
@@ -92,6 +98,7 @@ struct CoffeeDetailView: View {
                 AsyncImage(url: url) { phase in
                     if case let .success(image) = phase {
                         image.resizable().scaledToFill()
+                            .rotationEffect(.degrees(Double(coffee.rotationTurns) * 90))
                     } else {
                         heroPlaceholder
                     }

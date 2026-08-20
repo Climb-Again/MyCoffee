@@ -53,6 +53,7 @@ extension CompactCoffeeDTO {
             rawDescription: nil,
             reviewState: reviewState,
             minFieldConfidence: nil,
+            rotationQuarterTurns: rotationQuarterTurns,
             // The compact snapshot now carries a signed thumbnail so the listing
             // shows photos (and a re-sync doesn't wipe a detail-loaded thumb).
             // `display` is seeded from the same URL as a reasonable hero
@@ -99,6 +100,7 @@ extension CoffeeDetailDTO {
             rawDescription: rawDescription,
             reviewState: reviewState,
             minFieldConfidence: minFieldConfidence,
+            rotationQuarterTurns: rotationQuarterTurns,
             images: (thumbUrl != nil || displayUrl != nil)
                 ? CoffeeImageURLs(thumb: thumbUrl ?? "", display: displayUrl ?? "", ocr: nil)
                 : nil

@@ -71,7 +71,17 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
     let reviewState: String                  // "clean" | "needs_review" — coarse, per-field detail lives server-side
     let minFieldConfidence: Double?
 
+    /// Persisted display rotation (#57/#73): quarter-turns clockwise the app
+    /// applies when showing the photo. Optional so an older on-disk cache
+    /// (PersistedSnapshot Codable-decodes `[Coffee]` directly) that predates
+    /// the field decodes as nil instead of dropping the whole cache; treat nil
+    /// as 0 (`rotationTurns`).
+    let rotationQuarterTurns: Int?
+
     let images: CoffeeImageURLs?
+
+    /// nil-safe view of `rotationQuarterTurns`, normalized to 0–3.
+    var rotationTurns: Int { ((rotationQuarterTurns ?? 0) % 4 + 4) % 4 }
 
     var purchasedYear: Int { purchasedOn.year }
     var purchasedMonth: Int { purchasedOn.month }
@@ -110,7 +120,27 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             rating: rating, isFavorite: isFavorite, favoriteSetBy: setBy,
             farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
             rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
-            reviewState: reviewState, minFieldConfidence: minFieldConfidence, images: images
+            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
+            rotationQuarterTurns: rotationQuarterTurns, images: images
+        )
+    }
+
+    /// A copy with the display rotation set (#57) — same immutable-value,
+    /// optimistic-update pattern as `withFavorite`, so the store can reflect a
+    /// rotate the moment the user taps, before the round-trip confirms.
+    func withRotation(_ turns: Int) -> Coffee {
+        Coffee(
+            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
+            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
+            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
+            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
+            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
+            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
+            rating: rating, isFavorite: isFavorite, favoriteSetBy: favoriteSetBy,
+            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
+            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
+            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
+            rotationQuarterTurns: ((turns % 4) + 4) % 4, images: images
         )
     }
 }

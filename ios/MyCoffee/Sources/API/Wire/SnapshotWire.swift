@@ -90,11 +90,13 @@ struct CompactCoffeeDTO: Decodable {
     let rating: Double?
     let isFavorite: Bool
     let reviewState: String
+    let rotationQuarterTurns: Int?
 
     private enum CodingKeys: String, CodingKey {
         case id, thumbUrl, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
+        case rotationQuarterTurns
     }
 
     init(from decoder: Decoder) throws {
@@ -121,5 +123,6 @@ struct CompactCoffeeDTO: Decodable {
         rating = container.decodeFlexibleDouble(forKey: .rating)
         isFavorite = try container.decode(Bool.self, forKey: .isFavorite)
         reviewState = try container.decode(String.self, forKey: .reviewState)
+        rotationQuarterTurns = try container.decodeIfPresent(Int.self, forKey: .rotationQuarterTurns)
     }
 }

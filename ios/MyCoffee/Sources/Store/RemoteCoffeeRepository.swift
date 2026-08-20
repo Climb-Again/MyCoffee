@@ -39,6 +39,11 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         try await engine.dismissReview(taskId: taskId, client: client)
     }
 
+    func setRotation(coffeeId: String, quarterTurns: Int) async throws -> CoffeeIndex {
+        let client = try await APIClient(config: AppConfig.shared)
+        return try await engine.setRotation(coffeeId: coffeeId, quarterTurns: quarterTurns, client: client)
+    }
+
     func editField(coffeeId: String, field: String, value: String) async throws -> Coffee {
         // `try` (not `try?`): if the client can't be built (no token/URL) the
         // caller must hear about it, not get a silent no-op.
