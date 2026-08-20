@@ -45,6 +45,39 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-20 UTC — session check: no ready row this cycle
+
+`origin/main` at `759ab0b` (this session's branch is that plus one no-op
+"Backend lane: session check" commit — 0 behind, effectively current).
+Re-verified the full `status/BACKLOG.md` row table (row #, lane, phase,
+status) rather than trusting yesterday's note alone: every `data`-lane row
+(#12, #13, #14, #20, #25, #26, #29, #34, #38, #39, #48, #59) is `done`;
+`#65` is still `human` (its own note records it as resolved operationally,
+but the status column is literally `human`, so it isn't a lane's to claim
+per protocol). No `blocked` `data` row exists at all, so there's nothing
+whose `needs` could have newly flipped.
+
+Checked for stranded prior data-lane work before concluding, not just
+trusting the last sweep: `git log --all --not main -- ops/
+backend/migrations/005_vocab_seed.sql backend/src/lib/{normalize,fuzzy,
+vocab,fx,deterministic,prompts}.js backend/test/{normalize,fuzzy,vocab,fx,
+deterministic}.test.js` — every hit (`#39`, `#48(b)`, `#59`, the original
+`#12/#13/#34/#14/#20/#25` branches) is old work already landed on `main`
+under different SHAs (rebased/reapplied), confirmed by checking `main`'s
+current `normalize.js` already has the exact hard-envelope logic (`max <
+200 || min > 4000` for altitude, `grams < 1 || grams > 5000` for weight)
+these commits describe. Nothing unintegrated to adopt.
+
+`cd backend && npm ci && npm test` — **253/253 green**. (`npm ci` was
+needed: `node_modules` wasn't present at session start, which made an
+initial bare `npm test` misreport 10 failures — all in backend-owned
+Postgres/Fastify/sharp-dependent suites, none in a data-owned file — as
+real breakage; after a clean install all 253 pass, up from 252 pass
+`fc1dc56` since backend has shipped more.)
+
+Per the routine's own instruction ("if nothing qualifies, post a one-line
+status and stop — do not invent work"), stopping here.
+
 ## 2026-08-19 UTC — session check: no ready row this cycle
 
 `origin/main` at `bf77daf`, `git branch -r --list 'origin/claude/*'` shows only
