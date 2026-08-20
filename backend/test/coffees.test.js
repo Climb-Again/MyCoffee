@@ -66,6 +66,18 @@ test('POST /api/coffees/:publicId/edit requires the ingest token specifically', 
   await app.close();
 });
 
+test('POST /api/coffees/:publicId/rotation requires the ingest token specifically', async () => {
+  const app = await build();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/coffees/some-id/rotation',
+    payload: { quarterTurns: 1 },
+  });
+  // Auth runs before the range check, so a bad token never sees a 400 (#73).
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});
+
 test('GET /api/config reports the snapshot capability once #21 lands', async () => {
   const app = await build();
   const res = await app.inject({ method: 'GET', url: '/api/config' });

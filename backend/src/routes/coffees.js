@@ -6,6 +6,7 @@
 //   GET  /api/coffees/:publicId   detail
 //   GET  /api/coffees/top-filters up to 7 server-ordered cards (PLAN.md §6.1)
 //   POST /api/coffees/:publicId/favorite
+//   POST /api/coffees/:publicId/rotation persisted photo rotation (#73)
 //   POST /api/coffees/:publicId/edit     generic per-field edit (PLAN.md §12 #40)
 //
 // Reads use requireAnyToken; the favorite/edit writes use requireIngestToken,
@@ -80,6 +81,7 @@ function toCompactCoffee(row, baseUrl) {
     weightG: row.weight_g,
     rating: row.rating,
     isFavorite: row.is_favorite,
+    rotationQuarterTurns: row.rotation_quarter_turns,
     reviewState: row.review_state,
     updatedAt: row.updated_at,
   };
@@ -285,6 +287,27 @@ export default async function coffeesRoutes(app) {
     const row = rows[0];
     if (!row) return reply.code(404).send({ error: 'coffee_not_found' });
     return { id: row.public_id, isFavorite: row.is_favorite };
+  });
+
+  // Persisted photo rotation (#73/#57). A human display correction, not an
+  // extracted field, so it deliberately skips the resolveField/review
+  // machinery entirely and mirrors /favorite instead. The updated_at bump is
+  // what carries the correction to every device via the delta sync.
+  app.post('/api/coffees/:publicId/rotation', { preHandler: requireIngestToken }, async (req, reply) => {
+    const quarterTurns = req.body?.quarterTurns;
+    if (!Number.isInteger(quarterTurns) || quarterTurns < 0 || quarterTurns > 3) {
+      return reply.code(400).send({ error: 'invalid_quarter_turns', value: quarterTurns ?? null });
+    }
+    const { rows } = await query(
+      `UPDATE coffees
+       SET rotation_quarter_turns = $1, updated_at = now()
+       WHERE public_id = $2 AND deleted_at IS NULL
+       RETURNING public_id, rotation_quarter_turns`,
+      [quarterTurns, req.params.publicId],
+    );
+    const row = rows[0];
+    if (!row) return reply.code(404).send({ error: 'coffee_not_found' });
+    return { id: row.public_id, rotationQuarterTurns: row.rotation_quarter_turns };
   });
 
   // Generic per-field edit (PLAN.md §12 #40): the review queue only surfaces
