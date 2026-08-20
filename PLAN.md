@@ -33,7 +33,7 @@ Confirmed with Radu:
 | AI ensemble | **Vertex-only, 5 passes** — no new provider secrets |
 | Controlled vocabularies | **The docx lists are authoritative** for roasters + countries; farms and roaster→city are derived from the data and approved in the review queue |
 | Extraction budget | **Vertex-only + cost levers ≈ $62** — evidence strings only below 0.9 confidence, `thinkingBudget: 0` on the flash extractor, flash instead of pro for the critic pass |
-| Going forward | **Monthly Mac script run only.** No in-app capture, no camera, no PhotoKit watcher. Radu keeps captioning in Photos exactly as now; the same exporter runs monthly under `launchd` |
+| Going forward | **Monthly Mac script run** for the historical/bulk path, **plus an in-app Add-Coffee wizard** (Radu's later request — see §6.8). The Mac exporter still handles the decade backfill and any bulk monthly import; the wizard is for adding one coffee by hand: photos + pasted text → on-demand extract → confirm/edit → save. No PhotoKit watcher. |
 | Honey / pulped natural | **Fold into Experimental**, with `"Honey"` preserved verbatim in `profile_detail` |
 | Unknown process | **Allow `NULL` + an "Unknown" facet + a review item.** The brief's "guess only very close matches" wins over "ALL coffees allocated to one of these six" |
 
@@ -756,6 +756,32 @@ MyCoffee/Resources]` with `createIntermediateGroups: true` already recurses, so
 every new folder is picked up. The only addition is an optional `MyCoffeeTests`
 unit-test target — run on dispatch only, never on every `main` push, since macOS
 minutes bill at 10×.
+
+### 6.8 Add Coffee wizard (in-app, paste-text driven) — added post-plan
+
+Radu asked for a manual add flow after the shell shipped. It **supersedes the
+earlier "read-and-review only, no capture UI" stance** — but note it is *not*
+camera-OCR-first; it is paste-text-first, which is the cheaper, more accurate shape
+(a human confirms at entry, so the backend runs a lighter extraction than the
+unattended backfill).
+
+Entry: a **big `+` in the bottom tab bar** (center, prominent). Three steps:
+1. **Photos** → NEXT. `PhotosPicker` multi-select (front/back of bag), optional camera.
+2. **Full text** → NEXT. One large `TextEditor`; Radu pastes the whole bag
+   description as a chunk — the same raw text that, for backfilled coffees, came from
+   the Photos caption.
+3. **Confirm** → SAVE. `POST /api/coffees/extract` runs a light ensemble
+   (`det` + flash + pro reconciler) over {photos + text} and returns per-field
+   `{value, confidence, candidates, evidence}`. Each field shows a confirm-mark
+   (✓ high / ⚠ low) + an edit button reusing the **review-queue field component**
+   (#27). SAVE persists via `POST /api/coffees`, marking every field
+   `decided_by='human'`, `locked=true` so the monthly re-extraction never overwrites
+   Radu's confirmations. Fields left ⚠ still save and flow into the review queue.
+
+Issues: backend #36, iOS shell #37, iOS UX #38. Reuses the photo upload (#19), the
+extraction ensemble + adjudication (#24), the coffee write path (#21), and the
+review-queue field UI (#27) — no new subsystems, just an on-demand entry into the
+ones already being built.
 
 ## 7. Parallel agent lanes
 
