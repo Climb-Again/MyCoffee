@@ -30,6 +30,12 @@ protocol CoffeeRepository: Sendable {
     /// Dismisses a review task ("not on the bag") the same confirmed way.
     func dismissReview(taskId: Int) async throws
 
+    /// Sets a coffee's persisted display rotation (#57/#73) — absolute
+    /// quarter-turns clockwise. Confirmed (throws on failure); the local index
+    /// is updated only once the write round-trips, and the returned index
+    /// reflects it so the caller can publish immediately.
+    func setRotation(coffeeId: String, quarterTurns: Int) async throws -> CoffeeIndex
+
     /// Applies a per-field edit via the backend's locked/human-decided
     /// resolve path (PLAN.md §12 #40/#41), then re-fetches detail so any
     /// backend-derived side effect (e.g. editing `roaster` also derives

@@ -35,6 +35,14 @@ actor SampleCoffeeRepository: CoffeeRepository {
 
     func dismissReview(taskId: Int) async throws {}
 
+    func setRotation(coffeeId: String, quarterTurns: Int) async throws -> CoffeeIndex {
+        let updated = index.coffees.map { coffee in
+            coffee.id == coffeeId ? coffee.withRotation(quarterTurns) : coffee
+        }
+        index = CoffeeIndex(coffees: updated, vocabulary: index.vocabulary, searchTexts: index.searchTexts)
+        return index
+    }
+
     // Same reasoning: canonicalizing an edit's raw value the way the backend
     // does isn't fixture logic worth duplicating here, so previews see no
     // change rather than a guessed-at one.

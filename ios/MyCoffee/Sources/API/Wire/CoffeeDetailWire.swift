@@ -28,6 +28,7 @@ struct CoffeeDetailDTO: Decodable {
     let rating: Double?
     let isFavorite: Bool
     let reviewState: String
+    let rotationQuarterTurns: Int?
 
     let descFarmLot: String?
     let descBrewGuide: String?
@@ -43,6 +44,7 @@ struct CoffeeDetailDTO: Decodable {
         case id, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
+        case rotationQuarterTurns
         case descFarmLot, descBrewGuide, descRoasterCopy, rawTitle, rawCaption, rawDescription
         case minFieldConfidence, thumbUrl, displayUrl
     }
@@ -70,6 +72,7 @@ struct CoffeeDetailDTO: Decodable {
         rating = container.decodeFlexibleDouble(forKey: .rating)
         isFavorite = try container.decode(Bool.self, forKey: .isFavorite)
         reviewState = try container.decode(String.self, forKey: .reviewState)
+        rotationQuarterTurns = try container.decodeIfPresent(Int.self, forKey: .rotationQuarterTurns)
 
         descFarmLot = try container.decodeIfPresent(String.self, forKey: .descFarmLot)
         descBrewGuide = try container.decodeIfPresent(String.self, forKey: .descBrewGuide)

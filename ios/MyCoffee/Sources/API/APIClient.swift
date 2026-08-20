@@ -128,6 +128,17 @@ struct APIClient: Sendable {
         return true
     }
 
+    // POST /api/coffees/:id/rotation — persisted display rotation (#57/#73).
+    // `quarterTurns` is the absolute clockwise correction (0–3); the backend
+    // rejects anything else with 400, which `send` surfaces as an APIError.
+    @discardableResult
+    func setRotation(publicId: String, quarterTurns: Int) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: ["quarterTurns": quarterTurns])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/rotation", method: "POST", body: body)
+        _ = try await send(req)
+        return true
+    }
+
     // GET /api/review — the open review queue (backend maps DB fields onto the
     // app's `ReviewField` and cleans candidates; PLAN.md §6.5).
     func reviewFeed(limit: Int = 200) async throws -> ReviewFeedDTO {

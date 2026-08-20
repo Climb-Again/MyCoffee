@@ -179,6 +179,25 @@ final class CoffeeStore: ObservableObject {
         }
     }
 
+    /// Human-readable reason the last rotate failed, for the viewer's toast.
+    @Published var rotationErrorText: String?
+
+    /// Sets a coffee's persisted display rotation (#57) — `quarterTurns` is the
+    /// absolute 0–3 clockwise correction (the viewer computes `(current+1)%4`).
+    /// Confirmed: the index only changes once the server accepts it, so a failed
+    /// save leaves the shown orientation as-is and the caller can warn.
+    @discardableResult
+    func setRotation(coffeeId: String, quarterTurns: Int) async -> Bool {
+        do {
+            index = try await repository.setRotation(coffeeId: coffeeId, quarterTurns: quarterTurns)
+            rotationErrorText = nil
+            return true
+        } catch {
+            rotationErrorText = error.localizedDescription
+            return false
+        }
+    }
+
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
     /// Insights screen. A once-a-day read, not part of the coffee snapshot —
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.

@@ -22,6 +22,7 @@ enum Symbols {
     static let settings = "gearshape"
     static let share = "square.and.arrow.up"
     static let close = "xmark"
+    static let rotate = "rotate.right"
 
     // Process tags
     static let processDecaf = "moon.zzz.fill"
