@@ -78,7 +78,7 @@ private struct RailCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Thumbnail(urlString: coffee.images?.thumb, size: 96, cornerRadius: 10)
+            Thumbnail(urlString: coffee.images?.thumb, size: 96, cornerRadius: 10, rotationQuarterTurns: coffee.rotationTurns)
             Text(coffee.displayTitle(vocabulary: vocabulary))
                 .font(.caption.weight(.semibold))
                 .lineLimit(2)

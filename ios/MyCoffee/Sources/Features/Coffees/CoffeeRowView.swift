@@ -20,7 +20,7 @@ struct CoffeeRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
-                Thumbnail(urlString: coffee.images?.thumb, size: thumbSize)
+                Thumbnail(urlString: coffee.images?.thumb, size: thumbSize, rotationQuarterTurns: coffee.rotationTurns)
 
                 VStack(alignment: .leading, spacing: 4) {
                     if let roaster {
