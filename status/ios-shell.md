@@ -4,12 +4,74 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-20 UTC] Decompose `#57` (persisted photo rotation) into per-lane rows —
-  filing `#73` (backend: column + write endpoint + snapshot field) and `#74`
-  (ios-shell: model field + apply-on-display), and correcting `#57`'s own status —
-  branch `ios-staging`
+_none_
 
 ## Done
+
+- [2026-08-20 UTC, later session] **Broke the `#57` deadlock instead of filing a
+  sixth identical no-op check** — decomposed it into `#73` (backend, `ready`) +
+  `#74` (ios-shell, `blocked` on 73), and corrected `#57` `ready`→`blocked`.
+  - **The problem this fixes.** `#57` (persisted photo rotation) was the only
+    `ready` row anywhere in `BACKLOG.md`, and had been unpickable since
+    2026-08-15. Six consecutive lane sessions across three lanes (this lane on
+    08-17/18/19/20, ios-ux 08-19, backend 08-20 — see the entries right below,
+    all written by prior sessions of this same routine) each independently
+    reached the same conclusion and stopped cleanly: persistence is required
+    (Radu's own follow-up settled that a view-only rotate isn't acceptable),
+    persistence needs a backend column + write endpoint + snapshot field, and
+    **no row was ever filed for that backend half**. Every one of those
+    sessions was right to decline — guessing a wire shape blind is worse than
+    stopping — but the net effect was five days of zero movement on the only
+    open row in the project. The missing artifact was never code, it was a
+    backlog row.
+  - **Why filing it is in-lane, not invented scope.** `status/README.md`'s
+    "correcting a task means correcting THIS file" makes the stale `ready`
+    status this lane's to fix, and the `#48(b)→#51` / `#39→#49` / `#29→#69`
+    precedent is exactly this shape: when a row's real work sits in another
+    lane's owned paths, you file that lane a row rather than reaching across
+    the boundary. `#57` is already an approved row (Radu, 2026-08-15) — this
+    decomposes an approved item, it doesn't add scope, so the CLAUDE.md intake
+    rule (which governs *new* requests) isn't in play.
+  - **Re-verified the blocker rather than trusting the prior notes**: repo-wide
+    grep for `rotation_quarter_turns`/`rotationQuarterTurns` is empty outside
+    status-file prose (only unrelated hit is `ops/test_mycoffee_export.py`'s
+    `test_quarter_turns_map_to_clockwise_rotations`, which is `#59`'s EXIF
+    work), and `backend/migrations/` still tops out at `024_add_greece_roaster_country.sql`.
+  - **`#73` was written as a decided contract, not a research task** — read the
+    real backend code to settle each choice: column on `coffees` not `photos`
+    (every read path the app uses is already a `coffees`-row projection with
+    its own `updated_at` for the delta sync; `photos` would mean a join and a
+    second watermark); endpoint modelled line-for-line on `POST
+    /api/coffees/:publicId/favorite` (`src/routes/coffees.js:276`) and
+    **deliberately not** on `#40`'s generic `/edit` route, since rotation is a
+    human-set display correction that must stay out of
+    `field_candidates`/`EDIT_FIELD_TO_CLIENT`/`STRUCTURED_FIELDS`/`canonicalize()`
+    and must never open a review item; field added to `toCompactCoffee`
+    (`src/routes/coffees.js:55`) so the **listing thumbnail** is upright too,
+    with the detail route inheriting it via its existing spread. Flagged the
+    `updated_at` bump explicitly as the thing that makes the correction reach
+    other devices — omitting it is the silent-failure mode here.
+  - **`#74` is this lane's own next row**, filed so the seam stops being
+    re-derived from `#57`'s prose every cycle. It names the one non-obvious
+    trap: `Coffee.withFavorite` (`Models/Coffee.swift:102`) enumerates every
+    field, so a newly-added property silently dropped there is the same class
+    of bug as `#22`'s `roasterId` nullability. It also draws the ownership line
+    explicitly — shell publishes `rotationQuarterTurns` + `CoffeeStore.rotate`
+    + optionally a small `Utilities/` quarter-turns→`Angle` helper, but the
+    `.rotationEffect` call sites are in `DesignSystem/`/`Features/` and stay
+    with `#57`. Also recorded for ux that `.rotationEffect` on a non-square
+    image changes its rendered aspect box for odd quarter-turns, so the frame
+    has to accommodate a 90°/270° turn.
+  - **No code changed** — the backend half must land before either iOS half can
+    be written, so writing shell code now would mean decoding a field the
+    server never sends and POSTing to a route that doesn't exist. Nothing to
+    compile, so no compile risk.
+  - Swept `git branch -r --list 'origin/claude/*'` per the
+    integrate-before-you-start rule: only this session's own designated branch
+    (`wizardly-thompson-8zpbry`) is new, 0 commits ahead of `ios-staging` in
+    any owned path — nothing stranded to adopt.
+  - `status/BACKLOG.md` (rows `#57`/`#73`/`#74` + a "Right now" entry),
+    `status/ios-shell.md`
 
 - [2026-08-20 UTC] Session check — no ready `ios-shell` row, unchanged from
   every check since 2026-08-17. #17/#22/#41/#46 remain the only rows tagged
