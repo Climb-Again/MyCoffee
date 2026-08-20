@@ -119,3 +119,23 @@ _none_
   needed — the only real work this cycle was the ios-staging→main merge itself.
   Processing (~20 min, async, `skip_waiting_for_build_processing`) unconfirmed —
   check TestFlight/email.
+
+- **2026-08-20 (autopilot session, Thu cron) — no dispatch needed: current `main`
+  head already shipped green minutes before this session started.** Checked
+  `actions/runs` for `ios-testflight.yml` before dispatching (per the loop's own
+  step 1) and found run **`32410501797`** (run #70, `workflow_dispatch`,
+  `main@09f3d14`) had completed **success** at 19:48:46 UTC — job log confirms
+  `Build & upload to TestFlight` actually ran (92 s, 19:47:09→19:48:41) and
+  `Compile check (no upload)` was skipped, the same signature as every prior real
+  ship (not a compile-only run). `git log` confirms `09f3d14` is still `main`'s
+  tip (no new commit since), so dispatching again would re-upload the identical
+  source for no benefit. Also checked `ios-staging` for unmerged work per
+  CLAUDE.md §5: its tip (`1746d15`) is a "merge main into ios-staging" commit and
+  carries no commits beyond what's already on `main` (confirmed via
+  `git log origin/main..origin/ios-staging` — every entry is a session-check/
+  no-op or a merge, nothing new), so no merge was needed. Recording this instead
+  of dispatching a redundant ship. Processing (~20 min, async,
+  `skip_waiting_for_build_processing`) on the #70 build is unconfirmed — check
+  TestFlight/email. Note: `09f3d14`/`59c24c4` (the #57 rotation work that shipped
+  in #70) landed on `main` directly rather than via `ios-staging` — a lane-rule
+  deviation worth flagging to the ios lanes, not this session's to fix.
