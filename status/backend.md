@@ -76,8 +76,20 @@ retained `ocr` source is itself baked sideways).
 `blocked` → `ready` with the live wire contract spelled out; `#57` (ios-ux)
 stays `blocked` (its `needs` are 59/73/74, and `#74` isn't `done` yet).
 
-Post-deploy production verification is recorded below/at the end of this
-section once the Railway deploy for `7e47c68` reports the new field.
+**Post-deploy production verification — PASSED.** Railway deploy run
+`32404953056` (run #58, `7e47c68`) → `completed`/`success`. Against the live
+service:
+
+- `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`
+- `GET /api/snapshot` → **410 coffees, every one carrying
+  `"rotationQuarterTurns":0`** — so migration 025 applied on production and the
+  compact row shape is live for `#74` to decode.
+- `POST /api/coffees/ykUXaOsxIrLTmWMDp1yoYA/rotation {"quarterTurns":0}` →
+  `200 {"id":"ykUXaOsxIrLTmWMDp1yoYA","rotationQuarterTurns":0}`. Deliberately
+  wrote `0` (the value already stored) so the live check couldn't leave a real
+  photo rotated — it proves the write path end-to-end while being a value no-op.
+- `{"quarterTurns":5}` → `400 {"error":"invalid_quarter_turns","value":5}`
+- the same POST with the **read** token → `401`
 
 ## 2026-08-20 UTC (second session check): no ready row this cycle
 
