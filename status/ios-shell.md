@@ -8,6 +8,27 @@ _none_
 
 ## Done
 
+- [2026-08-20 UTC] Session check — no ready `ios-shell` row, unchanged from
+  every check since 2026-08-17. #17/#22/#41/#46 remain the only rows tagged
+  `ios-shell`, all `done`. The only `ready` row anywhere in `BACKLOG.md` is
+  still `#57` (ios-ux, persisted photo rotation, needs 59 — done) — its own
+  text names an `ios-shell` seam (`CoffeeImage`/detail model field + API
+  surface for a per-photo `rotation_quarter_turns`), but re-confirmed via a
+  repo-wide grep that `rotation_quarter_turns`/`rotationQuarterTurns` still
+  appears nowhere outside status-file prose, and `backend/migrations/` still
+  tops out at `024` (Greece roaster country) with no rotation column — so
+  there is still nothing concrete on the backend side for this lane's named
+  seam to wire against. Backend's own 2026-08-20 session check (merged in
+  this session, see below) independently reached the same "no ready backend
+  row" conclusion and didn't touch #57 either. Checked `git branch -r --list
+  'origin/claude/*'`: only this session's own designated branch exists
+  (`wizardly-thompson-a34b3e`), 0 commits ahead of `ios-staging` in any owned
+  path — nothing stranded to adopt. Merged `origin/main` into `ios-staging`
+  (`6434fa3`), resolving one additive conflict in `status/backend.md` (two
+  independent same-day backend session-check entries landing on each branch)
+  by keeping both, no factual conflict. Stopping cleanly rather than
+  inventing work or touching UX/backend-owned paths.
+
 - [2026-08-19 UTC, later session] Session check — no ready `ios-shell` row,
   unchanged from the earlier check today. #17/#22/#41/#46 remain the only
   rows tagged `ios-shell`, all `done`. The only `ready` row anywhere in
