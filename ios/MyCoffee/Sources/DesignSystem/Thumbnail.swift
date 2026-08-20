@@ -9,6 +9,9 @@ struct Thumbnail: View {
     let urlString: String?
     var size: CGFloat = 84
     var cornerRadius: CGFloat = 10
+    /// Persisted display rotation (#57), quarter-turns clockwise. Applied inside
+    /// the square, clipped frame so a corrected-orientation thumb crops cleanly.
+    var rotationQuarterTurns: Int = 0
 
     @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
@@ -22,6 +25,7 @@ struct Thumbnail: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                        .rotationEffect(.degrees(Double(((rotationQuarterTurns % 4) + 4) % 4) * 90))
                 } else {
                     placeholder
                 }
