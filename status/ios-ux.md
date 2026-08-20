@@ -8,6 +8,25 @@ _none_
 
 ## Session notes
 
+- [2026-08-20 UTC] No-op session. `origin/ios-staging` already had `origin/main`
+  merged in (backend's own 2026-08-20 session check + the ios-shell lane's
+  2026-08-20 merge, both no-ops) — `git merge-base --is-ancestor origin/main
+  origin/ios-staging` confirms it, nothing to merge. Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) remains the only
+  `ready` `ios-ux` row anywhere in the table (`needs: 59`, done), but it's
+  still the same unbuildable seam every session since 2026-08-16 has
+  independently confirmed — a fresh repo-wide `grep -rn
+  "rotation_quarter_turns|rotationQuarterTurns"` outside `status/*.md` still
+  returns zero hits: neither backend's column/write-endpoint/snapshot field
+  nor ios-shell's model/API surface exists yet, so this lane's half (rotate
+  button in `CoffeeDetailView` + the #55 viewer) has no concrete field to
+  write through. Swept `git branch -r --list 'origin/claude/*'` — only this
+  session's own branch exists (the large stranded-branch backlog prior
+  sessions flagged, 87→114, is gone from this listing now), touching nothing
+  under `Sources/{Features,DesignSystem}` or `Resources`. Nothing to adopt.
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-19 UTC] No-op session. `status/BACKLOG.md`: `#57` (persisted photo
   rotation) remains the only `ready` `ios-ux` row (`needs: 59`, and `#59` is
   `done`), but its own row still names a seam this lane can't build alone —
