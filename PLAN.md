@@ -37,18 +37,23 @@ Confirmed with Radu:
 | Honey / pulped natural | **Fold into Experimental**, with `"Honey"` preserved verbatim in `profile_detail` |
 | Unknown process | **Allow `NULL` + an "Unknown" facet + a review item.** The brief's "guess only very close matches" wins over "ALL coffees allocated to one of these six" |
 
-**The capture decision meaningfully shrinks the iOS build.** Dropped entirely:
-in-app camera, `PhotosPicker` attach, on-device Vision OCR, the field-prefill
-parser, the draft store and draft strip, the coffee editor, and the PhotoKit album
-watcher — roughly **5–6 dev days and 7 source files**. Also dropped:
-`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, and the half-day
-PhotoKit-caption spike (no longer needed — nothing is built on PhotoKit).
-The app becomes **read-and-review only**: browse, filter, favourite, correct.
-The BGTask narrows to sync + outbox flush + review count + thumbnail top-up.
+**⚠️ SUPERSEDED (see §6.8).** This paragraph described the original v1 scope, which
+dropped all in-app capture. Radu later requested the **Add Coffee wizard** (§6.8,
+issues #36/#37/#38), so the app is **no longer read-and-review only** — it gains a
+`PhotosPicker` + paste-text + confirm/edit add flow. The dropped-for-v1 list below is
+kept for history; what actually returned is a *paste-text-first* flow (cheaper than
+the camera-OCR path this paragraph rejected), not the full camera/OCR/draft machinery.
 
-The trade accepted: the **4–5 day caption gap stays**, handled server-side by the
-`awaiting_text` / `text_wait_until` state machine (§3), and the Mac stays a
-permanent dependency for ingestion.
+Original v1 scope (historical): dropped in-app camera, `PhotosPicker` attach,
+on-device Vision OCR, the field-prefill parser, the draft store/strip, the coffee
+editor, and the PhotoKit album watcher — plus `NSCameraUsageDescription`,
+`NSPhotoLibraryUsageDescription`, and the PhotoKit-caption spike. The BGTask still
+narrows to sync + outbox flush + review count + thumbnail top-up.
+
+The trade still accepted: the **4–5 day caption gap** for the *bulk/backfill* path is
+handled server-side by the `awaiting_text` / `text_wait_until` state machine (§3),
+and the Mac exporter stays the ingestion path for the decade of history; the wizard
+is for adding one coffee at a time by hand.
 
 ## Pushback on the brief
 
