@@ -4,10 +4,80 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-20 UTC] #73 Persisted photo rotation — backend half of #57: migration
-  `025_add_photo_rotation.sql` (`coffees.rotation_quarter_turns`), write endpoint
-  `POST /api/coffees/:publicId/rotation`, and `rotationQuarterTurns` in
-  `toCompactCoffee` — branch `main`
+(none)
+
+## 2026-08-20 UTC (third session): #73 — persisted photo rotation (backend half of #57)
+
+Started at `origin/main` = `9d9b6cf` (nothing to fast-forward).
+`git branch -r --list 'origin/claude/*'` showed only this session's own
+branch, so no stranded prior work to adopt — and a repo-wide grep confirmed
+`rotation_quarter_turns`/`rotationQuarterTurns` existed nowhere outside
+backlog prose, matching what `#73`'s own filing note claimed.
+
+`GET /api/admin/jobs` before pushing: newest job 27 is `done`
+(`photosDone` 23, `spentUsd` $0.0403), nothing `running` — safe to push
+`backend/**` per CLAUDE.md §12. (Jobs 23/24 remain `paused` from the
+known free-tier-quota sessions; not this session's to clear.)
+
+**Shipped in `7e47c68`** — three pieces, following the `is_favorite`
+precedent, NOT `resolveField`: rotation is a human display correction, not an
+extracted field, so it touches no `field_candidates`, no `EDIT_FIELD_TO_CLIENT`,
+no review items, no `decided_by`.
+
+1. `backend/migrations/025_add_photo_rotation.sql` —
+   `coffees.rotation_quarter_turns SMALLINT NOT NULL DEFAULT 0` plus a
+   `0..3` CHECK. The constraint is added as
+   `DROP CONSTRAINT IF EXISTS` → `ADD CONSTRAINT` so the file itself is
+   re-appliable, not just skipped by the migration ledger. On `coffees`
+   rather than `photos` per the row's reasoning (every app read path is
+   already a `coffees`-row projection; `photos` would mean a join plus a
+   second `updated_at` for the delta sync to track).
+2. `POST /api/coffees/:publicId/rotation` `{quarterTurns}` in
+   `src/routes/coffees.js`, `requireIngestToken`, a straight mirror of
+   `/favorite`: one `UPDATE … SET rotation_quarter_turns = $1,
+   updated_at = now() … RETURNING`, `{id, rotationQuarterTurns}` on success,
+   `404 coffee_not_found` on no row, and `400 invalid_quarter_turns` on a
+   non-integer or out-of-range value (rejected, not clamped — the client only
+   ever sends `(current + 1) % 4`, so anything else is a client bug worth
+   surfacing). The `updated_at` bump is what carries the correction to every
+   device via the delta sync.
+3. `rotationQuarterTurns: row.rotation_quarter_turns` in `toCompactCoffee`, so
+   the *listing* thumbnail can be upright too; the detail route spreads
+   `toCompactCoffee` and inherits it. Both the snapshot and detail queries
+   already `SELECT co.*`, so no SELECT list needed changing. The `/api/coffees`
+   paged debug route enumerates its own columns and was deliberately left
+   alone — it isn't an app read path, and widening it would only grow the diff.
+
+**Tests: 258/258 green** (`cd backend && npm ci && npm test`). Two new: an
+auth-gate case in `test/coffees.test.js` matching the `/favorite` and `/edit`
+ones, and a new `test/rotation.test.js` for the range validation — its own
+file because it needs `INGEST_TOKEN` present before `src/config.js` is
+imported, which would break `coffees.test.js`'s unconfigured-token
+assertions (`node --test` gives each file its own process).
+
+**Verified end-to-end against a real local Postgres 16** (fresh DB, full
+migration chain 001→025 applied clean, then the 025 file re-run by hand to
+prove idempotency):
+
+- column defaults to `0` on an existing coffee
+- `POST … /rotation {quarterTurns: 3}` → `200 {"id":"coffee-rot-1","rotationQuarterTurns":3}`, column written
+- `updated_at` bumped, and `GET /api/snapshot?since=<pre-rotate ts>` re-ships that coffee (the delta-sync path the whole design hangs on)
+- `GET /api/snapshot` compact row → `rotationQuarterTurns: 3`; `GET /api/coffees/:id` → `3`
+- `{quarterTurns: 4}` → `400 {"error":"invalid_quarter_turns","value":4}` and the column stays `3`
+- unknown public id → `404 coffee_not_found`
+- no token → 401; the **read** token → 401 (write is ingest-only)
+- a direct `UPDATE … = 7` is rejected by `coffees_rotation_quarter_turns_check`
+
+Display-only: the stored `display`/`thumb`/`ocr` assets are not re-encoded —
+that's the heavier alternative `#57` explicitly rejected (useless where the
+retained `ocr` source is itself baked sideways).
+
+**Backlog updated in the same push:** `#73` → `done`; `#74` (ios-shell)
+`blocked` → `ready` with the live wire contract spelled out; `#57` (ios-ux)
+stays `blocked` (its `needs` are 59/73/74, and `#74` isn't `done` yet).
+
+Post-deploy production verification is recorded below/at the end of this
+section once the Railway deploy for `7e47c68` reports the new field.
 
 ## 2026-08-20 UTC (second session check): no ready row this cycle
 
@@ -159,6 +229,7 @@ No code changes — stopping cleanly per the work loop (do not invent work).
 
 ## Done
 
+- #73 persisted photo rotation (backend half of #57) — `coffees.rotation_quarter_turns` (migration 025), `POST /api/coffees/:publicId/rotation`, `rotationQuarterTurns` in the compact snapshot row — SHA `7e47c68`. Live-verified against a real local Postgres 16 (see the session section above); unblocks #74 → #57.
 - #72 refresh the stale `whatsnew.json` Live content — SHA `adc178d`, deploy run `32056592717` green. Post-deploy: `GET /api/whatsnew` returns the refreshed content in production (verified: "Extraction now runs for free", "Full-text search actually searches everything now" etc. all present).
 - #67 backfill "OCR text" for the ~95 image-only photos OCR'd before the append feature — SHA `3c78982`, deploy run `32035181677` green. Post-deploy production re-check: `POST /api/admin/backfill-ocr-text {"limit":10}` → `{"scanned":1,"updated":0,"errors":[{"coffeeId":"7","error":"OCR returned no legible text"}]}` — the previously-stuck coffee 7 now correctly reports as an error instead of a false `updated:1`; a repeat call returned the identical stable result (no more looping). Backlog fully drained except that one genuinely illegible bag photo.
 - #69 per-photo image-inclusion so one standing daily job covers the `awaiting_text` deadline sweep — SHA `3c78982` (same commit/deploy as #67)
