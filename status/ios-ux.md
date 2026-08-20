@@ -8,6 +8,34 @@ _none_
 
 ## Session notes
 
+- [2026-08-20 UTC, later session] No-op session. `status/BACKLOG.md` (checked
+  post-merge, not the stale pre-merge copy): every numbered row is `done`,
+  `human`, or `dropped` — no `ios-ux` row is `ready`/`claimed`/`blocked`.
+  `#57` (persisted photo rotation, the row that was deadlocked 2026-08-15 →
+  2026-08-20) is now fully landed: `#73` (backend column + endpoint) and `#74`
+  (ios-shell model/API/store) both `done`, and `#57`'s own ios-ux half (rotate
+  button in the `#55` `ZoomableImageView` + `.rotationEffect` at
+  `CoffeeDetailView`/`Thumbnail.swift`) shipped in the same session
+  (`59c24c4` + a thumb follow-up) — confirmed live in the merged tree, not
+  just the row text: `DesignSystem/Thumbnail.swift` has the new
+  `rotationQuarterTurns` param, `CoffeeDetailView.swift` wires
+  `ZoomableImageView`'s `onRotate` to `CoffeeStore.setRotation`. The table's
+  own "Right now" narrative was one step behind this (still describing the
+  `#73`/`#74` filing as the open item) — the row statuses are authoritative
+  and all three are `done`.
+  Merged `origin/main` into `ios-staging` (clean, no conflicts — brought in
+  `#73`/`#74`'s backend+shell code plus a `PLAN.md` update). Swept
+  `git branch -r --list 'origin/claude/*'` (117 branches) for stranded work
+  touching `Sources/Features`/`Sources/DesignSystem`/`Resources`: most hit
+  non-zero commit counts, but every sampled branch (the ones with the largest
+  counts — `hopeful-johnson-bdpy3r`, `confident-cerf-{9y3vqr,j8in2k,t1flso,
+  4xuqov,55g4kl,fod7ez,fti5j5}`, `modest-newton-oml7h8`) diffs as strongly
+  net-negative against current `ios-staging` (e.g. "249 insertions(+), 801
+  deletions(-)") — same "stale pre-current fork" shape every prior sweep in
+  this file has documented, just at a much higher branch count now. Nothing
+  stranded to adopt. Stopping cleanly per the lane's documented no-op
+  behaviour; no feature code changed.
+
 - [2026-08-20 UTC] No-op session. `origin/ios-staging` already had `origin/main`
   merged in (backend's own 2026-08-20 session check + the ios-shell lane's
   2026-08-20 merge, both no-ops) — `git merge-base --is-ancestor origin/main
