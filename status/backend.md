@@ -4,7 +4,10 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-08-20 UTC] #73 Persisted photo rotation — backend half of #57: migration
+  `025_add_photo_rotation.sql` (`coffees.rotation_quarter_turns`), write endpoint
+  `POST /api/coffees/:publicId/rotation`, and `rotationQuarterTurns` in
+  `toCompactCoffee` — branch `main`
 
 ## 2026-08-20 UTC (second session check): no ready row this cycle
 
