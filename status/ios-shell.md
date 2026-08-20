@@ -4,7 +4,10 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-20 UTC] Decompose `#57` (persisted photo rotation) into per-lane rows —
+  filing `#73` (backend: column + write endpoint + snapshot field) and `#74`
+  (ios-shell: model field + apply-on-display), and correcting `#57`'s own status —
+  branch `ios-staging`
 
 ## Done
 
