@@ -8,6 +8,37 @@ _none_
 
 ## Done
 
+- [2026-08-21 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row, blocked on `#75`) stays `blocked`: `#75`
+  (backend, "Add Coffee wizard — backend half") is filed `ready` in this
+  branch's own `BACKLOG.md`, but backend works off `main`, and `#75`/`#76`/`#77`
+  were filed by an `ios-shell` session directly on `ios-staging` — so backend
+  won't see `#75` as `ready` until the Publish lane merges `ios-staging` into
+  `main` (confirmed: `main`'s tip, `4c42aa0`, is a backend "no ready row" session
+  check, i.e. still pre-#75 from that branch's point of view). This is the
+  ordinary dev/ship-split visibility gap (CLAUDE.md §5), not a new bug — nothing
+  for this lane to fix, just noting why a `ready` backend row is sitting idle.
+  - Checked out `ios-staging` fresh (this session's designated branch,
+    `claude/wizardly-thompson-mcm7rl`, was sitting at `main`'s tip, not
+    `ios-staging`'s — switched to develop on the correct lane branch per
+    CLAUDE.md §4/§5 and this file's own branch header).
+  - Merged `origin/main` into `ios-staging` (`e9713ef`): one additive conflict
+    in `status/backend.md` (both branches independently inserted a 2026-08-21
+    session-check entry at the same point) — kept both, no factual conflict,
+    same precedent as every prior session's handling of this file.
+  - Re-swept `origin/claude/*` (127 branches) for stranded work in this lane's
+    owned paths (`git rev-list --count origin/ios-staging..<branch> --
+    ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities} ios/project.yml`):
+    the highest-ranked candidates (`hopeful-johnson-bdpy3r`, `confident-cerf-
+    {t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`, all 21–25 commits ahead)
+    all diff as pure net deletions against current `ios-staging` (e.g. `14
+    files changed, 29 insertions(+), 221 deletions(-)`, missing the rotation
+    (`#74`) and edit-batch machinery that's since landed) — stale pre-rotation
+    snapshots, not new work. Nothing stranded to adopt.
+  - No code changes this session — stopping cleanly per the work loop rather
+    than guessing `#75`'s wire shape blind (explicitly warned against in
+    `#76`'s own row text) or touching backend/ios-ux-owned paths.
+
 - [2026-08-21 UTC] Session check — no ready `ios-shell` row; found and fixed a
   real backlog gap instead. `#74` (this lane's own last row) is `done`
   (`59c24c4`, verified: `Coffee.rotationQuarterTurns`/`setRotation` etc. are
