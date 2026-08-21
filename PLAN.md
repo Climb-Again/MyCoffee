@@ -783,7 +783,9 @@ Entry: a **big `+` in the bottom tab bar** (center, prominent). Three steps:
    `decided_by='human'`, `locked=true` so the monthly re-extraction never overwrites
    Radu's confirmations. Fields left ⚠ still save and flow into the review queue.
 
-Issues: backend #36, iOS shell #37, iOS UX #38. Reuses the photo upload (#19), the
+Issues: backend #75, iOS shell #76, iOS UX #77 (renumbered 2026-08-21 — the
+original #36/#37/#38 collided with unrelated, already-`done` rows; see
+`status/BACKLOG.md`'s note on #75–#77). Reuses the photo upload (#19), the
 extraction ensemble + adjudication (#24), the coffee write path (#21), and the
 review-queue field UI (#27) — no new subsystems, just an on-demand entry into the
 ones already being built.

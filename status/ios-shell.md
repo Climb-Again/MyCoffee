@@ -8,6 +8,55 @@ _none_
 
 ## Done
 
+- [2026-08-21 UTC] Session check — no ready `ios-shell` row; found and fixed a
+  real backlog gap instead. `#74` (this lane's own last row) is `done`
+  (`59c24c4`, verified: `Coffee.rotationQuarterTurns`/`setRotation` etc. are
+  live in `Models/Coffee.swift`/`Store/CoffeeStore.swift` on `ios-staging`),
+  and `#57`/`#73` are also `done` — the persisted-rotation seam this lane
+  filed on 2026-08-20 is fully closed end to end.
+  - **Merging `origin/main` in hit a real conflict**, not a stale-note one:
+    both branches had independently added a `status/backend.md` session-check
+    entry for 2026-08-21 at the same insertion point. Additive, no factual
+    conflict — kept both (same precedent every prior session has used for this
+    file).
+  - **Found a real, unfiled gap while re-checking `git log` for anything new**:
+    two commits already on `ios-staging` (`f8e227b`/`1acc492`, dated
+    2026-08-20) add PLAN.md §6.8, "Add Coffee wizard, in-app, paste-text
+    driven" — a real, Radu-approved feature ("Radu asked for a manual add
+    flow after the shell shipped... supersedes the earlier 'read-and-review
+    only, no capture UI' stance") that reverses the standing no-capture-surface
+    decision. But the commit's own decomposition — "Issues: backend #36, iOS
+    shell #37, iOS UX #38" — reused three numbers already spent on unrelated,
+    already-`done` rows (farm auto-create, per-item review save, roaster
+    countries). No lane could ever pick this up under those numbers, and
+    `grep -rn wizard status/*.md` before this session returned nothing — the
+    commit's own "NEXT: ... must be corrected" note was never acted on. This
+    is the same shape as every `#NN→#MM` decomposition in this file
+    (`#57→#73/#74`, `#48(b)→#51`, `#39→#49`, `#29→#69`): a real gap that no
+    session would ever surface just by reading `BACKLOG.md`'s row list, since
+    the colliding numbers all read `done`.
+  - **Fixed it**: filed `#75` (backend, `ready`, needs 19/21/24 — all done) /
+    `#76` (ios-shell, `blocked` on 75) / `#77` (ios-ux, `blocked` on 76 + 27)
+    in `status/BACKLOG.md`, spec copied faithfully from PLAN.md §6.8 (the
+    `POST /api/coffees/extract` + `POST /api/coffees` wire shape, the
+    3-step-wizard UI, the shell repository methods in between). Corrected
+    PLAN.md §6.8's own "Issues: backend #36, iOS shell #37, iOS UX #38" line
+    to point at the new numbers, with a one-line pointer back to the
+    `BACKLOG.md` note.
+  - **Not implementing `#76` myself this session** — it's `blocked` on `#75`
+    (backend's `POST /api/coffees/extract`/`POST /api/coffees` endpoints don't
+    exist yet; confirmed via `grep -rn "coffees/extract" backend/src` —
+    nothing), so there is no live wire shape to bridge yet. Guessing one would
+    just be the exact mistake `status/README.md` warns against.
+  - Swept the 125 `origin/claude/*` branches: sampled the highest
+    ahead-in-owned-paths candidates (`hopeful-johnson-bdpy3r` 25,
+    `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24, `modest-newton-oml7h8` 21) —
+    every one diffs as a pure net deletion against current `ios-staging`
+    (missing the rotation-era `SyncEngine`/`RemoteCoffeeRepository` work),
+    same pattern every prior sweep has found. Nothing stranded to adopt.
+  - `status/BACKLOG.md`, `status/backend.md` (merge-conflict resolution),
+    `PLAN.md`. No Swift changed — nothing ios-shell-owned was ready to build.
+
 - [2026-08-20 UTC, later session] **Broke the `#57` deadlock instead of filing a
   sixth identical no-op check** — decomposed it into `#73` (backend, `ready`) +
   `#74` (ios-shell, `blocked` on 73), and corrected `#57` `ready`→`blocked`.
