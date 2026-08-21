@@ -8,6 +8,18 @@ _none_
 
 ## Session notes
 
+- [2026-08-21 UTC] No-op session. `status/BACKLOG.md`: confirmed independently
+  (scanned the whole table, not just `ios-ux` rows) that every row is `done`
+  except `#30` (`dropped`) and `#65` (`human`, data-lane) — no
+  `ready`/`blocked`/`claimed` row exists anywhere, same conclusion the
+  2026-08-20 session below already reached. `#57`/`#73`/`#74` (persisted photo
+  rotation, the deadlock that ran 2026-08-15→2026-08-20) are all still `done`.
+  Merged `origin/main` into `ios-staging` (clean — only `status/backend.md`
+  session-note additions, no code). Swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch exists, touching nothing
+  under `Sources/Features`, `Sources/DesignSystem`, or `Resources`. Stopping
+  cleanly per the lane's documented no-op behaviour; no feature code changed.
+
 - [2026-08-20 UTC, later session] No-op session. `status/BACKLOG.md` (checked
   post-merge, not the stale pre-merge copy): every numbered row is `done`,
   `human`, or `dropped` — no `ios-ux` row is `ready`/`claimed`/`blocked`.
