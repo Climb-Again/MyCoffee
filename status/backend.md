@@ -6,6 +6,54 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-08-21 UTC (later session check): confirmed the stranded #73 chain is now on `main`, still no ready row
+
+Session started from a local checkout that had **7 unpushed commits ahead of
+`origin/main`'s then-tip `759ab0b`** — `8243079`/`a284893` (two prior session-check
+notes), `9d9b6cf` (backlog sync), `23a02de`/`7e47c68`/`fff26ea`/`4b40a33` (the
+`#73` claim/code/close-out chain), followed by unrelated `ios-ux`/`ios-shell`
+commits (`49d03b6` Add Coffee wizard, `1bb86e5`, `59c24c4`, `09f3d14`) and this
+lane's own latest session-check (`92bf7fe`, already visible at the top of this
+file). Exactly the "**A CCR routine/fired session commits to its OWN branch,
+not `main`**" gotcha in `CLAUDE.md` §12 — this session's own note above
+(tip `09f3d14`) had already recorded landing on that commit, but the commit
+itself had never reached `origin/main`.
+
+Verified before acting: `cd backend && npm ci && npm test` — **256/256 green**
+at that local tip. `GET /api/admin/jobs` — job 28 `done` (`spentUsd $0`,
+started/finished within the same second — an empty run), nothing `running` —
+safe to push `backend/**`. Confirmed the 7 backend-owned commits touched only
+`status/BACKLOG.md`, `status/backend.md`, and `backend/{migrations,src/routes,test}/**`
+— no `ops/**`, no `005_vocab_seed.sql`, no `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js`
+— clean to fast-forward per this lane's ownership.
+
+Attempted `git push origin 4b40a33:main` (a pure fast-forward stopping short of
+the ios commits, deliberately leaving those for the ios lanes to adopt from
+their own stranded branch). It was rejected as non-fast-forward — a concurrent
+push had already landed `origin/main` at `92bf7fe`, i.e. **the entire local
+chain, ios commits included**, by the time this session re-fetched. Confirmed
+via `git rev-parse HEAD` / `git rev-parse origin/main`: byte-identical. Nothing
+left for this session to push — whoever/whatever did that push already
+completed the integration this session was about to do.
+
+**Post-integration re-check**: `status/BACKLOG.md` has zero `backend`-tagged
+rows in any state other than `done` (confirmed with a field-aware `awk` scan,
+not just a naive grep, precisely because this file has burned prior sessions
+on formatting-sensitive misses). `#73` reads `done`; `#74` (ios-shell) is the
+only row it unblocked, not backend's to pick up.
+
+Live-verified against production at the new tip: `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`, `ingestEvents:0`; `GET /api/snapshot` contains
+`rotationQuarterTurns` on every coffee — confirms `#73`'s migration/endpoint
+were already deployed to Railway before this session even started (via some
+out-of-band dispatch, since `origin/main` itself only just caught up) and
+nothing about this session's push changes runtime behavior.
+
+No code changes from this session — the fast-forward this session prepared
+turned out to be redundant. Stopping cleanly: no `ready` backend row, per the
+work loop.
+
 ## 2026-08-21 UTC (session check): no ready row this cycle
 
 Started at `origin/main`'s tip (`09f3d14` — ios-ux's #57/#74 close-out, merging
