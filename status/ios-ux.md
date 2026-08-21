@@ -8,6 +8,22 @@ _none_
 
 ## Session notes
 
+- [2026-08-21 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the
+  only `ready` row anywhere in the table is `#75` (backend — Add Coffee wizard
+  backend half). This lane's own next item, `#77` (wizard UI), is `blocked` on
+  `#76` (ios-shell), which is itself `blocked` on `#75` — no `ios-ux` row
+  qualifies (`ready`, lane match, all `needs` `done`). Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  exists and touches nothing under `Sources/Features`, `Sources/DesignSystem`,
+  or `Resources`, so nothing stranded to adopt. Merged `origin/main` into
+  `ios-staging` (one conflict, in `status/backend.md` — two backend
+  session-check entries appended at the same spot on divergent history, same
+  recurring pattern; resolved as a union, kept both). `BACKLOG.md` itself
+  merged clean — `main`'s copy predates `#75`–`#77` (filed on `ios-staging`
+  only, per the dev/ship split, so `main`'s own backend session-check that
+  same day correctly saw no ready row there). Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
 - [2026-08-21 UTC] No-op session. `status/BACKLOG.md`: confirmed independently
   (scanned the whole table, not just `ios-ux` rows) that every row is `done`
   except `#30` (`dropped`) and `#65` (`human`, data-lane) — no
