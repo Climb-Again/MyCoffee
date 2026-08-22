@@ -8,6 +8,33 @@ _none_
 
 ## Done
 
+- [2026-08-22 UTC] Session check — no ready `ios-shell` row. `#76` (this lane's
+  only open row) is still `blocked` on `#75` (backend, "Add Coffee wizard —
+  backend half"), which is still `ready`-not-`done`: `main`'s tip
+  (`a1c6326`, re-fetched fresh this session) is still a backend "no ready row"
+  session check, i.e. still pre-#75 from `main`'s point of view — same
+  dev/ship-split visibility gap the prior session already diagnosed (`#75`
+  was filed directly on `ios-staging`, so backend won't see it as `ready`
+  until the Publish lane merges `ios-staging` into `main`). Nothing new to fix
+  here.
+  - This session's designated branch (`claude/wizardly-thompson-tr93hk`) was
+    sitting at `main`'s tip, not `ios-staging`'s — switched to `ios-staging`
+    to develop on the correct lane branch, same as the prior session's own
+    note.
+  - Merged `origin/main` into `ios-staging` (clean, additive-only —
+    `status/backend.md` picked up backend's latest session-check entries, no
+    conflicts).
+  - Re-swept `origin/claude/*` (130 branches, 3 more than yesterday's 127):
+    checked the three newest by commit date (`peaceful-mccarthy-neqxc9`,
+    `confident-cerf-45aekz`, `confident-cerf-7zg79i`) — all three show `0`
+    commits ahead of `ios-staging` in this lane's owned paths and diff as the
+    same pure net-deletion pattern (`CoffeeFilter`/`RelativeWindow`/
+    `CoffeeIndex`, 43 lines removed) every prior sweep has found. Nothing
+    stranded to adopt.
+  - No code changes this session — stopping cleanly rather than guessing
+    `#75`'s wire shape blind (explicitly warned against in `#76`'s own row
+    text) or touching backend/ios-ux-owned paths.
+
 - [2026-08-21 UTC, later session] Session check — no ready `ios-shell` row.
   `#76` (this lane's only open row, blocked on `#75`) stays `blocked`: `#75`
   (backend, "Add Coffee wizard — backend half") is filed `ready` in this
