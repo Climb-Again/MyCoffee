@@ -8,6 +8,21 @@ _none_
 
 ## Session notes
 
+- [2026-08-22 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the only
+  `ready` row anywhere in the table is `#75` (backend, Add Coffee wizard —
+  backend half). `#76` (ios-shell, same feature) is `blocked` on `#75`; `#77`
+  (this lane, the wizard UI) is `blocked` on both `#76` and `#27`. No `ios-ux`
+  row qualifies (status `ready`, lane `ios-ux`, all `needs` `done`).
+  Swept `git branch -r --list 'origin/claude/*'` (130 branches) via
+  `git rev-list --count ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` — every branch came
+  back `0`, nothing stranded to adopt. Merged `origin/main` into `ios-staging`
+  (one conflict, in `status/backend.md` — two backend session-note blocks
+  appended at the same spot on divergent history, same recurring pattern prior
+  sessions have documented; resolved as a union, kept both, no code involved).
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-21 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the
   only `ready` row anywhere in the table is `#75` (backend — Add Coffee wizard
   backend half). This lane's own next item, `#77` (wizard UI), is `blocked` on
