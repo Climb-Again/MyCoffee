@@ -8,6 +8,30 @@ _none_
 
 ## Done
 
+- [2026-08-22 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
+  Coffee wizard — backend half"), which is still `ready`-not-`done`:
+  `origin/main`'s tip (`469cfbe`, re-fetched fresh) still has no `#75`/`#76`/
+  `#77` rows in its own copy of `status/BACKLOG.md` at all — confirms the same
+  dev/ship-split visibility gap the last two sessions diagnosed (these rows
+  were filed directly on `ios-staging`; backend won't see `#75` as `ready`
+  until the Publish lane merges `ios-staging` into `main`). Nothing new to fix
+  here; not guessing `#75`'s wire shape blind, per `#76`'s own row text.
+  - Merged `origin/main` into `ios-staging` (`6414c6e`): one additive conflict
+    in `status/backend.md` (two independent 2026-08-22 backend session-check
+    entries inserted at the same point) — kept both, no factual conflict, same
+    precedent as every prior session's handling of this file.
+  - Re-swept `origin/claude/*` (129 branches after a fresh `--prune` fetch,
+    one net-added and two net-removed since yesterday's 130): checked the four
+    newest-by-commit-date candidates with nonzero commits ahead in this lane's
+    owned paths (`confident-cerf-{58wls6,ra1c0f,xis3ue}`, `peaceful-mccarthy-
+    erypad`, all 2026-08-16) by actual diff content — all four are byte-for-byte
+    the same net-deletion (14 files, 29 insertions/221 deletions against
+    `APIClient`/`CoffeeStore`/`SyncEngine`/etc., missing `RelativeWindow`/`#71`-
+    era work) as every prior sweep's stale-snapshot finding. Nothing stranded
+    to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
 - [2026-08-22 UTC] Session check — no ready `ios-shell` row. `#76` (this lane's
   only open row) is still `blocked` on `#75` (backend, "Add Coffee wizard —
   backend half"), which is still `ready`-not-`done`: `main`'s tip
