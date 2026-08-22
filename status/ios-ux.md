@@ -8,6 +8,38 @@ _none_
 
 ## Session notes
 
+- [2026-08-22 UTC, later session] No-op session. `status/BACKLOG.md` on
+  `ios-staging` (`6aac5f0`, which this session already had checked out — no
+  fast-forward needed): unchanged since the prior two checks — `#75` (backend,
+  Add Coffee wizard backend half) is still the only `ready` row anywhere in the
+  table. `#76` (ios-shell) stays `blocked` on `#75`; `#77` (this lane, the
+  wizard UI) stays `blocked` on `#76` and `#27` (done). No `ios-ux` row
+  qualifies. `origin/main` is still at `469cfbe` (a backend "no ready row"
+  session check) — confirmed directly by reading `origin/main:status/BACKLOG.md`
+  (858 lines, tops out at row `#74`): `#75`–`#77` don't exist there at all,
+  because `ios-shell` filed them on `ios-staging` (`650cadf`) rather than on
+  `main`, and backend — which reads/pushes only `main` — has no way to see a
+  `ready` row that only exists on the other branch until the Publish lane
+  merges `ios-staging` into `main`. This is the same dev/ship-split visibility
+  gap `status/ios-shell.md`'s 2026-08-21 entry already diagnosed in detail; not
+  a new finding, and not something this lane (also confined to `ios-staging`)
+  can fix by pushing anywhere.
+  Re-swept `git fetch origin --prune` (130 `origin/claude/*` branches, matching
+  the last sweep's count) and spot-checked the five highest-ranked-by-commit-
+  count candidates this session hadn't individually verified yet
+  (`confident-cerf-{4xuqov,55g4kl,fod7ez,fti5j5}`, `hopeful-johnson-3hio6h`) via
+  `git diff --stat ios-staging..origin/<branch> -- Sources/{Features,
+  DesignSystem} Resources` — all five are net-negative (e.g. "249 insertions,
+  801 deletions"), stale pre-current forks, same shape every prior sweep has
+  found. Also checked `git log --all --grep` for any stray branch actually
+  implementing `#75`/`#76`/`#77`'s wire surface (`coffees/extract`, etc.) —
+  none exists; the only two "Add Coffee wizard" commits anywhere
+  (`f8e227b`/`49d03b6`, both already reconciled into `#75`–`#77` by `650cadf`)
+  touch only `PLAN.md`, no code. Nothing stranded to adopt. Stopping cleanly
+  per the lane's documented no-op behaviour; no feature code changed. (No
+  merge needed this session — already at `ios-staging`'s current tip with
+  `origin/main` an ancestor.)
+
 - [2026-08-22 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the only
   `ready` row anywhere in the table is `#75` (backend, Add Coffee wizard —
   backend half). `#76` (ios-shell, same feature) is `blocked` on `#75`; `#77`
