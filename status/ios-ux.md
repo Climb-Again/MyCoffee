@@ -8,6 +8,13 @@ _none_
 
 ## Session notes
 
+- [2026-08-23 UTC, later session] No-op session. `status/BACKLOG.md` on
+  `ios-staging` (merged `origin/main` clean, only `status/publish.md`
+  changed): unchanged — `#75` (backend, Add Coffee wizard backend half) is
+  still the only `ready` row anywhere in the table. `#76` (ios-shell) stays
+  `blocked` on `#75`; `#77` (this lane) stays `blocked` on `#76` (`#27` is
+  already `done`). No other row is `ios-ux`/`ready`. No files touched.
+
 - [2026-08-23 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`
   (`9e1fc14`, fast-forwarded cleanly, no merge needed): unchanged again — `#75`
   (backend, Add Coffee wizard backend half) is still the only `ready` row
