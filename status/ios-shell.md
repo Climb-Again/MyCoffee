@@ -8,6 +8,24 @@ _none_
 
 ## Done
 
+- [2026-08-23 UTC] Session check — no ready `ios-shell` row. `#76` (this
+  lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
+  wizard — backend half"), which is still `ready`-not-`done`. Re-fetched
+  `origin/main` fresh (`469cfbe`, unchanged since yesterday's check) — its
+  copy of `status/BACKLOG.md` still has no `#75`/`#76`/`#77` rows at all, so
+  the dev/ship-split visibility gap the last two sessions diagnosed still
+  holds: these rows only exist on `ios-staging` and backend won't see `#75`
+  as `ready` until the Publish lane merges `ios-staging` into `main`. Not
+  guessing `#75`'s wire shape blind, per `#76`'s own row text. `ios-staging`
+  was already at `origin/ios-staging`'s tip (no local main to merge in beyond
+  what's already there). Re-swept `origin/claude/*` (130 branches, unchanged
+  count from yesterday): re-checked the same newest-by-commit-date candidates
+  with nonzero commits ahead in this lane's owned paths — the top four
+  (`confident-cerf-{58wls6,ra1c0f,xis3ue}`, `peaceful-mccarthy-erypad`, all
+  2026-08-16, already vetted by the last two sessions) remain the newest, and
+  nothing newer has appeared since. Nothing stranded to adopt. No code
+  changes — stopping cleanly per the work loop.
+
 - [2026-08-22 UTC, later session] Session check — no ready `ios-shell` row.
   `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
   Coffee wizard — backend half"), which is still `ready`-not-`done`:
