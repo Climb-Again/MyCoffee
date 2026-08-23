@@ -119,3 +119,28 @@ _none_
   needed — the only real work this cycle was the ios-staging→main merge itself.
   Processing (~20 min, async, `skip_waiting_for_build_processing`) unconfirmed —
   check TestFlight/email.
+
+- **2026-08-23 (autopilot session, Sun cron) — merged real unmerged `ios-staging`
+  work into `main` before shipping (CLAUDE.md §5 step 3).** `git diff
+  origin/main..origin/ios-staging --stat` showed a real feature: a relative-window
+  purchase filter (`Query/RelativeWindow.swift`, new; `CoffeeFilter.relativeWindow`;
+  `CoffeeIndex` applies it; `FilterSheetView` gets a Last-12m/18m segmented control;
+  `InsightsView.selectInCoffees` carries the Charts tab's own window across into the
+  listing filter) plus a shared `unknownSelectableDimensions` dedup between
+  `FilterSheetView`/`FacetFullListView`. `ios-staging` had already compile-checked
+  green at this exact commit (run `32595595791`, 2026-08-22). Merged
+  `origin/ios-staging` into local `main` — clean, no conflicts (`ort` strategy,
+  11 files) — pushed as `e5f72ed`. That push (touches `ios/**`) auto-queued a
+  compile-check run (`32663140914`); dispatched `publish=true` on `main@e5f72ed`
+  anyway per CLAUDE.md's note that the serial concurrency group
+  (`cancel-in-progress: false`) safely queues a publish behind a compile. Compile
+  check finished green first (`32663140914`, success), then the publish run
+  (`32663144069`, run #73) started and completed **success** — job log confirms
+  `Build & upload to TestFlight` actually ran (70 s, 20:04:05→20:05:15 UTC, not
+  skipped); `Compile check (no upload)` was skipped as expected for a `publish=true`
+  ref. First dispatch this session was green, so the loop's fix-and-retry path was
+  never needed — the only real work this cycle was the ios-staging→main merge
+  itself. `BUILD_STATUS.md`'s "First build" section already correctly described
+  reality (green since run #14, shipped repeatedly), so no correction was needed
+  there this cycle. Processing (~20 min, async, `skip_waiting_for_build_processing`)
+  unconfirmed — check TestFlight/email.
