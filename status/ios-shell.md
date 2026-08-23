@@ -8,6 +8,31 @@ _none_
 
 ## Done
 
+- [2026-08-23 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
+  Coffee wizard — backend half"), which remains `ready`-not-`done`. Re-verified
+  the same dev/ship-split visibility gap the last several sessions diagnosed:
+  `origin/main`'s tip (`1aa3aa1`, three consecutive backend "no ready row"
+  session checks) still has no `#75`/`#76`/`#77` rows in its own copy of
+  `status/BACKLOG.md` — these were filed directly on `ios-staging` and backend
+  won't see `#75` as `ready` until the Publish lane merges `ios-staging` into
+  `main`. Not guessing `#75`'s wire shape blind, per `#76`'s own row text.
+  - Merged `origin/main` into `ios-staging` (clean, no conflicts — picked up
+    3 backend session-check commits touching only `status/backend.md`).
+  - **Re-swept `origin/claude/*` with the actual sweep criterion this time**
+    (highest commits-ahead in this lane's owned paths, not just
+    newest-by-commit-date — the last several sessions' "top 4" sample had
+    drifted to checking only 1-commit-ahead branches while dozens of
+    higher-count candidates sat unchecked). 130 branches fetched; the true
+    top 6 by commits-ahead (`hopeful-johnson-bdpy3r` 25,
+    `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24 each, `modest-newton-oml7h8`/
+    `confident-cerf-fti5j5` 21 each) all diff as the same pure net-deletion
+    pattern against current `ios-staging` (missing `RelativeWindow`/rotation/
+    `#71`-era `Store/{RemoteCoffeeRepository,SampleCoffeeRepository,
+    SampleData,SyncEngine}.swift` work that's since landed) — stale
+    pre-`#71`/`#74` snapshots, not new work. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
 - [2026-08-23 UTC] Session check — no ready `ios-shell` row. `#76` (this
   lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
   wizard — backend half"), which is still `ready`-not-`done`. Re-fetched
