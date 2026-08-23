@@ -37,7 +37,7 @@ struct FacetFullListView: View {
     }
 
     private func isTappable(_ key: FacetKey) -> Bool {
-        if case .unknown = key { return dimension == .profile }
+        if case .unknown = key { return unknownSelectableDimensions.contains(dimension) }
         return true
     }
 }

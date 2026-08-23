@@ -8,6 +8,358 @@ _none_
 
 ## Session notes
 
+- [2026-08-23 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`
+  (`9e1fc14`, fast-forwarded cleanly, no merge needed): unchanged again — `#75`
+  (backend, Add Coffee wizard backend half) is still the only `ready` row
+  anywhere in the table. `#76` (ios-shell) stays `blocked` on `#75`; `#77`
+  (this lane, the Add Coffee wizard UI) stays `blocked` on `#76` (`#27` is
+  already `done`). Nothing else in the table is `ios-ux`/`ready`. No files
+  touched.
+
+- [2026-08-22 UTC, later session] No-op session. `status/BACKLOG.md` on
+  `ios-staging` (`6aac5f0`, which this session already had checked out — no
+  fast-forward needed): unchanged since the prior two checks — `#75` (backend,
+  Add Coffee wizard backend half) is still the only `ready` row anywhere in the
+  table. `#76` (ios-shell) stays `blocked` on `#75`; `#77` (this lane, the
+  wizard UI) stays `blocked` on `#76` and `#27` (done). No `ios-ux` row
+  qualifies. `origin/main` is still at `469cfbe` (a backend "no ready row"
+  session check) — confirmed directly by reading `origin/main:status/BACKLOG.md`
+  (858 lines, tops out at row `#74`): `#75`–`#77` don't exist there at all,
+  because `ios-shell` filed them on `ios-staging` (`650cadf`) rather than on
+  `main`, and backend — which reads/pushes only `main` — has no way to see a
+  `ready` row that only exists on the other branch until the Publish lane
+  merges `ios-staging` into `main`. This is the same dev/ship-split visibility
+  gap `status/ios-shell.md`'s 2026-08-21 entry already diagnosed in detail; not
+  a new finding, and not something this lane (also confined to `ios-staging`)
+  can fix by pushing anywhere.
+  Re-swept `git fetch origin --prune` (130 `origin/claude/*` branches, matching
+  the last sweep's count) and spot-checked the five highest-ranked-by-commit-
+  count candidates this session hadn't individually verified yet
+  (`confident-cerf-{4xuqov,55g4kl,fod7ez,fti5j5}`, `hopeful-johnson-3hio6h`) via
+  `git diff --stat ios-staging..origin/<branch> -- Sources/{Features,
+  DesignSystem} Resources` — all five are net-negative (e.g. "249 insertions,
+  801 deletions"), stale pre-current forks, same shape every prior sweep has
+  found. Also checked `git log --all --grep` for any stray branch actually
+  implementing `#75`/`#76`/`#77`'s wire surface (`coffees/extract`, etc.) —
+  none exists; the only two "Add Coffee wizard" commits anywhere
+  (`f8e227b`/`49d03b6`, both already reconciled into `#75`–`#77` by `650cadf`)
+  touch only `PLAN.md`, no code. Nothing stranded to adopt. Stopping cleanly
+  per the lane's documented no-op behaviour; no feature code changed. (No
+  merge needed this session — already at `ios-staging`'s current tip with
+  `origin/main` an ancestor.)
+
+- [2026-08-22 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the only
+  `ready` row anywhere in the table is `#75` (backend, Add Coffee wizard —
+  backend half). `#76` (ios-shell, same feature) is `blocked` on `#75`; `#77`
+  (this lane, the wizard UI) is `blocked` on both `#76` and `#27`. No `ios-ux`
+  row qualifies (status `ready`, lane `ios-ux`, all `needs` `done`).
+  Swept `git branch -r --list 'origin/claude/*'` (130 branches) via
+  `git rev-list --count ios-staging..origin/<branch> -- ios/MyCoffee/Sources/Features
+  ios/MyCoffee/Sources/DesignSystem ios/MyCoffee/Resources` — every branch came
+  back `0`, nothing stranded to adopt. Merged `origin/main` into `ios-staging`
+  (one conflict, in `status/backend.md` — two backend session-note blocks
+  appended at the same spot on divergent history, same recurring pattern prior
+  sessions have documented; resolved as a union, kept both, no code involved).
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
+- [2026-08-21 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`: the
+  only `ready` row anywhere in the table is `#75` (backend — Add Coffee wizard
+  backend half). This lane's own next item, `#77` (wizard UI), is `blocked` on
+  `#76` (ios-shell), which is itself `blocked` on `#75` — no `ios-ux` row
+  qualifies (`ready`, lane match, all `needs` `done`). Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  exists and touches nothing under `Sources/Features`, `Sources/DesignSystem`,
+  or `Resources`, so nothing stranded to adopt. Merged `origin/main` into
+  `ios-staging` (one conflict, in `status/backend.md` — two backend
+  session-check entries appended at the same spot on divergent history, same
+  recurring pattern; resolved as a union, kept both). `BACKLOG.md` itself
+  merged clean — `main`'s copy predates `#75`–`#77` (filed on `ios-staging`
+  only, per the dev/ship split, so `main`'s own backend session-check that
+  same day correctly saw no ready row there). Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
+- [2026-08-21 UTC] No-op session. `status/BACKLOG.md`: confirmed independently
+  (scanned the whole table, not just `ios-ux` rows) that every row is `done`
+  except `#30` (`dropped`) and `#65` (`human`, data-lane) — no
+  `ready`/`blocked`/`claimed` row exists anywhere, same conclusion the
+  2026-08-20 session below already reached. `#57`/`#73`/`#74` (persisted photo
+  rotation, the deadlock that ran 2026-08-15→2026-08-20) are all still `done`.
+  Merged `origin/main` into `ios-staging` (clean — only `status/backend.md`
+  session-note additions, no code). Swept `git branch -r --list
+  'origin/claude/*'` — only this session's own branch exists, touching nothing
+  under `Sources/Features`, `Sources/DesignSystem`, or `Resources`. Stopping
+  cleanly per the lane's documented no-op behaviour; no feature code changed.
+
+- [2026-08-20 UTC, later session] No-op session. `status/BACKLOG.md` (checked
+  post-merge, not the stale pre-merge copy): every numbered row is `done`,
+  `human`, or `dropped` — no `ios-ux` row is `ready`/`claimed`/`blocked`.
+  `#57` (persisted photo rotation, the row that was deadlocked 2026-08-15 →
+  2026-08-20) is now fully landed: `#73` (backend column + endpoint) and `#74`
+  (ios-shell model/API/store) both `done`, and `#57`'s own ios-ux half (rotate
+  button in the `#55` `ZoomableImageView` + `.rotationEffect` at
+  `CoffeeDetailView`/`Thumbnail.swift`) shipped in the same session
+  (`59c24c4` + a thumb follow-up) — confirmed live in the merged tree, not
+  just the row text: `DesignSystem/Thumbnail.swift` has the new
+  `rotationQuarterTurns` param, `CoffeeDetailView.swift` wires
+  `ZoomableImageView`'s `onRotate` to `CoffeeStore.setRotation`. The table's
+  own "Right now" narrative was one step behind this (still describing the
+  `#73`/`#74` filing as the open item) — the row statuses are authoritative
+  and all three are `done`.
+  Merged `origin/main` into `ios-staging` (clean, no conflicts — brought in
+  `#73`/`#74`'s backend+shell code plus a `PLAN.md` update). Swept
+  `git branch -r --list 'origin/claude/*'` (117 branches) for stranded work
+  touching `Sources/Features`/`Sources/DesignSystem`/`Resources`: most hit
+  non-zero commit counts, but every sampled branch (the ones with the largest
+  counts — `hopeful-johnson-bdpy3r`, `confident-cerf-{9y3vqr,j8in2k,t1flso,
+  4xuqov,55g4kl,fod7ez,fti5j5}`, `modest-newton-oml7h8`) diffs as strongly
+  net-negative against current `ios-staging` (e.g. "249 insertions(+), 801
+  deletions(-)") — same "stale pre-current fork" shape every prior sweep in
+  this file has documented, just at a much higher branch count now. Nothing
+  stranded to adopt. Stopping cleanly per the lane's documented no-op
+  behaviour; no feature code changed.
+
+- [2026-08-20 UTC] No-op session. `origin/ios-staging` already had `origin/main`
+  merged in (backend's own 2026-08-20 session check + the ios-shell lane's
+  2026-08-20 merge, both no-ops) — `git merge-base --is-ancestor origin/main
+  origin/ios-staging` confirms it, nothing to merge. Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) remains the only
+  `ready` `ios-ux` row anywhere in the table (`needs: 59`, done), but it's
+  still the same unbuildable seam every session since 2026-08-16 has
+  independently confirmed — a fresh repo-wide `grep -rn
+  "rotation_quarter_turns|rotationQuarterTurns"` outside `status/*.md` still
+  returns zero hits: neither backend's column/write-endpoint/snapshot field
+  nor ios-shell's model/API surface exists yet, so this lane's half (rotate
+  button in `CoffeeDetailView` + the #55 viewer) has no concrete field to
+  write through. Swept `git branch -r --list 'origin/claude/*'` — only this
+  session's own branch exists (the large stranded-branch backlog prior
+  sessions flagged, 87→114, is gone from this listing now), touching nothing
+  under `Sources/{Features,DesignSystem}` or `Resources`. Nothing to adopt.
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
+- [2026-08-19 UTC] No-op session. `status/BACKLOG.md`: `#57` (persisted photo
+  rotation) remains the only `ready` `ios-ux` row (`needs: 59`, and `#59` is
+  `done`), but its own row still names a seam this lane can't build alone —
+  backend owns the `rotation_quarter_turns` column + write endpoint +
+  snapshot field, ios-shell owns the model field + API + apply-on-display.
+  Repo-wide grep for `rotation_quarter_turns`/`rotationQuarterTurns` outside
+  `status/*.md` prose: still zero hits — neither piece exists yet, same
+  conclusion every prior session since 2026-08-16 reached. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts). Swept
+  `git branch -r --list 'origin/claude/*'` (114 branches) for stranded work
+  touching `Sources/{Features,DesignSystem}/**` or `Resources/**`: an initial
+  `git rev-list --count` pass flagged ~90 branches with non-zero diffs (a
+  much larger set than prior sweeps), but a targeted `git grep` for the
+  rotation seam symbols across every branch found matches only inside
+  `status/*.md` narrative text (a red herring from `ref:path`-prefixed output
+  not matching a naive `^status/` filter) — zero real code hits. Spot-checked
+  two of the largest-diff branches (`hopeful-johnson-bdpy3r`,
+  `confident-cerf-9y3vqr`) directly: both net-negative against current
+  `ios-staging` (120/155 insertions vs. 198/445 deletions), the same
+  stale-pre-fork shape every previous sweep in this file has already
+  documented. Nothing to adopt. Stopping cleanly per the lane's documented
+  no-op behaviour; no feature code changed.
+
+- [2026-08-19 UTC] No-op session. `origin/ios-staging` was already up to date with `origin/main`
+  (`git pull origin ios-staging` reported "Already up to date") — nothing to merge. Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) remains the only `ready` `ios-ux` row
+  anywhere in the table, `needs: 59` (done). Independently re-verified it's still unbuildable —
+  `grep -rn "rotation_quarter_turns\|rotationQuarterTurns" .` (excluding `status/`) across the whole
+  repo returns zero hits in `backend/**`, `ios/**` Swift, or SQL migrations, confirming neither the
+  backend column/write-endpoint/snapshot field nor the ios-shell model/API surface this row's
+  ios-ux half needs to write through exist yet. Same conclusion every session back to 2026-08-17
+  has independently reached.
+  Swept `git branch -r --list 'origin/claude/*'` — **114 branches**, up sharply from the last
+  documented count (87, per this file's 2026-08-13 entry). Spot-checked the largest by diff size
+  touching `Sources/Features`/`Sources/DesignSystem`/`Resources`
+  (`confident-cerf-{9y3vqr,j8in2k,t1flso}`, `hopeful-johnson-bdpy3r`): all are net-negative diffs
+  against current `ios-staging` (e.g. "221 insertions, 660 deletions"), the same stale-pre-fork
+  shape every prior sweep in this file has documented — nothing to adopt. Also grepped every one of
+  the 114 branches' diffs for `rotation_quarter_turns`/`rotationQuarterTurns` specifically (in case a
+  stranded branch had built exactly the seam `#57` is waiting on) — zero hits anywhere. **Flagging,
+  not fixing**: 114 stranded `claude/*` branches is a lot of dead weight for future sweeps to wade
+  through; this is the kind of thing `CLAUDE.md` §12's "if lanes keep producing orphan branches, add
+  a small integration routine" note anticipated, but pruning/merging them isn't this lane's call to
+  make unilaterally. Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
+- [2026-08-18 UTC, later session] Integrated a stray `main`-direct #66 fix; still no buildable `ios-ux` row.
+  - `git fetch origin main ios-staging` showed `origin/main` had moved two commits ahead of what
+    `ios-staging` had merged: `3234d68` ("iOS #66: save each review action live") and a backend
+    `parseAltitude` fix. `3234d68` touches **both** `Features/Review/**` (this lane) and `Store/**`
+    (shell) — a real code change landed straight to `main` instead of `ios-staging`, the exact
+    "commits bypass the dev branch" footgun `CLAUDE.md` §12 documents, just in the reverse direction
+    from its own worked examples. It also **corrects this lane's own 2026-08-16 "VERIFIED ALREADY
+    CORRECT" call on #66** — that trace found the outbox enqueue was synchronous (true) but missed
+    that the outbox only reliably *flushes* to the server on a later full sync, so a partial review
+    session's accepts could sit un-sent, exactly matching Radu's "a 150-item queue can't be cleared
+    in one sitting" report. `git merge origin/main` into `ios-staging` was clean (no conflicts —
+    `ios-staging` had never touched these files since the earlier no-op verification made no code
+    change). Read the full diff before accepting it: `resolveReview`/`dismissReview` now send
+    directly and `throw`; `ReviewQueueEngine.onAccept`/`.onDismiss` became `async -> Bool` hooks
+    awaited via a new `confirmSave(_:at:_:)` that re-inserts a task on a failed save instead of
+    dropping it — mirrors the already-landed `#41`/`#42` edit-field confirm pattern, coherent with
+    this codebase's conventions. Corrected `status/BACKLOG.md` #66's own text to record the real fix
+    over the superseded verification note.
+  - Re-checked `#57` (the only `ready` row): still unbuildable — repo-wide grep for
+    `rotation_quarter_turns`/`rotationQuarterTurns` still empty outside status-file prose, no
+    backend column/endpoint or shell model field exists yet. Swept `git branch -r --list
+    'origin/claude/*'` — nothing new touching `Sources/Features`/`Sources/DesignSystem`/`Resources`
+    beyond what prior sweeps already dismissed. Stopping cleanly — no `ios-ux`-owned feature work to
+    do this cycle, but the integration itself was real, not a pure no-op.
+  - Not locally compiled (no Xcode here) — the merged-in diff is a stray session's own work, already
+    described as landed; flag `ReviewQueueEngine.swift`'s new `confirmSave`/`restore` pair first if a
+    compile check goes red here.
+  - `ios/MyCoffee/Sources/Features/Review/{CoffeeReviewSheet,ReviewQueueEngine,ReviewQueueView}.swift`
+    (+ shell's `Store/**` half, same commit)
+  - Commit: merge on `ios-staging` (see `git log`)
+
+- [2026-08-18 UTC] Session check — no ready `ios-ux` row. Merged `origin/main`
+  into `ios-staging` (clean, only `status/backend.md` gained a new entry —
+  no conflicts with `Features/`/`DesignSystem/`/`Resources/`). Re-scanned
+  `status/BACKLOG.md`: `#57` (persisted photo rotation) is the only `ready`
+  row anywhere in the table, tagged `ios-ux`, `needs: 59` (done). But it's a
+  seam row — the backend column/write-endpoint and the shell model/API
+  surface it depends on don't exist yet (confirmed via a repo-wide grep for
+  `rotation_quarter_turns`/`rotationQuarterTurns`: zero hits outside
+  status-file prose). `status/ios-shell.md`'s own 2026-08-18 entry reached
+  the identical conclusion the same day. Nothing in `#57`'s ios-ux half
+  (rotate button in `CoffeeDetailView` + the #55 viewer) can be built without
+  a concrete field to write through, so building ahead of the backend/shell
+  halves would mean guessing the wire shape. Swept
+  `git branch -r --list 'origin/claude/*'` — only this session's own branch
+  exists, nothing stranded to adopt. Stopping cleanly per the lane's
+  documented no-op behaviour; no feature code changed.
+
+- [2026-08-17 UTC] 71 (ios-ux half) Filter-sheet time window + carry window/years on chart-tap deep-link — branch `ios-staging`
+  - `git branch -r --list 'origin/claude/*'` showed only this session's own branch, nothing stranded
+    touching `Sources/Features`/`Sources/DesignSystem`/`Resources` to adopt. Fetched and rebuilt
+    `ios-staging` from `origin/ios-staging` (which already carried ios-shell's same-day #71(a) seam —
+    `Query/{CoffeeFilter,RelativeWindow}.swift`, `Store/CoffeeIndex.swift` — confirmed live by
+    grepping for `relativeWindow` in `CoffeeIndex.swift` before writing anything). #57 (the other
+    `ready` row) checked and confirmed still unbuildable — no backend column/endpoint or shell model
+    field for photo rotation exists yet (repo-wide grep for `rotation_quarter_turns` empty), same
+    conclusion `status/ios-shell.md`'s same-day entry independently reached. Picked #71 instead of
+    stopping.
+  - **(a) Filter sheet**: `Features/Coffees/FilterSheetView.swift` gets a new "Time window" `Section`
+    (added after the `ForEach(FilterDimension.allCases)` loop, so it sits right after the Year
+    section) holding a new private `RelativeWindowRow` — a plain segmented `Picker` (All/12m/18m)
+    bound directly to `draft.relativeWindow`, using the same `Optional<T>`-tag pattern
+    `CoffeeEditSheet.swift`'s Process picker already established (`Text("All").tag(RelativeWindow?
+    .none)`, `Text("12m").tag(Optional(RelativeWindow.last12m))`). Deliberately kept off the
+    `FilterDimension`/`DimensionPills` per-value-count loop — same reasoning ios-shell's own #71(a)
+    write-up gives: it's a single active toggle, not a multi-select facet with a "count if cleared"
+    question to answer. Labels are the short "12m"/"18m" already used by `InsightsView.windowControls`
+    rather than `RelativeWindow.label`'s longer "Last 12 months" (that string exists for
+    accessibility/other call sites, not this segmented control).
+  - **(b) Chart-tap carries the window**: `Features/Insights/InsightsView.swift`'s
+    `selectInCoffees(dimension:key:)` now also sets `filter.relativeWindow` from a new
+    `currentRelativeWindow` computed property (`.last12m`/`.last18m` map straight across, `.all`/
+    `.years` → `nil`) and, when the Charts tab's own `window == .years`, copies `selectedYears` into
+    `filter.years` too — the row's own "window/selectedYears" phrasing named both. Both existing call
+    sites (`chartsSection`'s per-dimension legends, `#50`; `findingsSection`'s subject links, `#53`)
+    get this for free since they both go through the one `selectInCoffees` function.
+    `selectUnknownInCoffees` (`#54`, Data tab) is untouched — the Data tab has no window control to
+    carry.
+  - Not locally compiled (no Xcode here) — both changes are small, additive, and mirror an
+    already-compiling pattern each (`Profile?` optional-Picker-tag; the existing
+    `.last12m`/`.last18m` short-label convention), so a red compile check here is more likely a typo
+    than a design gap.
+  - `ios/MyCoffee/Sources/Features/{Coffees/FilterSheetView,Insights/InsightsView}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-17 UTC] 70 Altitude edit won't save a single value (only max) — branch `ios-staging`
+  - **Before claiming**: merged `origin/main` into `ios-staging` (one real conflict in
+    `status/BACKLOG.md` rows `#66`/`#67` — both sides had edited the same rows off a
+    common parent: `ios-staging` had verified `#66` `done` and origin/main had the fuller
+    `#67` `claimed` write-up; kept `ios-staging`'s `#66` and `main`'s `#67`, both are the
+    newer/more-complete version of their respective row). Swept `git branch -r --list
+    'origin/claude/*'` (105 branches) via `git rev-list --count ios-staging..<branch> --
+    ios/MyCoffee/Sources/Features ios/MyCoffee/Sources/DesignSystem
+    ios/MyCoffee/Resources` — dozens of non-zero hits, spot-checked the most-recently-dated
+    ones plus every `hopeful-johnson-*` (this lane's own naming family): all but one are
+    non-ios-ux branches (0 hits after checkout) or pre-#18/#27/#28 stale forks (net
+    deletions), same pattern every prior sweep in this file found. The one real candidate,
+    `hopeful-johnson-bdpy3r` ("iOS UX #58: dock listing search near the tab bar", dated
+    2026-08-15), is an earlier alternate attempt at `#58` — confirmed superseded, not
+    stranded: `#58` is already `done` and live on `ios-staging` via a different, later
+    commit (`4f10408`, the `#available(iOS 18.0,*)` + `Tab(value:)` approach documented in
+    this file's 2026-08-16 entry). Not adopted.
+  - Rescanned `BACKLOG.md` for the actual next `ios-ux` row: `#57` (`ready`, needs `59`
+    which is `done`) is next by number, but its own text and `status/ios-shell.md`'s
+    2026-08-17 session check both confirm the backend column/write-endpoint and the
+    ios-shell model/API surface it needs don't exist yet — "nothing concrete to build
+    against" per that lane's own words. Picked `#70` instead (lowest number that's
+    actually buildable standalone in ios-ux-owned files), same judgment call the shell
+    lane made skipping `#57` for the identical reason.
+  - **Root cause, confirmed by reading the code directly**: `CoffeeEditSheet.swift`
+    `buildEdits()`'s altitude block gated the entire edit on `if let minValue =
+    Int(altitudeMin)` — leaving `min` blank and only filling `max` skipped the block
+    entirely, so nothing saved, exactly the row's own repro.
+  - **Fix**: `let lo = Int(altitudeMin) ?? Int(altitudeMax)`, `let hi = Int(altitudeMax) ??
+    Int(altitudeMin)`, then `minValue = min(lo, hi)` / `maxValue = max(lo, hi)` — fires
+    when either field parses (both blank → both `nil` → skipped, as before), and as a
+    bonus sanity-orders the pair if the user enters them swapped (min > max), which the
+    row's own text asked for as a secondary fix. A single value in either field now sends
+    a point altitude (`"2000 m"`), which `backend/src/lib/normalize.js`'s `parseAltitude`
+    already accepts.
+  - Not locally compiled (no Xcode here) — a narrow, mechanical change to one `if let`
+    condition inside an already-existing, already-used function; low compile risk.
+  - `ios/MyCoffee/Sources/Features/Coffees/CoffeeEditSheet.swift`
+  - Commit: (see `git log` on `ios-staging`)
+  - **Flagging, not building past ownership**: `#71` (chart time-window on the listing
+    filter) is the next `ios-ux` row by number, but part (a) is a seam change to
+    `Query/{CoffeeFilter,CoffeeIndex,FilterDimension}.swift` — shell-owned, not this
+    lane's to edit — before there's a `relativeWindow`/equivalent field for a filter-sheet
+    UI or a tap-carry-window fix to build against. Same judgment as `#57`: don't guess at
+    the wire shape, wait for the shell half to land. Nothing written to
+    `status/ios-shell.md` (never edit another lane's file) — the row's own text in
+    `BACKLOG.md` already documents the seam for whichever lane picks it up next.
+
+- [2026-08-16 UTC, later session] 68 "Unknown" bucket not selectable outside Process — branch `ios-staging`
+  - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — only this session's own branch
+    exists, 0 commits ahead of `ios-staging` in any owned path, nothing stranded to adopt. Merged
+    `origin/main` into `ios-staging` first (clean fast-forward, no conflicts — picked up backend's #56/#60
+    write-ups and publish's routine-ship note, no code touching owned paths).
+  - **Found the backlog's own copy of this file badly stale before touching any code**: `status/BACKLOG.md`
+    on `ios-staging` still listed `#50`/`#53`/`#54`/`#55`/`#58` as `ready`, but the code (and this lane's own
+    prior session write-ups just above/below) already fully implements every one of them —
+    `Features/Insights/{InsightsView,InsightsCharts,InsightsFindings,DataQualityCard}.swift` all have the
+    `onSelect`/`selectInCoffees`/`FindingSubject`/`dimension`-gated-`Button` wiring `#50`/`#53`/`#54`
+    describe; `DesignSystem/ZoomableImageView.swift` exists and is wired into both
+    `Features/Review/ReviewCardView.swift` and `Features/Coffees/CoffeeDetailView.swift` per `#55`;
+    `Features/Root/RootTabView.swift` already branches `#available(iOS 18.0, *)` into the value-based
+    `Tab(...)` builder per `#58`. `status/ios-shell.md`'s own latest entry independently confirms the same
+    ("#50/#52/#53/#54/#55 are all `done` on `origin/ios-staging`"). Also re-verified `#66` (Review per-item
+    save) directly against `ReviewQueueEngine.accept`/`.markNotPresent` (call `onAccept`/`onDismiss`
+    synchronously, same call as the local queue mutation, no batching), `CoffeeStore.resolveReview`/
+    `.dismissReview` (fire immediately, not deferred to a "done" step), and `MutationOutbox.enqueueReviewResolve`/
+    `.enqueueReviewDismiss` (call `persist()` synchronously right after enqueueing) — the exact
+    force-quit-after-2-of-N scenario the row asks to verify is already durable. Corrected all six rows to
+    `done` in `status/BACKLOG.md` (same "correcting a task means correcting this file" rule
+    `status/README.md` names) rather than re-implementing already-shipped work. `#57` stays `ready` but
+    unpicked — confirmed via `status/ios-shell.md`/`status/backend.md` that no backend column/endpoint or
+    shell model/API exists yet for the rotation seam, so there's nothing concrete for this lane's half
+    (rotate button + wiring) to call yet; building it blind would be guessing at a wire shape, the exact
+    thing this lane's own precedent (`#27`/`#28`'s flagged gaps) avoids.
+  - **The actual `#68` fix**: `Features/Coffees/FacetFullListView.swift`'s `isTappable()` special-cased
+    `dimension == .profile` as the only dimension allowed to select its Unknown bucket — a stray leftover
+    gate, since `FilterSheetView.swift`'s inline pill grid (`DimensionPills`) already had the correct
+    5-dimension allowlist (`unknownSelectable: [.roaster, .roasterCountry, .originCountry, .farm, .profile]`)
+    the row's own diagnosis names. Promoted that allowlist out of `DimensionPills` (where it was
+    `private`) to a file-scope `unknownSelectableDimensions` constant next to the already-shared
+    `isFacetSelected`/`toggleFacet` helpers, and pointed both `DimensionPills.isTappable` and
+    `FacetFullListView.isTappable` at the single shared constant — closes the row's own "check the inline
+    filter-sheet path uses the same gate" ask by construction (one definition, not two copies that can
+    drift again) rather than just copy-pasting the same five-dimension list a second time.
+  - Not locally compiled (no Xcode here) — a small, mechanical change against an existing pattern
+    (`unknownSelectableDimensions` is used exactly the way the old `private static` set was), so a red
+    compile check here would most likely be a typo, not a design gap.
+  - `ios/MyCoffee/Sources/Features/Coffees/{FacetFullListView,FilterSheetView}.swift`
+  - No `BACKLOG.md` row lists `68` as a `needs` dependency, so nothing to unblock.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-16 UTC] 58 Move the listing search box to the bottom (iOS 26 style) — branch `ios-staging`
   - **Before claiming**: swept `git branch -r --list 'origin/claude/*'` — nothing stranded touching
     `Sources/Features`/`Sources/DesignSystem`/`Resources`. Merged `origin/main` into `ios-staging`

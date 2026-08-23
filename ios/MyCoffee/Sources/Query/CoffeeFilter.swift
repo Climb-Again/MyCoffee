@@ -22,6 +22,9 @@ struct CoffeeFilter: Equatable, Sendable {
     var pricePer100gBands: Set<PriceBand> = []
     var altitudeBands: Set<AltitudeBand> = []
     var years: Set<Int> = []
+    /// A relative-to-today purchase window (last 12/18 months) — kept
+    /// distinct from `years`, which picks specific calendar years (#71).
+    var relativeWindow: RelativeWindow?
 
     var isEmpty: Bool {
         query.isEmpty
@@ -38,6 +41,7 @@ struct CoffeeFilter: Equatable, Sendable {
             && pricePer100gBands.isEmpty
             && altitudeBands.isEmpty
             && years.isEmpty
+            && relativeWindow == nil
     }
 
     /// Returns a copy with exactly one dimension's constraint removed — used

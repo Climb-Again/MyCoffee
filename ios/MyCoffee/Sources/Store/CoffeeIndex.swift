@@ -82,6 +82,14 @@ struct CoffeeIndex: Sendable {
             result.formIntersection(IndexSet(matchingIndices))
         }
 
+        // Relative-to-today window — computed against `now`, so (like `query`)
+        // it can't live in the prebuilt postings and is applied directly here.
+        if let window = filter.relativeWindow {
+            let cutoff = window.cutoff()
+            let matchingIndices = coffees.indices.filter { coffees[$0].purchasedOn.utcMidnight >= cutoff }
+            result.formIntersection(IndexSet(matchingIndices))
+        }
+
         func intersectPostings(_ dimension: FilterDimension, _ keys: [FacetKey]) {
             guard !keys.isEmpty else { return }
             var dimensionSet = IndexSet()

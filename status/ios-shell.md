@@ -8,6 +8,444 @@ _none_
 
 ## Done
 
+- [2026-08-23 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
+  Coffee wizard — backend half"), which remains `ready`-not-`done`. Re-verified
+  the same dev/ship-split visibility gap the last several sessions diagnosed:
+  `origin/main`'s tip (`1aa3aa1`, three consecutive backend "no ready row"
+  session checks) still has no `#75`/`#76`/`#77` rows in its own copy of
+  `status/BACKLOG.md` — these were filed directly on `ios-staging` and backend
+  won't see `#75` as `ready` until the Publish lane merges `ios-staging` into
+  `main`. Not guessing `#75`'s wire shape blind, per `#76`'s own row text.
+  - Merged `origin/main` into `ios-staging` (clean, no conflicts — picked up
+    3 backend session-check commits touching only `status/backend.md`).
+  - **Re-swept `origin/claude/*` with the actual sweep criterion this time**
+    (highest commits-ahead in this lane's owned paths, not just
+    newest-by-commit-date — the last several sessions' "top 4" sample had
+    drifted to checking only 1-commit-ahead branches while dozens of
+    higher-count candidates sat unchecked). 130 branches fetched; the true
+    top 6 by commits-ahead (`hopeful-johnson-bdpy3r` 25,
+    `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24 each, `modest-newton-oml7h8`/
+    `confident-cerf-fti5j5` 21 each) all diff as the same pure net-deletion
+    pattern against current `ios-staging` (missing `RelativeWindow`/rotation/
+    `#71`-era `Store/{RemoteCoffeeRepository,SampleCoffeeRepository,
+    SampleData,SyncEngine}.swift` work that's since landed) — stale
+    pre-`#71`/`#74` snapshots, not new work. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
+- [2026-08-23 UTC] Session check — no ready `ios-shell` row. `#76` (this
+  lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
+  wizard — backend half"), which is still `ready`-not-`done`. Re-fetched
+  `origin/main` fresh (`469cfbe`, unchanged since yesterday's check) — its
+  copy of `status/BACKLOG.md` still has no `#75`/`#76`/`#77` rows at all, so
+  the dev/ship-split visibility gap the last two sessions diagnosed still
+  holds: these rows only exist on `ios-staging` and backend won't see `#75`
+  as `ready` until the Publish lane merges `ios-staging` into `main`. Not
+  guessing `#75`'s wire shape blind, per `#76`'s own row text. `ios-staging`
+  was already at `origin/ios-staging`'s tip (no local main to merge in beyond
+  what's already there). Re-swept `origin/claude/*` (130 branches, unchanged
+  count from yesterday): re-checked the same newest-by-commit-date candidates
+  with nonzero commits ahead in this lane's owned paths — the top four
+  (`confident-cerf-{58wls6,ra1c0f,xis3ue}`, `peaceful-mccarthy-erypad`, all
+  2026-08-16, already vetted by the last two sessions) remain the newest, and
+  nothing newer has appeared since. Nothing stranded to adopt. No code
+  changes — stopping cleanly per the work loop.
+
+- [2026-08-22 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
+  Coffee wizard — backend half"), which is still `ready`-not-`done`:
+  `origin/main`'s tip (`469cfbe`, re-fetched fresh) still has no `#75`/`#76`/
+  `#77` rows in its own copy of `status/BACKLOG.md` at all — confirms the same
+  dev/ship-split visibility gap the last two sessions diagnosed (these rows
+  were filed directly on `ios-staging`; backend won't see `#75` as `ready`
+  until the Publish lane merges `ios-staging` into `main`). Nothing new to fix
+  here; not guessing `#75`'s wire shape blind, per `#76`'s own row text.
+  - Merged `origin/main` into `ios-staging` (`6414c6e`): one additive conflict
+    in `status/backend.md` (two independent 2026-08-22 backend session-check
+    entries inserted at the same point) — kept both, no factual conflict, same
+    precedent as every prior session's handling of this file.
+  - Re-swept `origin/claude/*` (129 branches after a fresh `--prune` fetch,
+    one net-added and two net-removed since yesterday's 130): checked the four
+    newest-by-commit-date candidates with nonzero commits ahead in this lane's
+    owned paths (`confident-cerf-{58wls6,ra1c0f,xis3ue}`, `peaceful-mccarthy-
+    erypad`, all 2026-08-16) by actual diff content — all four are byte-for-byte
+    the same net-deletion (14 files, 29 insertions/221 deletions against
+    `APIClient`/`CoffeeStore`/`SyncEngine`/etc., missing `RelativeWindow`/`#71`-
+    era work) as every prior sweep's stale-snapshot finding. Nothing stranded
+    to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
+- [2026-08-22 UTC] Session check — no ready `ios-shell` row. `#76` (this lane's
+  only open row) is still `blocked` on `#75` (backend, "Add Coffee wizard —
+  backend half"), which is still `ready`-not-`done`: `main`'s tip
+  (`a1c6326`, re-fetched fresh this session) is still a backend "no ready row"
+  session check, i.e. still pre-#75 from `main`'s point of view — same
+  dev/ship-split visibility gap the prior session already diagnosed (`#75`
+  was filed directly on `ios-staging`, so backend won't see it as `ready`
+  until the Publish lane merges `ios-staging` into `main`). Nothing new to fix
+  here.
+  - This session's designated branch (`claude/wizardly-thompson-tr93hk`) was
+    sitting at `main`'s tip, not `ios-staging`'s — switched to `ios-staging`
+    to develop on the correct lane branch, same as the prior session's own
+    note.
+  - Merged `origin/main` into `ios-staging` (clean, additive-only —
+    `status/backend.md` picked up backend's latest session-check entries, no
+    conflicts).
+  - Re-swept `origin/claude/*` (130 branches, 3 more than yesterday's 127):
+    checked the three newest by commit date (`peaceful-mccarthy-neqxc9`,
+    `confident-cerf-45aekz`, `confident-cerf-7zg79i`) — all three show `0`
+    commits ahead of `ios-staging` in this lane's owned paths and diff as the
+    same pure net-deletion pattern (`CoffeeFilter`/`RelativeWindow`/
+    `CoffeeIndex`, 43 lines removed) every prior sweep has found. Nothing
+    stranded to adopt.
+  - No code changes this session — stopping cleanly rather than guessing
+    `#75`'s wire shape blind (explicitly warned against in `#76`'s own row
+    text) or touching backend/ios-ux-owned paths.
+
+- [2026-08-21 UTC, later session] Session check — no ready `ios-shell` row.
+  `#76` (this lane's only open row, blocked on `#75`) stays `blocked`: `#75`
+  (backend, "Add Coffee wizard — backend half") is filed `ready` in this
+  branch's own `BACKLOG.md`, but backend works off `main`, and `#75`/`#76`/`#77`
+  were filed by an `ios-shell` session directly on `ios-staging` — so backend
+  won't see `#75` as `ready` until the Publish lane merges `ios-staging` into
+  `main` (confirmed: `main`'s tip, `4c42aa0`, is a backend "no ready row" session
+  check, i.e. still pre-#75 from that branch's point of view). This is the
+  ordinary dev/ship-split visibility gap (CLAUDE.md §5), not a new bug — nothing
+  for this lane to fix, just noting why a `ready` backend row is sitting idle.
+  - Checked out `ios-staging` fresh (this session's designated branch,
+    `claude/wizardly-thompson-mcm7rl`, was sitting at `main`'s tip, not
+    `ios-staging`'s — switched to develop on the correct lane branch per
+    CLAUDE.md §4/§5 and this file's own branch header).
+  - Merged `origin/main` into `ios-staging` (`e9713ef`): one additive conflict
+    in `status/backend.md` (both branches independently inserted a 2026-08-21
+    session-check entry at the same point) — kept both, no factual conflict,
+    same precedent as every prior session's handling of this file.
+  - Re-swept `origin/claude/*` (127 branches) for stranded work in this lane's
+    owned paths (`git rev-list --count origin/ios-staging..<branch> --
+    ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities} ios/project.yml`):
+    the highest-ranked candidates (`hopeful-johnson-bdpy3r`, `confident-cerf-
+    {t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`, all 21–25 commits ahead)
+    all diff as pure net deletions against current `ios-staging` (e.g. `14
+    files changed, 29 insertions(+), 221 deletions(-)`, missing the rotation
+    (`#74`) and edit-batch machinery that's since landed) — stale pre-rotation
+    snapshots, not new work. Nothing stranded to adopt.
+  - No code changes this session — stopping cleanly per the work loop rather
+    than guessing `#75`'s wire shape blind (explicitly warned against in
+    `#76`'s own row text) or touching backend/ios-ux-owned paths.
+
+- [2026-08-21 UTC] Session check — no ready `ios-shell` row; found and fixed a
+  real backlog gap instead. `#74` (this lane's own last row) is `done`
+  (`59c24c4`, verified: `Coffee.rotationQuarterTurns`/`setRotation` etc. are
+  live in `Models/Coffee.swift`/`Store/CoffeeStore.swift` on `ios-staging`),
+  and `#57`/`#73` are also `done` — the persisted-rotation seam this lane
+  filed on 2026-08-20 is fully closed end to end.
+  - **Merging `origin/main` in hit a real conflict**, not a stale-note one:
+    both branches had independently added a `status/backend.md` session-check
+    entry for 2026-08-21 at the same insertion point. Additive, no factual
+    conflict — kept both (same precedent every prior session has used for this
+    file).
+  - **Found a real, unfiled gap while re-checking `git log` for anything new**:
+    two commits already on `ios-staging` (`f8e227b`/`1acc492`, dated
+    2026-08-20) add PLAN.md §6.8, "Add Coffee wizard, in-app, paste-text
+    driven" — a real, Radu-approved feature ("Radu asked for a manual add
+    flow after the shell shipped... supersedes the earlier 'read-and-review
+    only, no capture UI' stance") that reverses the standing no-capture-surface
+    decision. But the commit's own decomposition — "Issues: backend #36, iOS
+    shell #37, iOS UX #38" — reused three numbers already spent on unrelated,
+    already-`done` rows (farm auto-create, per-item review save, roaster
+    countries). No lane could ever pick this up under those numbers, and
+    `grep -rn wizard status/*.md` before this session returned nothing — the
+    commit's own "NEXT: ... must be corrected" note was never acted on. This
+    is the same shape as every `#NN→#MM` decomposition in this file
+    (`#57→#73/#74`, `#48(b)→#51`, `#39→#49`, `#29→#69`): a real gap that no
+    session would ever surface just by reading `BACKLOG.md`'s row list, since
+    the colliding numbers all read `done`.
+  - **Fixed it**: filed `#75` (backend, `ready`, needs 19/21/24 — all done) /
+    `#76` (ios-shell, `blocked` on 75) / `#77` (ios-ux, `blocked` on 76 + 27)
+    in `status/BACKLOG.md`, spec copied faithfully from PLAN.md §6.8 (the
+    `POST /api/coffees/extract` + `POST /api/coffees` wire shape, the
+    3-step-wizard UI, the shell repository methods in between). Corrected
+    PLAN.md §6.8's own "Issues: backend #36, iOS shell #37, iOS UX #38" line
+    to point at the new numbers, with a one-line pointer back to the
+    `BACKLOG.md` note.
+  - **Not implementing `#76` myself this session** — it's `blocked` on `#75`
+    (backend's `POST /api/coffees/extract`/`POST /api/coffees` endpoints don't
+    exist yet; confirmed via `grep -rn "coffees/extract" backend/src` —
+    nothing), so there is no live wire shape to bridge yet. Guessing one would
+    just be the exact mistake `status/README.md` warns against.
+  - Swept the 125 `origin/claude/*` branches: sampled the highest
+    ahead-in-owned-paths candidates (`hopeful-johnson-bdpy3r` 25,
+    `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24, `modest-newton-oml7h8` 21) —
+    every one diffs as a pure net deletion against current `ios-staging`
+    (missing the rotation-era `SyncEngine`/`RemoteCoffeeRepository` work),
+    same pattern every prior sweep has found. Nothing stranded to adopt.
+  - `status/BACKLOG.md`, `status/backend.md` (merge-conflict resolution),
+    `PLAN.md`. No Swift changed — nothing ios-shell-owned was ready to build.
+
+- [2026-08-20 UTC, later session] **Broke the `#57` deadlock instead of filing a
+  sixth identical no-op check** — decomposed it into `#73` (backend, `ready`) +
+  `#74` (ios-shell, `blocked` on 73), and corrected `#57` `ready`→`blocked`.
+  - **The problem this fixes.** `#57` (persisted photo rotation) was the only
+    `ready` row anywhere in `BACKLOG.md`, and had been unpickable since
+    2026-08-15. Six consecutive lane sessions across three lanes (this lane on
+    08-17/18/19/20, ios-ux 08-19, backend 08-20 — see the entries right below,
+    all written by prior sessions of this same routine) each independently
+    reached the same conclusion and stopped cleanly: persistence is required
+    (Radu's own follow-up settled that a view-only rotate isn't acceptable),
+    persistence needs a backend column + write endpoint + snapshot field, and
+    **no row was ever filed for that backend half**. Every one of those
+    sessions was right to decline — guessing a wire shape blind is worse than
+    stopping — but the net effect was five days of zero movement on the only
+    open row in the project. The missing artifact was never code, it was a
+    backlog row.
+  - **Why filing it is in-lane, not invented scope.** `status/README.md`'s
+    "correcting a task means correcting THIS file" makes the stale `ready`
+    status this lane's to fix, and the `#48(b)→#51` / `#39→#49` / `#29→#69`
+    precedent is exactly this shape: when a row's real work sits in another
+    lane's owned paths, you file that lane a row rather than reaching across
+    the boundary. `#57` is already an approved row (Radu, 2026-08-15) — this
+    decomposes an approved item, it doesn't add scope, so the CLAUDE.md intake
+    rule (which governs *new* requests) isn't in play.
+  - **Re-verified the blocker rather than trusting the prior notes**: repo-wide
+    grep for `rotation_quarter_turns`/`rotationQuarterTurns` is empty outside
+    status-file prose (only unrelated hit is `ops/test_mycoffee_export.py`'s
+    `test_quarter_turns_map_to_clockwise_rotations`, which is `#59`'s EXIF
+    work), and `backend/migrations/` still tops out at `024_add_greece_roaster_country.sql`.
+  - **`#73` was written as a decided contract, not a research task** — read the
+    real backend code to settle each choice: column on `coffees` not `photos`
+    (every read path the app uses is already a `coffees`-row projection with
+    its own `updated_at` for the delta sync; `photos` would mean a join and a
+    second watermark); endpoint modelled line-for-line on `POST
+    /api/coffees/:publicId/favorite` (`src/routes/coffees.js:276`) and
+    **deliberately not** on `#40`'s generic `/edit` route, since rotation is a
+    human-set display correction that must stay out of
+    `field_candidates`/`EDIT_FIELD_TO_CLIENT`/`STRUCTURED_FIELDS`/`canonicalize()`
+    and must never open a review item; field added to `toCompactCoffee`
+    (`src/routes/coffees.js:55`) so the **listing thumbnail** is upright too,
+    with the detail route inheriting it via its existing spread. Flagged the
+    `updated_at` bump explicitly as the thing that makes the correction reach
+    other devices — omitting it is the silent-failure mode here.
+  - **`#74` is this lane's own next row**, filed so the seam stops being
+    re-derived from `#57`'s prose every cycle. It names the one non-obvious
+    trap: `Coffee.withFavorite` (`Models/Coffee.swift:102`) enumerates every
+    field, so a newly-added property silently dropped there is the same class
+    of bug as `#22`'s `roasterId` nullability. It also draws the ownership line
+    explicitly — shell publishes `rotationQuarterTurns` + `CoffeeStore.rotate`
+    + optionally a small `Utilities/` quarter-turns→`Angle` helper, but the
+    `.rotationEffect` call sites are in `DesignSystem/`/`Features/` and stay
+    with `#57`. Also recorded for ux that `.rotationEffect` on a non-square
+    image changes its rendered aspect box for odd quarter-turns, so the frame
+    has to accommodate a 90°/270° turn.
+  - **No code changed** — the backend half must land before either iOS half can
+    be written, so writing shell code now would mean decoding a field the
+    server never sends and POSTing to a route that doesn't exist. Nothing to
+    compile, so no compile risk.
+  - Swept `git branch -r --list 'origin/claude/*'` per the
+    integrate-before-you-start rule: only this session's own designated branch
+    (`wizardly-thompson-8zpbry`) is new, 0 commits ahead of `ios-staging` in
+    any owned path — nothing stranded to adopt.
+  - `status/BACKLOG.md` (rows `#57`/`#73`/`#74` + a "Right now" entry),
+    `status/ios-shell.md`
+
+- [2026-08-20 UTC] Session check — no ready `ios-shell` row, unchanged from
+  every check since 2026-08-17. #17/#22/#41/#46 remain the only rows tagged
+  `ios-shell`, all `done`. The only `ready` row anywhere in `BACKLOG.md` is
+  still `#57` (ios-ux, persisted photo rotation, needs 59 — done) — its own
+  text names an `ios-shell` seam (`CoffeeImage`/detail model field + API
+  surface for a per-photo `rotation_quarter_turns`), but re-confirmed via a
+  repo-wide grep that `rotation_quarter_turns`/`rotationQuarterTurns` still
+  appears nowhere outside status-file prose, and `backend/migrations/` still
+  tops out at `024` (Greece roaster country) with no rotation column — so
+  there is still nothing concrete on the backend side for this lane's named
+  seam to wire against. Backend's own 2026-08-20 session check (merged in
+  this session, see below) independently reached the same "no ready backend
+  row" conclusion and didn't touch #57 either. Checked `git branch -r --list
+  'origin/claude/*'`: only this session's own designated branch exists
+  (`wizardly-thompson-a34b3e`), 0 commits ahead of `ios-staging` in any owned
+  path — nothing stranded to adopt. Merged `origin/main` into `ios-staging`
+  (`6434fa3`), resolving one additive conflict in `status/backend.md` (two
+  independent same-day backend session-check entries landing on each branch)
+  by keeping both, no factual conflict. Stopping cleanly rather than
+  inventing work or touching UX/backend-owned paths.
+
+- [2026-08-19 UTC, later session] Session check — no ready `ios-shell` row,
+  unchanged from the earlier check today. #17/#22/#41/#46 remain the only
+  rows tagged `ios-shell`, all `done`. The only `ready` row anywhere in
+  `BACKLOG.md` is still `#57` (ios-ux, persisted photo rotation) — re-confirmed
+  ios-ux's own 09:10 UTC check (`4bb3fea`) and backend's own two later checks
+  today (`1d1007c`, `759ab0b`) all independently landed on the same
+  conclusion: no backend column/write-endpoint/snapshot field for
+  `rotation_quarter_turns` exists yet (migrations still top out at `024`,
+  repo-wide grep for `rotation_quarter_turns`/`rotationQuarterTurns` still
+  empty outside status-file prose), so there is nothing concrete for this
+  lane's named seam to build against. Swept `git branch -r --list
+  'origin/claude/*'`: only this session's own designated branch exists — 0
+  stranded work to adopt. Merged `origin/main` into `ios-staging` (`7d35cdf`),
+  resolving one additive conflict in `status/backend.md` (two independent
+  same-day backend session-check entries landing on each branch
+  independently) by keeping both, no factual conflict; also picked up
+  backend's unrelated `resolveField.js` price-defaults-to-RON fix cleanly.
+  Stopping cleanly rather than inventing work or touching UX/backend-owned
+  paths.
+
+- [2026-08-19 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The only `ready` row
+  anywhere in `BACKLOG.md` is `#57` (ios-ux, persisted photo rotation), whose
+  own text names an `ios-shell` seam (`CoffeeImage`/detail model field + API
+  surface for a per-photo `rotation_quarter_turns`) — but re-confirmed there is
+  still nothing concrete to build against: repo-wide grep for
+  `rotation_quarter_turns`/`rotationQuarterTurns` is empty everywhere except
+  status-file prose, and `backend/migrations/` still tops out at `024` with no
+  rotation column, so no backend column/write-endpoint/snapshot field exists
+  yet for this lane to wire against. Same conclusion as the two prior
+  2026-08-18 checks. Checked `git branch -r --list 'origin/claude/*'`: only
+  this session's own designated branch exists, 0 commits ahead of
+  `ios-staging` in any owned path — nothing stranded to adopt. Merged
+  `origin/main` into `ios-staging` (clean, no conflicts — additive
+  `status/backend.md`/`status/data.md` session-check entries only). Stopping
+  cleanly rather than inventing work or touching UX/backend-owned paths.
+
+- [2026-08-18 UTC, later session] Session check — unchanged from the check
+  right below. No ready `ios-shell` row: #17/#22/#41/#46 all `done`, #71(a)'s
+  seam confirmed consumed. Only `ready` row anywhere in `BACKLOG.md` is `#57`
+  (ios-ux, persisted photo rotation) — re-confirmed independently (repo-wide
+  grep for `rotation_quarter_turns`/`rotationQuarterTurns` still empty outside
+  status-file prose) there is nothing concrete on the backend side yet for
+  this lane's named seam to build against. Re-swept the top commit-ahead-count
+  `origin/claude/*` candidates in this lane's owned paths
+  (`confident-cerf-{t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`,
+  `confident-cerf-fti5j5`) — all confirmed net-deletions against current
+  `ios-staging`, nothing stranded to adopt. Merged `origin/main` into
+  `ios-staging` (`8647fcd`), resolving one additive conflict in
+  `status/backend.md` (two independent same-day backend session-check
+  entries) by keeping both. Stopping cleanly rather than inventing work.
+
+- [2026-08-18 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`; #71(a)'s seam (this
+  lane's own prior session, same day as this file's most recent entry below)
+  is confirmed consumed by ios-ux's #71 half. The only `ready` row anywhere in
+  `BACKLOG.md` is `#57` (ios-ux, persisted photo rotation) — re-checked its
+  named shell seam (`CoffeeImage`/detail model field + API surface for a
+  per-photo `rotation_quarter_turns`) and confirmed again there is still
+  nothing concrete to build against: no backend column, write endpoint, or
+  snapshot field exists yet (repo-wide grep for `rotation_quarter_turns` and
+  `rotationQuarterTurns` still empty outside status-file prose), same
+  conclusion as every prior check. #72 (backend, What's New refresh) landed
+  `done` on `main` since this lane's last check but hadn't been merged into
+  `ios-staging` yet — merged `origin/main` in (`199f5cf`), resolving one
+  additive conflict in `status/BACKLOG.md`: `ios-staging` and `main` each had
+  an independent, correct `done` update to a different row in the same
+  `#71`/`#72` table block (this lane's own #71 close-out vs. backend's #72
+  close-out) — kept both rather than picking one side, same precedent as
+  every prior session's handling of this exact conflict shape.
+  - Swept `git branch -r --list 'origin/claude/*'` (109 candidates after
+    fetching) per the integrate-before-you-start rule: sampled the highest
+    commit-ahead-count candidates in this lane's owned paths
+    (`confident-cerf-{t1flso,j8in2k}` ×17, `modest-newton-oml7h8`/
+    `confident-cerf-fti5j5` ×14, `peaceful-mccarthy-71uw7l`/
+    `relaxed-thompson-uq5f21` ×8, `hopeful-johnson-3xcwg7` ×6,
+    `determined-thompson-yjymsr` ×4) and confirmed by `git diff --stat` that
+    every one is a **net deletion** against current `ios-staging` — stale
+    pre-#71(a)/pre-#46/pre-#41 snapshots, same pattern every prior sweep has
+    found. Nothing stranded to adopt.
+  - Stopping cleanly rather than inventing work or touching UX-owned paths.
+
+- [2026-08-17 UTC] 71(a) `RelativeWindow` seam for the listing filter — branch `ios-staging`
+  - No `ios-shell`-tagged row was `ready` this cycle (`#17`/`#22`/`#41`/`#46` all `done`). But
+    `#71` (ios-ux, ready, no needs) explicitly names a shell-owned seam — `status/ios-ux.md`'s
+    2026-08-17 entry confirms the UX lane already looked at this row, found part (a) touches
+    `Query/{CoffeeFilter,CoffeeIndex,FilterDimension}.swift` (shell-owned), and deliberately
+    left it rather than guess the wire shape — same precedent as `#50`'s tab-selection seam
+    (2026-08-14 entry below). Picked it up instead of stopping on a no-op session.
+  - Checked `#57` (the other `ready` row naming a shell seam, persisted photo rotation) first:
+    still nothing to build against — no backend column/endpoint exists yet (confirmed via
+    `status/backend.md` and a repo-wide grep for `rotation_quarter_turns`), same conclusion
+    every prior session reached. Left it for whenever backend lands its half.
+  - **New `Query/RelativeWindow.swift`**: `enum RelativeWindow { case last12m, last18m }` with
+    `months: Int` and a `cutoff(now:)` that reuses `Calendar.utc` (`Utilities/PlainDate.swift`,
+    already shell-owned) — the exact same `Calendar.utc.date(byAdding: .month, value: -months,
+    to: Date())` computation `InsightsView.coffeesSince(months:)` already does for the Charts
+    tab's own `ChartWindow.last12m`/`.last18m`, so the listing filter and the Charts tab agree
+    on what "last 12 months" means. Deliberately has no `.all`/`.years` cases — those are
+    already covered by `relativeWindow == nil` and the existing `years: Set<Int>` field
+    respectively, per the row's own "kept distinct from years" framing.
+  - **`CoffeeFilter`**: added `var relativeWindow: RelativeWindow?` (nil = no window
+    constraint) and folded it into `isEmpty`. Deliberately did **not** add a `FilterDimension`
+    case for it — `clearing(_:)`/`facets(for:)`/`topFilterCards()` all key off
+    `FilterDimension` to compute per-value pill counts, but a relative window isn't a
+    multi-select vocab-style facet (there's no "count if the other window were selected"
+    question to answer), it's a single active toggle exactly like the Charts tab's own
+    segmented control — which is a plain `Picker`, not a facet pill list. Modeling it as a
+    bare optional keeps `clearing(_:)` correct for free: since no dimension case owns it,
+    `clearing(.roaster)` (etc.) leaves `relativeWindow` untouched, exactly the "only clear
+    the one dimension being cleared" contract every other cross-cutting field (`query`,
+    `isDecaf`, `favoritesOnly`) already relies on.
+  - **`CoffeeIndex.matches(_:)`**: applies the cutoff directly (`coffees.indices.filter {
+    $0.purchasedOn.utcMidnight >= cutoff }`) right after the free-text `query` intersection,
+    with the same one-line justification `query` already has in a comment: both depend on
+    "now"/live input, so neither can live in the prebuilt `postings` map (built once from
+    static data) the way vocab/band/bool dimensions do.
+  - **UX lane: two wiring pieces remain, not new plumbing.** (a) The filter sheet needs a
+    control that sets `store.filter.relativeWindow` — no existing pill loop fits (it's not a
+    `FilterDimension`), so this is a new small section, e.g. a segmented control mirroring
+    `InsightsView`'s own Charts-tab window picker. (b) `InsightsView.selectInCoffees(dimension:
+    key:)` (`#50`/`#53`/`#54`'s existing deep-link, `InsightsView.swift:310`) builds a fresh
+    `CoffeeFilter()` and should also copy the Charts tab's current `window` across as the
+    matching `RelativeWindow` case (`.last12m`→`.last12m`, `.last18m`→`.last18m`, `.all`/
+    `.years` → leave `relativeWindow` `nil`) before setting `store.filter` — the row's own
+    part (b) ask. Not making either UI change myself — `Features/Coffees/**` and
+    `Features/Insights/**` are UX-owned.
+  - Not locally compiled (no Xcode here) — the new file mirrors `RatingBand.swift`'s exact
+    shape (a plain `CaseIterable`/`Hashable`/`Sendable` enum with computed properties, no
+    associated values), and both edited files are small, additive, single-purpose insertions
+    into already-compiling functions — a red compile check here should point at a typo, not a
+    design gap.
+  - `ios/MyCoffee/Sources/Query/{CoffeeFilter,RelativeWindow}.swift`,
+    `ios/MyCoffee/Sources/Store/CoffeeIndex.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-17 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
+  remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
+  in the whole backlog this cycle are backend (#67, #69) and ios-ux (#50,
+  #53, #54, #55, #57, #58, #66, #68 per `main`'s stale copy of the table —
+  but a later `ios-ux` session already flipped #50/#53/#54/#55/#58/#66/#68 to
+  `done` on `ios-staging` itself, confirmed live in `Features/Insights/**`,
+  `DesignSystem/ZoomableImageView.swift`, and `RootTabView.swift`; only #57
+  is genuinely still open). `#57` (persisted rotate photo) names a shell
+  piece (`CoffeeImage`/detail model field + API surface for a per-photo
+  `rotation_quarter_turns`), but its own row and the ios-ux session note
+  both confirm no backend column/write-endpoint/snapshot field exists yet —
+  nothing concrete for this lane's half to build against, so not guessing a
+  wire shape blind.
+  - **Merged `origin/main` into `ios-staging`** (`d27b4e5`) — the two
+    branches had diverged the usual way: `ios-staging` already knew
+    #50/#53/#54/#55/#58/#66 were `done` (a later ios-ux session verified and
+    flipped them) while `main`'s copy (last touched from the data lane's
+    #29/#67 close-out) still showed them `ready` and had #67's lane
+    corrected to `backend` plus a new #69 row `ios-staging` didn't have yet.
+    Resolved the `status/BACKLOG.md` conflict as the union of both sides'
+    newer knowledge (kept `ios-staging`'s `done` status for #66/#68, kept
+    `main`'s corrected #67 lane tag + new #69 row) and kept both `status/
+    backend.md` session-check entries (additive, no factual conflict, same
+    precedent as every prior session-check merge in this file). Confirmed
+    post-merge every row number in the table appears exactly once (no
+    duplicate rows from the conflict) and that no `ios-shell`-owned path was
+    touched by the merge (`git diff origin/ios-staging HEAD --stat` shows
+    only `status/*.md`).
+  - Re-swept all 122 `origin/claude/*` branches (up from ~100 at the last
+    check) for stranded `ios-shell` work per the integrate-before-you-start
+    rule: dozens show a nonzero `git rev-list --count` in this lane's owned
+    paths, but every naming cluster sampled (`confident-cerf-*` including
+    four new branches at the highest ahead-count of 14, `determined-
+    thompson-*`, `peaceful-mccarthy-*`, `modest-newton-oml7h8`, `hopeful-
+    johnson-3hio6h`, `relaxed-thompson-uq5f21`) diffs as a **net deletion**
+    against current `ios-staging` (missing `SyncEngine`/`SampleCoffeeRepository`
+    content later commits added) — the same stale pre-#22/#41/#46 snapshot
+    pattern every prior sweep in this file has found. Nothing stranded to
+    adopt.
+  - Stopping cleanly rather than inventing work or touching UX/backend/
+    data-owned paths.
+
 - [2026-08-16 UTC] Session check — no ready `ios-shell` row. #17/#22/#41/#46
   remain the only rows tagged `ios-shell`, all `done`. The only `ready` rows
   in the whole backlog are ios-ux (#50, #53, #54, #55, #57, #58, #66, #68) and
