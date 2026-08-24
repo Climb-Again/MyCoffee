@@ -8,6 +8,33 @@ _none_
 
 ## Done
 
+- [2026-08-24 UTC] Session check — no ready `ios-shell` row. `#76` (this
+  lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
+  wizard — backend half"), which is still `ready`-not-`done`: confirmed fresh
+  on both `origin/main` (`1bac829`) and `origin/ios-staging` (`252fa0b`) —
+  the Publish lane has since merged `ios-staging` into `main` (`5ed14d4`/
+  `1bac829`), so the dev/ship-split visibility gap prior sessions diagnosed
+  no longer applies (`main`'s copy of `BACKLOG.md` now matches
+  `ios-staging`'s), but `#75` itself simply hasn't been picked up by the
+  backend lane yet. Not guessing `#75`'s wire shape blind, per `#76`'s own
+  row text.
+  - This session's designated branch (`claude/wizardly-thompson-olvvt5`) was
+    sitting at `main`'s tip, not `ios-staging`'s — checked out `ios-staging`
+    fresh from `origin/ios-staging` to develop on the correct lane branch.
+  - Merged `origin/main` into `ios-staging` (`c465f0c`) — clean, no
+    conflicts (both branches already agreed via the Publish lane's own
+    merge).
+  - Re-swept `origin/claude/*` (131 branches after a fresh `--prune` fetch):
+    checked the top candidates by commits-ahead in this lane's owned paths
+    (`hopeful-johnson-bdpy3r` 25, `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24
+    each, `modest-newton-oml7h8`/`confident-cerf-{fti5j5,fod7ez,55g4kl,
+    4xuqov}` 21 each) — all confirmed by `git diff --stat` to be pure
+    net-deletions against current `ios-staging` (missing `SyncEngine`/
+    `SampleData` work that's since landed), same stale-snapshot pattern
+    every prior sweep has found. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop rather than
+    inventing work or touching backend/ios-ux-owned paths.
+
 - [2026-08-23 UTC, later session] Session check — no ready `ios-shell` row.
   `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
   Coffee wizard — backend half"), which remains `ready`-not-`done`. Re-verified
