@@ -285,6 +285,68 @@ export async function defaultVoters() {
   return voters;
 }
 
+// #75 (Add Coffee wizard): a cheaper 2-3 voter ensemble for the synchronous,
+// human-attended `POST /api/coffees/extract` path -- a human confirms every
+// field right away, so this skips extract_a and the critic (no vision-vs-text
+// cross-check needed when a human is about to eyeball the result anyway) and
+// runs only rules (P3, free) + extract_b (flash) + reconciler, matching
+// PLAN.md §6.8's "det + flash + pro reconciler" ensemble.
+export async function lightVoters() {
+  const voters = [];
+  const rulesVoter = await loadRulesVoter();
+  if (rulesVoter) voters.push(rulesVoter);
+  voters.push({ agent: 'extract_b', provider: 'vertex', model: 'gemini-2.5-flash', run: runExtractB });
+  voters.push({ agent: 'reconciler', provider: 'vertex', model: 'gemini-2.5-pro', run: runReconciler });
+  return voters;
+}
+
+// Picks the raw (pre-canonicalize) candidate string to show as a field's
+// pre-filled draft value -- the reconciler synthesizes every other voter's
+// candidate, so its own raw value is the best single representative; fall
+// back to whichever voter proposed first when the reconciler didn't (e.g. it
+// timed out and only rules/extract_b answered). Pure -- no DB, no network.
+export function pickRawExtractedValue(field, candidatesByField) {
+  const raws = candidatesByField?.[field] ?? [];
+  const reconciler = raws.find((c) => c.agent === 'reconciler');
+  const chosen = reconciler ?? raws[0];
+  return chosen ? chosen.value : null;
+}
+
+// Runs `lightVoters()` (or an injected `voters` list, for tests) over one
+// synchronous extraction request and adjudicates the result -- no DB writes:
+// this backs a *draft* the human hasn't confirmed yet (PLAN.md §6.8's wizard
+// step 3), so nothing is stored in `extractions`/`field_candidates` the way
+// the batch worker's `processPhoto` does. `ctx.locked`/`criticVerdicts` are
+// always empty -- a brand-new coffee has no prior human decisions and this
+// ensemble carries no critic.
+export async function runLightExtraction({ rawText, images, vocabShortlist, voters, vocab, photoDate } = {}) {
+  const resolvedVoters = voters ?? (await lightVoters());
+  const candidatesByField = {};
+  let spentUsd = 0;
+
+  for (const voter of resolvedVoters) {
+    const result = await withBackoff(
+      () => voter.run({ rawText, images, vocabShortlist, candidatesByField }),
+      config.extraction.worker.backoffSeconds,
+    );
+    spentUsd += Number(result.costUsd ?? 0);
+    for (const [field, cand] of Object.entries(result.fields ?? {})) {
+      (candidatesByField[field] ??= []).push({ agent: voter.agent, value: cand.value, confidence: cand.confidence, evidence: cand.evidence });
+    }
+  }
+
+  const { resolutions } = adjudicateRecord(candidatesByField, {
+    ...ADJUDICATE_CTX_DEFAULTS,
+    vocab,
+    locked: new Set(),
+    criticVerdicts: {},
+    photoDate,
+    rawText,
+  });
+
+  return { resolutions, candidatesByField, spentUsd };
+}
+
 // ---- DB-touching helpers ----
 
 export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } = {}) {
@@ -334,7 +396,7 @@ export async function releaseLease(photoId) {
   );
 }
 
-async function fetchLatestText(photoId) {
+export async function fetchLatestText(photoId) {
   const { rows } = await query(
     `SELECT * FROM photo_texts WHERE photo_id = $1 ORDER BY version DESC LIMIT 1`,
     [photoId],
@@ -342,7 +404,7 @@ async function fetchLatestText(photoId) {
   return rows[0] ?? null;
 }
 
-async function fetchImageBuffer(photo) {
+export async function fetchImageBuffer(photo) {
   const { rows } = await query(`SELECT * FROM assets WHERE photo_id = $1 AND variant = 'ocr'`, [photo.id]);
   const asset = rows[0];
   if (!asset) return null;

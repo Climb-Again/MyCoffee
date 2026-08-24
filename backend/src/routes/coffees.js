@@ -8,6 +8,8 @@
 //   POST /api/coffees/:publicId/favorite
 //   POST /api/coffees/:publicId/rotation persisted photo rotation (#73)
 //   POST /api/coffees/:publicId/edit     generic per-field edit (PLAN.md §12 #40)
+//   POST /api/coffees/extract     Add Coffee wizard: synchronous light-ensemble draft (PLAN.md §6.8, #75)
+//   POST /api/coffees             Add Coffee wizard: persist the confirmed draft (PLAN.md §6.8, #75)
 //
 // Reads use requireAnyToken; the favorite/edit writes use requireIngestToken,
 // same as every other write path — the iOS app holds INGEST_TOKEN in the
@@ -20,8 +22,18 @@ import {
   loadRoasterVocab,
   loadFarmVocab,
 } from '../lib/vocab.js';
-import { loadSharedContext, applyResolutionsToCoffee } from '../lib/worker.js';
+import {
+  loadSharedContext,
+  applyResolutionsToCoffee,
+  upsertCoffeeBase,
+  fetchLatestText,
+  fetchImageBuffer,
+  buildRawText,
+  runLightExtraction,
+  pickRawExtractedValue,
+} from '../lib/worker.js';
 import { EDIT_FIELD_TO_CLIENT, resolveField } from '../lib/resolveField.js';
+import { cleanCandidates } from './review.js';
 
 // Inverted once at module load: client field name (camelCase, from the iOS
 // edit sheet) -> DB field name. A client field with no entry here is unknown
@@ -387,5 +399,126 @@ export default async function coffeesRoutes(app) {
     }
 
     return { id: req.params.publicId, edits: results, roasterCountryCascadedTo: cascadedCoffees };
+  });
+
+  // Add Coffee wizard, backend half (PLAN.md §6.8, #75). Reuses the photo
+  // upload path (#19) rather than inventing a second one: the client uploads
+  // each bag photo via POST /api/photos/manifest + PUT .../image first (the
+  // pasted "full text" step goes into that manifest call's caption/description,
+  // exactly like a normal ingested photo), then hands the resulting photoIds
+  // here. `photoIds[0]` is the primary/front photo -- its stored text is what
+  // gets extracted from and, on save, becomes the coffee's photo_id; any other
+  // photoIds (e.g. a back-of-bag shot) only contribute extra images to the
+  // vision voters.
+  //
+  // Synchronous and read-only: no `extractions`/`field_candidates` rows are
+  // written, since a draft the human hasn't confirmed yet has nothing worth
+  // caching -- unlike the batch worker, this call is never repeated with an
+  // unchanged input_sha.
+  app.post('/api/coffees/extract', { preHandler: requireIngestToken }, async (req, reply) => {
+    const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
+    if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });
+
+    const { rows: photoRows } = await query(`SELECT * FROM photos WHERE public_id = ANY($1)`, [photoIds]);
+    const byPublicId = new Map(photoRows.map((p) => [p.public_id, p]));
+    const missing = photoIds.find((id) => !byPublicId.has(id));
+    if (missing) return reply.code(404).send({ error: 'photo_not_found', photoId: missing });
+
+    const orderedPhotos = photoIds.map((id) => byPublicId.get(id));
+    const primaryPhoto = orderedPhotos[0];
+
+    const images = (await Promise.all(orderedPhotos.map((p) => fetchImageBuffer(p)))).filter(Boolean);
+    if (images.length === 0) return reply.code(422).send({ error: 'no_images_uploaded' });
+
+    const photoText = await fetchLatestText(primaryPhoto.id);
+    const rawText = buildRawText(primaryPhoto, photoText);
+
+    const sharedCtx = await loadSharedContext();
+    const vocabShortlist = (sharedCtx.vocab.roasters.candidates ?? []).slice(0, 50).map((r) => r.name);
+
+    const { resolutions, candidatesByField, spentUsd } = await runLightExtraction({
+      rawText,
+      images,
+      vocabShortlist,
+      vocab: sharedCtx.vocab,
+      photoDate: primaryPhoto.captured_on,
+    });
+
+    // Same client field set the generic edit endpoint (#40) accepts, so the
+    // confirm screen can reuse the review-queue field component (#27) and
+    // SAVE can feed its edits straight back into POST /api/coffees below.
+    const fields = {};
+    for (const [dbField, clientField] of Object.entries(EDIT_FIELD_TO_CLIENT)) {
+      const resolution = resolutions[dbField];
+      if (!resolution || resolution.value == null) continue;
+      fields[clientField] = {
+        value: pickRawExtractedValue(dbField, candidatesByField),
+        confidence: resolution.confidence,
+        decision: resolution.decision,
+        candidates: cleanCandidates(candidatesByField[dbField]),
+        evidence: candidatesByField[dbField]?.find((c) => c.evidence)?.evidence ?? null,
+      };
+    }
+
+    return { fields, spentUsd };
+  });
+
+  // SAVE (PLAN.md §6.8, #75): persists the coffee the wizard just built. Every
+  // field goes through the exact same `resolveField`/`applyResolutionsToCoffee`
+  // machinery the generic edit endpoint (#40) uses, so a human-confirmed field
+  // lands `locked=true`/`decided_by='human'` -- the monthly incremental
+  // extraction pass can never silently overwrite it (PLAN.md §1).
+  //
+  // Idempotent on `photoIds[0]`: `upsertCoffeeBase` returns the existing row
+  // if a coffee for that photo already exists (a retried SAVE after a dropped
+  // connection just re-applies the same fields rather than erroring).
+  app.post('/api/coffees', { preHandler: requireIngestToken }, async (req, reply) => {
+    const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
+    const edits = Array.isArray(req.body?.fields) ? req.body.fields : [];
+    if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });
+
+    const { rows: photoRows } = await query(`SELECT * FROM photos WHERE public_id = ANY($1)`, [photoIds]);
+    const byPublicId = new Map(photoRows.map((p) => [p.public_id, p]));
+    const missing = photoIds.find((id) => !byPublicId.has(id));
+    if (missing) return reply.code(404).send({ error: 'photo_not_found', photoId: missing });
+
+    const primaryPhoto = byPublicId.get(photoIds[0]);
+    if (!primaryPhoto.has_image) return reply.code(422).send({ error: 'photo_missing_image', photoId: photoIds[0] });
+
+    const dbFields = edits.map((e) => CLIENT_TO_FIELD[e?.field]);
+    const unknown = edits.find((e, i) => !dbFields[i]);
+    if (unknown) return reply.code(400).send({ error: 'unknown_field', field: unknown.field });
+
+    const photoText = await fetchLatestText(primaryPhoto.id);
+    const coffee = await upsertCoffeeBase(primaryPhoto, photoText);
+
+    const sharedCtx = await loadSharedContext();
+    const ctx = { ...sharedCtx, photoDate: primaryPhoto.captured_on, rawText: buildRawText(primaryPhoto, photoText) };
+
+    const resolutions = {};
+    const results = [];
+    for (let i = 0; i < edits.length; i++) {
+      const dbField = dbFields[i];
+      const outcome = await resolveField(primaryPhoto.id, dbField, edits[i].value, ctx);
+      if (outcome.error) {
+        return reply.code(422).send({ error: outcome.error, field: edits[i].field, value: edits[i].value });
+      }
+      resolutions[dbField] = { decision: 'accepted', value: outcome.value };
+      results.push({ field: edits[i].field, value: outcome.value });
+    }
+
+    await applyResolutionsToCoffee(coffee.id, primaryPhoto.id, resolutions, ctx);
+
+    // Every photo behind this coffee (front + any back/detail shots) is
+    // marked processed so the daily worker's claimBatch eligibility predicate
+    // excludes them -- without this a back-of-bag photo with no caption of
+    // its own would sit `awaiting_text`, get claimed once its 10-day deadline
+    // passed, and spawn its own duplicate coffee row (upsertCoffeeBase keys
+    // off photo_id).
+    await query(`UPDATE photos SET state = 'processed', updated_at = now() WHERE id = ANY($1)`, [
+      photoRows.map((p) => p.id),
+    ]);
+
+    return reply.code(201).send({ id: coffee.public_id, fields: results });
   });
 }

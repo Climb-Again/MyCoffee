@@ -4,7 +4,157 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-24 06:23 UTC] #75 Add Coffee wizard — backend half — branch `main`
+(none)
+
+## 2026-08-24 UTC: #75 — Add Coffee wizard, backend half
+
+Only `ready` backend row this cycle (phase 6, `needs` 19/21/24 all `done`).
+Started at `origin/main`'s tip `1bac829` (the prior session's own check
+commit) — no fast-forward needed. `git branch -r --list 'origin/claude/*'` —
+130 branches; no session note since the last check mentions a `#75`-shaped
+diff landing anywhere, so this was genuinely unbuilt (confirmed too by a
+repo-wide grep for `coffees/extract` — empty outside `PLAN.md`/`BACKLOG.md`
+prose).
+
+**Design decision, since the row specced behavior, not a wire shape**: rather
+than inventing a second photo-intake path, the wizard's "paste full text"
+step (PLAN.md §6.8 step 2) reuses `POST /api/photos/manifest`'s existing
+`caption`/`description` fields — the client uploads each bag photo via the
+same manifest+image endpoints #19 already ships, with the pasted text going
+into the primary/front photo's manifest entry. That means `POST
+/api/coffees/extract` takes only `{photoIds: string[]}`, not a redundant
+`fullText` parameter that could drift from what's actually stored. This also
+resolves the "PhotosPicker allows multiple images but `coffees.photo_id` is
+one FK" mismatch cleanly: `photoIds[0]` becomes the coffee's photo, every
+other id only contributes an extra image to the vision voters (`images:
+[...]` already accepts a list in `agents.js`).
+
+**`src/lib/worker.js`** — three new pure/network-only exports (no new DB
+writes), extraction-ensemble-owned (#24) territory:
+- `lightVoters()` — rules (P3, free) + `extract_b` (flash) + `reconciler`,
+  skipping `extract_a` and the critic. PLAN.md §6.8 says "det + flash + pro
+  reconciler"; a human confirms every field seconds later on the confirm
+  screen, so the extra vision-vs-text cross-check the critic buys the
+  unattended batch worker isn't worth its own network round trip here.
+- `pickRawExtractedValue(field, candidatesByField)` — pure, picks the
+  reconciler's own raw (pre-canonicalize) candidate string as the field's
+  pre-filled draft value, falling back to whichever voter answered first if
+  the reconciler didn't. Every voter's raw output is a plain string (only
+  `desc_*` prose fields are span objects, and those are deliberately excluded
+  from this response — see below) — `canonicalize()` is what turns a string
+  into a structured id/amount/range, and the review-queue convention (`GET
+  /api/review`'s `candidates`) is to hand the human a string to confirm/edit,
+  not a resolved id, so this mirrors that.
+- `runLightExtraction({rawText, images, vocabShortlist, voters, vocab,
+  photoDate})` — runs the given (or `lightVoters()`'s) ensemble sequentially
+  exactly like `processPhoto` does for the batch worker, but writes nothing
+  to `extractions`/`field_candidates`: a draft the human hasn't confirmed yet
+  has no `input_sha` worth caching, and it's never re-run with the same
+  input. Adjudicates via the same `adjudicateRecord` (`adjudicate.js`)
+  everything else uses, with `locked` empty (a brand-new coffee has no prior
+  human decisions) and `criticVerdicts` empty (no critic in this ensemble).
+- Also exported `fetchLatestText`/`fetchImageBuffer` (previously private) so
+  `routes/coffees.js` can reuse them instead of re-querying `photo_texts`/
+  `assets` itself.
+
+**`src/routes/coffees.js`** — two new routes, both `requireIngestToken`
+(this triggers LLM calls / writes, same tier as every other write path):
+- `POST /api/coffees/extract` `{photoIds}` — loads every named photo (404
+  `photo_not_found` on a miss), fetches each one's stored `ocr` asset as an
+  image (422 `no_images_uploaded` if none have one yet), builds `rawText`
+  from the primary photo's latest `photo_texts` row via the existing
+  `buildRawText`, runs `runLightExtraction`, and shapes the response over the
+  same `EDIT_FIELD_TO_CLIENT` set #40's edit endpoint accepts (roaster,
+  originCountry, farm, profile, altitude, weight, price, roasterCountry
+  — never proposed by voters so naturally absent, rating, roastedOn) —
+  `{value, confidence, decision, candidates, evidence}` per field, skipping
+  any field the adjudicator decided `absent` (nothing extracted). Reused
+  `review.js`'s own `cleanCandidates` (now exported) to shape the raw
+  candidate list identically to `GET /api/review`'s.
+- `POST /api/coffees` `{photoIds, fields: [{field, value}]}` — 404/400 on the
+  same bad-input shapes as `/edit`, 422 `photo_missing_image` if the primary
+  photo has no image yet. `upsertCoffeeBase(primaryPhoto, photoText)` (already
+  idempotent — returns the existing row if a coffee for that photo_id already
+  exists, so a retried SAVE after a dropped connection just re-applies), then
+  loops `resolveField(primaryPhoto.id, dbField, value, ctx)` per field
+  (identical machinery to `/edit` and `POST /api/review/:id` — `locked=true`,
+  `decided_by='human'`) and batches them into one `applyResolutionsToCoffee`
+  call. **Then marks every given photoId's row `state='processed'`** — not
+  just the primary. Without this, a back-of-bag photo uploaded with no
+  caption of its own sits `awaiting_text`, and once its 10-day deadline
+  passes the daily worker would claim it and `upsertCoffeeBase` would create
+  a SECOND, spurious coffee keyed off that photo_id. This isn't something the
+  row's own text called out — found it while working through the multi-photo
+  case and fixed it as part of the same design, not filed as a follow-up.
+
+**12 new tests, 268/268 `npm test` green**:
+- `worker.test.js`: `lightVoters` returns exactly `extract_b`+`reconciler`
+  (+rules), never `extract_a`/`critic`; `pickRawExtractedValue` prefers the
+  reconciler, falls back to the first voter, returns `null` for an
+  unproposed field; `runLightExtraction` with two injected fake voters (pure,
+  no network) — asserts `candidatesByField` aggregation, `spentUsd` summing,
+  an agreeing pair adjudicating to `accepted`, and a genuine 2-way split
+  still resolving with `decision:'split'` (applied provisionally, per the
+  accept-by-default policy every other adjudication path already follows).
+- `coffees.test.js`: auth-gate smoke tests for both new routes, matching the
+  file's own established no-DB pattern (a bad/missing bearer never reaches
+  the query layer).
+- New `coffees-extract.test.js` (own file, `INGEST_TOKEN` configured before
+  `config.js` imports — same split as `rotation.test.js`, since
+  `coffees.test.js` asserts the *unconfigured*-token behaviour): the
+  `missing_photo_ids` 400 validation runs before any DB query, so it's
+  covered without `DATABASE_URL`; a non-empty `photoIds` list passes
+  validation and fails only at the (absent) DB layer.
+
+**Live-verified end-to-end against a real local Postgres 16** (fresh DB,
+migrations 001→025 applied clean via `node src/migrate.js`; Gemini mocked at
+the `src/vertex.js` module boundary via `node --experimental-test-module-mocks`
+so $0 spend and no dependence on live network/API keys; ad-hoc script, not
+committed, per this file's own established convention for worker.js-adjacent
+DB-touching paths):
+
+1. Uploaded a front photo (manifest `description` = a full bag-text blob
+   naming a roaster, origin, weight, price, and rating) + a back photo (no
+   text) via the real `POST /api/photos/manifest` + `PUT
+   /api/photos/:sourceId/image` endpoints, each with genuinely distinct image
+   bytes (dedup-by-content-hash is real and unrelated existing behavior —
+   first attempt reused identical bytes for both and correctly 500'd on the
+   `idx_photos_content_sha256` unique constraint, which is `PUT`'s own
+   pre-existing dedup path, nothing to do with this row).
+2. `POST /api/coffees/extract {photoIds:[front,back]}` → `200`, both images
+   reached the mocked voters (confirmed via a system-prompt-keyed mock that
+   answers differently per agent), every field
+   (originCountry/roaster/weight/price/rating) came back with a sensible raw
+   `value`, `confidence`, `decision:'accepted'`, `candidates`, and `evidence`.
+3. `POST /api/coffees {photoIds:[front,back], fields:<echoed from step 2>}` →
+   `201`, `roaster` resolved to an existing seeded vocab row (id 13) and
+   correctly cascaded `roaster_country_id` (38) as a side effect — the exact
+   same `extractRoasterCountryOverride`/`roaster.country_id` derivation
+   `buildCoffeeColumnUpdates`'s `roaster_id` case already does for the batch
+   worker, confirming this new path shares it rather than reimplementing it.
+4. `GET /api/coffees/:id` showed every field applied correctly
+   (`priceEur`/`pricePer100gEur` FX-converted, `rawDescription` set to the
+   pasted text, `reviewState:'clean'`).
+5. Retried the identical `POST /api/coffees` call — `201` with the same
+   coffee id, confirming idempotency (no duplicate row, no error).
+6. `SELECT state FROM photos` — both front AND back rows `processed`,
+   confirming the multi-photo fix above actually took effect, not just
+   compiled.
+7. `field_resolutions` for the primary photo: every field `locked:true`,
+   `decided_by:'human'` — confirmed the monthly re-extraction can never
+   silently overwrite this coffee's confirmed values.
+8. Error paths: an unknown `photoId` → `404 photo_not_found` (both routes); a
+   manifested-but-not-yet-imaged photo → `422 photo_missing_image` (save) /
+   `422 no_images_uploaded` (extract); an unknown client field name → `400
+   unknown_field`.
+
+**Unblocked `#76`** (ios-shell) in the same push, with the live wire shape
+spelled out in `BACKLOG.md` so it doesn't have to guess. `#77` (ios-ux) stays
+`blocked` — its `needs` (76, 27) aren't both `done` yet.
+
+## Done
+
+- #75 Add Coffee wizard, backend half — `POST /api/coffees/extract` (light-ensemble draft) + `POST /api/coffees` (persist, locked/human-decided) — SHA `<pending push>`. Reuses #19/#21/#24 with no new migration. Live-verified against a real local Postgres 16 (see the session section above). Unblocks #76 → #77.
 
 ## 2026-08-23 UTC (session check): no ready row this cycle
 
