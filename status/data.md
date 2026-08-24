@@ -45,6 +45,37 @@ treat every "done, on `main`" note across all `status/*.md` files as "done, on
 
 _none_
 
+## 2026-08-24 UTC — session check: no ready row this cycle
+
+`origin/main` at `1bac829` (`git ls-remote` and local ref agree). Every
+`data`-lane row in `status/BACKLOG.md` is `done` (#12, #13, #14, #20, #25,
+#26, #29, #34, #38, #39, #48, #59) except **#65**, still `human` — resolved
+operationally per its own note but the row's status column is literally
+`human`, so it isn't a lane's to claim. The only `ready` row anywhere in the
+file is `#75` (backend); `#76`/`#77` are `blocked` on it and on each other,
+neither data-lane.
+
+Swept `git branch -r --list 'origin/claude/*'` (131 branches now, up from 64
+at the last sweep) for stranded data-owned work before concluding there was
+none to adopt. Spot-checked `git merge-base origin/main <branch>` on several
+of the branches with the most commits "ahead" of `origin/main` on data
+paths (`confident-cerf-9y3vqr`, `confident-cerf-j8in2k`,
+`peaceful-mccarthy-71uw7l`, `hopeful-johnson-3hio6h`,
+`peaceful-mccarthy-buk42g`) — every one returned **no merge base** (exit 1),
+meaning these branches share no history with `origin/main` at all (unrelated
+histories, from before some point `main`'s history moved past). A plain
+`git rev-list --count origin/main..branch` on unrelated histories just lists
+every commit in the branch, not real "ahead" work — so the earlier commit
+counts weren't a meaningful staleness signal by themselves; the merge-base
+check is the one that actually tells you whether there's anything
+adoptable, and here there isn't. Consistent with the 2026-08-09 sweep's
+finding for the same branch family (net-deletions/stale forks, nothing to
+adopt). Nothing merged, nothing adopted.
+
+Per the routine's own instruction ("if nothing qualifies, post a one-line
+status and stop — do not invent work"), stopping here. No `ops/**` /
+`005_vocab_seed.sql` / data-owned `src/lib/*` file touched.
+
 ## 2026-08-19 UTC — session check: no ready row this cycle
 
 `origin/main` at `bf77daf`, `git branch -r --list 'origin/claude/*'` shows only
