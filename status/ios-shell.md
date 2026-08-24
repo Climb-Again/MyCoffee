@@ -4,11 +4,27 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-24 UTC] **#76 — code complete, NOT yet integrated — branch
+  `claude/wizardly-thompson-e42ekb`.** This session's harness restricts its
+  pushes to that one branch (a fired-session constraint, not a lane choice —
+  see CLAUDE.md §12's "a CCR routine/fired session commits to its OWN
+  branch" gotcha), so per `status/README.md`'s "Integrate before you start"
+  fallback: the code is written and committed, but per that file's own
+  corollary — **"done" means on the shared branch** — `#76` stays `claimed`
+  in `status/BACKLOG.md`, not `done`, and `#77` stays `blocked`, until a
+  session that can push to `ios-staging` merges
+  `claude/wizardly-thompson-e42ekb` in. The branch is based on current
+  `origin/ios-staging` (merged in clean, no conflicts) plus this one commit —
+  a straight merge should apply with no further reconciliation needed.
+  Whoever integrates it: flip `#76`→`done` and `#77`→`ready` in the same push
+  that lands it on `ios-staging`, and move this claim down to `## Done` with
+  the landed SHA. Full technical writeup of what was built is the next `##
+  Done` entry below (written now so the detail isn't lost, even though the
+  row itself isn't `done` yet by this file's own rule).
 
 ## Done
 
-- [2026-08-24 UTC, later session] **#76 DONE — Add Coffee wizard, iOS shell
+- [2026-08-24 UTC, later session] **#76 built — Add Coffee wizard, iOS shell
   half.** Built against #75's live wire shape (`POST /api/photos/manifest`,
   `PUT /api/photos/:sourceId/image`, `POST /api/coffees/extract`,
   `POST /api/coffees`), all newly confirmed as `done` on `origin/main` this
@@ -56,8 +72,9 @@ _none_
     signature changed), so a red compile check here is more likely a typo
     than a design gap. Flag the compile lane to `API/APIClient.swift`,
     `Store/SyncEngine.swift`, and `Models/CoffeeDraft.swift` first if red.
-  - Flipped `#76` → `done` and `#77` (ios-ux, needs 76+27, both now done) →
-    `ready` in `status/BACKLOG.md`, same commit.
+  - `status/BACKLOG.md`'s `#76` row stays `claimed` (not `done`) and `#77`
+    stays `blocked` this session — see the `## Claimed` entry above for why
+    (branch not yet integrated onto `ios-staging`).
   - `.rotationEffect`/UI wiring, `PhotosPicker`, and the wizard's actual
     3-step screens are `#77`'s job (`Features/`/`DesignSystem/`) — not
     touched here.
