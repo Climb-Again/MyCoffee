@@ -50,7 +50,7 @@ const REASON_LABELS = {
 // `{start,end}` spans), some are whole-caption dumps from the rules voter.
 // Keep only short, single-line, human-pickable strings, de-duplicated and
 // order-preserving (the extractor/reconciler values lead), capped at six.
-function cleanCandidates(raw) {
+export function cleanCandidates(raw) {
   const seen = new Set();
   const out = [];
   for (const c of raw ?? []) {

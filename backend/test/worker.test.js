@@ -8,7 +8,16 @@
 // is fully unit-tested here without any DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeInputSha, isDueForExtraction, shouldUseImage, buildCoffeeColumnUpdates, buildSearchBlobs } from '../src/lib/worker.js';
+import {
+  computeInputSha,
+  isDueForExtraction,
+  shouldUseImage,
+  buildCoffeeColumnUpdates,
+  buildSearchBlobs,
+  lightVoters,
+  pickRawExtractedValue,
+  runLightExtraction,
+} from '../src/lib/worker.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
   const opts = {
@@ -361,4 +370,82 @@ test('buildSearchBlobs: a coffee with nothing resolved yet produces empty blobs,
   const { labelsBlob, proseBlob } = buildSearchBlobs({}, {});
   assert.equal(labelsBlob, '');
   assert.equal(proseBlob, '');
+});
+
+// ---- #75 (Add Coffee wizard) — the light-ensemble extraction path ----
+
+test('lightVoters: extract_b + reconciler only, no extract_a and no critic', async () => {
+  const voters = await lightVoters();
+  const agents = voters.map((v) => v.agent);
+  assert.ok(agents.includes('extract_b'));
+  assert.ok(agents.includes('reconciler'));
+  assert.ok(!agents.includes('extract_a'));
+  assert.ok(!agents.includes('critic'));
+});
+
+test('pickRawExtractedValue: prefers the reconciler\'s raw value over other voters\'', () => {
+  const candidatesByField = {
+    roaster_id: [
+      { agent: 'extract_b', value: 'Concept Coffee', confidence: 0.8 },
+      { agent: 'reconciler', value: 'Concept Coffee Roasters', confidence: 0.9 },
+    ],
+  };
+  assert.equal(pickRawExtractedValue('roaster_id', candidatesByField), 'Concept Coffee Roasters');
+});
+
+test('pickRawExtractedValue: falls back to the first candidate when no reconciler answered', () => {
+  const candidatesByField = { weight_g: [{ agent: 'rules', value: '250g', confidence: 1 }] };
+  assert.equal(pickRawExtractedValue('weight_g', candidatesByField), '250g');
+});
+
+test('pickRawExtractedValue: null for a field nothing proposed', () => {
+  assert.equal(pickRawExtractedValue('rating', {}), null);
+  assert.equal(pickRawExtractedValue('rating', { rating: [] }), null);
+});
+
+test('runLightExtraction: aggregates candidates across injected voters, adjudicates, and sums cost', async () => {
+  const fakeVoters = [
+    {
+      agent: 'extract_b',
+      run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.9 }, weight_g: { value: '250g', confidence: 0.9 } }, costUsd: 0.01 }),
+    },
+    {
+      agent: 'reconciler',
+      run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.95 } }, costUsd: 0.02 }),
+    },
+  ];
+
+  const { resolutions, candidatesByField, spentUsd } = await runLightExtraction({
+    rawText: 'Great coffee, 4.5/5, 250gr bag',
+    images: [],
+    vocabShortlist: [],
+    voters: fakeVoters,
+    vocab: {},
+  });
+
+  assert.equal(spentUsd, 0.03);
+  assert.equal(candidatesByField.rating.length, 2);
+  assert.equal(candidatesByField.weight_g.length, 1);
+  // Both voters agreed on rating -> accepted, single-voter weight_g -> accepted too.
+  assert.equal(resolutions.rating.decision, 'accepted');
+  assert.equal(resolutions.rating.value, 4.5);
+  assert.equal(resolutions.weight_g.value, 250);
+});
+
+test('runLightExtraction: a genuine cluster split still resolves (applied provisionally, decision "split")', async () => {
+  const fakeVoters = [
+    { agent: 'extract_b', run: async () => ({ fields: { rating: { value: '4', confidence: 0.9 } }, costUsd: 0 }) },
+    { agent: 'reconciler', run: async () => ({ fields: { rating: { value: '5', confidence: 0.9 } }, costUsd: 0 }) },
+  ];
+
+  const { resolutions } = await runLightExtraction({
+    rawText: '',
+    images: [],
+    vocabShortlist: [],
+    voters: fakeVoters,
+    vocab: {},
+  });
+
+  assert.equal(resolutions.rating.decision, 'split');
+  assert.ok(resolutions.rating.value === 4 || resolutions.rating.value === 5);
 });
