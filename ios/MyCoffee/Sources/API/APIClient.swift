@@ -241,6 +241,92 @@ struct APIClient: Sendable {
             throw APIError.decoding(error)
         }
     }
+
+    // POST /api/photos/manifest — registers one or more photos for the Add
+    // Coffee wizard (PLAN.md §6.8, #75/#76) ahead of uploading their bytes.
+    // `description` is only ever set on the primary/front photo's entry: it
+    // carries the wizard's pasted whole-bag text, since #75 has no separate
+    // text parameter anywhere in its wire contract.
+    func uploadPhotoManifest(entries: [PhotoManifestEntry]) async throws -> [PhotoManifestResultDTO] {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "entries": entries.map { entry -> [String: Any] in
+                var dict: [String: Any] = [
+                    "sourceId": entry.sourceId,
+                    "contentSha256": entry.contentSha256,
+                    "capturedAt": ISO8601DateFormatter.coffeeAPI.string(from: entry.capturedAt),
+                ]
+                if let description = entry.description { dict["description"] = description }
+                return dict
+            },
+        ])
+        let req = try makeRequest(path: "/api/photos/manifest", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(PhotoManifestResponseDTO.self, from: data).results
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // PUT /api/photos/:sourceId/image — uploads one photo's raw JPEG bytes,
+    // content-addressed by its own sha256 (must match the manifest entry's
+    // `contentSha256` for that `sourceId`). Binary body, so this bypasses
+    // `makeRequest`'s JSON `Content-Type`.
+    @discardableResult
+    func uploadPhotoImage(sourceId: String, sha256: String, jpegData: Data) async throws -> Bool {
+        var components = URLComponents(string: baseURL + "/api/photos/\(sourceId)/image")
+        components?.queryItems = [URLQueryItem(name: "sha256", value: sha256)]
+        guard let url = components?.url else { throw APIError.badURL }
+        var req = URLRequest(url: url, timeoutInterval: 60)
+        req.httpMethod = "PUT"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        req.httpBody = jpegData
+        _ = try await send(req)
+        return true
+    }
+
+    // POST /api/coffees/extract — the wizard's light extraction ensemble over
+    // already-uploaded photos (PLAN.md §6.8, #75/#76); `photoIds[0]` is the
+    // primary/front photo whose manifest `description` carried the pasted
+    // full text.
+    func extractDraft(photoIds: [String]) async throws -> ExtractedDraftDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["photoIds": photoIds])
+        let req = try makeRequest(path: "/api/coffees/extract", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(ExtractedDraftDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/coffees — persists the wizard's confirmed fields as a
+    // brand-new coffee (#75/#76); every field lands `locked=true`/
+    // `decided_by='human'` server-side so the monthly re-extraction backfill
+    // never overwrites it. `fields` reuses the same `{field, value}` shape
+    // `editCoffeeFields` already sends.
+    func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> CreateCoffeeResponseDTO {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "photoIds": photoIds,
+            "fields": fields.map { ["field": $0.field, "value": $0.value] },
+        ])
+        let req = try makeRequest(path: "/api/coffees", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(CreateCoffeeResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+}
+
+/// One request entry for `uploadPhotoManifest` (PLAN.md §6.8, #75/#76).
+struct PhotoManifestEntry: Sendable {
+    let sourceId: String
+    let contentSha256: String
+    let capturedAt: Date
+    let description: String?
 }
 
 struct StatusResponse: Codable {
