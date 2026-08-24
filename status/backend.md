@@ -154,7 +154,7 @@ spelled out in `BACKLOG.md` so it doesn't have to guess. `#77` (ios-ux) stays
 
 ## Done
 
-- #75 Add Coffee wizard, backend half — `POST /api/coffees/extract` (light-ensemble draft) + `POST /api/coffees` (persist, locked/human-decided) — SHA `<pending push>`. Reuses #19/#21/#24 with no new migration. Live-verified against a real local Postgres 16 (see the session section above). Unblocks #76 → #77.
+- #75 Add Coffee wizard, backend half — `POST /api/coffees/extract` (light-ensemble draft) + `POST /api/coffees` (persist, locked/human-decided) — SHA `0d4693b`. Reuses #19/#21/#24 with no new migration. Live-verified against a real local Postgres 16 (see the session section above). Unblocks #76 → #77.
 
 ## 2026-08-23 UTC (session check): no ready row this cycle
 
