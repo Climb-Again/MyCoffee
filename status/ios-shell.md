@@ -8,6 +8,60 @@ _none_
 
 ## Done
 
+- [2026-08-24 UTC, later session] **#76 DONE — Add Coffee wizard, iOS shell
+  half.** Built against #75's live wire shape (`POST /api/photos/manifest`,
+  `PUT /api/photos/:sourceId/image`, `POST /api/coffees/extract`,
+  `POST /api/coffees`), all newly confirmed as `done` on `origin/main` this
+  session (merged `origin/ios-staging`'s #74/#71-era work in first, clean, no
+  conflicts).
+  - `API/Wire/CoffeeDraftWire.swift` — decode targets for all three endpoints:
+    `PhotoManifestResponseDTO`/`PhotoManifestResultDTO`,
+    `ExtractedDraftDTO`/`ExtractedDraftFieldDTO`/`ExtractedDraftCandidateDTO`,
+    `CreateCoffeeResponseDTO`/`CreateCoffeeFieldResultDTO`.
+  - `Models/CoffeeDraft.swift` — the domain shape #77's confirm screen reads:
+    `ExtractedDraft`/`DraftField`/`DraftCandidate`, keyed by the same
+    client field name (`roaster`, `originCountry`, …) `editField`/`editFields`
+    already send, so a confirmed field maps straight onto a `CoffeeFieldEdit`
+    with no second shape to invent.
+  - `Utilities/ImageHashing.swift` — `Data.sha256Hex` via `CryptoKit` (a system
+    framework, not an SPM dependency) for the manifest's `contentSha256` and
+    the image PUT's `?sha256=` query param.
+  - `API/APIClient.swift` — `uploadPhotoManifest`, `uploadPhotoImage` (binary
+    PUT, bypasses `makeRequest`'s JSON `Content-Type`), `extractDraft`,
+    `createCoffee` (reuses the existing `CoffeeFieldEdit` shape #41 already
+    added for `editCoffeeFields`).
+  - `Store/{CoffeeRepository,RemoteCoffeeRepository,SampleCoffeeRepository,
+    SyncEngine,CoffeeStore}.swift` — `uploadPhotos`/`extractDraft`/
+    `createCoffee` added to the `CoffeeRepository` protocol (per this row's
+    own framing) and wired through `SyncEngine` (`uploadPhotos` registers all
+    photos in one manifest call — the primary/front photo's entry carries the
+    wizard's pasted full text as its `description`, since #75 has no separate
+    text parameter — then PUTs each one's bytes in order; `createCoffee`
+    posts then re-fetches full detail via the existing `loadDetail`, the same
+    "server round-trip wins" shape `editField` uses). `SampleCoffeeRepository`
+    throws `notConfigured` for all three (same reasoning as `editField`: no
+    live extraction ensemble to fake in previews). `CoffeeStore` exposes
+    `uploadWizardPhotos`/`extractWizardDraft`/`createWizardCoffee` — the
+    latter two throw directly (not `editField`'s catch-and-publish-`Bool`
+    pattern) since the wizard's own multi-step flow (#77) needs to know
+    exactly which step failed and why.
+  - **Trap avoided**: `CoffeeIndex.replacingCoffee` is update-only (no-ops on
+    an id not already present), so `createWizardCoffee` can't rely on it alone
+    for a *brand-new* coffee — mirrored `editField`'s exact sequence instead
+    (`await refresh()` first, so the new coffee's own compact row lands via
+    the delta sync, THEN `replacingCoffee` to layer the fuller detailed
+    version on top).
+  - Not locally compiled (no Xcode in this sandbox) — new files only add
+    types/methods, and every edited file's diff is additive (no existing
+    signature changed), so a red compile check here is more likely a typo
+    than a design gap. Flag the compile lane to `API/APIClient.swift`,
+    `Store/SyncEngine.swift`, and `Models/CoffeeDraft.swift` first if red.
+  - Flipped `#76` → `done` and `#77` (ios-ux, needs 76+27, both now done) →
+    `ready` in `status/BACKLOG.md`, same commit.
+  - `.rotationEffect`/UI wiring, `PhotosPicker`, and the wizard's actual
+    3-step screens are `#77`'s job (`Features/`/`DesignSystem/`) — not
+    touched here.
+
 - [2026-08-24 UTC] Session check — no ready `ios-shell` row. `#76` (this
   lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
   wizard — backend half"), which is still `ready`-not-`done`: confirmed fresh

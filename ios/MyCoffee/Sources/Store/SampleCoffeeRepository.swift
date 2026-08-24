@@ -53,4 +53,18 @@ actor SampleCoffeeRepository: CoffeeRepository {
     func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async throws -> Coffee {
         throw APIClient.APIError.notConfigured
     }
+
+    // No live backend to run the extraction ensemble against in previews —
+    // same reasoning as `editField`/`editFields` above.
+    func uploadPhotos(_ images: [Data], fullText: String) async throws -> [String] {
+        throw APIClient.APIError.notConfigured
+    }
+
+    func extractDraft(photoIds: [String]) async throws -> ExtractedDraft {
+        throw APIClient.APIError.notConfigured
+    }
+
+    func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee {
+        throw APIClient.APIError.notConfigured
+    }
 }
