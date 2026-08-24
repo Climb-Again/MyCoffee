@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-08-24 06:23 UTC] #75 Add Coffee wizard — backend half — branch `main`
 
 ## 2026-08-23 UTC (session check): no ready row this cycle
 
