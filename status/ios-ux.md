@@ -58,8 +58,9 @@ _none_
     XcodeGen config wasn't inspected to confirm).
   - `ios/MyCoffee/Sources/{Features/AddCoffee/AddCoffeeWizardView,
     Features/Root/RootTabView,DesignSystem/Symbols}.swift`
-  - Commit: `1e733b8` (the `#76` integration merge) + one follow-up commit on
-    `ios-staging` for `#77` (see `git log`)
+  - Commit: `74cc73f`/`7c79946` (`#76`, replayed in directly by the final
+    `git pull --rebase` rather than staying a separate merge commit) +
+    `1c2b8a7` (`#77`, this session's own commit) on `ios-staging`
 
 - [2026-08-24 UTC] No-op session. Merged `origin/main` (`50b7d46`) into
   `ios-staging` cleanly — brings in `#75` (backend, Add Coffee wizard backend
