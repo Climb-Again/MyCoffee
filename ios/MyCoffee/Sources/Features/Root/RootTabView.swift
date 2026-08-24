@@ -13,9 +13,14 @@ import SwiftUI
 /// original `.tabItem` form kept as the iOS 17 fallback; `CoffeesListView`'s
 /// own `.searchable` call is untouched either way (PLAN.md §13/#58 — "keep
 /// the same binding + prompt, placement only").
+///
+/// **#77**: the Add Coffee wizard is reached from a floating "+" overlaid
+/// above the tab bar, not a fourth `Tab`/`.tabItem` — the "three tabs"
+/// decision stays exactly three regardless of `#available` branch.
 struct RootTabView: View {
     @StateObject private var store = CoffeeStore()
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
+    @State private var showAddCoffeeWizard = false
 
     var body: some View {
         Group {
@@ -49,6 +54,11 @@ struct RootTabView: View {
                 }
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            addCoffeeButton
+                .padding(.trailing, 20)
+                .padding(.bottom, 76)
+        }
         .environmentObject(store)
         .task {
             if store.index.coffees.isEmpty {
@@ -61,5 +71,23 @@ struct RootTabView: View {
         .task {
             await reviewCache.ensureLoaded()
         }
+        .sheet(isPresented: $showAddCoffeeWizard) {
+            AddCoffeeWizardView()
+                .environmentObject(store)
+        }
+    }
+
+    private var addCoffeeButton: some View {
+        Button {
+            showAddCoffeeWizard = true
+        } label: {
+            Image(systemName: Symbols.wizardAdd)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.accentColor, in: Circle())
+                .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
+        }
+        .accessibilityLabel("Add coffee")
     }
 }

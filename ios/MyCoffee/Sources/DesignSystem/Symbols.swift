@@ -69,4 +69,8 @@ enum Symbols {
     static let whatsNew = "sparkles"
     static let whatsNewEmpty = "tray"
     static let whatsNewUnavailable = "wifi.exclamationmark"
+
+    // Add Coffee wizard (#77)
+    static let wizardAdd = "plus"
+    static let wizardPhotos = "photo.on.rectangle.angled"
 }

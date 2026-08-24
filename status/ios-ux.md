@@ -8,6 +8,59 @@ _none_
 
 ## Session notes
 
+- [2026-08-24 UTC] Integrated stranded `#76` + built `#77` (Add Coffee wizard
+  UI) — branch `ios-staging`.
+  - **Before claiming**: merged `origin/main` into `ios-staging` (clean — #75,
+    backend's Add Coffee wizard half, had just landed). Rescanned
+    `status/BACKLOG.md`: `#77` (this lane) was `blocked` on `#76`
+    (ios-shell), which was itself `ready`, not `done` — so nothing qualified
+    yet under the normal pick-a-`ready`-row rule. Per the "integrate before
+    you start" protocol, swept `git branch -r --list 'origin/claude/*'`
+    (133 branches — the usual large stranded-branch backlog every session in
+    this file has documented) and, instead of another size-based spot-check,
+    grepped all of them for the wizard's own symbols
+    (`extractDraft|createCoffee|AddCoffeeWizard|ExtractedDraft|uploadPhotos`)
+    across `ios/MyCoffee/Sources`. One real hit:
+    `claude/wizardly-thompson-e42ekb`, touching exactly the ios-shell-owned
+    paths (`API/`, `Models/`, `Store/`, `Utilities/`) `#76` needed. Its own
+    two commits ("iOS shell: Add Coffee wizard — repository surface (#76)",
+    "iOS shell: correct #76 status — code complete, not yet integrated")
+    plus `status/ios-shell.md`'s `## Claimed` entry (read from that branch)
+    confirmed it: the ios-shell session that built it could only push to its
+    own fired-session branch, so it explicitly asked "whoever integrates it"
+    to merge it into `ios-staging` and flip `#76`→`done`/`#77`→`ready` in the
+    same push. The branch was based on current `ios-staging` (merge-base =
+    its own tip), a pure 333-insertion/0-deletion addition — merged with no
+    conflicts.
+  - Flipped `#76`→`done` (recording the integration + landing merge commit)
+    and `#77`→`done` in `status/BACKLOG.md` in the same session that built
+    `#77` against the now-integrated surface — did **not** touch
+    `status/ios-shell.md` (never edit another lane's file), even though its
+    own note asked the integrator to move its claim to `## Done` there; that
+    edit is left for the ios-shell lane itself.
+  - **`#77` (Add Coffee wizard UI)**: new `Features/AddCoffee/
+    AddCoffeeWizardView.swift` — see the full write-up in `status/
+    BACKLOG.md`'s `#77` row rather than duplicating it here. Short version:
+    3-step sheet (photos → paste text → confirm), a new `DraftFieldRow`
+    reusing `ReviewField`'s label/symbol table and the review queue's
+    chip-then-edit visual language (not the literal private `ReviewChip`
+    type — `DraftField` has no task id or accept/dismiss actions to hang it
+    off), one "Save coffee" button calling `#76`'s
+    `CoffeeStore.createWizardCoffee`. Entry point is a floating "+" overlaid
+    on `RootTabView`, not a fourth tab — keeps the "three tabs" decision
+    intact. Two new `Symbols` entries (`wizardAdd`, `wizardPhotos`).
+  - Not locally compiled (no Xcode here). Two real unknowns flagged for the
+    compile lane: whether `PhotosPicker`/`PhotosPickerItem.loadTransferable`
+    (iOS16+ API, first use in this codebase) compiles clean against this
+    project's actual SDK/target, and whether `PhotosUI` needs an explicit
+    framework entry in `project.yml` (shell-owned, not touched here — most
+    Swift-overlay system frameworks auto-link on `import`, but this project's
+    XcodeGen config wasn't inspected to confirm).
+  - `ios/MyCoffee/Sources/{Features/AddCoffee/AddCoffeeWizardView,
+    Features/Root/RootTabView,DesignSystem/Symbols}.swift`
+  - Commit: `1e733b8` (the `#76` integration merge) + one follow-up commit on
+    `ios-staging` for `#77` (see `git log`)
+
 - [2026-08-24 UTC] No-op session. Merged `origin/main` (`50b7d46`) into
   `ios-staging` cleanly — brings in `#75` (backend, Add Coffee wizard backend
   half), which is now `done`. That unblocked `#76` (ios-shell) to `ready`, but
