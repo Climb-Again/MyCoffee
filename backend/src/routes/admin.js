@@ -22,6 +22,9 @@
 //   POST /api/admin/backfill-ocr-text     targeted re-OCR (#67) -- appends
 //                                    the "OCR text" block to image-only
 //                                    coffees OCR'd before that feature landed
+//                                    (includeCaptioned:true covers all, #79/#80)
+//   POST /api/admin/backfill-flavor-notes extracts flavor_notes from each
+//                                    coffee's assembled text (#79/#80)
 //
 // All ingest-token-gated: these are write/spend-triggering operations, same
 // tier as every other mutation in the API.
@@ -31,7 +34,7 @@ import path from 'node:path';
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText } from '../lib/worker.js';
+import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText, backfillFlavorNotes } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 import { EXTRACT_RESPONSE_SCHEMA } from '../lib/agents.js';
@@ -181,7 +184,22 @@ export default async function adminRoutes(app) {
   app.post('/api/admin/backfill-ocr-text', { preHandler: requireIngestToken }, async (req) => {
     const limit = req.body?.limit != null ? Math.max(1, Math.min(1000, Number(req.body.limit))) : 200;
     const spendCapUsd = req.body?.spendCapUsd != null ? Number(req.body.spendCapUsd) : null;
-    return backfillOcrText({ limit, spendCapUsd });
+    // `includeCaptioned: true` OCRs captioned coffees too, not just image-only
+    // ones (Radu 2026-08-25, "append OCR text to all coffees").
+    const includeCaptioned = req.body?.includeCaptioned === true;
+    return backfillOcrText({ limit, spendCapUsd, includeCaptioned });
+  });
+
+  // #79/#80: extract flavour notes for coffees that predate the feature. Reads
+  // each coffee's assembled text (caption + any appended "OCR text" block) —
+  // no image, no voters — one focused call each. Bounded by limit/spendCapUsd
+  // for the free-tier quota; `force: true` re-scans rows that already have a
+  // value (use sparingly — it can overwrite a prior extraction/edit).
+  app.post('/api/admin/backfill-flavor-notes', { preHandler: requireIngestToken }, async (req) => {
+    const limit = req.body?.limit != null ? Math.max(1, Math.min(1000, Number(req.body.limit))) : 200;
+    const spendCapUsd = req.body?.spendCapUsd != null ? Number(req.body.spendCapUsd) : null;
+    const force = req.body?.force === true;
+    return backfillFlavorNotes({ limit, spendCapUsd, force });
   });
 
   // Re-derives `display`/`thumb` (never `ocr` -- it's the source, and it's

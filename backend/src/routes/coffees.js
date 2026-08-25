@@ -222,6 +222,10 @@ export default async function coffeesRoutes(app) {
       descFarmLot: row.desc_farm_lot,
       descBrewGuide: row.desc_brew_guide,
       descRoasterCopy: row.desc_roaster_copy,
+      // #79: flavour notes are a coffee-page (detail) field, deliberately kept
+      // out of the compact snapshot row to spare per-row snapshot budget. '' or
+      // null both mean "none" — the client shows the section only when non-empty.
+      flavorNotes: row.flavor_notes,
       rawTitle: row.raw_title,
       rawCaption: row.raw_caption,
       rawDescription: row.raw_description,

@@ -21,8 +21,18 @@ test('EDIT_FIELD_TO_CLIENT adds the edit-only fields the review feed deliberatel
   assert.equal(FIELD_TO_CLIENT.rating, undefined);
 });
 
+// A bare free-text edit field (its stored value IS the string) must NOT be in
+// STRUCTURED_FIELDS — resolveField writes it verbatim, skipping canonicalize.
+// Structured-shaped fields (ids, {min,max}, {amount,currency}, …) MUST be, or a
+// raw string would be written into a column expecting a shape and corrupt it.
+const FREE_TEXT_EDIT_FIELDS = new Set(['flavor_notes']);
+
 test('every EDIT_FIELD_TO_CLIENT key that denormalizes to a structured shape is in STRUCTURED_FIELDS', () => {
   for (const dbField of Object.keys(EDIT_FIELD_TO_CLIENT)) {
+    if (FREE_TEXT_EDIT_FIELDS.has(dbField)) {
+      assert.ok(!STRUCTURED_FIELDS.has(dbField), `${dbField} is free text and must not be structured`);
+      continue;
+    }
     assert.ok(STRUCTURED_FIELDS.has(dbField), `${dbField} should be structured`);
   }
 });

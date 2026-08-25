@@ -14,6 +14,7 @@ import {
   buildReconcilerPrompt,
   parseExtractResponse,
   parseCriticResponse,
+  parseFlavorNotesResponse,
   estimateCostUsd,
 } from '../src/lib/agents.js';
 
@@ -64,6 +65,20 @@ test('buildReconcilerPrompt includes every voter candidate with its confidence',
   });
   assert.ok(prompt.includes('extract_a="4.5" (conf 0.9)'));
   assert.ok(prompt.includes('rules="4.5" (conf 1)'));
+});
+
+test('parseFlavorNotesResponse extracts + trims the notes string (#79)', () => {
+  assert.equal(
+    parseFlavorNotesResponse(JSON.stringify({ notes: '  dark chocolate, cherry, dried plum ' })),
+    'dark chocolate, cherry, dried plum',
+  );
+});
+
+test('parseFlavorNotesResponse returns "" for absent/empty notes and on bad JSON (#79)', () => {
+  assert.equal(parseFlavorNotesResponse(JSON.stringify({ notes: '' })), '');
+  assert.equal(parseFlavorNotesResponse(JSON.stringify({})), '');
+  assert.equal(parseFlavorNotesResponse('not json'), '');
+  assert.equal(parseFlavorNotesResponse(JSON.stringify({ notes: 42 })), '');
 });
 
 test('parseExtractResponse maps camelCase wire keys to adjudicate.js snake_case fields', () => {
