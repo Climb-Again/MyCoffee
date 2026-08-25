@@ -8,6 +8,27 @@ _none_
 
 ## Session notes
 
+- [2026-08-25 UTC] **#83 DONE** — Coffees/Coffee-page/Insights redesign (2a),
+  design-tokens foundation. Added `ios/MyCoffee/Sources/DesignSystem/Theme.swift`:
+  `Theme.Colors` (the full handoff hex table — accent/accent600/accent100/
+  accent200/accent700/accent800/neutral100/neutral300/neutral700/neutral900/
+  text/surface), `Theme.Radius` (photo 10, pill 999, card 20), `Theme.Shadow`
+  (`sm`/`md`, both `neutral900`-tinted per the handoff's `rgba(45,43,43,…)`
+  spec, plus a `themeShadow(_:)` view modifier), `Theme.Weight` (regular/
+  semibold/heavy — CSS 400/600/800 mapped onto SwiftUI's matching `Font.Weight`
+  raw values). Flipped `Resources/Assets.xcassets/AccentColor.colorset` from
+  brown `#a5824c` to `#0078ff` (srgb 0.000/0.471/1.000 — `0x78/255 = 0.4706`
+  rounds to `0.471`). Deliberately touched nothing else — this row is pure
+  foundation for #84–#89, and every downstream row references `Theme.*` rather
+  than re-deriving hex values, so there's no shared-file race between them.
+  Not locally compiled (no Xcode in this sandbox); the hex→sRGB arithmetic was
+  hand-checked instead. Flipped #83 `ready`→`done` in `status/BACKLOG.md`, and
+  #86/#87 `blocked`→`ready` (both only needed #83; #85/#88/#89 stay `blocked`
+  on #84/#81, which are ios-shell's rows, still `ready` not `done`). Merged
+  `origin/main` into `ios-staging` first (clean, one BACKLOG.md line + the
+  #81 flavour-notes migration/backend work, no conflicts). Pushing to
+  `ios-staging` only, per the lane rule.
+
 - [2026-08-25 UTC] No-op session. `status/BACKLOG.md`: swept the entire table —
   every row is `done`, `human` (#65), or `dropped` (#30). `#75`/`#76`/`#77` (Add
   Coffee wizard, backend/ios-shell/ios-ux) are all `done` and confirmed live in
