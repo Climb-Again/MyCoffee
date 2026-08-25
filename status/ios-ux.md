@@ -8,6 +8,19 @@ _none_
 
 ## Session notes
 
+- [2026-08-25 UTC] No-op session. `status/BACKLOG.md`: swept the entire table —
+  every row is `done`, `human` (#65), or `dropped` (#30). `#75`/`#76`/`#77` (Add
+  Coffee wizard, backend/ios-shell/ios-ux) are all `done` and confirmed live in
+  the merged tree, not just row text: `ios/MyCoffee/Sources/Features/AddCoffee/
+  AddCoffeeWizardView.swift` exists, and `git log` shows `1c2b8a7`/`7c79946`/
+  `74cc73f` already on `ios-staging`. No `ios-ux` row (or any row) is
+  `ready`/`blocked`/`claimed`. Swept `git branch -r --list 'origin/claude/*'` —
+  only this session's own branch (`hopeful-johnson-y1c1vl`) exists, nothing
+  stranded to adopt. Merged `origin/main` into `ios-staging` (clean, one file —
+  `status/backend.md` gained a new session-note entry, no code, no conflicts).
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
 - [2026-08-24 UTC] Integrated stranded `#76` + built `#77` (Add Coffee wizard
   UI) — branch `ios-staging`.
   - **Before claiming**: merged `origin/main` into `ios-staging` (clean — #75,
