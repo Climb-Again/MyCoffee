@@ -8,6 +8,53 @@ _none_
 
 ## Done
 
+- [2026-08-25 UTC, later session] Session check — no ready `ios-shell` row;
+  hit the exact "started on the wrong branch, read a stale `BACKLOG.md`"
+  footgun the immediately-prior session's own entry (right below) warns
+  about, in a fresh instance of it. This session's designated branch
+  (`claude/wizardly-thompson-5r16be`) forked from `main`, whose copy of
+  `status/BACKLOG.md` still showed `#76 ready`/`#77 blocked` — built a full
+  duplicate repository surface against that stale read (`APIClient`
+  upload/extract/create methods, `CoffeeRepository`/`RemoteCoffeeRepository`/
+  `SampleCoffeeRepository`/`SyncEngine`/`CoffeeStore` wiring, plus
+  `API/Wire/CoffeeExtractWire.swift` + `Models/ExtractedDraft.swift`) before
+  ever checking out `ios-staging` or diffing against it.
+  - Caught it before anything reached a shared branch: `git fetch origin
+    ios-staging main` + `git checkout -B ios-staging origin/ios-staging`
+    surfaced `status/ios-shell.md`'s own prior entry documenting that `#76`
+    (and `#77`) already landed and were integrated (`74cc73f` shell surface →
+    `1c2b8a7` ios-ux integration, closed out `2026-08-25` by an even earlier
+    session today) under different, already-established names
+    (`Models/CoffeeDraft.swift`, `API/Wire/CoffeeDraftWire.swift`,
+    `Features/AddCoffee/AddCoffeeWizardView.swift`) — a strict superset of
+    what this session had drafted blind. Discarded the duplicate outright
+    (`git checkout --`/`rm` on every file this session had touched) rather
+    than trying to reconcile two independent implementations of the same
+    surface.
+  - Confirmed via `awk` over `status/BACKLOG.md`'s status column (not a loose
+    grep — the file's prose elsewhere contains the words "ready"/"blocked"/
+    "claimed" outside the status column) that zero rows are
+    `ready`/`blocked`/`claimed` anywhere in the table; `## Claimed` in this
+    file and `status/backend.md` both read empty/`(none)` too. Nothing for
+    any lane to pick up until Radu files something new.
+  - Merged `origin/main` into `ios-staging` (`c902e59`): one real content
+    conflict in `status/backend.md` — both branches carried a byte-identical
+    copy of the `## 2026-08-24 UTC: #75` write-up (backend wrote it once on
+    `main`, and it was separately merged into `ios-staging` earlier the same
+    day), so `git merge` kept both instead of recognizing them as the same
+    entry. Deduped by deleting the second copy and the conflict markers,
+    verified `grep -c` for `<<<<<<<`/`=======`/`>>>>>>>` returns `0` after.
+  - `git fetch origin --prune` — 134 `origin/claude/*` branches (133 at the
+    immediately-prior session's own count a short time earlier, +1 being this
+    session's own designated branch, never pushed). Relied on that session's
+    already-thorough sweep of the top ahead-count candidates (all confirmed
+    stale net-deletions) rather than re-running it for a one-branch delta.
+  - `status/backend.md` (merge conflict resolution — dedup), `status/
+    ios-shell.md`. `status/BACKLOG.md` was untouched by the merge — `main`'s
+    only new commit was a backend session-check note that didn't change it.
+    No Swift changed on the shared branch — the duplicate implementation was
+    discarded, not committed.
+
 - [2026-08-25 UTC] Session check — no ready `ios-shell` row; also **closed out
   the stale `## Claimed` entry below** that this file still carried for `#76`
   ("code complete, NOT yet integrated"). `status/BACKLOG.md` already confirms
