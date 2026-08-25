@@ -41,6 +41,10 @@ export const EDIT_FIELD_TO_CLIENT = {
   roaster_country_id: 'roasterCountry',
   rating: 'rating',
   roasted_on: 'roastedOn',
+  // #79: flavour notes are auto-extracted into the column, but a human can
+  // correct them via the generic edit sheet (#42). A bare free-text string —
+  // deliberately NOT in STRUCTURED_FIELDS — so resolveField writes it verbatim.
+  flavor_notes: 'flavorNotes',
 };
 
 // Fields whose stored value is a structured/id shape, not a bare string: a

@@ -1,0 +1,13 @@
+-- 026_add_flavor_notes.sql — a coffee's flavour / tasting notes (#79/#80,
+-- Radu 2026-08-25). A short comma-separated descriptor list (e.g.
+-- "dark chocolate, cherry, dried plum" / "ciocolată neagră, vișine, prune
+-- uscate"), shown as its own section on the coffee page, distinct from the
+-- desc_* prose blobs and from the process.
+--
+-- Populated NOT by the voter ensemble but by a focused text-only extraction
+-- (worker.js extractFlavorNotesForCoffee) over the coffee's assembled text
+-- (raw_title + raw_caption + raw_description, the last already carrying any
+-- appended "OCR text" block) — a post-step like the OCR append, so it never
+-- touches field_candidates/field_resolutions. NULL = not yet scanned; ''
+-- (empty) = scanned, none stated; non-empty = the notes.
+ALTER TABLE coffees ADD COLUMN IF NOT EXISTS flavor_notes TEXT;

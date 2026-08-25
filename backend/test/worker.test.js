@@ -92,6 +92,24 @@ test('buildCoffeeColumnUpdates: a bare-scalar field decided "absent" explicitly 
   assert.deepEqual(values, [null]);
 });
 
+test('buildCoffeeColumnUpdates: flavor_notes writes the bare string to the column (#79 edit path)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { flavor_notes: { decision: 'accepted', value: 'dark chocolate, cherry, dried plum' } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['flavor_notes = $1']);
+  assert.deepEqual(values, ['dark chocolate, cherry, dried plum']);
+});
+
+test('buildCoffeeColumnUpdates: flavor_notes decided "absent" retracts the column (#79)', () => {
+  const { sets, values } = buildCoffeeColumnUpdates(
+    { flavor_notes: { decision: 'absent', value: null } },
+    vocabCtx,
+  );
+  assert.deepEqual(sets, ['flavor_notes = $1']);
+  assert.deepEqual(values, [null]);
+});
+
 test('buildCoffeeColumnUpdates: altitude decided "absent" retracts both min and max (#49)', () => {
   const { sets, values } = buildCoffeeColumnUpdates(
     { altitude: { decision: 'absent', value: null } },

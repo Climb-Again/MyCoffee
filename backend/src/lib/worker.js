@@ -35,7 +35,7 @@ import {
   computeIsBlend,
 } from './vocab.js';
 import { toEur } from './fx.js';
-import { runExtractA, runExtractB, runCritic, runReconciler, runOcrTranscribe, loadRulesVoter, PROMPT_VERSION } from './agents.js';
+import { runExtractA, runExtractB, runCritic, runReconciler, runOcrTranscribe, runFlavorNotes, loadRulesVoter, PROMPT_VERSION } from './agents.js';
 
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
@@ -192,6 +192,14 @@ export function buildCoffeeColumnUpdates(resolutions, ctx = {}) {
       case 'desc_brew_guide':
       case 'desc_roaster_copy':
         set(field, value ?? null);
+        break;
+      // #79: flavour notes are normally written directly to the column by the
+      // focused `extractFlavorNotesForCoffee` post-step (below), NOT adjudicated
+      // — but the generic edit endpoint (#40) routes a human edit through
+      // resolveField/applyResolutionsToCoffee, so map the column here too. It's
+      // a bare string (not in STRUCTURED_FIELDS), so `value` is the text as-is.
+      case 'flavor_notes':
+        set('flavor_notes', value ?? null);
         break;
       default:
         break;
@@ -763,6 +771,19 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
     }
   }
 
+  // #79/#80: pull the flavour notes from the coffee's assembled text (caption +
+  // the OCR block just appended). Runs AFTER the OCR append so bag-printed notes
+  // are in the text. Text-only, post-adjudication, best-effort — a failure here
+  // must not fail the photo; a later `backfillFlavorNotes` retries it.
+  if (result?.coffeeId) {
+    try {
+      const fn = await extractFlavorNotesForCoffee(result.coffeeId);
+      spentUsd += Number(fn.spentUsd ?? 0);
+    } catch {
+      // leave flavor_notes NULL; the backfill retries
+    }
+  }
+
   await query(
     `UPDATE photos SET state = 'processed', extraction_failures = 0, extraction_leased_until = NULL, extraction_leased_by = NULL, updated_at = now() WHERE id = $1`,
     [photo.id],
@@ -800,14 +821,20 @@ async function appendOcrTextToCoffee(coffeeId, ocrText) {
 // against the flash-lite daily quota (per the row's own note) -- each run's
 // SELECT naturally excludes whatever a prior run already appended, so a
 // partial run never re-does work.
-export async function backfillOcrText({ limit = 200, spendCapUsd = null } = {}) {
+export async function backfillOcrText({ limit = 200, spendCapUsd = null, includeCaptioned = false } = {}) {
+  // By default only image-only coffees (raw_caption IS NULL) get OCR — for them
+  // the transcription is their ONLY readable text. `includeCaptioned: true`
+  // (Radu 2026-08-25, "append OCR text to all coffees") lifts that so captioned
+  // coffees are OCR'd too: a bag often prints flavour notes the Instagram
+  // caption omits, and #80's flavour-note extraction reads the appended block.
+  // The `NOT LIKE '%OCR text%'` guard still makes a re-run idempotent either way.
   const { rows } = await query(
     `SELECT c.id AS coffee_id, p.id AS photo_id
      FROM coffees c
      JOIN photos p ON p.id = c.photo_id
      JOIN assets a ON a.photo_id = p.id AND a.variant = 'ocr'
      WHERE c.deleted_at IS NULL
-       AND c.raw_caption IS NULL
+       ${includeCaptioned ? '' : 'AND c.raw_caption IS NULL'}
        AND p.state = 'processed'
        AND (c.raw_description IS NULL OR c.raw_description NOT LIKE '%' || $1 || '%')
      ORDER BY c.id
@@ -839,6 +866,78 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null } = {}) 
   }
 
   return { scanned: rows.length, updated, spentUsd, errors };
+}
+
+// #79/#80: extract one coffee's flavour notes from its assembled text
+// (raw_title + raw_caption + raw_description — the last already carrying any
+// appended "OCR text" block) via a single focused `runFlavorNotes` call. NOT an
+// adjudicated field: it writes the `flavor_notes` column directly, so it never
+// touches field_candidates/field_resolutions. Writes only when `flavor_notes`
+// is NULL unless `force`, so a human edit (which sets the column via the edit
+// endpoint) is never clobbered by a re-run. NULL = not scanned; '' = scanned,
+// none stated (marked WITHOUT an updated_at bump — no user-visible change to
+// ship); non-empty = the notes. Returns { wrote, notes, spentUsd }.
+export async function extractFlavorNotesForCoffee(coffeeId, { force = false } = {}) {
+  const { rows } = await query(
+    `SELECT raw_title, raw_caption, raw_description, flavor_notes FROM coffees WHERE id = $1`,
+    [coffeeId],
+  );
+  const row = rows[0];
+  if (!row) return { wrote: false, notes: null, spentUsd: 0 };
+  if (!force && row.flavor_notes != null) return { wrote: false, notes: row.flavor_notes, spentUsd: 0 };
+
+  const text = [row.raw_title, row.raw_caption, row.raw_description].filter(Boolean).join('\n\n').trim();
+  if (!text) return { wrote: false, notes: null, spentUsd: 0 };
+
+  const result = await runFlavorNotes({ text });
+  const notes = (result.notes || '').trim();
+  const spentUsd = Number(result.costUsd ?? 0);
+
+  if (!notes) {
+    // Mark as scanned so a later backfill skips it, without shipping an empty
+    // diff: flavor_notes is a detail-only field, and '' means "nothing to show".
+    await query(`UPDATE coffees SET flavor_notes = '' WHERE id = $1 AND flavor_notes IS NULL`, [coffeeId]);
+    return { wrote: false, notes: '', spentUsd };
+  }
+  await query(`UPDATE coffees SET flavor_notes = $1, updated_at = now() WHERE id = $2`, [notes, coffeeId]);
+  return { wrote: true, notes, spentUsd };
+}
+
+// Backfill flavour notes over coffees that predate #79/#80. Text-only (no
+// image, no voters): one `runFlavorNotes` call per coffee over its assembled
+// text. `flavor_notes IS NULL` scopes it to un-scanned rows (a '' marks
+// "scanned, none"; a non-empty value a prior find or a human edit), so a
+// partial run resumes cleanly and never re-bills a settled row. For best
+// coverage run the OCR backfill (`includeCaptioned: true`) first, so a bag's
+// printed notes are in the text this reads. Bounded by limit/spendCapUsd for
+// the free-tier per-minute/per-day quota — safe to call repeatedly.
+export async function backfillFlavorNotes({ limit = 200, spendCapUsd = null, force = false } = {}) {
+  const { rows } = await query(
+    `SELECT id FROM coffees
+     WHERE deleted_at IS NULL
+       ${force ? '' : 'AND flavor_notes IS NULL'}
+       AND (raw_title IS NOT NULL OR raw_caption IS NOT NULL OR raw_description IS NOT NULL)
+     ORDER BY id
+     LIMIT $1`,
+    [limit],
+  );
+
+  let scanned = 0;
+  let updated = 0;
+  let spentUsd = 0;
+  const errors = [];
+  for (const row of rows) {
+    if (spendCapUsd != null && spentUsd >= spendCapUsd) break;
+    scanned += 1;
+    try {
+      const fn = await extractFlavorNotesForCoffee(row.id, { force });
+      spentUsd += Number(fn.spentUsd ?? 0);
+      if (fn.wrote) updated += 1;
+    } catch (err) {
+      errors.push({ coffeeId: row.id, error: err.message });
+    }
+  }
+  return { scanned, updated, spentUsd, errors };
 }
 
 // The SIGTERM-safe loop. Guarded by a process-wide advisory lock so a

@@ -368,6 +368,56 @@ export async function runOcrTranscribe({ images } = {}) {
   return { agent: 'ocr_transcribe', provider: 'vertex', model, text: text ?? '', usage, costUsd: estimateCostUsd(model, usage) };
 }
 
+// ---- Flavour notes (#79/#80) ----
+//
+// A coffee's tasting/flavour notes, pulled from its assembled text (caption +
+// the appended "OCR text" block) by ONE focused call — not the voter ensemble.
+// Like `runOcrTranscribe`, it's a post-step over text we already have, so it
+// never disturbs the adjudicated fields. Returns a short comma-separated list
+// in the source language, or '' when the text states none.
+const FLAVOR_NOTES_SCHEMA = {
+  type: 'object',
+  properties: { notes: { type: 'string' } },
+};
+
+// Pure — split out so the JSON extraction is unit-testable without a live call.
+export function parseFlavorNotesResponse(text) {
+  try {
+    const notes = JSON.parse(text)?.notes;
+    return typeof notes === 'string' ? notes.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+export async function runFlavorNotes({ text } = {}) {
+  const model = 'gemini-flash-lite-latest';
+  const { text: out, usage } = await generateContent({
+    model,
+    system: 'You extract the flavour (tasting) notes for a coffee from its bag text and review copy.',
+    prompt: [
+      'From the COFFEE TEXT below, extract ONLY the flavour / tasting notes — the short list of aromas or flavours the coffee is described as having.',
+      'They usually appear under a label: Romanian "Note de degustare", "Profil Note", "Arome"; English "Tasting notes", "Flavour notes", "Flavor notes", "Cupping notes", "Notes", "Flavour"/"Flavor" — or sometimes as a bare short line of descriptors (e.g. "Blackberry. Nougat. Silky.").',
+      'Return them as a short comma-separated list of about 3–5 items, in the ORIGINAL language, cleaned of surrounding punctuation (e.g. "dark chocolate, cherry, dried plum" or "ciocolată neagră, vișine, prune uscate").',
+      'Do NOT include the roast level ("Profil Prăjire"), the process ("Procesare"), the brew recipe, the origin, or marketing sentences — only the flavour descriptors themselves.',
+      'If the text states no flavour/tasting notes, return an empty string for "notes". Never invent notes that are not in the text.',
+      '',
+      'COFFEE TEXT:',
+      JSON.stringify(text ?? ''),
+    ].join('\n'),
+    temperature: 0,
+    responseSchema: FLAVOR_NOTES_SCHEMA,
+  });
+  return {
+    agent: 'flavor_notes',
+    provider: 'vertex',
+    model,
+    notes: parseFlavorNotesResponse(out),
+    usage,
+    costUsd: estimateCostUsd(model, usage),
+  };
+}
+
 // P3 (rules) is the data lane's `src/lib/deterministic.js` (#25) -- pure JS,
 // no network, and per PLAN.md §2 "better than any LLM" on numbers/units/
 // vocab. It doesn't exist yet, so this resolves to `null` and the worker
