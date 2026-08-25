@@ -4,25 +4,61 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-24 UTC] **#76 — code complete, NOT yet integrated — branch
-  `claude/wizardly-thompson-e42ekb`.** This session's harness restricts its
-  pushes to that one branch (a fired-session constraint, not a lane choice —
-  see CLAUDE.md §12's "a CCR routine/fired session commits to its OWN
-  branch" gotcha), so per `status/README.md`'s "Integrate before you start"
-  fallback: the code is written and committed, but per that file's own
-  corollary — **"done" means on the shared branch** — `#76` stays `claimed`
-  in `status/BACKLOG.md`, not `done`, and `#77` stays `blocked`, until a
-  session that can push to `ios-staging` merges
-  `claude/wizardly-thompson-e42ekb` in. The branch is based on current
-  `origin/ios-staging` (merged in clean, no conflicts) plus this one commit —
-  a straight merge should apply with no further reconciliation needed.
-  Whoever integrates it: flip `#76`→`done` and `#77`→`ready` in the same push
-  that lands it on `ios-staging`, and move this claim down to `## Done` with
-  the landed SHA. Full technical writeup of what was built is the next `##
-  Done` entry below (written now so the detail isn't lost, even though the
-  row itself isn't `done` yet by this file's own rule).
+_none_
 
 ## Done
+
+- [2026-08-25 UTC] Session check — no ready `ios-shell` row; also **closed out
+  the stale `## Claimed` entry below** that this file still carried for `#76`
+  ("code complete, NOT yet integrated"). `status/BACKLOG.md` already confirms
+  `#76`/`#77` both landed on `ios-staging` (`74cc73f`/`7c79946`/`1c2b8a7`, an
+  ios-ux session integrated the stranded branch on 2026-08-24), so the claim
+  was pure staleness — moved out rather than left to mislead the next session
+  into thinking there's still an unintegrated branch to chase. See this file's
+  next entry down (already-existing `## Done` writeup) for the actual
+  technical detail of what `#76` built.
+  - This session started on its own designated branch (forked from `main`'s
+    tip, not `ios-staging`) and, before checking out the right branch,
+    read `#76` off `main`'s stale copy of `BACKLOG.md` — which still showed
+    `ready` — and built a full duplicate implementation against it
+    (`API/Wire/AddCoffeeWire.swift`, `Models/AddCoffeeDraft.swift`, matching
+    `APIClient`/`CoffeeRepository`/`RemoteCoffeeRepository`/
+    `SampleCoffeeRepository`/`SyncEngine`/`CoffeeStore` methods) before ever
+    diffing against `ios-staging`. Caught before any commit reached a shared
+    branch — `git checkout ios-staging` surfaced the already-`done` real
+    implementation, and the duplicate branch of work was discarded outright
+    (`git stash drop`) rather than reconciled. **Worth stating plainly since
+    this file is the only thing a fresh session reads**: check out
+    `ios-staging` (and merge `origin/main` in) BEFORE reading
+    `BACKLOG.md`/this file for real — this lane's designated branch is not
+    guaranteed to start on `ios-staging`, and `main`'s copy of the backlog
+    lags whatever the Publish lane hasn't merged yet.
+  - Merging `origin/main` into `ios-staging` hit two conflicts, both the
+    familiar additive shape (independent same-day session-check entries /
+    a duplicate `#75` write-up landing on each branch) — resolved by keeping
+    `ios-staging`'s fuller copy in both cases (`BACKLOG.md`'s `#76`/`#77`
+    rows, `status/backend.md`'s `#75` section), since `main`'s side was
+    strictly the same content or an empty stub. Pushed the merge commit.
+  - Re-swept `git branch -r --list 'origin/claude/*'` (133 branches after a
+    fresh `--prune` fetch) per the integrate-before-you-start rule: the top
+    ahead-count candidates in this lane's owned paths (`hopeful-johnson-bdpy3r`
+    25, `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24 each, `modest-newton-oml7h8`/
+    `confident-cerf-{fti5j5,fod7ez,55g4kl,4xuqov}` 21 each) are all confirmed
+    by `git diff --stat` to be the same pure net-deletion pattern every prior
+    sweep in this file has found (missing the wizard/rotation-era
+    `SyncEngine`/`RemoteCoffeeRepository` work). Also specifically checked
+    `claude/wizardly-thompson-e42ekb` (the branch the stale claim above named)
+    — confirmed its content is now a strict subset of `ios-staging` (only 3
+    ios-ux files it never had), i.e. genuinely fully absorbed already.
+  - Confirmed post-merge there is no `ready`/`blocked`/`claimed` row anywhere
+    in `BACKLOG.md` (#1–77 all `done` except #65, `human`, already resolved
+    in its own text; #30 `dropped`) — the wizard's landing closed out the
+    last open row in the whole project. Nothing for any lane to pick up until
+    Radu files something new.
+  - `status/BACKLOG.md` (merge conflict resolution only), `status/backend.md`
+    (merge conflict resolution), `status/ios-shell.md`. No Swift changed on
+    the shared branch — the duplicate implementation was discarded, not
+    committed.
 
 - [2026-08-24 UTC, later session] **#76 built — Add Coffee wizard, iOS shell
   half.** Built against #75's live wire shape (`POST /api/photos/manifest`,
