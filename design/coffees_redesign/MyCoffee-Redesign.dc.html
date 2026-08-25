@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/modernist-6c149cb4-d91b-4aaa-94ed-1d2422d4f5e5/styles.css">
+<script src="_ds/modernist-6c149cb4-d91b-4aaa-94ed-1d2422d4f5e5/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+  /* Accent ramp retuned to the app icon: #0078ff ground, #caf0f8 kettle. */
+  :root {
+    --color-accent: #0078ff;
+    --color-accent-100: #eef6ff;
+    --color-accent-200: #caf0f8;
+    --color-accent-300: #9ad9f2;
+    --color-accent-400: #4aa8ff;
+    --color-accent-500: #0078ff;
+    --color-accent-600: #005eff;
+    --color-accent-700: #0047c4;
+    --color-accent-800: #00337f;
+    --color-accent-900: #002357;
+  }
+  body { background: #ffffff; }
+  a { color: var(--color-accent-700); }
+  a:hover { color: var(--color-accent); }
+</style>
+</helmet>
+
+<section id="2a" style="padding:56px 48px 72px;display:flex;flex-direction:column;gap:32px;font-family:var(--font-body)">
+  <div style="display:flex;align-items:flex-start;gap:20px;border-bottom:2px solid var(--color-divider);padding-bottom:18px;max-width:1000px">
+    <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em;background:var(--color-accent);color:#fff;padding:5px 9px">2A</div>
+    <div>
+      <h2 style="margin:0 0 4px">Same UX, minimal</h2>
+      <div style="font-size:14px;color:var(--color-neutral-700);max-width:620px;text-wrap:pretty">The UX from <a href="#1a">1a</a>, stripped of its rules. Structure now comes from space and one blue field; the only shapes left are the round add button, the chips and the photo. Nothing else is drawn. The coffee page and Insights follow in the same language: hero, rating and review state, price and facts, notes and rails; then the headline average, the monthly brief and the gated findings, each with its n, and the breakdowns as a rated list you switch by origin, roaster or process.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:56px;align-items:flex-start;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em">COFFEES TAB · iPHONE</div>
+      <div style="width:390px;height:844px;border:1px solid var(--color-neutral-300);background:#fff;display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="background:var(--color-accent);color:#fff;flex:none">
+          <div style="display:flex;justify-content:space-between;padding:11px 22px 4px;font-size:12px;font-weight:600">
+            <span>9:41</span><span style="letter-spacing:0.16em">▪▪▪ ▮</span>
+          </div>
+          <div style="padding:14px 22px 20px;display:flex;align-items:flex-end;justify-content:space-between">
+            <div>
+              <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-accent-200)">862 BAGS · 41 ROASTERS</div>
+              <h3 style="margin:4px 0 0;font-size:36px;letter-spacing:-0.03em;color:#fff">Coffees</h3>
+            </div>
+            <div style="display:flex;gap:4px;margin:0 -12px -6px 0">
+              <button style="width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Filter">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M3 6h18M6 12h12M10 18h4"></path></svg>
+              </button>
+              <button style="width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Sort">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M7 4v16M7 20l-3-3M17 20V4M17 4l3 3"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+
+          <button style="display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 22px 0;flex:none;border:0;background:transparent;cursor:pointer;font-family:var(--font-body);text-align:left" aria-label="Open review queue">
+            <span style="font-size:12px;color:var(--color-accent-700);font-weight:600">3 bags need review</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="2"><path d="M9 6l6 6-6 6"></path></svg>
+          </button>
+
+          <div style="display:flex;gap:8px;overflow:hidden;padding:12px 22px 4px;flex:none">
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.onClick }}" style="flex:none;border:1px solid {{ c.chipBorder }};border-radius:999px;padding:7px 16px;min-height:44px;cursor:pointer;font-family:var(--font-body);font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:7px;background:{{ c.chipBg }};color:{{ c.chipFg }}">
+                <span>{{ c.title }}</span>
+                <span style="font-weight:700;color:{{ c.chipCount }}">{{ c.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ filtering }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 22px 0;flex:none">
+              <span style="font-size:11px;color:var(--color-neutral-700);flex:1;min-width:0">{{ matchCount }}</span>
+              <button onClick="{{ clearFilter }}" style="border:0;background:transparent;cursor:pointer;font-family:var(--font-body);font-size:11px;letter-spacing:0.06em;color:var(--color-accent);font-weight:600">CLEAR</button>
+            </div>
+          </sc-if>
+
+          <div style="flex:1;overflow:hidden;padding:0 0 0 22px">
+
+            <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-neutral-700);padding:20px 0 10px">JULY 2026</div>
+
+            <div style="display:flex;gap:14px;padding-bottom:20px">
+              <div style="width:88px;height:88px;flex:none;position:relative">
+                <image-slot id="mc2-row-1" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-16px;bottom:-16px;width:44px;height:44px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <span style="width:28px;height:28px;border-radius:999px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg></span>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font-size:10px;letter-spacing:0.06em;color:var(--color-accent);font-weight:600;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DAK Coffee Roasters</div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:17px;line-height:1.1;letter-spacing:-0.02em">Ethiopia Nekisse</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;line-height:1">🇪🇹</span>
+                  <span style="font-size:12px;color:var(--color-accent-700)">Nekisse, Ethiopia · 4.5</span>
+                </div>
+                <div style="font-size:11px;color:var(--color-neutral-600);margin-top:1px">Washed</div>
+              </div>
+              <div style="flex:none;width:96px;padding-right:22px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:26px;line-height:1;color:var(--color-accent)">4.6</div>
+                <div style="font-size:13px;font-weight:600">€ 18.50</div>
+                <div style="font-size:10px;color:var(--color-neutral-600)">€ 9.25 / 100 g</div>
+                <div style="display:flex;gap:3px;margin-top:6px"><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div></div>
+                <div style="font-size:10px;letter-spacing:0.08em;color:var(--color-neutral-600);font-weight:600;white-space:nowrap;margin-top:4px">FAIR VALUE</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-neutral-700);padding:0 0 10px">JUNE 2026</div>
+
+            <div style="display:flex;gap:14px;padding-bottom:20px">
+              <div style="width:88px;height:88px;flex:none;position:relative">
+                <image-slot id="mc2-row-2" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-16px;bottom:-16px;width:44px;height:44px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <span style="width:28px;height:28px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="1.8"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg></span>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600);text-transform:uppercase">Father's Coffee Roastery</div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:17px;line-height:1.1;letter-spacing:-0.02em">Colombia La Palma y El Tucán</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;line-height:1">🇨🇴</span>
+                  <span style="font-size:12px;color:var(--color-neutral-700)">La Palma y El Tucán, Colombia</span>
+                </div>
+                <div style="font-size:11px;color:var(--color-neutral-600);margin-top:1px">Natural</div>
+              </div>
+              <div style="flex:none;width:96px;padding-right:22px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:26px;line-height:1">4.3</div>
+                <div style="font-size:13px;font-weight:600">€ 16.40</div>
+                <div style="font-size:10px;color:var(--color-neutral-600)">€ 6.56 / 100 g</div>
+                <div style="display:flex;gap:3px;margin-top:6px"><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div></div>
+                <div style="font-size:10px;letter-spacing:0.08em;color:var(--color-accent);font-weight:600;white-space:nowrap;margin-top:4px">GREAT VALUE</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-neutral-700);padding:0 0 10px">APRIL 2026</div>
+
+            <div style="display:flex;gap:14px">
+              <div style="width:88px;height:88px;flex:none;position:relative">
+                <image-slot id="mc2-row-3" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-16px;bottom:-16px;width:44px;height:44px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <span style="width:28px;height:28px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="1.8"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg></span>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600);text-transform:uppercase">Right Side</div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:17px;line-height:1.1;letter-spacing:-0.02em">Ethiopia Anaerobic Natural</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;line-height:1">🇪🇹</span>
+                  <span style="font-size:12px;color:var(--color-accent-700)">Ethiopia · 4.5</span>
+                </div>
+              </div>
+              <div style="flex:none;width:96px;padding-right:22px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:26px;line-height:1;color:var(--color-accent)">4.5</div>
+                <div style="font-size:13px;font-weight:600">€ 21.00</div>
+                <div style="font-size:10px;color:var(--color-neutral-600)">€ 21.00 / 100 g</div>
+                <div style="display:flex;gap:3px;margin-top:6px"><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div></div>
+                <div style="font-size:10px;letter-spacing:0.08em;color:var(--color-neutral-600);font-weight:600;white-space:nowrap;margin-top:4px">PRICEY</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;padding-top:20px">
+              <div style="width:88px;height:88px;flex:none;position:relative;background:var(--color-neutral-100);border-radius:10px;display:flex;align-items:flex-end;padding:8px">
+                <span style="font-size:9px;letter-spacing:0.08em;color:var(--color-neutral-700)">NO PHOTO</span>
+                <button style="position:absolute;right:-16px;bottom:-16px;width:44px;height:44px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <span style="width:28px;height:28px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="1.8"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg></span>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600);text-transform:uppercase">La Cabra</div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:17px;line-height:1.1;letter-spacing:-0.02em">Brazil Pulped Natural</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;line-height:1">🇧🇷</span>
+                  <span style="font-size:12px;color:var(--color-neutral-700)">Brazil</span>
+                </div>
+              </div>
+              <div style="flex:none;width:96px;padding-right:22px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:26px;line-height:1">3.4</div>
+                <div style="font-size:13px;font-weight:600">€ 11.00</div>
+                <div style="font-size:10px;color:var(--color-neutral-600)">€ 4.40 / 100 g</div>
+                <div style="display:flex;gap:3px;margin-top:6px"><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div><div style="width:8px;height:4px;border-radius:999px;background:var(--color-accent)"></div></div>
+                <div style="font-size:10px;letter-spacing:0.08em;color:var(--color-accent);font-weight:600;white-space:nowrap;margin-top:4px">GREAT VALUE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding:10px 22px 6px">
+          <div style="display:flex;align-items:center;gap:9px;background:var(--color-neutral-100);border-radius:999px;padding:10px 16px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-700)" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <span style="font-size:13px;color:var(--color-neutral-700)">Search coffees, roasters, farms</span>
+          </div>
+        </div>
+
+        <div style="flex:none;display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;padding:6px 0 16px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h13a3 3 0 0 1 0 6h-1M4 8v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5M3 22h16"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em;font-weight:600">COFFEES</span>
+          </div>
+          <div style="display:flex;justify-content:center">
+            <button style="width:56px;height:56px;border:0;border-radius:999px;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow-md)" aria-label="Add coffee">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-700)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em">INSIGHTS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em">COFFEE PAGE · iPHONE</div>
+      <div style="width:390px;height:844px;border:1px solid var(--color-neutral-300);background:#fff;display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="position:relative;height:300px;flex:none">
+          <image-slot id="mc2-hero" shape="rect" fit="cover" style="width:100%;height:100%" placeholder="Drop the bag photo" class="grayscale"></image-slot>
+          <div style="position:absolute;inset:0;display:flex;justify-content:space-between;align-items:flex-start;padding:16px;pointer-events:none">
+            <button style="width:44px;height:44px;border:0;border-radius:999px;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto" aria-label="Back">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>
+            </button>
+            <div style="display:flex;gap:8px;pointer-events:auto">
+              <button style="width:44px;height:44px;border:0;border-radius:999px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="#fff"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg>
+              </button>
+              <button style="width:44px;height:44px;border:0;border-radius:999px;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Share">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" stroke-width="1.8"><path d="M12 16V4M8 8l4-4 4 4M5 15v4h14v-4"></path></svg>
+              </button>
+              <button style="width:44px;height:44px;border:0;border-radius:999px;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Edit">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" stroke-width="1.8"><path d="M4 20h4l10-10-4-4L4 16zM14 6l4 4"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:hidden;background:#fff;border-radius:20px 20px 0 0;margin-top:-20px;position:relative;padding:20px 22px 0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between">
+            <div style="display:flex;align-items:baseline;gap:9px">
+              <span style="font-family:var(--font-heading);font-weight:800;font-size:40px;line-height:0.9;letter-spacing:-0.03em;color:var(--color-accent)">4.6</span>
+              <span style="display:flex;gap:2px;padding-bottom:4px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.6"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+              </span>
+            </div>
+            <button style="border:0;border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-700);font-family:var(--font-body);font-size:11px;font-weight:600;letter-spacing:0.04em;padding:6px 14px;min-height:44px;cursor:pointer">2 fields to review</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px">
+            <span style="font-size:13px;line-height:1">🇳🇱</span>
+            <span style="font-size:13px;color:var(--color-accent);font-weight:600">DAK Coffee Roasters</span>
+            <span style="font-size:11px;color:var(--color-neutral-700)">· your best roaster, 4.6 avg</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.8" style="margin-left:auto"><path d="M9 6l6 6-6 6"></path></svg>
+          </div>
+
+          <h3 style="margin:8px 0 0;font-size:27px;letter-spacing:-0.03em;text-wrap:pretty">Ethiopia Nekisse</h3>
+
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+            <span style="border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-700);font-size:11px;font-weight:600;padding:5px 11px;white-space:nowrap">🇪🇹 Ethiopia 4.5</span>
+            <span style="border-radius:999px;background:var(--color-neutral-100);color:var(--color-neutral-800);font-size:11px;padding:5px 11px;white-space:nowrap">Washed</span>
+            <span style="border-radius:999px;background:var(--color-neutral-100);color:var(--color-neutral-800);font-size:11px;padding:5px 11px;white-space:nowrap">1800–2000 m</span>
+            <span style="border-radius:999px;background:var(--color-neutral-100);color:var(--color-neutral-800);font-size:11px;padding:5px 11px;white-space:nowrap">200 g</span>
+          </div>
+
+          <div style="display:flex;align-items:flex-end;gap:16px;margin-top:18px">
+            <div>
+              <div style="font-size:10px;letter-spacing:0.1em;color:var(--color-neutral-700)">PRICE</div>
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:22px;line-height:1.1">€ 18.50</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:0.1em;color:var(--color-neutral-700)">PER 100 G</div>
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:22px;line-height:1.1">€ 9.25</div>
+            </div>
+            <div style="padding-bottom:3px">
+              <div style="display:flex;gap:3px">
+                <div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div>
+                <div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div>
+                <div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></div>
+                <div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div>
+                <div style="width:8px;height:4px;border-radius:999px;background:var(--color-neutral-300)"></div>
+              </div>
+              <div style="font-size:10px;letter-spacing:0.08em;color:var(--color-neutral-600);font-weight:600;margin-top:4px">FAIR VALUE</div>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span style="color:var(--color-neutral-600)">Purchased</span><span style="font-weight:600">Jul 15, 2026</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span style="color:var(--color-neutral-700)">Roasted</span><span style="font-weight:600">Jul 2, 2026</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span style="color:var(--color-neutral-700)">Farm</span><span style="font-weight:600">Nekisse</span>
+            </div>
+          </div>
+
+          <div style="margin-top:36px">
+            <div style="font-size:10px;letter-spacing:0.12em;color:var(--color-neutral-700)">FLAVOUR PROFILE</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
+              <span style="border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-800);font-size:11px;font-weight:600;padding:5px 11px;white-space:nowrap">Bergamot</span>
+              <span style="border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-800);font-size:11px;font-weight:600;padding:5px 11px;white-space:nowrap">Jasmine</span>
+              <span style="border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-800);font-size:11px;font-weight:600;padding:5px 11px;white-space:nowrap">Floral</span>
+              <span style="border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-800);font-size:11px;font-weight:600;padding:5px 11px;white-space:nowrap">Bright</span>
+            </div>
+            <div style="font-size:11px;color:var(--color-neutral-700);margin-top:7px">Read from the roaster's own copy on the bag.</div>
+          </div>
+
+          <div style="margin-top:20px">
+            <div style="font-size:10px;letter-spacing:0.12em;color:var(--color-neutral-700)">FARM &amp; LOT</div>
+            <div style="font-size:13px;color:var(--color-neutral-800);margin-top:5px">Washed Nekisse, dried on raised beds for 14 days.</div>
+          </div>
+
+          <div style="margin-top:16px">
+            <div style="font-size:10px;letter-spacing:0.12em;color:var(--color-neutral-700)">BREW GUIDE</div>
+            <div style="font-size:13px;color:var(--color-neutral-800);margin-top:5px">V60, 92 °C, 1:16, three pours.</div>
+          </div>
+
+          <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px;font-weight:600">From the roaster</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-700)" stroke-width="1.8"><path d="M6 9l6 6 6-6"></path></svg>
+          </div>
+
+          <div style="margin-top:20px;padding-bottom:24px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font-size:13px;font-weight:600">More from DAK Coffee Roasters</span>
+              <span style="font-size:11px;color:var(--color-accent);font-weight:600">More</span>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="width:92px;flex:none">
+                <div style="width:92px;height:92px"><image-slot id="mc2-rail-1" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot></div>
+                <div style="font-size:11px;font-weight:600;line-height:1.2;margin-top:6px">Ethiopia Nekisse Lot 2</div>
+                <div style="font-size:11px;color:var(--color-accent);font-weight:600;margin-top:2px">4.7</div>
+              </div>
+              <div style="width:92px;flex:none">
+                <div style="width:92px;height:92px"><image-slot id="mc2-rail-2" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot></div>
+                <div style="font-size:11px;font-weight:600;line-height:1.2;margin-top:6px">Kenya Washed</div>
+                <div style="font-size:11px;color:var(--color-neutral-700);font-weight:600;margin-top:2px">4.4</div>
+              </div>
+              <div style="width:92px;flex:none">
+                <div style="width:92px;height:92px"><image-slot id="mc2-rail-3" shape="rounded" radius="10" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot></div>
+                <div style="font-size:11px;font-weight:600;line-height:1.2;margin-top:6px">Brazilia</div>
+                <div style="font-size:11px;color:var(--color-neutral-700);font-weight:600;margin-top:2px">3.2</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em">INSIGHTS TAB · iPHONE</div>
+      <div style="width:390px;height:844px;border:1px solid var(--color-neutral-300);background:#fff;display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="background:var(--color-accent);color:#fff;flex:none">
+          <div style="display:flex;justify-content:space-between;padding:11px 22px 4px;font-size:12px;font-weight:600">
+            <span>9:41</span><span style="letter-spacing:0.16em">▪▪▪ ▮</span>
+          </div>
+          <div style="padding:14px 22px 20px">
+            <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-accent-200)">604 OF 862 RATED</div>
+            <h3 style="margin:4px 0 0;font-size:36px;letter-spacing:-0.03em;color:#fff">Insights</h3>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+
+          <div style="display:flex;gap:6px;padding:14px 22px 4px;flex:none">
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-accent);border-radius:999px;background:var(--color-accent);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Insights</div>
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Charts</div>
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Data</div>
+          </div>
+
+          <div style="flex:1;overflow:hidden;padding:0 22px">
+
+            <div style="display:flex;gap:28px;padding:22px 0 20px">
+              <div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:34px;line-height:1;letter-spacing:-0.03em">862</div>
+                <div style="font-size:11px;color:var(--color-neutral-700);margin-top:3px">coffees</div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:baseline;gap:5px">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:34px;line-height:1;letter-spacing:-0.03em;color:var(--color-accent)">4.21</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--color-accent)"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                </div>
+                <div style="font-size:11px;color:var(--color-neutral-700);margin-top:3px">average rating</div>
+              </div>
+            </div>
+
+            <div style="background:var(--color-accent-100);border-radius:14px;padding:16px 18px">
+              <div style="font-size:10px;letter-spacing:0.12em;color:var(--color-accent-700);font-weight:600">THIS MONTH</div>
+              <div style="font-size:14px;color:var(--color-accent-800);margin-top:7px;line-height:1.45;text-wrap:pretty">Nine bags in August, seven of them Ethiopian. You paid €8.90 per 100 g on average — a euro under your run rate — and rated them 4.4.</div>
+            </div>
+
+            <div style="padding-top:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <span style="font-family:var(--font-heading);font-weight:800;font-size:17px;letter-spacing:-0.015em">What tends to score well</span>
+              </div>
+              <div style="margin-top:10px;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;padding:7px 14px;font-size:11px;font-weight:600;color:var(--color-neutral-900);white-space:nowrap;display:inline-flex;align-items:center">Adjust for yearly rating drift</div>
+
+              <div style="display:flex;flex-direction:column;gap:14px;margin-top:16px">
+                <div style="font-size:14px;line-height:1.45;color:var(--color-text);text-wrap:pretty"><span style="color:var(--color-accent);font-weight:600">Anaerobic coffees</span> tend to rate higher than the rest — by 0.34★ <span style="color:var(--color-neutral-700)">(n=41 vs 563)</span>.</div>
+                <div style="font-size:14px;line-height:1.45;color:var(--color-text);text-wrap:pretty"><span style="color:var(--color-accent);font-weight:600">Ethiopia origin coffees</span> tend to rate higher than the rest — by 0.29★ <span style="color:var(--color-neutral-700)">(n=74 vs 530)</span>.</div>
+                <div style="font-size:14px;line-height:1.45;color:var(--color-text);text-wrap:pretty"><span style="color:var(--color-accent);font-weight:600">DAK Coffee Roasters</span> tend to rate higher than the rest — by 0.22★ <span style="color:var(--color-neutral-700)">(n=22 vs 582)</span>.</div>
+                <div style="font-size:14px;line-height:1.45;color:var(--color-text);text-wrap:pretty">Higher altitude tends toward higher ratings <span style="color:var(--color-neutral-700)">(ρ = 0.21, n=548)</span>.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;padding:6px 0 16px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-700)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h13a3 3 0 0 1 0 6h-1M4 8v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5M3 22h16"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em">COFFEES</span>
+          </div>
+          <div style="display:flex;justify-content:center">
+            <button style="width:56px;height:56px;border:0;border-radius:999px;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow-md)" aria-label="Add coffee">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em;font-weight:600">INSIGHTS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em">INSIGHTS · CHARTS</div>
+      <div style="width:390px;height:844px;border:1px solid var(--color-neutral-300);background:#fff;display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="background:var(--color-accent);color:#fff;flex:none">
+          <div style="display:flex;justify-content:space-between;padding:11px 22px 4px;font-size:12px;font-weight:600">
+            <span>9:41</span><span style="letter-spacing:0.16em">▪▪▪ ▮</span>
+          </div>
+          <div style="padding:14px 22px 20px">
+            <div style="font-size:10px;letter-spacing:0.14em;color:var(--color-accent-200)">604 OF 862 RATED</div>
+            <h3 style="margin:4px 0 0;font-size:36px;letter-spacing:-0.03em;color:#fff">Insights</h3>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+
+          <div style="display:flex;gap:6px;padding:14px 22px 4px;flex:none">
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Insights</div>
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-accent);border-radius:999px;background:var(--color-accent);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Charts</div>
+            <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">Data</div>
+          </div>
+
+          <div style="flex:1;overflow:hidden;padding:0 22px">
+
+            <div style="display:flex;gap:6px;padding:16px 0 0">
+              <div style="flex:1;min-height:44px;border:1px solid var(--color-accent);border-radius:999px;background:var(--color-accent);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">All</div>
+              <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">12m</div>
+              <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">18m</div>
+              <div style="flex:1;min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">By year</div>
+            </div>
+
+            <div style="font-size:12px;color:var(--color-neutral-700);padding:12px 0 0">862 coffees · ★ 4.21 average</div>
+
+                        <div style="padding-top:18px">
+              <div style="border:1px solid var(--color-neutral-300);border-radius:16px;padding:16px 18px 6px">
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:17px;letter-spacing:-0.015em">What you rate highest</div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                <div style="min-height:44px;border:1px solid var(--color-accent);border-radius:999px;background:var(--color-accent);color:#fff;font-size:13px;font-weight:600;padding:0 16px;display:flex;align-items:center">Origins</div>
+                <div style="min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:13px;font-weight:600;padding:0 16px;display:flex;align-items:center">Roasters</div>
+                <div style="min-height:44px;border:1px solid var(--color-neutral-300);border-radius:999px;background:#fff;color:var(--color-neutral-900);font-size:13px;font-weight:600;padding:0 16px;display:flex;align-items:center">Process</div>
+                </div>
+                <div style="margin-top:8px">
+                <button style="width:100%;border:0;background:transparent;padding:13px 0;min-height:44px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left;border-bottom:1px solid var(--color-neutral-200)" aria-label="Filter to Panama">
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:15px;font-weight:700;letter-spacing:-0.01em">Panama</span>
+                    <span style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)" style="flex:none"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                      <span style="font-size:13px;font-weight:700">4.55</span>
+                      <span style="font-size:13px;color:var(--color-neutral-700)">Based on 54 bags</span>
+                    </span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+                <button style="width:100%;border:0;background:transparent;padding:13px 0;min-height:44px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left;border-bottom:1px solid var(--color-neutral-200)" aria-label="Filter to Ethiopia">
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:15px;font-weight:700;letter-spacing:-0.01em">Ethiopia</span>
+                    <span style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)" style="flex:none"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                      <span style="font-size:13px;font-weight:700">4.42</span>
+                      <span style="font-size:13px;color:var(--color-neutral-700)">Based on 218 bags</span>
+                    </span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+                <button style="width:100%;border:0;background:transparent;padding:13px 0;min-height:44px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left;border-bottom:1px solid var(--color-neutral-200)" aria-label="Filter to Kenya">
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:15px;font-weight:700;letter-spacing:-0.01em">Kenya</span>
+                    <span style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)" style="flex:none"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                      <span style="font-size:13px;font-weight:700">4.31</span>
+                      <span style="font-size:13px;color:var(--color-neutral-700)">Based on 121 bags</span>
+                    </span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+                <button style="width:100%;border:0;background:transparent;padding:13px 0;min-height:44px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left;border-bottom:1px solid var(--color-neutral-200)" aria-label="Filter to Colombia">
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:15px;font-weight:700;letter-spacing:-0.01em">Colombia</span>
+                    <span style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)" style="flex:none"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                      <span style="font-size:13px;font-weight:700">4.18</span>
+                      <span style="font-size:13px;color:var(--color-neutral-700)">Based on 164 bags</span>
+                    </span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+                <button style="width:100%;border:0;background:transparent;padding:13px 0;min-height:44px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left" aria-label="Filter to Guatemala">
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:15px;font-weight:700;letter-spacing:-0.01em">Guatemala</span>
+                    <span style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--color-accent)" style="flex:none"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                      <span style="font-size:13px;font-weight:700">4.05</span>
+                      <span style="font-size:13px;color:var(--color-neutral-700)">Based on 71 bags</span>
+                    </span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;padding:6px 0 16px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-700)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h13a3 3 0 0 1 0 6h-1M4 8v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5M3 22h16"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em">COFFEES</span>
+          </div>
+          <div style="display:flex;justify-content:center">
+            <button style="width:56px;height:56px;border:0;border-radius:999px;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow-md)" aria-label="Add coffee">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em;font-weight:600">INSIGHTS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="width:360px;display:flex;flex-direction:column;border-top:2px solid var(--color-divider)">
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">Lines removed, space kept</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">No row dividers, no month strips, no card borders. Rows are separated by 20 px of air and month labels are grey caps, so the list reads as one column instead of a table.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">Round where you touch</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Add is a 56 px circle, filter cards are chips, search is a pill, the favourite is a small circle on the photo's corner. Everything else stays flat and unframed.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">Value as five pills</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Five 8×4 pills, filled against a visible grey remainder, plus the verdict in words. Filled and blue is a genuinely good buy; one pill is dear for what it is.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:2px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">Blue still means you</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">The title field carries the brand; after that blue appears only on your top roaster and origin, the rating, value and the add button.</div>
+      </div>
+      <div style="padding:14px 0;font-size:12px;color:var(--color-neutral-700)">Structure, data and behaviour identical to <a href="#1a">1a</a>.</div>
+    </div>
+  </div>
+</section>
+
+<section id="1a" style="padding:56px 48px 96px;display:flex;flex-direction:column;gap:32px;font-family:var(--font-body);border-top:2px solid var(--color-divider)">
+  <div style="display:flex;align-items:flex-start;gap:20px;border-bottom:2px solid var(--color-divider);padding-bottom:18px;max-width:1000px">
+    <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em;background:var(--color-accent);color:#fff;padding:5px 9px">1A</div>
+    <div>
+      <h2 style="margin:0 0 4px">Coffees — the list, given a hierarchy</h2>
+      <div style="font-size:14px;color:var(--color-neutral-700);max-width:620px;text-wrap:pretty">Accent taken from the app icon — #0078ff ground, #caf0f8 kettle. Same tab, same data, nothing removed. Rating leads the right column, price sits under it with a value meter, and everything the row used to shout at once is now ranked. Sections stay, but as quiet rules instead of grey strips.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:56px;align-items:flex-start;flex-wrap:wrap">
+
+    <!-- ── PHONE ── -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em">COFFEES TAB · iPHONE</div>
+      <div style="width:390px;height:844px;border:2px solid var(--color-text);background:var(--color-bg);display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="display:flex;justify-content:space-between;padding:11px 20px 4px;font-size:12px;font-weight:600;flex:none">
+          <span>9:41</span><span style="letter-spacing:0.16em">▪▪▪ ▮</span>
+        </div>
+
+        <div style="padding:8px 20px 12px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--color-divider)">
+          <div>
+            <div style="font-size:10px;letter-spacing:0.12em;color:var(--color-neutral-700)">862 BAGS · 41 ROASTERS</div>
+            <h3 style="margin:2px 0 0;font-size:30px;letter-spacing:-0.02em">Coffees</h3>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-icon btn-secondary" style="width:44px;height:44px" aria-label="Filter"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"></path></svg></button>
+            <button class="btn btn-icon btn-secondary" style="width:44px;height:44px" aria-label="Sort"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16M7 20l-3-3M17 20V4M17 4l3 3"></path></svg></button>
+            <button class="btn btn-icon btn-secondary" style="width:44px;height:44px" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"></path></svg></button>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+
+          <sc-if value="{{ showReviewNudge }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 20px;border-bottom:2px solid var(--color-divider);background:var(--color-accent-200)">
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.1em;background:var(--color-accent);color:#fff;padding:4px 7px;flex:none">3</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--color-accent-800)">Three bags read badly</div>
+                <div style="font-size:11px;color:var(--color-accent-800);opacity:0.8">Confirm roaster and price to keep filters honest.</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-800)" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"></path></svg>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;gap:0;overflow:hidden;border-bottom:2px solid var(--color-divider);flex:none">
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.onClick }}" style="flex:none;width:104px;min-height:62px;text-align:left;padding:9px 12px;border:0;border-right:1px solid var(--color-divider);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;font-family:var(--font-body);background:{{ c.bg }};color:{{ c.fg }}">
+                <span style="font-size:11px;letter-spacing:0.06em;line-height:1.2">{{ c.title }}</span>
+                <span style="font-family:var(--font-heading);font-weight:800;font-size:19px;line-height:1">{{ c.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ filtering }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid var(--color-divider);background:var(--color-accent-100);flex:none">
+              <span style="font-size:9px;letter-spacing:0.1em;color:var(--color-accent-700);font-weight:600;flex:none">FILTERED</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--color-accent);color:var(--color-accent-700);font-size:11px;padding:2px 7px;flex:none">
+                {{ chipLabel }}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+              </span>
+              <span style="font-size:10px;color:var(--color-neutral-700);flex:1;min-width:0">{{ matchCount }}</span>
+              <button onClick="{{ clearFilter }}" class="btn btn-ghost" style="font-size:10px;letter-spacing:0.1em;flex:none;color:var(--color-accent-700)">CLEAR</button>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;font-size:10px;letter-spacing:0.1em;color:var(--color-neutral-700);border-bottom:1px solid var(--color-divider);flex:none">
+            <span>SORTED BY DATE BOUGHT ↓</span>
+            <span style="color:var(--color-accent-700);font-weight:600">{{ activeLabel }}</span>
+          </div>
+
+          <div style="flex:1;overflow:hidden">
+
+            <div style="padding:7px 20px 5px;font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em;border-bottom:2px solid var(--color-divider);background:var(--color-surface)">JULY 2026</div>
+
+            <div style="display:flex;gap:12px;padding:10px 20px 9px;border-bottom:1px solid var(--color-divider)">
+              <div style="width:84px;height:84px;flex:none;border:1px solid var(--color-divider);position:relative">
+                <image-slot id="mc-row-1" shape="rect" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-1px;bottom:-1px;width:30px;height:30px;border:1px solid var(--color-accent);background:var(--color-accent);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="2"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                  <span style="font-size:9px;letter-spacing:0.08em;border:1px solid var(--color-accent);background:var(--color-accent);color:#fff;padding:0 3px">NL</span>
+                  <span style="font-size:11px;letter-spacing:0.04em;color:var(--color-accent-700);font-weight:600;text-transform:uppercase">DAK Coffee Roasters</span>
+                  <span style="font-size:10px;letter-spacing:0.08em;color:var(--color-accent-700);border:1px solid var(--color-accent-300);padding:0 4px">TOP ROASTER · 4.6</span>
+                </div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:16px;line-height:1.15;text-wrap:pretty">Ethiopia Nekisse</div>
+                <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                  <span style="font-size:15px;line-height:1">🇪🇹</span>
+                  <span style="font-size:12px;color:var(--color-accent-700);font-weight:600">Nekisse, Ethiopia</span>
+                  <span style="font-size:10px;letter-spacing:0.08em;color:var(--color-accent-700);border:1px solid var(--color-accent-300);padding:0 4px">TOP ORIGIN · 4.5</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+                  <span class="tag tag-neutral" style="font-size:10px">Washed</span>
+                </div>
+              </div>
+              <div style="flex:none;width:88px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:25px;line-height:1;color:var(--color-accent)">4.6</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--color-accent)" style="margin-bottom:2px"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                </div>
+                <div style="font-size:14px;font-weight:600">€ 18.50</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">€ 9.25 / 100 g</div>
+                <sc-if value="{{ showValueMeter }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;gap:2px;margin-top:3px">
+                    <div style="width:11px;height:5px;background:var(--color-text)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-text)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-text)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                  </div>
+                  <div style="font-size:9px;letter-spacing:0.08em;color:var(--color-neutral-700)">FAIR VALUE</div>
+                </sc-if>
+                <div style="margin-top:7px"><span style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600)">JUL 15</span></div>
+              </div>
+            </div>
+
+            <div style="padding:7px 20px 5px;font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em;border-top:1px solid var(--color-divider);border-bottom:2px solid var(--color-divider);background:var(--color-surface)">JUNE 2026</div>
+
+            <div style="display:flex;gap:12px;padding:10px 20px 9px;border-bottom:1px solid var(--color-divider)">
+              <div style="width:84px;height:84px;flex:none;border:1px solid var(--color-divider);position:relative">
+                <image-slot id="mc-row-2" shape="rect" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-1px;bottom:-1px;width:30px;height:30px;border:1px solid var(--color-divider);background:var(--color-bg);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="2"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:9px;letter-spacing:0.08em;border:1px solid var(--color-neutral-400);padding:0 3px;color:var(--color-neutral-700)">CZ</span>
+                  <span style="font-size:11px;letter-spacing:0.04em;color:var(--color-neutral-700);text-transform:uppercase">Father's Coffee Roastery</span>
+                </div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:16px;line-height:1.15;text-wrap:pretty">Colombia La Palma y El Tucán</div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:15px;line-height:1">🇨🇴</span>
+                  <span style="font-size:12px;color:var(--color-neutral-800)">La Palma y El Tucán, Colombia</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+                  <span class="tag tag-neutral" style="font-size:10px">Natural</span>
+                </div>
+              </div>
+              <div style="flex:none;width:88px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:25px;line-height:1">4.3</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--color-text)" style="margin-bottom:2px"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                </div>
+                <div style="font-size:14px;font-weight:600">€ 16.40</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">€ 6.56 / 100 g</div>
+                <sc-if value="{{ showValueMeter }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;gap:2px;margin-top:3px">
+                    <div style="width:11px;height:5px;background:var(--color-accent)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-accent)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-accent)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-accent)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-accent)"></div>
+                  </div>
+                  <div style="font-size:9px;letter-spacing:0.08em;color:var(--color-accent-700);font-weight:600">GREAT VALUE</div>
+                </sc-if>
+                <div style="margin-top:7px"><span style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600)">JUN 2</span></div>
+              </div>
+            </div>
+
+            <div style="padding:19px 20px 5px;font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.12em;border-top:1px solid var(--color-divider);border-bottom:2px solid var(--color-divider);background:var(--color-surface)">APRIL 2026</div>
+
+            <div style="display:flex;gap:12px;padding:10px 20px 9px;border-bottom:1px solid var(--color-divider)">
+              <div style="width:84px;height:84px;flex:none;border:1px solid var(--color-divider);position:relative">
+                <image-slot id="mc-row-3" shape="rect" fit="cover" style="width:100%;height:100%" placeholder="Bag" class="grayscale"></image-slot>
+                <button style="position:absolute;right:-1px;bottom:-1px;width:30px;height:30px;border:1px solid var(--color-accent);background:var(--color-accent);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="2"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:9px;letter-spacing:0.08em;border:1px solid var(--color-neutral-400);padding:0 3px;color:var(--color-neutral-700)">RO</span>
+                  <span style="font-size:11px;letter-spacing:0.04em;color:var(--color-neutral-700);text-transform:uppercase">Right Side</span>
+                </div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:16px;line-height:1.15;text-wrap:pretty">Ethiopia Anaerobic Natural</div>
+                <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                  <span style="font-size:15px;line-height:1">🇪🇹</span>
+                  <span style="font-size:12px;color:var(--color-accent-700);font-weight:600">Ethiopia</span>
+                  <span style="font-size:10px;letter-spacing:0.08em;color:var(--color-accent-700);border:1px solid var(--color-accent-300);padding:0 4px">TOP ORIGIN · 4.5</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+                  <span class="tag tag-accent" style="font-size:10px">Anaerobic</span>
+                </div>
+              </div>
+              <div style="flex:none;width:88px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:25px;line-height:1;color:var(--color-accent)">4.5</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--color-accent)" style="margin-bottom:2px"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                </div>
+                <div style="font-size:14px;font-weight:600">€ 21.00</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">€ 21.00 / 100 g</div>
+                <sc-if value="{{ showValueMeter }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;gap:2px;margin-top:3px">
+                    <div style="width:11px;height:5px;background:var(--color-text)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                    <div style="width:11px;height:5px;background:var(--color-neutral-300)"></div>
+                  </div>
+                  <div style="font-size:9px;letter-spacing:0.08em;color:var(--color-neutral-700)">PRICEY</div>
+                </sc-if>
+                <div style="margin-top:7px"><span style="font-size:10px;letter-spacing:0.06em;color:var(--color-neutral-600)">APR 20</span></div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;padding:10px 20px 9px">
+              <div style="width:84px;height:84px;flex:none;border:1px solid var(--color-divider);background:var(--color-neutral-200);display:flex;align-items:flex-end;padding:6px;position:relative">
+                <span style="font-size:9px;letter-spacing:0.08em;color:var(--color-neutral-600)">NO PHOTO</span>
+                <button style="position:absolute;right:-1px;bottom:-1px;width:30px;height:30px;border:1px solid var(--color-divider);background:var(--color-bg);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Favourite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="2"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"></path></svg>
+                </button>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:9px;letter-spacing:0.08em;border:1px solid var(--color-neutral-400);padding:0 3px;color:var(--color-neutral-700)">DK</span>
+                  <span style="font-size:11px;letter-spacing:0.04em;color:var(--color-neutral-700);text-transform:uppercase">La Cabra</span>
+                </div>
+                <div style="font-family:var(--font-heading);font-weight:800;font-size:16px;line-height:1.15;text-wrap:pretty">Brazil Pulped Natural</div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:15px;line-height:1">🇧🇷</span>
+                  <span style="font-size:12px;color:var(--color-neutral-800)">Brazil</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+                  <span class="tag tag-outline" style="font-size:10px">Decaf</span>
+                </div>
+              </div>
+              <div style="flex:none;width:88px;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:25px;line-height:1">3.4</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--color-text)" style="margin-bottom:2px"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                </div>
+                <div style="font-size:14px;font-weight:600">€ 11.00</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">€ 4.40 / 100 g</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding:9px 20px 10px;border-top:2px solid var(--color-divider);background:var(--color-bg)">
+          <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--color-divider);background:var(--color-surface);padding:8px 10px;min-height:40px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-600)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <span style="font-size:13px;color:var(--color-neutral-600)">Search coffees, roasters, farms</span>
+          </div>
+        </div>
+
+        <div style="flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 18px;color:var(--color-accent)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h13a3 3 0 0 1 0 6h-1M4 8v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5M3 22h16"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em;font-weight:600">COFFEES</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;padding:10px 0 18px;border-left:1px solid var(--color-divider);border-right:1px solid var(--color-divider)">
+            <button style="width:46px;height:46px;border:0;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Scan coffee">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 18px;color:var(--color-neutral-600)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+            <span style="font-size:9px;letter-spacing:0.1em">INSIGHTS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTES ── -->
+    <div style="width:360px;display:flex;flex-direction:column;gap:0;border-top:2px solid var(--color-divider)">
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">01 — Rating leads, price follows</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">The right column is one ranked stack: score at 25px, price at 14, €/100 g at 11. Nothing competes for the same weight, so a scan reads score → cost → value without stopping.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">02 — Great value, not just €/100 g</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">A five-step meter puts each bag's €/100 g against comparable bags in your library. Icon blue at the top step is the only place value shouts; “pricey” stays ink.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">03 — Flags become codes</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Roaster country stays a two-letter box — outlined grey, filled icon-blue when that roaster is one of your top-rated. Origin keeps its flag, which reads faster than any code and needs no legend.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">04 — The date strip retires</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Month headers already carry the date, so the grey footer strip becomes a short “JUL 15” at the foot of the right column. One less full-width band per row, ~14 px back each. The favourite leaves that stack and pins to the bag photo's corner, where it belongs to the coffee rather than to the numbers.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">05 — Filter cards as a ledger</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Equal 104 px cells, count set large, divided by rules rather than floating pills. Active card is a solid icon-blue fill — the one selected state in the whole screen.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">06 — The filter states itself</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">Since a card replaces the whole filter, one tinted line says so: the chip, how many of 862 bags survive, and CLEAR. Tapping the lit card releases it too.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">07 — Your preferences, marked in place</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">When a bag's roaster or origin is one you rate highest, that line turns blue and carries its average. Ethiopia at 4.5, DAK at 4.6 — the reason to look, on the coffee itself rather than in a header.</div>
+      </div>
+      <div style="padding:14px 0;border-bottom:2px solid var(--color-divider)">
+        <h6 style="margin:0 0 4px;color:var(--color-accent)">08 — Review pends here</h6>
+        <div style="font-size:13px;color:var(--color-neutral-800)">With Review off the tab bar, the queue reaches you here: a tinted band under the title, only when something is pending. The centre slot opens the Add Coffee wizard.</div>
+      </div>
+      <div style="padding:14px 0;font-size:12px;color:var(--color-neutral-700)">Match-for-you is deliberately absent: value first, per your call. Data shown is the repo's sample set.</div>
+    </div>
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showValueMeter&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Row&quot;},&quot;showReviewNudge&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Home&quot;}}">
+class Component extends DCLogic {
+  state = { active: null };
+  renderVals() {
+    const defs = [
+      { title: "Favourites", count: 128 },
+      { title: "Highly rated", count: 96 },
+      { title: "Anaerobic", count: 41 },
+      { title: "Ethiopia", count: 74 },
+      { title: "Co-fermented", count: 18 }
+    ];
+    const active = this.state.active;
+    const cards = defs.map((d, i) => ({
+      title: d.title,
+      count: d.count,
+      bg: active === i ? "var(--color-accent)" : "transparent",
+      fg: active === i ? "#fff" : "var(--color-text)",
+      chipBg: active === i ? "var(--color-accent)" : "#fff",
+      chipFg: active === i ? "#fff" : "var(--color-neutral-900)",
+      chipBorder: active === i ? "var(--color-accent)" : "var(--color-neutral-300)",
+      chipCount: active === i ? "#fff" : "var(--color-neutral-700)",
+      onClick: () => this.setState({ active: active === i ? null : i })
+    }));
+    const chips = { 0: "Favourites only", 1: "Rating 4.5+", 2: "Anaerobic", 3: "Ethiopia", 4: "Co-fermented" };
+    const secs = ["Insights", "Charts", "Data"];
+    const sec = this.state.section ?? 0;
+    const insightsTabs = secs.map((label, i) => ({
+      label,
+      bg: sec === i ? "var(--color-accent)" : "#fff",
+      fg: sec === i ? "#fff" : "var(--color-neutral-900)",
+      border: sec === i ? "var(--color-accent)" : "var(--color-neutral-300)",
+      onClick: () => this.setState({ section: i })
+    }));
+    const drift = this.state.drift === true;
+    return {
+      insightsTabs,
+      toggleDrift: () => this.setState({ drift: !drift }),
+      driftBg: drift ? "var(--color-accent)" : "#fff",
+      driftFg: drift ? "#fff" : "var(--color-neutral-900)",
+      driftBorder: drift ? "var(--color-accent)" : "var(--color-neutral-300)",
+      cards,
+      filtering: active !== null,
+      chipLabel: chips[active] || "",
+      matchCount: defs[active] ? defs[active].count + " of 862 bags" : "862 bags",
+      clearFilter: () => this.setState({ active: null }),
+      activeLabel: (defs[active] ? defs[active].title.toUpperCase() + " ONLY" : "ALL BAGS"),
+      showValueMeter: this.props.showValueMeter ?? true,
+      showReviewNudge: this.props.showReviewNudge ?? true
+    };
+  }
+}
+
+</script>
+</body>
+</html>
