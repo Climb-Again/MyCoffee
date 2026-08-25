@@ -807,6 +807,12 @@ async function appendOcrTextToCoffee(coffeeId, ocrText) {
   if (existing.includes(`${OCR_HEADING}\n`)) return false; // already appended
   const combined = existing ? `${existing}\n\n${OCR_HEADING}\n${trimmed}` : `${OCR_HEADING}\n${trimmed}`;
   await query('UPDATE coffees SET raw_description = $1, updated_at = now() WHERE id = $2', [combined, coffeeId]);
+  // #79/#80 order-independence: if this coffee had already been flavour-scanned
+  // and found none ('' sentinel), the just-appended OCR text may now contain the
+  // bag's printed notes — clear the sentinel back to NULL so the next
+  // flavour-notes pass re-scans it with the richer text. A real prior value
+  // (human edit or an earlier find) is left untouched.
+  await query(`UPDATE coffees SET flavor_notes = NULL WHERE id = $1 AND flavor_notes = ''`, [coffeeId]);
   return true;
 }
 
