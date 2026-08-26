@@ -8,6 +8,65 @@ _none_
 
 ## Session notes
 
+- [2026-08-26 UTC, same session as #87] **#88 DONE** — `CoffeeDetailView` 2a
+  redesign, folds in #82 — branch `ios-staging`.
+  - Picked up right after #87 (batching per the lane's normal guidance);
+    #83/#84/#81 were all already `done` so #88 read `ready` with no further
+    merge needed.
+  - **Toolbar**: kept the established "no custom back button" precedent
+    (this file's own pre-existing comment: a leading overlay back button
+    previously produced a duplicate arrow and broke edge-swipe) instead of
+    reproducing the handoff's leading back-circle pixel-for-pixel. Restyled
+    the trailing Share/Edit to explicit 44×44 white-92%-opacity circles and
+    added a new favourite circle (accent fill, white heart) — favourite
+    wasn't on the toolbar before this row.
+  - **Review pill**: needed a real per-coffee field count the app didn't
+    expose yet — `ReviewFeedCache` (`Features/Review/**`, ios-ux-owned, so
+    in-scope) only tracked a `Set<String>` of reviewable coffee ids. Added
+    `reviewableFieldCounts: [String: Int]` alongside it (one feed item is
+    one (coffeeId, field) pair, so counting items per coffee from the same
+    already-fetched feed was free) and `reviewableFieldCount(for:)`. The
+    pill now reads "2 fields to review" instead of a bare "Review" label.
+  - **Roaster row**: reread the handoff text carefully here — "your best
+    roaster" is the single #1 roaster (`topRoasterIDs().first`), a stricter
+    bar than `#85`'s row-level "member of the top set" check, which #85's
+    own doc comment already flagged as the detail page's distinction to
+    make. The name itself is unconditionally blue now (handoff literally
+    lists it as one of blue's fixed uses, same as the rating), unlike the
+    row's conditional treatment.
+  - **Pill row**: process moved out of its own tinted `ProcessTag` section
+    and into the plain neutral pill row per Definition of done ("no tinted
+    capsule for process"); omitted entirely (not "Unknown") when the coffee
+    has no profile, matching `#85`'s precedent for the listing row. Origin
+    pills only turn blue for an actual top-origin country — the handoff's
+    prose lists origin as unconditionally blue-tinted, but that reads as
+    inconsistent with its own Definition of done ("blue only for top
+    roaster/origin") and with `#85`'s shipped row behaviour, so this session
+    followed the stricter, already-established rule rather than the
+    ambiguous prose.
+  - **Price block + fact rows**: new stat-pair block replaces the old price
+    fact-rows entirely; `DesignSystem/FactRow.swift` lost its icon/card
+    styling (renamed `FactRowsCard`→`FactRowsList` since it isn't a card
+    background anymore) and gained a "Farm" row via the already-existing
+    `coffee.originFarm(vocabulary:)` accessor — the handoff asks for this
+    row but nothing before this session actually surfaced it as a fact row.
+  - **Flavour profile**: `Coffee.flavorNotes` (#81) is a comma-separated
+    string, not an array — split/trim/filter into chips client-side, `nil`
+    entirely omits the section (handles both "field absent" and the
+    backend's empty-string "scanned, none stated" sentinel the same way).
+  - **Rails**: `RailView.swift` restyled to the handoff's 13pt/11pt header
+    and 92pt cards; dropped the star-glyph rating (plain blue/grey number,
+    matching `#85`'s row-level removal of star glyphs).
+  - Not locally compiled (no Xcode in this sandbox) — the riskiest pieces
+    are `UnevenRoundedRectangle` (iOS 16+, fine for this iOS 17 target, but
+    unused elsewhere in the codebase so worth a first look on a red compile)
+    and the toolbar's three-circle layout at real device widths.
+  - `Features/Coffees/{CoffeeDetailView,RailView}.swift`,
+    `Features/Review/ReviewFeedCache.swift`, `DesignSystem/{FactRow,Theme}.swift`
+    (added `Theme.minHitTarget`, missing from `#83`'s original token set).
+    No other row's `needs` names `88` — nothing else unblocks.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-26 UTC] **#87 DONE** — `RootTabView` redesign (3 tabs → 2 tabs +
   centre add button + review nudge) — branch `ios-staging`.
   - Re-verified before picking up: this session started on the harness's

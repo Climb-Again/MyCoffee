@@ -50,6 +50,11 @@ enum Theme {
         static let semibold: Font.Weight = .semibold
         static let heavy: Font.Weight = .heavy
     }
+
+    /// The handoff's minimum tap target everywhere (chips, breakdown rows,
+    /// hero circles, favourite, toggles) — the visual glyph may be smaller
+    /// inside it (`#88`).
+    static let minHitTarget: CGFloat = 44
 }
 
 extension View {
