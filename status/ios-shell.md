@@ -8,6 +8,26 @@ _none_
 
 ## Done
 
+- [2026-08-26 UTC, later session] Session check — no ready `ios-shell` row.
+  All four `ios-shell`-tagged rows this cycle (#17/#22/#41/#46 from earlier
+  plus #76/#81/#84) are `done`; the only `ready` rows anywhere in
+  `BACKLOG.md` are ios-ux (#82, #87, #88, #89 — the 2a redesign screens
+  this session's own prior entry unblocked) and backend (#90, flavour-notes
+  extraction latency). Nothing in `Sources/{App,Store,API,Models,Query,
+  Utilities}` or `project.yml` to pick up.
+  - `ios-staging` was already at `origin/ios-staging`'s tip (this branch's
+    own most recent commit, `51e3abe`, is an ios-ux commit on top of the
+    prior `ios-shell` session's #81/#84 work) — no `main` merge needed
+    beyond what's already folded in.
+  - Re-swept `git branch -r --list 'origin/claude/*'` (135 branches, one
+    more than the last check's 134): the new one is this session's own
+    designated branch. Checked the newest-by-commit-date candidates besides
+    that (`eager-allen-{d9xao4,r8qf91}`, `awesome-bardeen-mjyfw7`,
+    `relaxed-thompson-vpp532`, `peaceful-mccarthy-neqxc9`,
+    `confident-cerf-45aekz`) — all show `0` commits ahead of `ios-staging`
+    in this lane's owned paths. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
 - [2026-08-26 UTC] 81 flavour-notes model + wire; 84 redesign derived values in `CoffeeIndex` — branch `ios-staging`
   - Merged `origin/main` into `ios-staging` first: one real conflict in `status/BACKLOG.md` — `ios-staging` had #83 landed `done` (with the actual `Theme.swift` writeup) and #86/#87 flipped `ready`, while `main`'s copy still showed #83 `ready`/#86/#87 `blocked`. Kept `ios-staging`'s side (strictly newer — #83's own `done` text plus #86/#87's flips are real completed work, not a stale guess), matching the "each branch is stale about the other's lane" precedent this file has used for months.
   - Swept `git branch -r --list 'origin/claude/*'` (134 branches) per the integrate-before-you-start rule: the usual top commits-ahead cluster (`hopeful-johnson-bdpy3r`, `confident-cerf-{t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`, `confident-cerf-fti5j5`) is the same stale pre-#71/#74 net-deletion snapshot every prior sweep has found. Also grepped every stranded branch for the row's own new symbols (`valueBand`, `flavorNotes`, `topRoasterIDs`, `topOriginCountryIDs`) — the only hits were substring false-positives inside the pre-existing `InsightsFindings.swift` (confirmed by re-grepping for the exact identifiers, zero matches). Nothing stranded to adopt.
