@@ -7,6 +7,28 @@ private struct OriginCountryTally {
     let allIndices: IndexSet
 }
 
+/// A coffee's price-per-100g standing against the rest of the library
+/// (design handoff §State) — a display-only derived value, no schema change.
+/// `pillCount` is the number of filled pills (1–5) in the listing/detail
+/// "value meter", inverted so cheap = more pills filled.
+struct ValueRating: Sendable, Hashable {
+    enum Band: Sendable { case great, fair, pricey }
+
+    let band: Band
+    let pillCount: Int   // 1...5
+}
+
+/// A vocab entry (roaster or origin country) with its average rating across
+/// the coffees that carry it, restricted to entries with at least
+/// `minCount` rated coffees (design handoff §State) — used to mark the
+/// user's own top roasters/origins in the row/detail views. Sorted
+/// descending by average, so `.first` is "your best".
+struct TopVocabAverage: Sendable, Hashable {
+    let id: Int
+    let average: Double
+    let count: Int
+}
+
 /// The full local snapshot as an in-memory index — no SwiftData/SQLite (see
 /// PLAN.md §5 for why). Pure value type, no I/O: filtering is `IndexSet`
 /// intersection over prebuilt postings, cheap enough at ~900 rows to run
@@ -31,6 +53,10 @@ struct CoffeeIndex: Sendable {
     let priceWidthCents: Int?
     let pricePer100gWidthCents: Int?
 
+    /// Every coffee's `pricePer100gEur` in the library, ascending — the input
+    /// to `valueBand(for:)`'s quintile lookup. Empty when no coffee has a price.
+    let pricePer100gSorted: [Double]
+
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
     init(coffees rawCoffees: [Coffee], vocabulary: Vocabulary, searchTexts: [String: String] = [:]) {
@@ -46,6 +72,7 @@ struct CoffeeIndex: Sendable {
         self.priceWidthCents = priceWidth
         self.pricePer100gWidthCents = ppgWidth
         self.postings = Self.buildPostings(coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth)
+        self.pricePer100gSorted = sorted.compactMap { $0.pricePer100gEur }.sorted()
     }
 
     // MARK: - Lookup
@@ -236,6 +263,73 @@ struct CoffeeIndex: Sendable {
         }
 
         return Array(deduped.prefix(limit))
+    }
+
+    // MARK: - Redesign derived values (#84)
+
+    /// The coffee's value-for-money standing (design handoff §Row/§State):
+    /// its `pricePer100gEur` quintile within the library, inverted so
+    /// cheapest = `.great` + 5 filled pills, priciest = `.pricey` + 1. `nil`
+    /// when the coffee (or the library) has no price — no meter, no verdict.
+    func valueBand(for coffee: Coffee) -> ValueRating? {
+        guard let price = coffee.pricePer100gEur, !pricePer100gSorted.isEmpty else { return nil }
+        let rank = Self.quintileRank(price, in: pricePer100gSorted)
+        let band: ValueRating.Band = rank == 1 ? .great : (rank == 5 ? .pricey : .fair)
+        return ValueRating(band: band, pillCount: 6 - rank)
+    }
+
+    /// Roasters with at least `minCount` rated coffees, sorted descending by
+    /// average rating — `.first` is "your best roaster" (design handoff
+    /// §Row/§Screen 2). Unrated coffees and coffees with no roaster don't count.
+    func topRoasterIDs(minCount: Int = 5) -> [TopVocabAverage] {
+        Self.topAverages(minCount: minCount, coffees: coffees) { $0.roasterId.map { [$0] } ?? [] }
+    }
+
+    /// Same as `topRoasterIDs` but over origin countries — a coffee with
+    /// multiple origins (a blend) contributes to each of its countries.
+    func topOriginCountryIDs(minCount: Int = 5) -> [TopVocabAverage] {
+        Self.topAverages(minCount: minCount, coffees: coffees) { $0.originCountryIds }
+    }
+
+    private static func topAverages(
+        minCount: Int,
+        coffees: [Coffee],
+        idsFor: (Coffee) -> [Int]
+    ) -> [TopVocabAverage] {
+        var ratingSums: [Int: Double] = [:]
+        var ratingCounts: [Int: Int] = [:]
+        for coffee in coffees {
+            guard let rating = coffee.rating else { continue }
+            for id in idsFor(coffee) {
+                ratingSums[id, default: 0] += rating
+                ratingCounts[id, default: 0] += 1
+            }
+        }
+        return ratingCounts
+            .filter { $0.value >= minCount }
+            .map { id, count in TopVocabAverage(id: id, average: ratingSums[id]! / Double(count), count: count) }
+            .sorted { lhs, rhs in
+                if lhs.average != rhs.average { return lhs.average > rhs.average }
+                if lhs.count != rhs.count { return lhs.count > rhs.count }
+                return lhs.id < rhs.id
+            }
+    }
+
+    /// 1-indexed quintile rank (1 = cheapest/lowest, 5 = priciest) of `value`
+    /// within `sortedValues` (ascending) — nearest-rank method: rank =
+    /// `ceil(countLessOrEqual / total * 5)`, so the single most expensive
+    /// value always lands in rank 5 and the cheapest in rank 1, with no
+    /// off-by-one at either end regardless of `sortedValues.count % 5`.
+    private static func quintileRank(_ value: Double, in sortedValues: [Double]) -> Int {
+        var lo = 0
+        var hi = sortedValues.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if sortedValues[mid] <= value { lo = mid + 1 } else { hi = mid }
+        }
+        let countLessOrEqual = lo
+        let rank = Int((Double(countLessOrEqual) / Double(sortedValues.count) * 5).rounded(.up))
+        return min(max(rank, 1), 5)
     }
 
     // MARK: - Building

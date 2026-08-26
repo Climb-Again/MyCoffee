@@ -18,6 +18,7 @@ enum SampleData {
              farmLotNote: "Washed Nekisse, dried on raised beds for 14 days.",
              brewGuideNote: "V60, 92°C, 1:16, 3 pours.",
              roasterCopyNote: "Bright, floral, bergamot and jasmine.",
+             flavorNotes: "bergamot, jasmine, black tea",
              rawTitle: "Ethiopia Nekisse", rawCaption: "Etiopia Nekisse, spalat"),
 
         make(id: "sample-002", purchased: (2026, 6, 2), roasterId: 2, roasterCountryId: 8,
@@ -31,6 +32,7 @@ enum SampleData {
              altitudeMinM: 1900, altitudeMaxM: 2100, profile: .anaerobic,
              priceOriginalAmount: 24, priceOriginalCurrency: "EUR", priceEur: 24, fxRate: 1, fxRatePeriod: "2025-11",
              weightG: 100, rating: 4.8, isFavorite: true, favoriteSetBy: "system",
+             flavorNotes: "strawberry, wine, tropical fruit",
              rawTitle: "Panama Anaerobic Natural"),
 
         make(id: "sample-004", purchased: (2025, 5, 10), roasterId: 4, roasterCountryId: 9,
@@ -212,6 +214,7 @@ enum SampleData {
         farmLotNote: String? = nil,
         brewGuideNote: String? = nil,
         roasterCopyNote: String? = nil,
+        flavorNotes: String? = nil,
         rawTitle: String? = nil,
         rawCaption: String? = nil,
         rawDescription: String? = nil,
@@ -245,6 +248,7 @@ enum SampleData {
             farmLotNote: farmLotNote,
             brewGuideNote: brewGuideNote,
             roasterCopyNote: roasterCopyNote,
+            flavorNotes: flavorNotes,
             rawTitle: rawTitle,
             rawCaption: rawCaption,
             rawDescription: rawDescription,

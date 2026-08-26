@@ -64,6 +64,13 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
     let brewGuideNote: String?
     let roasterCopyNote: String?
 
+    /// Short comma-separated tasting notes (#79/#81), e.g. "dark chocolate,
+    /// cherry, dried plum". Detail-only — the compact snapshot omits it to
+    /// spare its per-row budget, so this is nil until a detail fetch supplies
+    /// it (same pattern as `farmLotNote`/`rawTitle`). `nil` and `""` both mean
+    /// "none yet"; the view shows the section only when non-empty.
+    let flavorNotes: String?
+
     let rawTitle: String?
     let rawCaption: String?
     let rawDescription: String?
@@ -119,6 +126,7 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
             rating: rating, isFavorite: isFavorite, favoriteSetBy: setBy,
             farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
+            flavorNotes: flavorNotes,
             rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
             reviewState: reviewState, minFieldConfidence: minFieldConfidence,
             rotationQuarterTurns: rotationQuarterTurns, images: images
@@ -138,6 +146,7 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
             rating: rating, isFavorite: isFavorite, favoriteSetBy: favoriteSetBy,
             farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
+            flavorNotes: flavorNotes,
             rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
             reviewState: reviewState, minFieldConfidence: minFieldConfidence,
             rotationQuarterTurns: ((turns % 4) + 4) % 4, images: images
