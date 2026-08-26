@@ -8,6 +8,123 @@ _none_
 
 ## Session notes
 
+- [2026-08-26 UTC, same session as #85] **#86 DONE** — `CoffeesListView`
+  redesign — branch `ios-staging`.
+  - Picked up right after #85 in the same session (batching per the lane's
+    normal 2–4-item guidance); #83/#84 both already `done` so #86 read
+    `ready` with no further merge needed.
+  - **Header**: rather than hiding the native nav bar outright (risking an
+    interaction with #58's iOS-26 `.searchable` bottom-docking, which is
+    keyed off `RootTabView`'s `Tab(value:)` builder, not this view's own
+    bar), kept the bar but reduced it to an inline, colour-matched strip
+    (`.toolbarBackground(Theme.Colors.accent, ...)`,
+    `.toolbarColorScheme(.dark, ...)`, empty `navigationTitle`) and moved the
+    actual "Coffees" title/overline/buttons into a custom `headerSection`
+    List row with its own `Theme.Colors.accent` background — visually one
+    continuous blue field even though it's two stacked pieces. Bag/roaster
+    counts for the overline are computed client-side
+    (`store.index.coffees.count` / `Set(...compactMap(\.roasterId)).count`)
+    rather than needing a new `CoffeeIndex` helper.
+  - **Review nudge**: new, gated on `store.reviewQueueCount > 0`, opens
+    `ReviewQueueView` as a `.sheet` — the Review tab itself stays put until
+    #87 actually removes it, so both routes coexist for now, which is fine
+    (additive, not a conflict).
+  - **Filter chips**: `TopFilterCardsRow.swift` deleted; a new inline chip
+    view in `CoffeesListView.swift` styles pills per the handoff and
+    implements the **new** tap-the-active-chip-to-clear behavior (the old
+    view always set `store.filter = card.filter` regardless, never cleared
+    on a repeat tap of the same card — confirmed by reading the deleted
+    file before removing it, not just assuming). **Deliberately did not
+    touch `Query/TopFilterCard.swift`** even though the backlog row's own
+    file list named it — that file is `Query/**`, ios-shell-owned per
+    `CLAUDE.md` §4, and its existing `title`/`count`/`filter` shape already
+    covers everything the restyled chip needs, so there was nothing to
+    change there anyway.
+  - **Filter-state line + month headers**: straightforward per spec — the
+    line uses `store.filteredCoffees.count`/`store.index.coffees.count` and
+    a `CLEAR` button resetting `store.filter = CoffeeFilter()`; month
+    headers move from a plain `Section(String)` to a `Section(content:
+    header:)` with a styled `Text` (uppercase, 10pt, tracked, `neutral700`,
+    no background) so the existing sticky-header behavior (a `List`/
+    `.listStyle(.plain)` property, not tied to header type) is unaffected.
+  - **Flagging, not guessing silently**: two pieces have no way to visually
+    confirm without a simulator — (1) whether the nav-bar-tint + custom-row
+    header combination actually reads as one continuous blue field or shows
+    a visible seam/double-header, and (2) whether the now-empty
+    `navigationTitle("")` changes the back-button label when pushing into
+    `CoffeeDetailView` (cosmetic only — a bare chevron instead of "Coffees"
+    — not a functional break). Next compile/device check should look at
+    `CoffeesListView.swift` first for either.
+  - Not locally compiled (no Xcode in this sandbox).
+  - `ios/MyCoffee/Sources/Features/Coffees/CoffeesListView.swift`; deleted
+    `ios/MyCoffee/Sources/Features/Coffees/TopFilterCardsRow.swift`.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-26 UTC] **#85 DONE** — `CoffeeRowView` 2a redesign — branch `ios-staging`.
+  - **Before claiming**: this session started on `claude/hopeful-johnson-ohtwjx`
+    with an in-progress, not-yet-committed draft of `#83` (design tokens +
+    accent) already written locally. Checking out `ios-staging` and merging
+    `origin/main` in surfaced that `#83` **and** `#84` (ios-shell's derived
+    values, `ValueRating`/`TopVocabAverage`/`valueBand`/`topRoasterIDs`/
+    `topOriginCountryIDs` in `Store/CoffeeIndex.swift`) had already landed on
+    `origin/ios-staging` (`431ae54`, `32f8458`) from an earlier firing the
+    same day — confirmed by diffing the stashed draft against the landed
+    `Theme.swift` (byte-for-byte equivalent token table and `AccentColor`
+    sRGB values) before discarding it, per the "integrate before you start"
+    rule. Resolved a real merge conflict in `status/BACKLOG.md` (rows
+    `#80`–`#82`: `ios-staging`'s copy had the fuller, more-recent write-ups —
+    `#80`'s backfill marked COMPLETE, `#81` DONE not `ready` — kept those over
+    `origin/main`'s stale versions, same "keep the newer/fuller side"
+    precedent prior sessions have used). With `#83`/`#84` both `done`, `#85`
+    through `#89` all read `ready` — picked `#85` (lowest number, and the
+    suggested-implementation-order's "biggest visible win, self-contained").
+  - **The redesign**: rewrote `CoffeeRowView.swift` against `Theme.*` and
+    `design/coffees_redesign/README.md` §Row — 88×88 `Thumbnail` (no
+    grayscale; the README's own Assets note says that's a mock convention,
+    not a requirement) with the favourite as a bottom-trailing-pinned 44×44
+    hit area around a 28pt circle (blue+white heart when favourite, white+
+    outline heart otherwise); middle column drops the roaster-country flag
+    (2a moves it off the row per the README) and renders roaster name
+    uppercase/10pt, blue only when the roaster is in
+    `store.index.topRoasterIDs()`; title 17/800; origin line keeps the flag,
+    appends `· <avg>` and turns `accent700` only when one of the coffee's
+    origin countries is in `store.index.topOriginCountryIDs()` (picking the
+    highest-average match for a blend); process renders as plain 11pt grey
+    text, no capsule — `ProcessTag`/`DecafBadge` are gone from this view
+    entirely (not called out as "keep" anywhere in the row spec, and the
+    capsule is explicitly in the "removed" list). Right column: rating 26/800
+    (blue at ≥4.5, no star glyph), price, a compact `€X.XX/100g` line, then a
+    5-pip value meter + verdict text from `store.index.valueBand(for:)`
+    (`GREAT VALUE`/`FAIR VALUE`/`PRICEY`, blue only for `.great`). The old
+    full-width grey date-strip footer is deleted outright — the README is
+    explicit that the purchase date now lives in the month header only, which
+    `CoffeesListView` already renders — so the row no longer needs a `sort`
+    parameter at all; removed it from the initializer and updated all four
+    call sites (`CoffeesListView`, `RailView.RailMoreView`,
+    `CountryPageView`, `RoasterPageView`). Kept `PlainDateFormatting` in this
+    file (still used by `CoffeeDetailView.swift`) even though this view no
+    longer calls it itself.
+  - **Interpretation call, flagged rather than guessed silently**: the README
+    says a roaster/origin "qualifies when it is in the user's highest-average
+    set with at least ~5 rated bags" — read as **membership** in
+    `topRoasterIDs()`/`topOriginCountryIDs()`'s returned array (which is
+    already filtered to `count >= minCount` and sorted by average), not
+    literally just the single best entry (`#88`'s "your best roaster, 4.6
+    avg" on the detail page is the `.first`-of-that-array case, a distinct,
+    narrower use of the same derived value). If Radu's read differs once he
+    sees it on device, the fix is a one-line `.first`-vs-`.contains` swap in
+    `isTopRoaster`/`topOriginAverage`.
+  - Not locally compiled (no Xcode in this sandbox) — flag
+    `CoffeeRowView.swift` first on a red compile check; the one API used here
+    with no existing in-app precedent is `Text.tracking(_:)` for the
+    letter-spacing values (`0.6`/`-0.34`/`0.8`pt, converted from the
+    handoff's em-relative-to-font-size values) — real API since iOS 16, well
+    under the iOS 17 deployment target, so a failure here is far more likely
+    a typo than the API not existing.
+  - `ios/MyCoffee/Sources/Features/{Coffees/{CoffeeRowView,CoffeesListView,
+    RailView},Insights/EntityPages/{CountryPageView,RoasterPageView}}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-25 UTC] **#83 DONE** — Coffees/Coffee-page/Insights redesign (2a),
   design-tokens foundation. Added `ios/MyCoffee/Sources/DesignSystem/Theme.swift`:
   `Theme.Colors` (the full handoff hex table — accent/accent600/accent100/

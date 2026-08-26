@@ -106,7 +106,7 @@ struct RailMoreView: View {
         List {
             ForEach(coffees) { coffee in
                 NavigationLink(value: coffee.id) {
-                    CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary, sort: .rating)
+                    CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
                 }
             }
             .listRowSeparator(.hidden)
