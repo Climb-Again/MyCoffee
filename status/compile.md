@@ -8,6 +8,15 @@ _none_
 
 ## Done
 
+- **2026-08-26: run #74** (`ios-testflight.yml`, `publish=false`, `ref: ios-staging`,
+  sha `100135c` — "iOS shell: session check 2026-08-26, no ready row") went **GREEN**
+  on the first try. `ios-staging` had 33 unmerged commits over `main` (last synced
+  at run #71/#73, sha `6aac5f0`/merged to `main` at `e5f72ed` on 2026-08-23), so the
+  check was warranted — covers #75–#89 range work (Add Coffee wizard, flavour
+  notes extraction + display, Coffees/Coffee-page/Insights redesign tokens,
+  CoffeeRowView + CoffeesListView redesign). No in-flight run blocked the
+  dispatch. Nothing to fix or diagnose this cycle.
+
 - **2026-08-01: run #20 (`ios-testflight.yml`, `publish=false`, `ref: ios-staging`,
   sha `c3f7c272` — closes #22 ios-shell) went RED**, then fixed and reran GREEN.
   `ios-staging` had 13 unmerged commits over `main` (last: #22 remote repo +
