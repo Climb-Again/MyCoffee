@@ -8,6 +8,60 @@ _none_
 
 ## Session notes
 
+- [2026-08-26 UTC] **#87 DONE** — `RootTabView` redesign (3 tabs → 2 tabs +
+  centre add button + review nudge) — branch `ios-staging`.
+  - Re-verified before picking up: this session started on the harness's
+    generic per-repo branch (`claude/hopeful-johnson-yc6ywg`, which mirrors
+    `main`), where `BACKLOG.md` still showed #83–#86 as `ready`/`blocked`.
+    Checking `origin/ios-staging` directly (per `CLAUDE.md` §12's "a fired
+    session commits to its own branch" gotcha and `status/README.md`'s
+    "integrate before you start" rule) found #83–#86 already `done` there
+    with real, distinct commits (`431ae54`, `32f8458`, `51e3abe`) and a
+    `BACKLOG.md` already corrected to match — `main`'s copy was just stale.
+    Discarded a duplicate `Theme.swift` this session had drafted before
+    checking, and continued from `ios-staging`'s actual head instead of
+    redoing #83.
+  - **Tab bar**: `RootTabView.swift` drops the `Review` tab from both the
+    iOS 18+ value-based `Tab` builder and the iOS 17 `.tabItem` fallback —
+    down to Coffees/Insights only, `.tint(Theme.Colors.accent)` on the
+    `TabView` for the active-tab colour. Did **not** touch `RootTab` (shell-
+    owned, `Store/CoffeeStore.swift`) — its `.review` case is simply
+    unreferenced now rather than deleted, since removing it would be a
+    shared-surface change and nothing left in this lane's files needs it.
+  - **Centre "+"**: restyled the existing #77 floating button with `Theme`
+    tokens (56pt `Theme.Colors.accent` circle, white 24pt plus,
+    `Theme.Shadow.md` via `themeShadow(_:)`) and moved its overlay alignment
+    from `.bottomTrailing` to `.bottom`. **Did not build it as a real third
+    `Tab`** — the handoff's "Coffees · + · Insights" wants a middle slot
+    that opens a sheet rather than navigating, which needs a `Tab` whose
+    selection is intercepted and reverted (a "fake tab" pattern), and that
+    revert is visibly flickery with no simulator here to check. With only
+    two real tabs the native bar already splits into two even halves, so a
+    button centred at the bottom edge lands exactly on the seam between
+    them — visually the same three-slot result, without the flicker risk.
+    Flagging this trade-off in case a session with a simulator wants to
+    swap in the "real third tab" version later.
+  - **Review nudge**: no new work — #86 already built
+    `CoffeesListView.reviewNudge`, gated on `store.reviewQueueCount > 0`,
+    opening `ReviewQueueView` as a sheet. This row's badge-removal is now
+    complete on both ends (no more `Review` tab badge, nudge is the only
+    surface).
+  - Typography fidelity note: the handoff asks for 9pt/0.1em-tracked tab
+    labels — SwiftUI's native tab bar doesn't expose label typography short
+    of replacing the whole bar with a custom view, which felt like too much
+    risk for this row's actual ask (remove Review, add the centre button).
+    Left tab labels as system default text at native size, matching the
+    README's own "prefer system behaviours...over exact pixel matches"
+    concession.
+  - Not locally compiled (no Xcode in this sandbox) — the riskiest piece is
+    the `.tint(Theme.Colors.accent)` interaction with #58's iOS-26
+    `.searchable` bottom-docking (unrelated modifier, but same view); flag
+    `RootTabView.swift` first on a red compile or a `.searchable` placement
+    regression.
+  - `Features/Root/RootTabView.swift`. No other row's `needs` names `87` —
+    nothing else unblocks.
+  - Commit: (see `git log` on `ios-staging`)
+
 - [2026-08-26 UTC, same session as #85] **#86 DONE** — `CoffeesListView`
   redesign — branch `ios-staging`.
   - Picked up right after #85 in the same session (batching per the lane's

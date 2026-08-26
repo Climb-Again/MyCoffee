@@ -1,9 +1,14 @@
 import SwiftUI
 
-/// The app's root: three tabs — Coffees / Insights / Review (PLAN.md §6).
-/// Search lives on the Coffees tab via `.searchable`, not as a tab of its
-/// own. The Review tab is always present with a `.badge(pendingCount)` —
-/// never conditionally inserted, which would reindex the bar.
+/// The app's root: two real tabs, Coffees and Insights (`#87`,
+/// `design/coffees_redesign/README.md` §Tab bar). The Review tab is gone —
+/// its count reaches the user through the listing's review nudge (`#86`,
+/// `CoffeesListView.reviewNudge`) instead of a badge. A floating centre
+/// button sits on the boundary between the two tabs, visually completing the
+/// handoff's "Coffees · + · Insights" three-slot bar without the flicker a
+/// real third `Tab` that intercepts selection would cause: with exactly two
+/// tabs the native bar already splits evenly in half, so a button centred at
+/// the bottom edge lands exactly on the seam between them.
 ///
 /// **#58**: on iOS 26, the value-based `Tab(_:systemImage:value:)` builder
 /// (iOS 18+) is what lets the system dock a tab's `.searchable` field near
@@ -14,9 +19,9 @@ import SwiftUI
 /// own `.searchable` call is untouched either way (PLAN.md §13/#58 — "keep
 /// the same binding + prompt, placement only").
 ///
-/// **#77**: the Add Coffee wizard is reached from a floating "+" overlaid
-/// above the tab bar, not a fourth `Tab`/`.tabItem` — the "three tabs"
-/// decision stays exactly three regardless of `#available` branch.
+/// `RootTab.review` (shell-owned, `Store/CoffeeStore.swift`) is left
+/// untouched — dropping the case would be a shared-surface change, and
+/// nothing here still references it now that the Review tab is gone.
 struct RootTabView: View {
     @StateObject private var store = CoffeeStore()
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
@@ -32,11 +37,8 @@ struct RootTabView: View {
                     Tab("Insights", systemImage: Symbols.tabInsights, value: RootTab.insights) {
                         InsightsView()
                     }
-                    Tab("Review", systemImage: Symbols.tabReview, value: RootTab.review) {
-                        ReviewQueueView()
-                    }
-                    .badge(store.reviewQueueCount)
                 }
+                .tint(Theme.Colors.accent)
             } else {
                 TabView(selection: $store.selectedTab) {
                     CoffeesListView()
@@ -46,17 +48,12 @@ struct RootTabView: View {
                     InsightsView()
                         .tabItem { Label("Insights", systemImage: Symbols.tabInsights) }
                         .tag(RootTab.insights)
-
-                    ReviewQueueView()
-                        .tabItem { Label("Review", systemImage: Symbols.tabReview) }
-                        .badge(store.reviewQueueCount)
-                        .tag(RootTab.review)
                 }
+                .tint(Theme.Colors.accent)
             }
         }
-        .overlay(alignment: .bottomTrailing) {
+        .overlay(alignment: .bottom) {
             addCoffeeButton
-                .padding(.trailing, 20)
                 .padding(.bottom, 76)
         }
         .environmentObject(store)
@@ -64,7 +61,7 @@ struct RootTabView: View {
             if store.index.coffees.isEmpty {
                 await store.load()
             }
-            // Badge follows the actual review queue, not the count of non-clean
+            // Nudge follows the actual review queue, not the count of non-clean
             // coffees (which includes fields the app can't review).
             await store.refreshReviewCount()
         }
@@ -77,16 +74,17 @@ struct RootTabView: View {
         }
     }
 
+    /// Design handoff §Tab bar: 56pt `#0078ff` circle, white 24pt plus, `md` shadow.
     private var addCoffeeButton: some View {
         Button {
             showAddCoffeeWizard = true
         } label: {
             Image(systemName: Symbols.wizardAdd)
-                .font(.title2.weight(.semibold))
+                .font(.system(size: 24, weight: Theme.Weight.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(Color.accentColor, in: Circle())
-                .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
+                .background(Theme.Colors.accent, in: Circle())
+                .themeShadow(Theme.Shadow.md)
         }
         .accessibilityLabel("Add coffee")
     }
