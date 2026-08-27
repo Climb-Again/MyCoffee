@@ -17,6 +17,7 @@ import {
   lightVoters,
   pickRawExtractedValue,
   runLightExtraction,
+  buildFlavorNotesText,
 } from '../src/lib/worker.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
@@ -108,6 +109,55 @@ test('buildCoffeeColumnUpdates: flavor_notes decided "absent" retracts the colum
   );
   assert.deepEqual(sets, ['flavor_notes = $1']);
   assert.deepEqual(values, [null]);
+});
+
+test('buildFlavorNotesText: short text passes through unchanged, joined title/caption/description (#90)', () => {
+  const text = buildFlavorNotesText({
+    title: 'Bag front',
+    caption: 'A lovely light roast',
+    description: 'Notes: blackberry, nougat, silky.',
+  });
+  assert.equal(text, 'Bag front\n\nA lovely light roast\n\nNotes: blackberry, nougat, silky.');
+});
+
+test('buildFlavorNotesText: no OCR block, missing fields are skipped (#90)', () => {
+  const text = buildFlavorNotesText({ title: null, caption: 'Only a caption', description: null });
+  assert.equal(text, 'Only a caption');
+});
+
+test('buildFlavorNotesText: empty input returns an empty string (#90)', () => {
+  assert.equal(buildFlavorNotesText(), '');
+  assert.equal(buildFlavorNotesText({}), '');
+});
+
+test('buildFlavorNotesText: caps a long caption/description head, still includes the OCR block (#90)', () => {
+  const longCaption = 'x'.repeat(5000);
+  const ocrBlock = 'OCR text\n' + 'Tasting notes: dark chocolate, cherry, dried plum.';
+  const text = buildFlavorNotesText({ title: null, caption: longCaption, description: ocrBlock });
+
+  // The pre-OCR head (title+caption+preOcr) is capped, so the raw 5000-char
+  // caption never reaches the model in full.
+  assert.ok(text.length < 5000 + ocrBlock.length);
+  // The OCR block -- where a bag's printed notes usually are -- survives the cap.
+  assert.ok(text.includes('Tasting notes: dark chocolate, cherry, dried plum.'));
+});
+
+test('buildFlavorNotesText: caps a long OCR block to its own head, independent of the caption cap (#90)', () => {
+  const caption = 'Short caption';
+  const longOcrBody = 'Tasting notes: dark chocolate. ' + 'filler '.repeat(2000);
+  const description = `OCR text\n${longOcrBody}`;
+  const text = buildFlavorNotesText({ title: null, caption, description });
+
+  assert.ok(text.includes('Short caption'));
+  assert.ok(text.includes('OCR text\nTasting notes: dark chocolate.'));
+  // The OCR body itself is capped well below its ~14K raw length.
+  assert.ok(text.length < 3500);
+});
+
+test('buildFlavorNotesText: preserves prior raw_description text ahead of an appended OCR block (#90)', () => {
+  const description = 'Existing Instagram caption text.\n\nOCR text\nBag-printed: cherry, floral.';
+  const text = buildFlavorNotesText({ title: null, caption: null, description });
+  assert.equal(text, 'Existing Instagram caption text.\n\nOCR text\nBag-printed: cherry, floral.');
 });
 
 test('buildCoffeeColumnUpdates: altitude decided "absent" retracts both min and max (#49)', () => {
