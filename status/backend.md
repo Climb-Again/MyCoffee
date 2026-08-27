@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-08-27 UTC] #90 optimise `runFlavorNotes` latency (~90s/call on long OCR text) — branch `main`
 
 ## 2026-08-26 UTC (session check): no ready row this cycle
 
