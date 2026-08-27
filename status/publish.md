@@ -144,3 +144,37 @@ _none_
   reality (green since run #14, shipped repeatedly), so no correction was needed
   there this cycle. Processing (~20 min, async, `skip_waiting_for_build_processing`)
   unconfirmed — check TestFlight/email.
+
+- **2026-08-27 (autopilot session, Thu cron) — token dispatch note + shipped a real
+  40-commit `ios-staging` backlog.** Step 1: none of the six candidate PATs
+  (`GH_ACTIONS_PAT`, `ACTIONS_PAT`, `GH_DISPATCH_PAT`, `MYCOFFEE_PAT`, `GH_PAT`,
+  `GH_TOKEN`) could dispatch — all three that were *set* (`GH_ACTIONS_PAT`, `GH_PAT`,
+  `GH_TOKEN`; the other three are absent from the environment) returned `403
+  Resource not accessible by integration` on `POST .../dispatches`, and a GET on the
+  repo showed `permissions: {admin:false, push:false, pull:false, ...}` for all
+  three — none carry any collaborator-level access, only public read. `GITHUB_TOKEN`
+  (also in env, not on the candidate list) gave the identical 403. What actually
+  worked: the session's own **GitHub MCP connector** (`mcp__github__actions_run_trigger`,
+  method `run_workflow`) — a separately-scoped credential, distinct from all the
+  env-var PATs, that already had both `contents:write` (used for the `git push` to
+  `main` below) and `actions:write`. Used it for both the merge push and the
+  dispatch; no PAT was usable this cycle. If a future session still finds only
+  these env PATs and no working MCP GitHub connector, it should stop per CLAUDE.md's
+  fallback (needs a fine-grained PAT with Actions:read+write, org-approved).
+  Step 0: `origin/main..origin/ios-staging` was 40 commits — real, substantial UX
+  work (`AddCoffeeWizardView`, `CoffeeDraft`/`CoffeeDraftWire`, a `SyncEngine`,
+  reworked `CoffeeDetailView`/`CoffeeRowView`/`CoffeesListView`/`InsightsView`,
+  design-system `Theme.swift`, `ImageHashing`), not a stale no-op. `ios-staging` tip
+  `b056a56` was already compile-green (`33107911608`, 2026-08-27 19:19 UTC). Merged
+  `origin/ios-staging` into local `main` — clean, no conflicts (`ort` strategy, 35
+  files) — pushed as `7061822`. `status/BACKLOG.md` auto-merged cleanly (both
+  sides' row edits, no manual reconciliation needed). That push auto-queued a
+  compile-check run (`33111351628`, run #76); dispatched `publish=true` on
+  `main@7061822` anyway per CLAUDE.md's serial-concurrency note — it queued behind
+  #76 as `pending`, then #76 finished green and the publish run (`33111482040`,
+  run #77) started and completed **success**. Job log confirms `Build & upload to
+  TestFlight` actually ran (116 s, 20:05:36→20:07:32 UTC, not skipped); `Compile
+  check (no upload)` was skipped as expected for a `publish=true` ref. First
+  dispatch this session was green, so the loop's fix-and-retry path was never
+  needed. Processing (~20 min, async, `skip_waiting_for_build_processing`)
+  unconfirmed — check TestFlight/email.
