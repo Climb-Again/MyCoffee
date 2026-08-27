@@ -4,7 +4,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-08-27 UTC] #89 InsightsView + InsightsCharts redesign (design handoff §Screen 3) — branch `ios-staging`
 
 ## Session notes
 
