@@ -64,10 +64,11 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
   runs `railway up` with `RAILWAY_TOKEN` (~2–3 min). Token-based CI deploy, **not**
   Railway's native GitHub trigger — that trigger gates the automation identity's
   commits on "Needs approval", so it's disconnected on the service.
-- **iOS compile check:** push to `main` touching `ios/**` **or** `workflow_dispatch`
-  `publish=false` → compile only, no upload (~15–20 min).
+- **iOS compile check:** push to `main` **or `ios-staging`** touching `ios/**`, or a
+  `workflow_dispatch` `publish=false` → compile only, no upload. **~90 s** (measured,
+  not the ~15–20 min this file used to claim — see §10).
 - **iOS ship:** `workflow_dispatch` `publish=true` (manual or the publish cron) →
-  full build + TestFlight upload (~15–20 min). A push to `main` never uploads —
+  full build + TestFlight upload, **~90 s** end to end. A push never uploads —
   upload is always an explicit `publish=true` dispatch.
 
 ## 3. Deploy model & the end-of-session push rule
@@ -80,7 +81,7 @@ iPhone app (SwiftUI) ──HTTPS Bearer──▶ Railway (Fastify 5, Node ≥20,
 
 ## 4. Lane rule (so loops never collide)
 
-**Six lanes.** The approved work breakdown is `PLAN.md`; the claim protocol and the
+**Five lanes** (the Compile lane was deleted 2026-08-27 — see §10). The approved work breakdown is `PLAN.md`; the claim protocol and the
 full ownership table are `status/README.md`. The repo is public, so Actions are
 free — lane count has no cost implication.
 
@@ -90,7 +91,6 @@ free — lane count has no cost implication.
 | Data extract + validate | `main` | `ops/**`, `backend/migrations/005_vocab_seed.sql`, `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` |
 | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
-| Compile | dispatch only | nothing — dispatches `publish=false` |
 | Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is the private repo) |
 
 - **Shared:** root docs (`CLAUDE.md`, `BUILD_STATUS.md`, `PLAN.md`) — claim first.
@@ -103,14 +103,16 @@ free — lane count has no cost implication.
 1. **iOS dev lanes** (shell + UX) — develop on `ios-staging`, merge `main` in, batch
    2–4 ready items, push `ios-staging` only. Never push `ios/**` to `main`, never
    build.
-2. **Compile lane** — dispatch `ios-testflight.yml` `publish=false` with
-   `ref: ios-staging`; fix reds there. Never dispatches `publish=true`.
+2. **Compile check — automatic, no lane.** Every push to `ios-staging` touching
+   `ios/**` compile-checks it (~90 s, free). The iOS lane that pushed owns the
+   red: check your own run before ending the session. No routine dispatches
+   `publish=false` any more.
 3. **Publish lane** — merge `ios-staging → main` (the push compile-checks `main`),
    then dispatch `ios-testflight.yml` `publish=true`. **Only this lane may publish.**
    Check for an in-flight `ios-testflight` run first — the concurrency group is
    serial with `cancel-in-progress: false`, so a publish queues behind a compile.
    Fix any red ship the same session.
-4. **Backend lane** — every few hours: pick a ready item, ship to `main`, verify
+4. **Backend lane** — Mon + Thu (§10): pick a ready item, ship to `main`, verify
    with a live curl. `railway-deploy.yml` deploys it.
 5. **Data lane** — owns the extraction batch. It writes production Postgres, so it
    coordinates with Backend on migrations (see §12).
@@ -172,38 +174,100 @@ ios/
 - Backend URL in `UserDefaults` (`backend_base_url`); ingest token in the
   **Keychain** (`service MyCoffee.backend`, `account ingest_token`).
 
-## 10. Cron schedule (staggered vs. MyHealthOS — shared GitHub account)
+## 10. Cron schedule (audited + retuned 2026-08-27)
 
 All UTC. MyHealthOS fires at 09:00, so all macOS work here stays at **20:00** on
 non-colliding days — two macOS runners never fire simultaneously.
 
-| Lane | Cron | macOS cost |
+| Routine | Cron | Cadence |
 |---|---|---|
-| Backend | `0 */3 * * *` | none |
-| Data extract + validate | `30 1 * * *` | none |
-| iOS shell | `0 3,15 * * *` | none |
-| iOS UX | `0 9,21 * * *` | none |
-| Compile check (Wed, Sat) | `0 20 * * 3,6` | ~15–20 min ea. |
-| Publish (Thu, Sun) | `0 20 * * 4,0` | ~15–20 min ea. |
+| Ingest drain (extract + OCR, merged) | `13 8 * * *` | daily |
+| Backend lane | `23 7 * * 1,4` | Mon + Thu |
+| Data extract + validate lane | `37 1 * * 1` | Mon |
+| iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
+| iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
+| Publish lane | `0 20 * * 4,0` | Thu + Sun |
+| ~~Compile check lane~~ | — | **deleted** — replaced by the `ios-staging` push trigger |
 
-> **The repo is public, so Actions on standard runners — including macOS — are free
-> and unlimited.** That is the main reason it's public. The earlier arithmetic
-> (10× macOS multiplier, ~200 billed minutes per run, ~$27/mo, a spending limit)
-> **no longer applies**. There is no Actions bill and no shared-budget contention
-> with MyHealthOS.
->
-> Still batch 2–4 ready items per ship. That was never really about cost — it's
-> what makes a red ship cheap to diagnose.
->
-> Publish days (Thu/Sun) and the 20:00 hour are kept so two macOS runners never
-> fire simultaneously with MyHealthOS's, and so compile runs the day before each
-> publish.
+### Why this shape (the 2026-08-27 audit)
+
+The previous schedule ran **~54 lane sessions/week**. An audit of 2026-08-01 →
+2026-08-27 found **35 of 80 commits (44%) were "no ready row" no-ops**, and that
+the ready backlog was in fact *empty* — every open row on `main` had already been
+completed on `ios-staging`. Six changes followed:
+
+1. **Merged the two ingest routines into one.** A text-only extraction batch at
+   06:00 and an image-OCR batch at 08:00 both fired daily; the last six jobs on
+   record all returned `photosDone: 0, spentUsd: 0`. Both backfills are complete,
+   and since #69 `claimBatch` sweeps `awaiting_text` photos regardless of the
+   job's own `includeImages`, one routine covers both stages. It now runs a
+   text-only pass first (Radu's standing rule) and only escalates to an
+   images-on pass if image-only photos remain.
+2. **Un-collided the Backend lane.** It fired at `0 6 * * *` — the *same minute*
+   as the extraction routine, against the standing rule "never push `backend/**`
+   while an extraction job is running" (§12). It now runs at 07:23 Mon/Thu.
+3. **Cut the two iOS lanes from 2×/day to 3×/week each.** Radu adds features
+   weekly, so four idle iOS sessions a day bought nothing.
+4. **Deleted the compile lane** in favour of a push trigger on `ios-staging`
+   (see the workflow). The lane fired ~15 times and last wrote
+   `status/compile.md` on 2026-08-01; meanwhile up to four days of iOS commits
+   could pile up unchecked.
+5. **Gate-first lane prompts.** Every lane now greps `status/BACKLOG.md` for a
+   matching `ready` row *before* reading anything else, and stops silently when
+   there is none — no reading `PLAN.md`/`CLAUDE.md`/the 200 KB+ lane file, and
+   **no "session check" commit.** Those 35 no-op commits were pure noise.
+6. **Off-peak minutes.** Every routine used to fire exactly on `:00`.
+
+Net: **~54 → ~18 sessions/week**, with the per-idle-session cost cut by roughly
+an order of magnitude on top of that.
+
+### Measured CI times — the old figures were ~15× wrong
+
+`macos-15`, small SwiftUI app, **zero SPM dependencies**, so nothing resolves or
+downloads:
+
+| Step | Documented (old) | Measured |
+|---|---|---|
+| Compile check (`publish=false`) | ~15–20 min | **59 s** (run #74) |
+| `match` + archive + TestFlight upload | ~15–20 min | **70 s** (run #73) |
+| Whole job incl. runner setup | — | ~90 s |
+
+The repo is public, so Actions on standard runners — macOS included — are **free
+and unlimited**. Combined with 90-second runs, the old "batch 2–4 items to make a
+red ship cheap to diagnose" rationale is much weaker: a red compile now costs 90
+free seconds. Batch when it's natural, not out of thrift.
+
+Publish stays at Thu/Sun 20:00 so two macOS runners never fire simultaneously
+with MyHealthOS's 09:00 run.
+
+### `status/BACKLOG.md` has ONE source of truth: `main`
+
+The audit's most expensive structural bug. The iOS lanes work on `ios-staging`
+and flipped backlog rows *there*; the Backend and Data lanes read `main`. The two
+copies diverged on **11 of 11 open rows** — `main` showed 4 `ready` + 7 `blocked`
+that `ios-staging` had already marked `done`. Every lane was reading a different
+world, and the iOS lanes kept waking to a backlog that looked alive.
+
+**Rule:** a lane that flips a row on `ios-staging` must land the same
+`status/BACKLOG.md` change on `main` in the same session:
+
+```bash
+git checkout main && git pull --rebase
+git checkout ios-staging -- status/BACKLOG.md
+git commit -m "Backlog: sync row statuses from ios-staging" && git push origin main
+git checkout ios-staging
+```
+
+This is safe: `status/**` matches no workflow path filter, so it deploys nothing
+and builds nothing.
 
 ## 11. Manual steps still owed by Radu (not doable from the agent)
 
-See `BUILD_STATUS.md` → "External setup checklist". In short: register the App ID
-+ ASC app record, create the Railway project/Postgres/volume, set GH secrets +
-Railway env vars, add a real 1024² AppIcon, then dispatch the first builds.
+**As of 2026-08-27 this list is empty — every item is done.** App ID + ASC record,
+Railway project/Postgres/volume, GH secrets, Railway env vars, the real 1024²
+AppIcon and the first builds all landed; the app ships to TestFlight on a cron.
+See `BUILD_STATUS.md` → "External setup checklist" for the record. Kept as a
+section so the next genuinely-manual item has an obvious home.
 
 ## 12. Gotchas
 
@@ -217,7 +281,12 @@ Railway env vars, add a real 1024² AppIcon, then dispatch the first builds.
   whether it's worth exceeding the cap first.** When in doubt, stay under and ask.
 - App ID + ASC record are **manual** (`produce` has no API-key support).
 - Start command must be `node src/server.js`; bind port before migrations.
-- `MARKETING_VERSION` must move forward every release or TestFlight won't update.
+- **`MARKETING_VERSION` vs build number — the build number is what actually matters.**
+  `MARKETING_VERSION` has sat at `1.0.0` since the first ship and TestFlight has kept
+  updating fine, because the Fastfile stamps `CURRENT_PROJECT_VERSION` with a minute
+  timestamp (`%Y%m%d%H%M`) on every archive — that is the monotonic value TestFlight
+  keys on. Bump `MARKETING_VERSION` when you want a new *user-visible* version string
+  (and you must, before an App Store release); it is not a per-TestFlight-build chore.
 - Build on `macos-15` / Xcode 26 (iOS 26 SDK required for uploads).
 - `match` rewrites the repo-root `README.md` — keep real docs in other `.md` files.
   (It now does that on `mycoffee-private`'s `match` branch, not here.)
@@ -229,10 +298,12 @@ Public so GitHub Actions (including macOS runners) are free. Actions secrets are
 into a runner. But three things change, and two of them are footguns:
 
 1. **Never add a `pull_request` or `pull_request_target` trigger to a workflow that
-   references secrets.** Today both workflows trigger only on `push: [main]` and
-   `workflow_dispatch`, both of which require write access — so a stranger's fork PR
-   cannot run a job that touches a secret. Adding a PR trigger is the single change
-   that turns this public repo into a credential leak. Don't.
+   references secrets.** Today both workflows trigger only on `push` (`main` for
+   Railway; `main` + `ios-staging` for iOS) and `workflow_dispatch`, all of which
+   require write access — so a stranger's fork PR cannot run a job that touches a
+   secret. Adding a PR trigger is the single change that turns this public repo into
+   a credential leak. Don't. Adding a *branch* to the existing `push` list is fine
+   and is how `ios-staging` gets compile-checked.
 2. **Actions logs are world-readable.** Never `echo` a secret, never `set -x` around
    one, and remember GitHub's auto-masking fails if a value is transformed (base64'd,
    split across lines). Assume anything printed is published.
@@ -244,12 +315,15 @@ into a runner. But three things change, and two of them are footguns:
 - **Never push `backend/**` while an extraction job is `running`** — the push
   redeploys and SIGTERMs the worker. Check `GET /api/admin/jobs` first. The lease
   reaper makes it recoverable, not free.
-- **Only the Publish lane may dispatch `publish=true`.** Compile and Publish share
-  one workflow with a serial concurrency group, so a publish queues behind a compile.
-- **The AppIcon is an empty slot** (`Contents.json` has no `filename`). It compiles
-  green but App Store Connect rejects it at *processing* time, and the Fastfile sets
-  `skip_waiting_for_build_processing: true` — so CI goes green and the rejection
-  arrives by email ~20 min later. Fix it before the first `publish=true`.
+- **Only the Publish lane may dispatch `publish=true`.** Pushes to `main`/`ios-staging`
+  compile-check on the same workflow, which has a serial concurrency group, so a
+  publish queues behind an in-flight compile.
+- **AppIcon — RESOLVED (backlog #9, `c427f3f`).** The slot used to be empty, which
+  compiled green but got rejected by App Store Connect at *processing* time ~20 min
+  after a green CI run (the Fastfile sets `skip_waiting_for_build_processing: true`,
+  so CI never sees it). A real 1024² RGB no-alpha kettle icon has been in place since
+  2026-08-13. The *shape* of that trap still applies to anything ASC validates
+  asynchronously: a green publish run is an upload receipt, not an acceptance.
 - **`PHAsset` cannot read Photos titles/captions/descriptions** — they live in the
   Photos database, not the asset. Ingestion is `osxphotos` on the Mac; nothing in
   the plan depends on PhotoKit.

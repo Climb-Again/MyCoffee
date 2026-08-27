@@ -67,19 +67,24 @@ Infra scaffold is committed. The following are manual / need credentials:
 - [x] Public URL wired into `BACKEND_URL` (CLAUDE.md, AppConfig.swift `defaultBaseURL`,
       smoke-test blocks).
 
-### Cron routines (per CLAUDE.md §10) — six lanes
-- [x] Backend `0 */3 * * *`
-- [x] Data extract + validate `30 1 * * *`
-- [x] iOS shell `0 3,15 * * *`
-- [x] iOS UX `0 9,21 * * *`
-- [x] Compile check `0 20 * * 3,6` — **enabled**
-- [~] Publish `0 20 * * 4,0` (Thu + Sun) — **deliberately still disabled.** Going
-      public removed the *cost* barrier, not the *risk* one: `match` has never run
-      and must mint a distribution cert under `PH2NNQ47UB` where none exists. Do
-      that first run **by hand** (issue #10), then enable this routine.
+### Cron routines (per CLAUDE.md §10) — retuned 2026-08-27
+- [x] Ingest drain (extract + OCR, merged) `13 8 * * *`
+- [x] Backend lane `23 7 * * 1,4` (was `0 6 * * *`, which collided with the
+      extraction routine to the minute)
+- [x] Data extract + validate lane `37 1 * * 1`
+- [x] iOS shell lane `17 4 * * 1,3,5` (was 2×/day)
+- [x] iOS UX lane `47 10 * * 1,3,5` (was 2×/day)
+- [x] Publish lane `0 20 * * 4,0` (Thu + Sun) — **enabled and shipping**; the
+      first-ship risk that kept it disabled is long spent (green since run #14).
+- [x] ~~Compile check lane~~ — **deleted.** Replaced by a push trigger on
+      `ios-staging` in `ios-testflight.yml`: ~90 s of free CI on every iOS push
+      instead of a routine that fired ~15 times and last wrote
+      `status/compile.md` on 2026-08-01.
 - [x] ~~Set an Actions spending limit~~ — **not needed.** The repo is public, so
-      Actions on standard runners (incl. macOS) are free and unlimited. This is
-      what the public flip bought.
+      Actions on standard runners (incl. macOS) are free and unlimited.
+
+Audit result: **~54 → ~18 lane sessions/week**, and idle sessions now stop at a
+grep instead of reading several hundred KB of markdown. See CLAUDE.md §10.
 
 ### Env / secrets for the plan — nothing new required
 Verified while planning: the extraction pipeline needs **no new Railway env vars**.
