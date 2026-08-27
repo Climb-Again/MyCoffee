@@ -8,6 +8,33 @@ _none_
 
 ## Done
 
+- [2026-08-27 UTC] Session check — no ready `ios-shell` row. Confirms the
+  immediately-prior session's own conclusion, re-derived independently:
+  every `ios-shell`-tagged row (#17/#22/#41/#46/#74/#76/#81/#84) is `done`.
+  The only `ready` rows anywhere in `BACKLOG.md` this cycle are ios-ux
+  (#89, InsightsView 2a redesign — #82/#85/#87/#88 have since landed `done`
+  too) and backend (#90, `runFlavorNotes` latency) — neither touches this
+  lane's owned paths.
+  - `ios-staging` was already at `origin/ios-staging`'s tip (`4fe573e`, ios-ux's
+    #88 commit) — `git merge origin/main` was a no-op (already up to date).
+  - Swept `git branch -r --list 'origin/claude/*'` (136 branches) per the
+    integrate-before-you-start rule: checked the top commits-ahead candidates
+    in this lane's owned paths (`peaceful-mccarthy-sfdmk9`/`hopeful-johnson-
+    bdpy3r`/`confident-cerf-5mecsz` ×25, the usual `confident-cerf-*`/
+    `wizardly-thompson-66da04`/`relaxed-thompson-k59oyu`/`peaceful-mccarthy-
+    erypad` cluster ×24) — sampled `peaceful-mccarthy-sfdmk9` by diff stat:
+    pure net deletion (29 insertions / 651 deletions across `SampleCoffee
+    Repository`/`SampleData`/`SyncEngine`/`ImageHashing`), the same stale
+    pre-#71/#74 snapshot pattern every prior sweep has found. Also grepped
+    every stranded branch for wizard-era symbols
+    (`extractDraft|uploadPhotos|createCoffee|coffees/extract`) as a final
+    check for anything genuinely new: the only hit, `claude/wizardly-
+    thompson-e42ekb`, is `#76`'s own already-integrated work (confirmed —
+    `ios-staging` already contains `CoffeeDraft.swift`/`extractDraft`/
+    `createCoffee` at commit `74cc73f`, an ancestor of current HEAD).
+    Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
 - [2026-08-26 UTC, later session] Session check — no ready `ios-shell` row.
   All four `ios-shell`-tagged rows this cycle (#17/#22/#41/#46 from earlier
   plus #76/#81/#84) are `done`; the only `ready` rows anywhere in
