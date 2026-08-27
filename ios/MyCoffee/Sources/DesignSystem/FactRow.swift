@@ -1,36 +1,40 @@
 import SwiftUI
 
-/// One row of `FactRowsCard`. Missing fields **omit their row entirely** —
+/// One row of `FactRowsList`. Missing fields **omit their row entirely** —
 /// never "N/A" (PLAN.md §6.3) — so callers only construct a `FactRow` when
 /// the value exists; there is no "empty" rendering state here at all.
+///
+/// 2a redesign (`#88`, `design/coffees_redesign/README.md` §Screen 2): plain
+/// label/value pair, no icon, no rule — the icon + grey-card treatment this
+/// replaced is gone (the price rows it used to include moved to their own
+/// price block).
 struct FactRow: View {
-    let symbol: String
     let label: String
     let value: String
 
     var body: some View {
         HStack {
-            Label(label, systemImage: symbol)
-                .foregroundStyle(.secondary)
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.Colors.neutral700)
             Spacer()
             Text(value)
-                .fontWeight(.medium)
+                .font(.system(size: 12, weight: Theme.Weight.semibold))
+                .foregroundStyle(Theme.Colors.text)
         }
-        .font(.subheadline)
     }
 }
 
-/// A card of `FactRow`s, itself omitted by the caller when `rows` is empty.
-struct FactRowsCard: View {
+/// A stack of `FactRow`s, itself omitted by the caller when `rows` is empty.
+/// No card background, no rules between rows — 9pt gaps only.
+struct FactRowsList: View {
     let rows: [FactRow]
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 9) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 row
             }
         }
-        .padding()
-        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

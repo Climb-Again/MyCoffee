@@ -29,7 +29,8 @@ struct RailView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(rail.title)
-                    .font(.headline)
+                    .font(.system(size: 13, weight: Theme.Weight.semibold))
+                    .foregroundStyle(Theme.Colors.text)
                 Spacer()
                 // Destination-style NavigationLink rather than value-based:
                 // avoids requiring `CoffeeFilter` (shell-owned, not
@@ -38,7 +39,8 @@ struct RailView: View {
                     moreDestination
                 } label: {
                     Text("More")
-                        .font(.subheadline)
+                        .font(.system(size: 11, weight: Theme.Weight.semibold))
+                        .foregroundStyle(Theme.Colors.accent)
                 }
             }
 
@@ -78,19 +80,22 @@ private struct RailCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Thumbnail(urlString: coffee.images?.thumb, size: 96, cornerRadius: 10, rotationQuarterTurns: coffee.rotationTurns)
+            Thumbnail(
+                urlString: coffee.images?.thumb, size: 92, cornerRadius: Theme.Radius.photo,
+                rotationQuarterTurns: coffee.rotationTurns
+            )
             Text(coffee.displayTitle(vocabulary: vocabulary))
-                .font(.caption.weight(.semibold))
+                .font(.system(size: 11, weight: Theme.Weight.semibold))
+                .foregroundStyle(Theme.Colors.text)
                 .lineLimit(2)
-                .frame(width: 96, alignment: .leading)
+                .frame(width: 92, alignment: .leading)
             if let rating = coffee.rating {
-                Label(String(format: "%.1f", rating), systemImage: Symbols.starFill)
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
+                Text(String(format: "%.1f", rating))
+                    .font(.system(size: 11, weight: Theme.Weight.semibold))
+                    .foregroundStyle(rating >= 4.5 ? Theme.Colors.accent : Theme.Colors.neutral700)
             }
         }
-        .frame(width: 96, alignment: .leading)
-        .foregroundStyle(.primary)
+        .frame(width: 92, alignment: .leading)
     }
 }
 
@@ -106,7 +111,7 @@ struct RailMoreView: View {
         List {
             ForEach(coffees) { coffee in
                 NavigationLink(value: coffee.id) {
-                    CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary, sort: .rating)
+                    CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
                 }
             }
             .listRowSeparator(.hidden)

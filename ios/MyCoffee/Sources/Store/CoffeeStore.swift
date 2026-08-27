@@ -198,6 +198,36 @@ final class CoffeeStore: ObservableObject {
         }
     }
 
+    /// Uploads the Add Coffee wizard's photos (PLAN.md §6.8, #75/#76) and
+    /// returns their assigned photoIds in the same order given — the first is
+    /// the primary/front photo `extractWizardDraft`/`createWizardCoffee` key
+    /// off. Throws rather than swallowing into a published error string
+    /// (unlike `editField`'s `Bool` pattern): the wizard is a multi-step flow
+    /// (#77) that needs to know exactly which step failed and why, not just
+    /// pass/fail.
+    func uploadWizardPhotos(_ images: [Data], fullText: String) async throws -> [String] {
+        try await repository.uploadPhotos(images, fullText: fullText)
+    }
+
+    /// Runs the wizard's light extraction ensemble over already-uploaded
+    /// photos (#75/#76) and returns a draft the confirm screen (#77) renders.
+    func extractWizardDraft(photoIds: [String]) async throws -> ExtractedDraft {
+        try await repository.extractDraft(photoIds: photoIds)
+    }
+
+    /// Persists the wizard's confirmed fields as a brand-new coffee (#75/#76)
+    /// and merges it into the index — same shape as `editField`: a full
+    /// refresh first (fresh vocab, and the new coffee's own compact row),
+    /// then the detailed coffee re-applied on top so its full text/notes
+    /// survive until the next detail fetch.
+    @discardableResult
+    func createWizardCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee {
+        let created = try await repository.createCoffee(photoIds: photoIds, fields: fields)
+        await refresh()
+        index = index.replacingCoffee(created)
+        return created
+    }
+
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
     /// Insights screen. A once-a-day read, not part of the coffee snapshot —
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.

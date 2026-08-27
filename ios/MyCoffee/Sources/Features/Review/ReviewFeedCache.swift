@@ -26,6 +26,11 @@ final class ReviewFeedCache: ObservableObject {
     /// keeps `BundledSampleRepository`-only runs (no backend at all) unaffected.
     @Published private(set) var reviewableCoffeeIds: Set<String>?
 
+    /// One feed item is one (coffeeId, field) pair, so counting items per
+    /// coffee is the field count the `#88` detail-page review pill needs
+    /// ("2 fields to review") — no separate endpoint required.
+    @Published private(set) var reviewableFieldCounts: [String: Int] = [:]
+
     private var inFlight: Task<Void, Never>?
 
     private init() {}
@@ -57,11 +62,21 @@ final class ReviewFeedCache: ObservableObject {
     }
 
     func adopt(_ feed: ReviewFeedDTO) {
-        reviewableCoffeeIds = Set(feed.items.compactMap(\.coffeeId))
+        let coffeeIds = feed.items.compactMap(\.coffeeId)
+        reviewableCoffeeIds = Set(coffeeIds)
+        reviewableFieldCounts = coffeeIds.reduce(into: [:]) { counts, id in counts[id, default: 0] += 1 }
     }
 
     func hasReviewableTasks(for coffeeId: String) -> Bool {
         guard let reviewableCoffeeIds else { return true }
         return reviewableCoffeeIds.contains(coffeeId)
+    }
+
+    /// `0` once a feed fetch has succeeded and found nothing for this coffee;
+    /// also `0` before any fetch succeeds — callers should gate display on
+    /// `hasReviewableTasks(for:)` first, same as today, and only use this for
+    /// the pill's copy once that gate is already `true`.
+    func reviewableFieldCount(for coffeeId: String) -> Int {
+        reviewableFieldCounts[coffeeId] ?? 0
     }
 }

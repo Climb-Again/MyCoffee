@@ -33,6 +33,7 @@ struct CoffeeDetailDTO: Decodable {
     let descFarmLot: String?
     let descBrewGuide: String?
     let descRoasterCopy: String?
+    let flavorNotes: String?
     let rawTitle: String?
     let rawCaption: String?
     let rawDescription: String?
@@ -45,7 +46,7 @@ struct CoffeeDetailDTO: Decodable {
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
         case rotationQuarterTurns
-        case descFarmLot, descBrewGuide, descRoasterCopy, rawTitle, rawCaption, rawDescription
+        case descFarmLot, descBrewGuide, descRoasterCopy, flavorNotes, rawTitle, rawCaption, rawDescription
         case minFieldConfidence, thumbUrl, displayUrl
     }
 
@@ -77,6 +78,7 @@ struct CoffeeDetailDTO: Decodable {
         descFarmLot = try container.decodeIfPresent(String.self, forKey: .descFarmLot)
         descBrewGuide = try container.decodeIfPresent(String.self, forKey: .descBrewGuide)
         descRoasterCopy = try container.decodeIfPresent(String.self, forKey: .descRoasterCopy)
+        flavorNotes = try container.decodeIfPresent(String.self, forKey: .flavorNotes)
         rawTitle = try container.decodeIfPresent(String.self, forKey: .rawTitle)
         rawCaption = try container.decodeIfPresent(String.self, forKey: .rawCaption)
         rawDescription = try container.decodeIfPresent(String.self, forKey: .rawDescription)

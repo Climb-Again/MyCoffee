@@ -8,6 +8,257 @@ _none_
 
 ## Done
 
+- [2026-08-27 UTC, later session] Session check — no ready `ios-shell` row,
+  unchanged from the check right below (same day). `origin/ios-staging`
+  (`c570a56`) and `origin/main` (`b19199d`) are both exactly where the prior
+  session left them — no new commits on either since. Re-confirmed via a
+  fresh `git branch -r --list 'origin/claude/*'` fetch: 135 branches (one
+  fewer than the prior session's 136, i.e. net stable, not growing) and no
+  new candidate beyond what that session already swept and grepped for
+  wizard-era symbols. Re-verified `BACKLOG.md` has zero rows anywhere with
+  status `ready`/`blocked`/`claimed` (grepped the whole table) — every row
+  is `done`, `dropped` (#30), or `human` (#65). All eight `ios-shell`-tagged
+  rows (#17/#22/#41/#46/#74/#76/#81/#84) are `done`. Nothing to pick up; not
+  inventing work per the work loop. No code changes.
+
+- [2026-08-27 UTC] Session check — no ready `ios-shell` row. Confirms the
+  immediately-prior session's own conclusion, re-derived independently:
+  every `ios-shell`-tagged row (#17/#22/#41/#46/#74/#76/#81/#84) is `done`.
+  The only `ready` rows anywhere in `BACKLOG.md` this cycle are ios-ux
+  (#89, InsightsView 2a redesign — #82/#85/#87/#88 have since landed `done`
+  too) and backend (#90, `runFlavorNotes` latency) — neither touches this
+  lane's owned paths.
+  - `ios-staging` was already at `origin/ios-staging`'s tip (`4fe573e`, ios-ux's
+    #88 commit) — `git merge origin/main` was a no-op (already up to date).
+  - Swept `git branch -r --list 'origin/claude/*'` (136 branches) per the
+    integrate-before-you-start rule: checked the top commits-ahead candidates
+    in this lane's owned paths (`peaceful-mccarthy-sfdmk9`/`hopeful-johnson-
+    bdpy3r`/`confident-cerf-5mecsz` ×25, the usual `confident-cerf-*`/
+    `wizardly-thompson-66da04`/`relaxed-thompson-k59oyu`/`peaceful-mccarthy-
+    erypad` cluster ×24) — sampled `peaceful-mccarthy-sfdmk9` by diff stat:
+    pure net deletion (29 insertions / 651 deletions across `SampleCoffee
+    Repository`/`SampleData`/`SyncEngine`/`ImageHashing`), the same stale
+    pre-#71/#74 snapshot pattern every prior sweep has found. Also grepped
+    every stranded branch for wizard-era symbols
+    (`extractDraft|uploadPhotos|createCoffee|coffees/extract`) as a final
+    check for anything genuinely new: the only hit, `claude/wizardly-
+    thompson-e42ekb`, is `#76`'s own already-integrated work (confirmed —
+    `ios-staging` already contains `CoffeeDraft.swift`/`extractDraft`/
+    `createCoffee` at commit `74cc73f`, an ancestor of current HEAD).
+    Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
+- [2026-08-26 UTC, later session] Session check — no ready `ios-shell` row.
+  All four `ios-shell`-tagged rows this cycle (#17/#22/#41/#46 from earlier
+  plus #76/#81/#84) are `done`; the only `ready` rows anywhere in
+  `BACKLOG.md` are ios-ux (#82, #87, #88, #89 — the 2a redesign screens
+  this session's own prior entry unblocked) and backend (#90, flavour-notes
+  extraction latency). Nothing in `Sources/{App,Store,API,Models,Query,
+  Utilities}` or `project.yml` to pick up.
+  - `ios-staging` was already at `origin/ios-staging`'s tip (this branch's
+    own most recent commit, `51e3abe`, is an ios-ux commit on top of the
+    prior `ios-shell` session's #81/#84 work) — no `main` merge needed
+    beyond what's already folded in.
+  - Re-swept `git branch -r --list 'origin/claude/*'` (135 branches, one
+    more than the last check's 134): the new one is this session's own
+    designated branch. Checked the newest-by-commit-date candidates besides
+    that (`eager-allen-{d9xao4,r8qf91}`, `awesome-bardeen-mjyfw7`,
+    `relaxed-thompson-vpp532`, `peaceful-mccarthy-neqxc9`,
+    `confident-cerf-45aekz`) — all show `0` commits ahead of `ios-staging`
+    in this lane's owned paths. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop.
+
+- [2026-08-26 UTC] 81 flavour-notes model + wire; 84 redesign derived values in `CoffeeIndex` — branch `ios-staging`
+  - Merged `origin/main` into `ios-staging` first: one real conflict in `status/BACKLOG.md` — `ios-staging` had #83 landed `done` (with the actual `Theme.swift` writeup) and #86/#87 flipped `ready`, while `main`'s copy still showed #83 `ready`/#86/#87 `blocked`. Kept `ios-staging`'s side (strictly newer — #83's own `done` text plus #86/#87's flips are real completed work, not a stale guess), matching the "each branch is stale about the other's lane" precedent this file has used for months.
+  - Swept `git branch -r --list 'origin/claude/*'` (134 branches) per the integrate-before-you-start rule: the usual top commits-ahead cluster (`hopeful-johnson-bdpy3r`, `confident-cerf-{t1flso,j8in2k,9y3vqr}`, `modest-newton-oml7h8`, `confident-cerf-fti5j5`) is the same stale pre-#71/#74 net-deletion snapshot every prior sweep has found. Also grepped every stranded branch for the row's own new symbols (`valueBand`, `flavorNotes`, `topRoasterIDs`, `topOriginCountryIDs`) — the only hits were substring false-positives inside the pre-existing `InsightsFindings.swift` (confirmed by re-grepping for the exact identifiers, zero matches). Nothing stranded to adopt.
+  - **#81**: `Coffee.flavorNotes: String?` added to `Models/Coffee.swift` right after `roasterCopyNote` (detail-only field, same "nil until a detail fetch" pattern the doc comment for `farmLotNote`/`rawTitle` already describes) and threaded through both `withFavorite`/`withRotation`'s pass-through inits — the exact #22/#74 silent-drop trap this row's own text warns about. `CoffeeDetailDTO` (`API/Wire/CoffeeDetailWire.swift`) gets a `flavorNotes: String?` field + `CodingKeys` case + a `decodeIfPresent` line, mirroring every other optional string field in that file. `CoffeeMapping.swift`: `CompactCoffeeDTO.makeCoffee` passes `flavorNotes: nil` (confirmed against `backend/src/routes/coffees.js:228` — `flavorNotes: row.flavor_notes` is only in the detail route's response, never in `toCompactCoffee`, so it correctly stays out of `SnapshotWire`/`CompactCoffeeDTO` per the row's own conditional "only if #75 puts it in the compact row" — it doesn't); `CoffeeDetailDTO.makeCoffee` passes the real decoded value. `Store/SampleData.swift`: added a `flavorNotes: String? = nil` param to the `make(...)` factory + pass-through, and gave two fixture coffees (`sample-001`, `sample-003`) real values so ios-ux has non-nil data to render the chip section against; the rest stay `nil` (matches production reality — most coffees are compact-snapshot-only until a detail fetch, same as `farmLotNote` today).
+  - **#84**: two new value types in `Store/CoffeeIndex.swift` — `ValueRating{band: .great|.fair|.pricey, pillCount: 1...5}` and `TopVocabAverage{id, average, count}`. `valueBand(for: Coffee) -> ValueRating?` uses a binary-search nearest-rank quintile over a new stored `pricePer100gSorted: [Double]` (every coffee's `pricePer100gEur`, ascending, computed once at `init` next to `priceWidthCents`) — **deliberately not** the "4 stored boundary values, compare with `>`" approach I wrote first and then discarded: with `boundaries[3]` computed as the max element's own value, the max element can never satisfy `value > boundaries[3]`, so the single most expensive coffee in a small corpus lands one quintile short of `.pricey`. The `countLessOrEqual/total` rank (rounded up, 1–5) has no such off-by-one regardless of `count % 5` — hand-verified against a 5-element and a 10-element series before committing to it. `pillCount = 6 - rank`, band `.great`/`.pricey` only at rank 1/5, `.fair` for the middle three — matches the design handoff's own wording (`design/coffees_redesign/README.md:72`) exactly. `topRoasterIDs`/`topOriginCountryIDs(minCount: Int = 5)` share one private `topAverages` helper: group **rated-only** coffees by roaster id / by each of a coffee's `originCountryIds` (a blend counts toward every one of its countries), keep ids with `count >= minCount`, sort descending by average (ties: count then id) — `.first` is "your best roaster/origin" for the `CoffeeDetailView`/`CoffeeRowView` copy the design handoff describes. No schema/persistence change, both are pure functions over the existing in-memory index.
+  - Not locally compiled (no Xcode in this sandbox) — every change to `Coffee.swift`/wire files is additive (new optional field/param with a default, same shape as every prior field addition this lane has done); `CoffeeIndex.swift`'s new code is self-contained (new struct types + new methods in a new `MARK` section, no existing method's signature touched) and the quintile math was hand-traced rather than trusted on sight. A red compile check should point at a typo, not a design gap.
+  - `status/BACKLOG.md`: #81/#84 → `done`; #85/#88/#89 (needed 83+84, or 83+84+81) and #82 (needed 81, folded into #88) flipped `blocked`→`ready` in the same push — all five are ios-ux rows now unblocked to build the 2a redesign screens against #83's tokens + this session's derived values.
+  - `Models/Coffee.swift`, `API/Wire/{CoffeeDetailWire,CoffeeMapping}.swift`, `Store/{SampleData,CoffeeIndex}.swift`, `status/BACKLOG.md`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-25 UTC, later session] Session check — no ready `ios-shell` row;
+  hit the exact "started on the wrong branch, read a stale `BACKLOG.md`"
+  footgun the immediately-prior session's own entry (right below) warns
+  about, in a fresh instance of it. This session's designated branch
+  (`claude/wizardly-thompson-5r16be`) forked from `main`, whose copy of
+  `status/BACKLOG.md` still showed `#76 ready`/`#77 blocked` — built a full
+  duplicate repository surface against that stale read (`APIClient`
+  upload/extract/create methods, `CoffeeRepository`/`RemoteCoffeeRepository`/
+  `SampleCoffeeRepository`/`SyncEngine`/`CoffeeStore` wiring, plus
+  `API/Wire/CoffeeExtractWire.swift` + `Models/ExtractedDraft.swift`) before
+  ever checking out `ios-staging` or diffing against it.
+  - Caught it before anything reached a shared branch: `git fetch origin
+    ios-staging main` + `git checkout -B ios-staging origin/ios-staging`
+    surfaced `status/ios-shell.md`'s own prior entry documenting that `#76`
+    (and `#77`) already landed and were integrated (`74cc73f` shell surface →
+    `1c2b8a7` ios-ux integration, closed out `2026-08-25` by an even earlier
+    session today) under different, already-established names
+    (`Models/CoffeeDraft.swift`, `API/Wire/CoffeeDraftWire.swift`,
+    `Features/AddCoffee/AddCoffeeWizardView.swift`) — a strict superset of
+    what this session had drafted blind. Discarded the duplicate outright
+    (`git checkout --`/`rm` on every file this session had touched) rather
+    than trying to reconcile two independent implementations of the same
+    surface.
+  - Confirmed via `awk` over `status/BACKLOG.md`'s status column (not a loose
+    grep — the file's prose elsewhere contains the words "ready"/"blocked"/
+    "claimed" outside the status column) that zero rows are
+    `ready`/`blocked`/`claimed` anywhere in the table; `## Claimed` in this
+    file and `status/backend.md` both read empty/`(none)` too. Nothing for
+    any lane to pick up until Radu files something new.
+  - Merged `origin/main` into `ios-staging` (`c902e59`): one real content
+    conflict in `status/backend.md` — both branches carried a byte-identical
+    copy of the `## 2026-08-24 UTC: #75` write-up (backend wrote it once on
+    `main`, and it was separately merged into `ios-staging` earlier the same
+    day), so `git merge` kept both instead of recognizing them as the same
+    entry. Deduped by deleting the second copy and the conflict markers,
+    verified `grep -c` for `<<<<<<<`/`=======`/`>>>>>>>` returns `0` after.
+  - `git fetch origin --prune` — 134 `origin/claude/*` branches (133 at the
+    immediately-prior session's own count a short time earlier, +1 being this
+    session's own designated branch, never pushed). Relied on that session's
+    already-thorough sweep of the top ahead-count candidates (all confirmed
+    stale net-deletions) rather than re-running it for a one-branch delta.
+  - `status/backend.md` (merge conflict resolution — dedup), `status/
+    ios-shell.md`. `status/BACKLOG.md` was untouched by the merge — `main`'s
+    only new commit was a backend session-check note that didn't change it.
+    No Swift changed on the shared branch — the duplicate implementation was
+    discarded, not committed.
+
+- [2026-08-25 UTC] Session check — no ready `ios-shell` row; also **closed out
+  the stale `## Claimed` entry below** that this file still carried for `#76`
+  ("code complete, NOT yet integrated"). `status/BACKLOG.md` already confirms
+  `#76`/`#77` both landed on `ios-staging` (`74cc73f`/`7c79946`/`1c2b8a7`, an
+  ios-ux session integrated the stranded branch on 2026-08-24), so the claim
+  was pure staleness — moved out rather than left to mislead the next session
+  into thinking there's still an unintegrated branch to chase. See this file's
+  next entry down (already-existing `## Done` writeup) for the actual
+  technical detail of what `#76` built.
+  - This session started on its own designated branch (forked from `main`'s
+    tip, not `ios-staging`) and, before checking out the right branch,
+    read `#76` off `main`'s stale copy of `BACKLOG.md` — which still showed
+    `ready` — and built a full duplicate implementation against it
+    (`API/Wire/AddCoffeeWire.swift`, `Models/AddCoffeeDraft.swift`, matching
+    `APIClient`/`CoffeeRepository`/`RemoteCoffeeRepository`/
+    `SampleCoffeeRepository`/`SyncEngine`/`CoffeeStore` methods) before ever
+    diffing against `ios-staging`. Caught before any commit reached a shared
+    branch — `git checkout ios-staging` surfaced the already-`done` real
+    implementation, and the duplicate branch of work was discarded outright
+    (`git stash drop`) rather than reconciled. **Worth stating plainly since
+    this file is the only thing a fresh session reads**: check out
+    `ios-staging` (and merge `origin/main` in) BEFORE reading
+    `BACKLOG.md`/this file for real — this lane's designated branch is not
+    guaranteed to start on `ios-staging`, and `main`'s copy of the backlog
+    lags whatever the Publish lane hasn't merged yet.
+  - Merging `origin/main` into `ios-staging` hit two conflicts, both the
+    familiar additive shape (independent same-day session-check entries /
+    a duplicate `#75` write-up landing on each branch) — resolved by keeping
+    `ios-staging`'s fuller copy in both cases (`BACKLOG.md`'s `#76`/`#77`
+    rows, `status/backend.md`'s `#75` section), since `main`'s side was
+    strictly the same content or an empty stub. Pushed the merge commit.
+  - Re-swept `git branch -r --list 'origin/claude/*'` (133 branches after a
+    fresh `--prune` fetch) per the integrate-before-you-start rule: the top
+    ahead-count candidates in this lane's owned paths (`hopeful-johnson-bdpy3r`
+    25, `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24 each, `modest-newton-oml7h8`/
+    `confident-cerf-{fti5j5,fod7ez,55g4kl,4xuqov}` 21 each) are all confirmed
+    by `git diff --stat` to be the same pure net-deletion pattern every prior
+    sweep in this file has found (missing the wizard/rotation-era
+    `SyncEngine`/`RemoteCoffeeRepository` work). Also specifically checked
+    `claude/wizardly-thompson-e42ekb` (the branch the stale claim above named)
+    — confirmed its content is now a strict subset of `ios-staging` (only 3
+    ios-ux files it never had), i.e. genuinely fully absorbed already.
+  - Confirmed post-merge there is no `ready`/`blocked`/`claimed` row anywhere
+    in `BACKLOG.md` (#1–77 all `done` except #65, `human`, already resolved
+    in its own text; #30 `dropped`) — the wizard's landing closed out the
+    last open row in the whole project. Nothing for any lane to pick up until
+    Radu files something new.
+  - `status/BACKLOG.md` (merge conflict resolution only), `status/backend.md`
+    (merge conflict resolution), `status/ios-shell.md`. No Swift changed on
+    the shared branch — the duplicate implementation was discarded, not
+    committed.
+
+- [2026-08-24 UTC, later session] **#76 built — Add Coffee wizard, iOS shell
+  half.** Built against #75's live wire shape (`POST /api/photos/manifest`,
+  `PUT /api/photos/:sourceId/image`, `POST /api/coffees/extract`,
+  `POST /api/coffees`), all newly confirmed as `done` on `origin/main` this
+  session (merged `origin/ios-staging`'s #74/#71-era work in first, clean, no
+  conflicts).
+  - `API/Wire/CoffeeDraftWire.swift` — decode targets for all three endpoints:
+    `PhotoManifestResponseDTO`/`PhotoManifestResultDTO`,
+    `ExtractedDraftDTO`/`ExtractedDraftFieldDTO`/`ExtractedDraftCandidateDTO`,
+    `CreateCoffeeResponseDTO`/`CreateCoffeeFieldResultDTO`.
+  - `Models/CoffeeDraft.swift` — the domain shape #77's confirm screen reads:
+    `ExtractedDraft`/`DraftField`/`DraftCandidate`, keyed by the same
+    client field name (`roaster`, `originCountry`, …) `editField`/`editFields`
+    already send, so a confirmed field maps straight onto a `CoffeeFieldEdit`
+    with no second shape to invent.
+  - `Utilities/ImageHashing.swift` — `Data.sha256Hex` via `CryptoKit` (a system
+    framework, not an SPM dependency) for the manifest's `contentSha256` and
+    the image PUT's `?sha256=` query param.
+  - `API/APIClient.swift` — `uploadPhotoManifest`, `uploadPhotoImage` (binary
+    PUT, bypasses `makeRequest`'s JSON `Content-Type`), `extractDraft`,
+    `createCoffee` (reuses the existing `CoffeeFieldEdit` shape #41 already
+    added for `editCoffeeFields`).
+  - `Store/{CoffeeRepository,RemoteCoffeeRepository,SampleCoffeeRepository,
+    SyncEngine,CoffeeStore}.swift` — `uploadPhotos`/`extractDraft`/
+    `createCoffee` added to the `CoffeeRepository` protocol (per this row's
+    own framing) and wired through `SyncEngine` (`uploadPhotos` registers all
+    photos in one manifest call — the primary/front photo's entry carries the
+    wizard's pasted full text as its `description`, since #75 has no separate
+    text parameter — then PUTs each one's bytes in order; `createCoffee`
+    posts then re-fetches full detail via the existing `loadDetail`, the same
+    "server round-trip wins" shape `editField` uses). `SampleCoffeeRepository`
+    throws `notConfigured` for all three (same reasoning as `editField`: no
+    live extraction ensemble to fake in previews). `CoffeeStore` exposes
+    `uploadWizardPhotos`/`extractWizardDraft`/`createWizardCoffee` — the
+    latter two throw directly (not `editField`'s catch-and-publish-`Bool`
+    pattern) since the wizard's own multi-step flow (#77) needs to know
+    exactly which step failed and why.
+  - **Trap avoided**: `CoffeeIndex.replacingCoffee` is update-only (no-ops on
+    an id not already present), so `createWizardCoffee` can't rely on it alone
+    for a *brand-new* coffee — mirrored `editField`'s exact sequence instead
+    (`await refresh()` first, so the new coffee's own compact row lands via
+    the delta sync, THEN `replacingCoffee` to layer the fuller detailed
+    version on top).
+  - Not locally compiled (no Xcode in this sandbox) — new files only add
+    types/methods, and every edited file's diff is additive (no existing
+    signature changed), so a red compile check here is more likely a typo
+    than a design gap. Flag the compile lane to `API/APIClient.swift`,
+    `Store/SyncEngine.swift`, and `Models/CoffeeDraft.swift` first if red.
+  - `status/BACKLOG.md`'s `#76` row stays `claimed` (not `done`) and `#77`
+    stays `blocked` this session — see the `## Claimed` entry above for why
+    (branch not yet integrated onto `ios-staging`).
+  - `.rotationEffect`/UI wiring, `PhotosPicker`, and the wizard's actual
+    3-step screens are `#77`'s job (`Features/`/`DesignSystem/`) — not
+    touched here.
+
+- [2026-08-24 UTC] Session check — no ready `ios-shell` row. `#76` (this
+  lane's only open row) is still `blocked` on `#75` (backend, "Add Coffee
+  wizard — backend half"), which is still `ready`-not-`done`: confirmed fresh
+  on both `origin/main` (`1bac829`) and `origin/ios-staging` (`252fa0b`) —
+  the Publish lane has since merged `ios-staging` into `main` (`5ed14d4`/
+  `1bac829`), so the dev/ship-split visibility gap prior sessions diagnosed
+  no longer applies (`main`'s copy of `BACKLOG.md` now matches
+  `ios-staging`'s), but `#75` itself simply hasn't been picked up by the
+  backend lane yet. Not guessing `#75`'s wire shape blind, per `#76`'s own
+  row text.
+  - This session's designated branch (`claude/wizardly-thompson-olvvt5`) was
+    sitting at `main`'s tip, not `ios-staging`'s — checked out `ios-staging`
+    fresh from `origin/ios-staging` to develop on the correct lane branch.
+  - Merged `origin/main` into `ios-staging` (`c465f0c`) — clean, no
+    conflicts (both branches already agreed via the Publish lane's own
+    merge).
+  - Re-swept `origin/claude/*` (131 branches after a fresh `--prune` fetch):
+    checked the top candidates by commits-ahead in this lane's owned paths
+    (`hopeful-johnson-bdpy3r` 25, `confident-cerf-{t1flso,j8in2k,9y3vqr}` 24
+    each, `modest-newton-oml7h8`/`confident-cerf-{fti5j5,fod7ez,55g4kl,
+    4xuqov}` 21 each) — all confirmed by `git diff --stat` to be pure
+    net-deletions against current `ios-staging` (missing `SyncEngine`/
+    `SampleData` work that's since landed), same stale-snapshot pattern
+    every prior sweep has found. Nothing stranded to adopt.
+  - No code changes — stopping cleanly per the work loop rather than
+    inventing work or touching backend/ios-ux-owned paths.
+
 - [2026-08-23 UTC, later session] Session check — no ready `ios-shell` row.
   `#76` (this lane's only open row) is still `blocked` on `#75` (backend, "Add
   Coffee wizard — backend half"), which remains `ready`-not-`done`. Re-verified

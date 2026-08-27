@@ -171,6 +171,59 @@ actor SyncEngine {
         return try await loadDetail(coffeeId: coffeeId, using: client)
     }
 
+    /// Uploads each Add Coffee wizard photo (#75/#76): registers all of them
+    /// in one `POST /api/photos/manifest` call — the primary/front photo's
+    /// entry carries `fullText` as its `description`, since #75 has no
+    /// separate text parameter — then PUTs each one's bytes. Returns the
+    /// assigned photoIds in the same order as `images`, so the caller's first
+    /// id is the primary photo `extractDraft`/`createCoffee` key off.
+    func uploadPhotos(_ images: [Data], fullText: String, client: APIClient?) async throws -> [String] {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        guard !images.isEmpty else { return [] }
+
+        let capturedAt = Date()
+        let shas = images.map(\.sha256Hex)
+        let entries = images.indices.map { i in
+            PhotoManifestEntry(
+                sourceId: UUID().uuidString,
+                contentSha256: shas[i],
+                capturedAt: capturedAt,
+                description: i == 0 ? fullText : nil
+            )
+        }
+
+        let results = try await client.uploadPhotoManifest(entries: entries)
+        let photoIdBySourceId = Dictionary(uniqueKeysWithValues: results.map { ($0.sourceId, $0.photoId) })
+
+        var photoIds: [String] = []
+        for (i, entry) in entries.enumerated() {
+            guard let photoId = photoIdBySourceId[entry.sourceId] else {
+                throw APIClient.APIError.http(status: -1, body: "manifest response missing sourceId \(entry.sourceId)")
+            }
+            _ = try await client.uploadPhotoImage(sourceId: entry.sourceId, sha256: shas[i], jpegData: images[i])
+            photoIds.append(photoId)
+        }
+        return photoIds
+    }
+
+    /// Runs the wizard's light extraction ensemble over already-uploaded
+    /// photos (#75/#76) — a stateless read, nothing here touches `coffees`.
+    func extractDraft(photoIds: [String], client: APIClient?) async throws -> ExtractedDraft {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        return ExtractedDraft(dto: try await client.extractDraft(photoIds: photoIds))
+    }
+
+    /// Persists the wizard's confirmed fields as a brand-new coffee (#75/#76),
+    /// then merges it into the index the same way `editField` does — a fresh
+    /// `loadDetail` fetch, so any backend-derived side effect (e.g. a resolved
+    /// `roaster` deriving `roasterCountryId`) lands exactly as the server
+    /// computed it.
+    func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit], client: APIClient?) async throws -> Coffee {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        let created = try await client.createCoffee(photoIds: photoIds, fields: fields)
+        return try await loadDetail(coffeeId: created.id, using: client)
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,

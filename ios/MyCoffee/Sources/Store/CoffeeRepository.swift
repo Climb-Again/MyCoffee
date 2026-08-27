@@ -51,4 +51,21 @@ protocol CoffeeRepository: Sendable {
     /// use this instead of N `editField` calls whenever a single save
     /// changes more than one field.
     func editFields(coffeeId: String, edits: [CoffeeFieldEdit]) async throws -> Coffee
+
+    /// Uploads the Add Coffee wizard's photos (PLAN.md §6.8, #75/#76) and
+    /// returns their assigned server photoIds in the same order as `images` —
+    /// the first is the primary/front photo `extractDraft`/`createCoffee` key
+    /// off. `fullText` (the wizard's pasted whole-bag description) is
+    /// attached as that primary photo's manifest `description`; #75 has no
+    /// separate text transport.
+    func uploadPhotos(_ images: [Data], fullText: String) async throws -> [String]
+
+    /// Runs the wizard's light extraction ensemble over already-uploaded
+    /// photos and returns a draft the confirm screen (#77) can render/edit.
+    func extractDraft(photoIds: [String]) async throws -> ExtractedDraft
+
+    /// Persists the wizard's confirmed fields as a brand-new coffee, locked/
+    /// human-decided on every field (#75), and merges it into the index.
+    /// Returns the newly created coffee.
+    func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee
 }

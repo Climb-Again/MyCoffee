@@ -1,11 +1,15 @@
 import SwiftUI
 import UIKit
 
-/// The coffee detail page (PLAN.md §6.3): full-bleed photo with real
-/// `ToolbarItem` back/share (never `.navigationBarBackButtonHidden` +
-/// overlay, which kills edge-swipe-back), a white card curving up over it,
-/// an inset thumbnail, roaster row, title, pill row, process, fact rows,
-/// note blocks, then rating-ordered rails.
+/// The coffee detail page — 2a redesign (`#88`,
+/// `design/coffees_redesign/README.md` §Screen 2, folds in `#82`): a 300pt
+/// full-bleed hero with real `ToolbarItem` back (never
+/// `.navigationBarBackButtonHidden` + a custom overlay, which killed
+/// edge-swipe-back and duplicated the arrow the one time this was tried —
+/// see the toolbar below) plus floating favourite/share/edit circles, a
+/// white card overlapping it by 20pt, rating header, roaster row, title,
+/// pill row, a price block with the value meter, fact rows, a flavour-
+/// profile section, note blocks, then rating-ordered rails.
 struct CoffeeDetailView: View {
     private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
@@ -41,14 +45,20 @@ struct CoffeeDetailView: View {
             await reviewCache.ensureLoaded()
         }
         .toolbar {
-            // Only the trailing Share/Edit buttons are custom — the system back
-            // button stays (one arrow, and it keeps edge-swipe-back working). A
-            // second custom back button here is what produced the duplicate arrow.
+            // Only the trailing buttons are custom — the system back button
+            // stays (one arrow, and it keeps edge-swipe-back working). A
+            // second custom back button here is what produced the duplicate
+            // arrow the one time this was tried, so the handoff's leading
+            // "back circle" isn't reproduced pixel-for-pixel; the system
+            // chevron plays that role instead over the transparent bar.
+            ToolbarItem(placement: .topBarTrailing) {
+                favoriteButton
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
                     Image(systemName: Symbols.share)
-                        .padding(10)
-                        .background(.thinMaterial, in: Circle())
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.92), in: Circle())
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -56,8 +66,8 @@ struct CoffeeDetailView: View {
                     showEdit = true
                 } label: {
                     Image(systemName: Symbols.edit)
-                        .padding(10)
-                        .background(.thinMaterial, in: Circle())
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.92), in: Circle())
                 }
             }
         }
@@ -90,6 +100,18 @@ struct CoffeeDetailView: View {
         (coffee.images?.display).flatMap(URL.init(string:)) != nil
     }
 
+    /// Design handoff §Screen 2: `#0078ff` fill, white heart, 44×44.
+    private var favoriteButton: some View {
+        Button {
+            store.toggleFavorite(coffee)
+        } label: {
+            Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(Theme.Colors.accent, in: Circle())
+        }
+    }
+
     // MARK: - Hero
 
     private var heroImage: some View {
@@ -107,7 +129,7 @@ struct CoffeeDetailView: View {
                 heroPlaceholder
             }
         }
-        .frame(height: 320)
+        .frame(height: 300)
         .frame(maxWidth: .infinity)
         .clipped()
         // Tap the (cropped) hero to see the whole photo full-screen.
@@ -146,40 +168,47 @@ struct CoffeeDetailView: View {
             roasterRow
             titleBlock
             pillRow
-            processBlock
+            priceBlock
             if !factRows.isEmpty {
-                FactRowsCard(rows: factRows)
+                FactRowsList(rows: factRows)
             }
             notesSection
             fullTextSection
             railsSection
         }
-        .padding(20)
-        .padding(.top, 8)
+        .padding(.horizontal, 22)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
+            UnevenRoundedRectangle(
+                topLeadingRadius: Theme.Radius.card, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: Theme.Radius.card,
+                style: .continuous
+            )
+            .fill(Theme.Colors.surface)
         )
-        .offset(y: -28)
+        .offset(y: -20)
     }
 
     private var ratingHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .center) {
             if let rating = coffee.rating {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.1f", rating))
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .font(.system(size: 40, weight: Theme.Weight.heavy))
+                        .tracking(-1.2)
+                        .foregroundStyle(Theme.Colors.accent)
                     starRow(for: rating)
                 }
             } else {
                 Text("Unrated")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 22, weight: Theme.Weight.semibold))
+                    .foregroundStyle(Theme.Colors.neutral700)
             }
             Spacer()
             if coffee.hasOpenReview && reviewCache.hasReviewableTasks(for: coffee.id) {
-                // Tappable: the marker isn't just a status, it launches the
+                // Tappable: the pill isn't just a status, it launches the
                 // review for this coffee's open fields (PLAN.md §6.5).
                 // Gated on the real feed, not just the coarse `reviewState`
                 // column, so a coffee whose only open item is a non-client-
@@ -189,24 +218,34 @@ struct CoffeeDetailView: View {
                 Button {
                     showReview = true
                 } label: {
-                    Label("Review", systemImage: Symbols.needsReview)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.orange)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.12), in: Capsule())
+                    Text(reviewPillText)
+                        .font(.system(size: 11, weight: Theme.Weight.semibold))
+                        .foregroundStyle(Theme.Colors.accent700)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: Theme.minHitTarget)
+                        .background(Theme.Colors.accent100, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
+    /// The feed's item count for this coffee, one row per (coffeeId, field) —
+    /// "2 fields to review" per the design handoff. Falls back to a plain
+    /// label if the count somehow reads 0 while the gate above is still true
+    /// (a feed refresh mid-flight), rather than showing "0 fields to review".
+    private var reviewPillText: String {
+        let count = reviewCache.reviewableFieldCount(for: coffee.id)
+        guard count > 0 else { return "Needs review" }
+        return "\(count) field\(count == 1 ? "" : "s") to review"
+    }
+
     private func starRow(for rating: Double) -> some View {
         HStack(spacing: 2) {
             ForEach(0..<5, id: \.self) { index in
                 Image(systemName: Double(index) < rating ? Symbols.starFill : Symbols.star)
-                    .foregroundStyle(.orange)
-                    .font(.caption)
+                    .foregroundStyle(Double(index) < rating ? Theme.Colors.accent : Theme.Colors.neutral300)
+                    .font(.system(size: 13))
             }
         }
     }
@@ -217,7 +256,7 @@ struct CoffeeDetailView: View {
 
         return Group {
             if let roaster {
-                HStack {
+                HStack(spacing: 6) {
                     // Pushback #7: the flag beside the roaster is a *country*
                     // flag, so it opens the roaster's country page; the name
                     // opens the roaster page. Two separate tap targets, not one.
@@ -225,41 +264,62 @@ struct CoffeeDetailView: View {
                         NavigationLink {
                             CountryPageView(countryID: roasterCountry.id, role: .roaster)
                         } label: {
-                            FlagView(isoCode: roasterCountry.isoCode)
+                            FlagView(isoCode: roasterCountry.isoCode).font(.system(size: 13))
                         }
                         .buttonStyle(.plain)
                     } else {
-                        FlagView(isoCode: roasterCountry?.isoCode)
+                        FlagView(isoCode: roasterCountry?.isoCode).font(.system(size: 13))
                     }
 
                     if FeatureFlags.tapNavigatesToEntityPages {
                         NavigationLink {
                             RoasterPageView(roasterID: roaster.id)
                         } label: {
-                            Text(roaster.name)
-                                .font(.subheadline.weight(.medium))
+                            roasterNameLine(roaster)
                         }
                         .buttonStyle(.plain)
                     } else {
-                        Text(roaster.name)
-                            .font(.subheadline.weight(.medium))
+                        roasterNameLine(roaster)
                     }
 
                     Spacer()
                     if FeatureFlags.tapNavigatesToEntityPages {
                         Image(systemName: Symbols.chevronRight)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.Colors.neutral700)
                     }
                 }
-                .foregroundStyle(.secondary)
             }
         }
     }
 
+    /// Blue name, always — the roaster row's one place blue always appears,
+    /// same as the rating. The "your best roaster" suffix only shows for the
+    /// single #1 roaster (`topRoasterIDs().first`), not mere membership in the
+    /// top set — that distinction is `CoffeeRowView`'s own note about itself.
+    private func roasterNameLine(_ roaster: Roaster) -> some View {
+        HStack(spacing: 4) {
+            Text(roaster.name)
+                .font(.system(size: 13, weight: Theme.Weight.semibold))
+                .foregroundStyle(Theme.Colors.accent)
+            if let average = bestRoasterAverage(for: roaster) {
+                Text("· your best roaster, \(String(format: "%.1f", average)) avg")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            }
+        }
+    }
+
+    private func bestRoasterAverage(for roaster: Roaster) -> Double? {
+        guard let best = store.index.topRoasterIDs().first, best.id == roaster.id else { return nil }
+        return best.average
+    }
+
     private var titleBlock: some View {
         Text(coffee.displayTitle(vocabulary: vocabulary))
-            .font(.title2.weight(.bold))
+            .font(.system(size: 27, weight: Theme.Weight.heavy))
+            .tracking(-0.81)
+            .foregroundStyle(Theme.Colors.text)
     }
 
     private var pillRow: some View {
@@ -268,6 +328,8 @@ struct CoffeeDetailView: View {
             // A blend gets a "Blend" marker plus one pill per origin country; a
             // single-origin coffee just gets its one country pill. Either way,
             // every country pill is its own tap target into the origin page.
+            // Blend/decaf pills keep their pre-redesign styling (handoff
+            // §Screen 2: "Blend/decaf pills as today").
             if coffee.isBlend {
                 InfoPill(icon: nil, text: "🏳️ Blend")
             }
@@ -278,51 +340,17 @@ struct CoffeeDetailView: View {
             } else if coffee.isBlend == false, let country = coffee.primaryOriginCountry(vocabulary: vocabulary) {
                 originPill(for: country)
             }
+            // No tinted process capsule here (Definition of done) — a plain
+            // neutral pill, and omitted entirely when the profile is unknown
+            // rather than rendering "Unknown" (missing fields omit their row).
+            if let profile = coffee.profile {
+                DetailPill(text: profile.displayName)
+            }
             if let altitude = coffee.altitudeLabel {
-                InfoPill(icon: Symbols.mountain, text: altitude)
+                DetailPill(text: altitude)
             }
             if let weight = coffee.weightLabel {
-                InfoPill(icon: Symbols.scale, text: weight)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func originPill(for country: Country) -> some View {
-        let text = (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name
-        // Pushback #7: the origin flag (folded into this pill's text) opens the
-        // origin-country page.
-        if FeatureFlags.tapNavigatesToEntityPages {
-            NavigationLink {
-                CountryPageView(countryID: country.id, role: .origin)
-            } label: {
-                InfoPill(icon: nil, text: text)
-            }
-            .buttonStyle(.plain)
-        } else {
-            InfoPill(icon: nil, text: text)
-        }
-    }
-
-    private var processBlock: some View {
-        // Full processing name (e.g. "Cold Natural") shown in brackets next to
-        // the coarse profile label ("Natural"). Skipped when the full name adds
-        // nothing — i.e. it's identical to the label (case-insensitive).
-        let detail = coffee.profileDetail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let label = coffee.profile?.displayName ?? ""
-        let fullName: String? = {
-            guard let detail, !detail.isEmpty,
-                  detail.caseInsensitiveCompare(label) != .orderedSame else { return nil }
-            return detail
-        }()
-
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            ProcessTag(profile: coffee.profile)
-            if let fullName {
-                Text("(\(fullName))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                DetailPill(text: weight)
             }
             if coffee.isDecaf {
                 DecafBadge()
@@ -330,27 +358,149 @@ struct CoffeeDetailView: View {
         }
     }
 
-    private var factRows: [FactRow] {
-        var rows: [FactRow] = []
-        rows.append(FactRow(symbol: Symbols.calendar, label: "Purchased", value: PlainDateFormatting.exact(coffee.purchasedOn)))
-        if let roastedOn = coffee.roastedOn {
-            rows.append(FactRow(symbol: Symbols.calendar, label: "Roasted", value: PlainDateFormatting.exact(roastedOn)))
+    @ViewBuilder
+    private func originPill(for country: Country) -> some View {
+        let average = topOriginAverage(for: country)
+        let text = (country.isoCode.flatMap { $0.flagEmoji } ?? "🏳️") + " " + country.name
+            + (average.map { " " + String(format: "%.1f", $0) } ?? "")
+        // Pushback #7: the origin flag (folded into this pill's text) opens the
+        // origin-country page.
+        if FeatureFlags.tapNavigatesToEntityPages {
+            NavigationLink {
+                CountryPageView(countryID: country.id, role: .origin)
+            } label: {
+                DetailPill(text: text, isAccent: average != nil)
+            }
+            .buttonStyle(.plain)
+        } else {
+            DetailPill(text: text, isAccent: average != nil)
         }
-        if let priceLabel = coffee.priceLabel {
-            if let originalAmount = coffee.priceOriginalAmount, let currency = coffee.priceOriginalCurrency, currency != "EUR" {
-                rows.append(FactRow(symbol: Symbols.eurosign, label: "Price", value: "\(priceLabel) (\(originalAmount.formatted()) \(currency))"))
-            } else {
-                rows.append(FactRow(symbol: Symbols.eurosign, label: "Price", value: priceLabel))
+    }
+
+    /// `nil` unless this country is in the user's top-origin set (design
+    /// handoff §Row's "top-preference rule" — ≥5 rated bags, highest average).
+    private func topOriginAverage(for country: Country) -> Double? {
+        store.index.topOriginCountryIDs().first { $0.id == country.id }?.average
+    }
+
+    // MARK: - Price block
+
+    /// Design handoff §Screen 2: `PRICE`/`PER 100 G` stat pair beside the
+    /// five-pill value meter — replaces the old fact-row price lines.
+    @ViewBuilder
+    private var priceBlock: some View {
+        if coffee.priceLabel != nil || coffee.pricePer100gEur != nil {
+            HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 24) {
+                    if let priceLabel = coffee.priceLabel {
+                        priceStat(label: "PRICE", value: priceLabel)
+                    }
+                    if let pricePer100gEur = coffee.pricePer100gEur {
+                        priceStat(label: "PER 100 G", value: pricePer100gEur.formatted(.currency(code: "EUR")))
+                    }
+                }
+                Spacer(minLength: 12)
+                if let valueRating = store.index.valueBand(for: coffee) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        valueMeter(valueRating)
+                        Text(verdictLabel(valueRating.band))
+                            .font(.system(size: 10, weight: Theme.Weight.semibold))
+                            .tracking(0.8)
+                            .foregroundStyle(valueRating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                    }
+                }
             }
         }
-        if let ppgLabel = coffee.pricePer100gLabel {
-            rows.append(FactRow(symbol: Symbols.eurosign, label: "Price / 100 g", value: ppgLabel))
+    }
+
+    private func priceStat(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                .tracking(0.6)
+                .foregroundStyle(Theme.Colors.neutral700)
+            Text(value)
+                .font(.system(size: 22, weight: Theme.Weight.heavy))
+                .foregroundStyle(Theme.Colors.text)
+        }
+    }
+
+    private func valueMeter(_ rating: ValueRating) -> some View {
+        HStack(spacing: 3) {
+            ForEach(0..<5, id: \.self) { pip in
+                RoundedRectangle(cornerRadius: Theme.Radius.pill)
+                    .fill(
+                        pip < rating.pillCount
+                            ? (rating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                            : Theme.Colors.neutral300
+                    )
+                    .frame(width: 8, height: 4)
+            }
+        }
+    }
+
+    private func verdictLabel(_ band: ValueRating.Band) -> String {
+        switch band {
+        case .great: return "GREAT VALUE"
+        case .fair: return "FAIR VALUE"
+        case .pricey: return "PRICEY"
+        }
+    }
+
+    private var factRows: [FactRow] {
+        var rows: [FactRow] = []
+        rows.append(FactRow(label: "Purchased", value: PlainDateFormatting.exact(coffee.purchasedOn)))
+        if let roastedOn = coffee.roastedOn {
+            rows.append(FactRow(label: "Roasted", value: PlainDateFormatting.exact(roastedOn)))
+        }
+        if let farm = coffee.originFarm(vocabulary: vocabulary) {
+            rows.append(FactRow(label: "Farm", value: farm.name))
         }
         return rows
     }
 
+    // MARK: - Flavour profile (#79/#81, folds in #82)
+
+    @ViewBuilder
+    private var flavourProfileSection: some View {
+        if let chips = flavourChips {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("FLAVOUR PROFILE")
+                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.Colors.neutral700)
+                WrapLayout() {
+                    ForEach(chips, id: \.self) { note in
+                        Text(note)
+                            .font(.system(size: 11, weight: Theme.Weight.semibold))
+                            .foregroundStyle(Theme.Colors.accent800)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Theme.Colors.accent100, in: Capsule())
+                    }
+                }
+                Text("Read from the roaster's own copy on the bag.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            }
+        }
+    }
+
+    /// `Coffee.flavorNotes` is a short comma-separated string ("ciocolată,
+    /// vișine, prune uscate", #79/#80) — split into individual chips, `nil`
+    /// when absent or the scan found nothing (an empty-string sentinel means
+    /// "scanned, no notes stated", same as elsewhere in the app).
+    private var flavourChips: [String]? {
+        guard let raw = coffee.flavorNotes else { return nil }
+        let chips = raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return chips.isEmpty ? nil : chips
+    }
+
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            flavourProfileSection
             if let note = coffee.farmLotNote, !note.isEmpty {
                 NoteBlock(title: "Farm & lot", text: note)
             }
@@ -495,11 +645,33 @@ private struct NoteBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .textCase(.uppercase)
+                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                .tracking(1.2)
+                .foregroundStyle(Theme.Colors.neutral700)
             Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.Colors.text)
         }
+    }
+}
+
+/// The redesigned pill row's plain (non-tinted) pill — process/altitude/
+/// weight always, origin only when it isn't a top-preference country
+/// (`originPill(for:)`'s own `isAccent` branch covers that case).
+private struct DetailPill: View {
+    let text: String
+    var isAccent: Bool = false
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .foregroundStyle(isAccent ? Theme.Colors.accent700 : Theme.Colors.text)
+            .background(isAccent ? Theme.Colors.accent100 : Theme.Colors.neutral100, in: Capsule())
     }
 }
 

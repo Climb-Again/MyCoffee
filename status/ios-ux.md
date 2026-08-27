@@ -6,7 +6,374 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## Done
+
+- [2026-08-27 UTC] #89 InsightsView + InsightsCharts redesign — see BACKLOG.md's own write-up for full detail
+
 ## Session notes
+
+- [2026-08-27 UTC] `status/BACKLOG.md` on `main`'s copy (this session's starting
+  branch) was stale relative to `origin/ios-staging`'s — #83–#88 were already
+  `done` on `ios-staging`, same visibility gap the 2026-08-24+ sessions in
+  this file already documented (main's dev/ship split means backend/data
+  session checks never see ios-staging-only rows). Checked out `ios-staging`,
+  merged `origin/main` in (one conflict in `status/BACKLOG.md`, same
+  `main`-is-stale shape as the merge conflicts documented above — resolved by
+  keeping `ios-staging`'s side, since it carries the actual completion
+  write-ups `main`'s copy never received). While resolving, noticed `#82`
+  (flavour-notes section) was still marked `ready` even though `#88`'s own
+  write-up explicitly folds it in and closes it out — verified directly
+  against `Features/Coffees/CoffeeDetailView.swift` (the FLAVOUR PROFILE chip
+  section is live) before flipping it to `done`. Picked `#89` (the last open
+  `ios-ux`/`ready` row: `#82` just corrected to `done`, `#85`–`#88` already
+  `done`) — `InsightsView`/`InsightsCharts`/`BriefCard`/`DataQualityCard`
+  redesign per `design/coffees_redesign/README.md` §Screen 3. `CategoryPieChart`
+  (the old donut-per-dimension chart) is gone, replaced by a single
+  `BreakdownCard` fed by a dimension chip switcher, ranked by average rating.
+  Added one new `Theme.Colors.hairline` token (`#EAE7E7`) for the breakdown
+  card's row dividers — the one genuinely new color this spec section
+  introduces. Full detail + the two deliberate deviations from the literal
+  mock (chip copy reuses `FilterDimension.title` instead of a second naming
+  scheme; year chips get a small local `chip()` builder rather than a global
+  `FilterPill` restyle, since that component is still used unrestyled by
+  `FilterSheetView`/`FacetFullListView`, outside this row's scope) are in
+  `status/BACKLOG.md`'s own `#89` row. Not locally compiled (no Xcode in this
+  sandbox) — every removed symbol (`CategoryPieChart`, `PieSlice`,
+  `pieDimensions`, `slices(for:facets:)`) was grep-verified to have no other
+  call sites before deleting. `DesignSystem/Theme.swift`,
+  `Features/Insights/{InsightsView,BriefCard,InsightsCharts,DataQualityCard}.swift`.
+
+- [2026-08-26 UTC, same session as #87] **#88 DONE** — `CoffeeDetailView` 2a
+  redesign, folds in #82 — branch `ios-staging`.
+  - Picked up right after #87 (batching per the lane's normal guidance);
+    #83/#84/#81 were all already `done` so #88 read `ready` with no further
+    merge needed.
+  - **Toolbar**: kept the established "no custom back button" precedent
+    (this file's own pre-existing comment: a leading overlay back button
+    previously produced a duplicate arrow and broke edge-swipe) instead of
+    reproducing the handoff's leading back-circle pixel-for-pixel. Restyled
+    the trailing Share/Edit to explicit 44×44 white-92%-opacity circles and
+    added a new favourite circle (accent fill, white heart) — favourite
+    wasn't on the toolbar before this row.
+  - **Review pill**: needed a real per-coffee field count the app didn't
+    expose yet — `ReviewFeedCache` (`Features/Review/**`, ios-ux-owned, so
+    in-scope) only tracked a `Set<String>` of reviewable coffee ids. Added
+    `reviewableFieldCounts: [String: Int]` alongside it (one feed item is
+    one (coffeeId, field) pair, so counting items per coffee from the same
+    already-fetched feed was free) and `reviewableFieldCount(for:)`. The
+    pill now reads "2 fields to review" instead of a bare "Review" label.
+  - **Roaster row**: reread the handoff text carefully here — "your best
+    roaster" is the single #1 roaster (`topRoasterIDs().first`), a stricter
+    bar than `#85`'s row-level "member of the top set" check, which #85's
+    own doc comment already flagged as the detail page's distinction to
+    make. The name itself is unconditionally blue now (handoff literally
+    lists it as one of blue's fixed uses, same as the rating), unlike the
+    row's conditional treatment.
+  - **Pill row**: process moved out of its own tinted `ProcessTag` section
+    and into the plain neutral pill row per Definition of done ("no tinted
+    capsule for process"); omitted entirely (not "Unknown") when the coffee
+    has no profile, matching `#85`'s precedent for the listing row. Origin
+    pills only turn blue for an actual top-origin country — the handoff's
+    prose lists origin as unconditionally blue-tinted, but that reads as
+    inconsistent with its own Definition of done ("blue only for top
+    roaster/origin") and with `#85`'s shipped row behaviour, so this session
+    followed the stricter, already-established rule rather than the
+    ambiguous prose.
+  - **Price block + fact rows**: new stat-pair block replaces the old price
+    fact-rows entirely; `DesignSystem/FactRow.swift` lost its icon/card
+    styling (renamed `FactRowsCard`→`FactRowsList` since it isn't a card
+    background anymore) and gained a "Farm" row via the already-existing
+    `coffee.originFarm(vocabulary:)` accessor — the handoff asks for this
+    row but nothing before this session actually surfaced it as a fact row.
+  - **Flavour profile**: `Coffee.flavorNotes` (#81) is a comma-separated
+    string, not an array — split/trim/filter into chips client-side, `nil`
+    entirely omits the section (handles both "field absent" and the
+    backend's empty-string "scanned, none stated" sentinel the same way).
+  - **Rails**: `RailView.swift` restyled to the handoff's 13pt/11pt header
+    and 92pt cards; dropped the star-glyph rating (plain blue/grey number,
+    matching `#85`'s row-level removal of star glyphs).
+  - Not locally compiled (no Xcode in this sandbox) — the riskiest pieces
+    are `UnevenRoundedRectangle` (iOS 16+, fine for this iOS 17 target, but
+    unused elsewhere in the codebase so worth a first look on a red compile)
+    and the toolbar's three-circle layout at real device widths.
+  - `Features/Coffees/{CoffeeDetailView,RailView}.swift`,
+    `Features/Review/ReviewFeedCache.swift`, `DesignSystem/{FactRow,Theme}.swift`
+    (added `Theme.minHitTarget`, missing from `#83`'s original token set).
+    No other row's `needs` names `88` — nothing else unblocks.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-26 UTC] **#87 DONE** — `RootTabView` redesign (3 tabs → 2 tabs +
+  centre add button + review nudge) — branch `ios-staging`.
+  - Re-verified before picking up: this session started on the harness's
+    generic per-repo branch (`claude/hopeful-johnson-yc6ywg`, which mirrors
+    `main`), where `BACKLOG.md` still showed #83–#86 as `ready`/`blocked`.
+    Checking `origin/ios-staging` directly (per `CLAUDE.md` §12's "a fired
+    session commits to its own branch" gotcha and `status/README.md`'s
+    "integrate before you start" rule) found #83–#86 already `done` there
+    with real, distinct commits (`431ae54`, `32f8458`, `51e3abe`) and a
+    `BACKLOG.md` already corrected to match — `main`'s copy was just stale.
+    Discarded a duplicate `Theme.swift` this session had drafted before
+    checking, and continued from `ios-staging`'s actual head instead of
+    redoing #83.
+  - **Tab bar**: `RootTabView.swift` drops the `Review` tab from both the
+    iOS 18+ value-based `Tab` builder and the iOS 17 `.tabItem` fallback —
+    down to Coffees/Insights only, `.tint(Theme.Colors.accent)` on the
+    `TabView` for the active-tab colour. Did **not** touch `RootTab` (shell-
+    owned, `Store/CoffeeStore.swift`) — its `.review` case is simply
+    unreferenced now rather than deleted, since removing it would be a
+    shared-surface change and nothing left in this lane's files needs it.
+  - **Centre "+"**: restyled the existing #77 floating button with `Theme`
+    tokens (56pt `Theme.Colors.accent` circle, white 24pt plus,
+    `Theme.Shadow.md` via `themeShadow(_:)`) and moved its overlay alignment
+    from `.bottomTrailing` to `.bottom`. **Did not build it as a real third
+    `Tab`** — the handoff's "Coffees · + · Insights" wants a middle slot
+    that opens a sheet rather than navigating, which needs a `Tab` whose
+    selection is intercepted and reverted (a "fake tab" pattern), and that
+    revert is visibly flickery with no simulator here to check. With only
+    two real tabs the native bar already splits into two even halves, so a
+    button centred at the bottom edge lands exactly on the seam between
+    them — visually the same three-slot result, without the flicker risk.
+    Flagging this trade-off in case a session with a simulator wants to
+    swap in the "real third tab" version later.
+  - **Review nudge**: no new work — #86 already built
+    `CoffeesListView.reviewNudge`, gated on `store.reviewQueueCount > 0`,
+    opening `ReviewQueueView` as a sheet. This row's badge-removal is now
+    complete on both ends (no more `Review` tab badge, nudge is the only
+    surface).
+  - Typography fidelity note: the handoff asks for 9pt/0.1em-tracked tab
+    labels — SwiftUI's native tab bar doesn't expose label typography short
+    of replacing the whole bar with a custom view, which felt like too much
+    risk for this row's actual ask (remove Review, add the centre button).
+    Left tab labels as system default text at native size, matching the
+    README's own "prefer system behaviours...over exact pixel matches"
+    concession.
+  - Not locally compiled (no Xcode in this sandbox) — the riskiest piece is
+    the `.tint(Theme.Colors.accent)` interaction with #58's iOS-26
+    `.searchable` bottom-docking (unrelated modifier, but same view); flag
+    `RootTabView.swift` first on a red compile or a `.searchable` placement
+    regression.
+  - `Features/Root/RootTabView.swift`. No other row's `needs` names `87` —
+    nothing else unblocks.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-26 UTC, same session as #85] **#86 DONE** — `CoffeesListView`
+  redesign — branch `ios-staging`.
+  - Picked up right after #85 in the same session (batching per the lane's
+    normal 2–4-item guidance); #83/#84 both already `done` so #86 read
+    `ready` with no further merge needed.
+  - **Header**: rather than hiding the native nav bar outright (risking an
+    interaction with #58's iOS-26 `.searchable` bottom-docking, which is
+    keyed off `RootTabView`'s `Tab(value:)` builder, not this view's own
+    bar), kept the bar but reduced it to an inline, colour-matched strip
+    (`.toolbarBackground(Theme.Colors.accent, ...)`,
+    `.toolbarColorScheme(.dark, ...)`, empty `navigationTitle`) and moved the
+    actual "Coffees" title/overline/buttons into a custom `headerSection`
+    List row with its own `Theme.Colors.accent` background — visually one
+    continuous blue field even though it's two stacked pieces. Bag/roaster
+    counts for the overline are computed client-side
+    (`store.index.coffees.count` / `Set(...compactMap(\.roasterId)).count`)
+    rather than needing a new `CoffeeIndex` helper.
+  - **Review nudge**: new, gated on `store.reviewQueueCount > 0`, opens
+    `ReviewQueueView` as a `.sheet` — the Review tab itself stays put until
+    #87 actually removes it, so both routes coexist for now, which is fine
+    (additive, not a conflict).
+  - **Filter chips**: `TopFilterCardsRow.swift` deleted; a new inline chip
+    view in `CoffeesListView.swift` styles pills per the handoff and
+    implements the **new** tap-the-active-chip-to-clear behavior (the old
+    view always set `store.filter = card.filter` regardless, never cleared
+    on a repeat tap of the same card — confirmed by reading the deleted
+    file before removing it, not just assuming). **Deliberately did not
+    touch `Query/TopFilterCard.swift`** even though the backlog row's own
+    file list named it — that file is `Query/**`, ios-shell-owned per
+    `CLAUDE.md` §4, and its existing `title`/`count`/`filter` shape already
+    covers everything the restyled chip needs, so there was nothing to
+    change there anyway.
+  - **Filter-state line + month headers**: straightforward per spec — the
+    line uses `store.filteredCoffees.count`/`store.index.coffees.count` and
+    a `CLEAR` button resetting `store.filter = CoffeeFilter()`; month
+    headers move from a plain `Section(String)` to a `Section(content:
+    header:)` with a styled `Text` (uppercase, 10pt, tracked, `neutral700`,
+    no background) so the existing sticky-header behavior (a `List`/
+    `.listStyle(.plain)` property, not tied to header type) is unaffected.
+  - **Flagging, not guessing silently**: two pieces have no way to visually
+    confirm without a simulator — (1) whether the nav-bar-tint + custom-row
+    header combination actually reads as one continuous blue field or shows
+    a visible seam/double-header, and (2) whether the now-empty
+    `navigationTitle("")` changes the back-button label when pushing into
+    `CoffeeDetailView` (cosmetic only — a bare chevron instead of "Coffees"
+    — not a functional break). Next compile/device check should look at
+    `CoffeesListView.swift` first for either.
+  - Not locally compiled (no Xcode in this sandbox).
+  - `ios/MyCoffee/Sources/Features/Coffees/CoffeesListView.swift`; deleted
+    `ios/MyCoffee/Sources/Features/Coffees/TopFilterCardsRow.swift`.
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-26 UTC] **#85 DONE** — `CoffeeRowView` 2a redesign — branch `ios-staging`.
+  - **Before claiming**: this session started on `claude/hopeful-johnson-ohtwjx`
+    with an in-progress, not-yet-committed draft of `#83` (design tokens +
+    accent) already written locally. Checking out `ios-staging` and merging
+    `origin/main` in surfaced that `#83` **and** `#84` (ios-shell's derived
+    values, `ValueRating`/`TopVocabAverage`/`valueBand`/`topRoasterIDs`/
+    `topOriginCountryIDs` in `Store/CoffeeIndex.swift`) had already landed on
+    `origin/ios-staging` (`431ae54`, `32f8458`) from an earlier firing the
+    same day — confirmed by diffing the stashed draft against the landed
+    `Theme.swift` (byte-for-byte equivalent token table and `AccentColor`
+    sRGB values) before discarding it, per the "integrate before you start"
+    rule. Resolved a real merge conflict in `status/BACKLOG.md` (rows
+    `#80`–`#82`: `ios-staging`'s copy had the fuller, more-recent write-ups —
+    `#80`'s backfill marked COMPLETE, `#81` DONE not `ready` — kept those over
+    `origin/main`'s stale versions, same "keep the newer/fuller side"
+    precedent prior sessions have used). With `#83`/`#84` both `done`, `#85`
+    through `#89` all read `ready` — picked `#85` (lowest number, and the
+    suggested-implementation-order's "biggest visible win, self-contained").
+  - **The redesign**: rewrote `CoffeeRowView.swift` against `Theme.*` and
+    `design/coffees_redesign/README.md` §Row — 88×88 `Thumbnail` (no
+    grayscale; the README's own Assets note says that's a mock convention,
+    not a requirement) with the favourite as a bottom-trailing-pinned 44×44
+    hit area around a 28pt circle (blue+white heart when favourite, white+
+    outline heart otherwise); middle column drops the roaster-country flag
+    (2a moves it off the row per the README) and renders roaster name
+    uppercase/10pt, blue only when the roaster is in
+    `store.index.topRoasterIDs()`; title 17/800; origin line keeps the flag,
+    appends `· <avg>` and turns `accent700` only when one of the coffee's
+    origin countries is in `store.index.topOriginCountryIDs()` (picking the
+    highest-average match for a blend); process renders as plain 11pt grey
+    text, no capsule — `ProcessTag`/`DecafBadge` are gone from this view
+    entirely (not called out as "keep" anywhere in the row spec, and the
+    capsule is explicitly in the "removed" list). Right column: rating 26/800
+    (blue at ≥4.5, no star glyph), price, a compact `€X.XX/100g` line, then a
+    5-pip value meter + verdict text from `store.index.valueBand(for:)`
+    (`GREAT VALUE`/`FAIR VALUE`/`PRICEY`, blue only for `.great`). The old
+    full-width grey date-strip footer is deleted outright — the README is
+    explicit that the purchase date now lives in the month header only, which
+    `CoffeesListView` already renders — so the row no longer needs a `sort`
+    parameter at all; removed it from the initializer and updated all four
+    call sites (`CoffeesListView`, `RailView.RailMoreView`,
+    `CountryPageView`, `RoasterPageView`). Kept `PlainDateFormatting` in this
+    file (still used by `CoffeeDetailView.swift`) even though this view no
+    longer calls it itself.
+  - **Interpretation call, flagged rather than guessed silently**: the README
+    says a roaster/origin "qualifies when it is in the user's highest-average
+    set with at least ~5 rated bags" — read as **membership** in
+    `topRoasterIDs()`/`topOriginCountryIDs()`'s returned array (which is
+    already filtered to `count >= minCount` and sorted by average), not
+    literally just the single best entry (`#88`'s "your best roaster, 4.6
+    avg" on the detail page is the `.first`-of-that-array case, a distinct,
+    narrower use of the same derived value). If Radu's read differs once he
+    sees it on device, the fix is a one-line `.first`-vs-`.contains` swap in
+    `isTopRoaster`/`topOriginAverage`.
+  - Not locally compiled (no Xcode in this sandbox) — flag
+    `CoffeeRowView.swift` first on a red compile check; the one API used here
+    with no existing in-app precedent is `Text.tracking(_:)` for the
+    letter-spacing values (`0.6`/`-0.34`/`0.8`pt, converted from the
+    handoff's em-relative-to-font-size values) — real API since iOS 16, well
+    under the iOS 17 deployment target, so a failure here is far more likely
+    a typo than the API not existing.
+  - `ios/MyCoffee/Sources/Features/{Coffees/{CoffeeRowView,CoffeesListView,
+    RailView},Insights/EntityPages/{CountryPageView,RoasterPageView}}.swift`
+  - Commit: (see `git log` on `ios-staging`)
+
+- [2026-08-25 UTC] **#83 DONE** — Coffees/Coffee-page/Insights redesign (2a),
+  design-tokens foundation. Added `ios/MyCoffee/Sources/DesignSystem/Theme.swift`:
+  `Theme.Colors` (the full handoff hex table — accent/accent600/accent100/
+  accent200/accent700/accent800/neutral100/neutral300/neutral700/neutral900/
+  text/surface), `Theme.Radius` (photo 10, pill 999, card 20), `Theme.Shadow`
+  (`sm`/`md`, both `neutral900`-tinted per the handoff's `rgba(45,43,43,…)`
+  spec, plus a `themeShadow(_:)` view modifier), `Theme.Weight` (regular/
+  semibold/heavy — CSS 400/600/800 mapped onto SwiftUI's matching `Font.Weight`
+  raw values). Flipped `Resources/Assets.xcassets/AccentColor.colorset` from
+  brown `#a5824c` to `#0078ff` (srgb 0.000/0.471/1.000 — `0x78/255 = 0.4706`
+  rounds to `0.471`). Deliberately touched nothing else — this row is pure
+  foundation for #84–#89, and every downstream row references `Theme.*` rather
+  than re-deriving hex values, so there's no shared-file race between them.
+  Not locally compiled (no Xcode in this sandbox); the hex→sRGB arithmetic was
+  hand-checked instead. Flipped #83 `ready`→`done` in `status/BACKLOG.md`, and
+  #86/#87 `blocked`→`ready` (both only needed #83; #85/#88/#89 stay `blocked`
+  on #84/#81, which are ios-shell's rows, still `ready` not `done`). Merged
+  `origin/main` into `ios-staging` first (clean, one BACKLOG.md line + the
+  #81 flavour-notes migration/backend work, no conflicts). Pushing to
+  `ios-staging` only, per the lane rule.
+
+- [2026-08-25 UTC] No-op session. `status/BACKLOG.md`: swept the entire table —
+  every row is `done`, `human` (#65), or `dropped` (#30). `#75`/`#76`/`#77` (Add
+  Coffee wizard, backend/ios-shell/ios-ux) are all `done` and confirmed live in
+  the merged tree, not just row text: `ios/MyCoffee/Sources/Features/AddCoffee/
+  AddCoffeeWizardView.swift` exists, and `git log` shows `1c2b8a7`/`7c79946`/
+  `74cc73f` already on `ios-staging`. No `ios-ux` row (or any row) is
+  `ready`/`blocked`/`claimed`. Swept `git branch -r --list 'origin/claude/*'` —
+  only this session's own branch (`hopeful-johnson-y1c1vl`) exists, nothing
+  stranded to adopt. Merged `origin/main` into `ios-staging` (clean, one file —
+  `status/backend.md` gained a new session-note entry, no code, no conflicts).
+  Stopping cleanly per the lane's documented no-op behaviour; no feature code
+  changed.
+
+- [2026-08-24 UTC] Integrated stranded `#76` + built `#77` (Add Coffee wizard
+  UI) — branch `ios-staging`.
+  - **Before claiming**: merged `origin/main` into `ios-staging` (clean — #75,
+    backend's Add Coffee wizard half, had just landed). Rescanned
+    `status/BACKLOG.md`: `#77` (this lane) was `blocked` on `#76`
+    (ios-shell), which was itself `ready`, not `done` — so nothing qualified
+    yet under the normal pick-a-`ready`-row rule. Per the "integrate before
+    you start" protocol, swept `git branch -r --list 'origin/claude/*'`
+    (133 branches — the usual large stranded-branch backlog every session in
+    this file has documented) and, instead of another size-based spot-check,
+    grepped all of them for the wizard's own symbols
+    (`extractDraft|createCoffee|AddCoffeeWizard|ExtractedDraft|uploadPhotos`)
+    across `ios/MyCoffee/Sources`. One real hit:
+    `claude/wizardly-thompson-e42ekb`, touching exactly the ios-shell-owned
+    paths (`API/`, `Models/`, `Store/`, `Utilities/`) `#76` needed. Its own
+    two commits ("iOS shell: Add Coffee wizard — repository surface (#76)",
+    "iOS shell: correct #76 status — code complete, not yet integrated")
+    plus `status/ios-shell.md`'s `## Claimed` entry (read from that branch)
+    confirmed it: the ios-shell session that built it could only push to its
+    own fired-session branch, so it explicitly asked "whoever integrates it"
+    to merge it into `ios-staging` and flip `#76`→`done`/`#77`→`ready` in the
+    same push. The branch was based on current `ios-staging` (merge-base =
+    its own tip), a pure 333-insertion/0-deletion addition — merged with no
+    conflicts.
+  - Flipped `#76`→`done` (recording the integration + landing merge commit)
+    and `#77`→`done` in `status/BACKLOG.md` in the same session that built
+    `#77` against the now-integrated surface — did **not** touch
+    `status/ios-shell.md` (never edit another lane's file), even though its
+    own note asked the integrator to move its claim to `## Done` there; that
+    edit is left for the ios-shell lane itself.
+  - **`#77` (Add Coffee wizard UI)**: new `Features/AddCoffee/
+    AddCoffeeWizardView.swift` — see the full write-up in `status/
+    BACKLOG.md`'s `#77` row rather than duplicating it here. Short version:
+    3-step sheet (photos → paste text → confirm), a new `DraftFieldRow`
+    reusing `ReviewField`'s label/symbol table and the review queue's
+    chip-then-edit visual language (not the literal private `ReviewChip`
+    type — `DraftField` has no task id or accept/dismiss actions to hang it
+    off), one "Save coffee" button calling `#76`'s
+    `CoffeeStore.createWizardCoffee`. Entry point is a floating "+" overlaid
+    on `RootTabView`, not a fourth tab — keeps the "three tabs" decision
+    intact. Two new `Symbols` entries (`wizardAdd`, `wizardPhotos`).
+  - Not locally compiled (no Xcode here). Two real unknowns flagged for the
+    compile lane: whether `PhotosPicker`/`PhotosPickerItem.loadTransferable`
+    (iOS16+ API, first use in this codebase) compiles clean against this
+    project's actual SDK/target, and whether `PhotosUI` needs an explicit
+    framework entry in `project.yml` (shell-owned, not touched here — most
+    Swift-overlay system frameworks auto-link on `import`, but this project's
+    XcodeGen config wasn't inspected to confirm).
+  - `ios/MyCoffee/Sources/{Features/AddCoffee/AddCoffeeWizardView,
+    Features/Root/RootTabView,DesignSystem/Symbols}.swift`
+  - Commit: `74cc73f`/`7c79946` (`#76`, replayed in directly by the final
+    `git pull --rebase` rather than staying a separate merge commit) +
+    `1c2b8a7` (`#77`, this session's own commit) on `ios-staging`
+
+- [2026-08-24 UTC] No-op session. Merged `origin/main` (`50b7d46`) into
+  `ios-staging` cleanly — brings in `#75` (backend, Add Coffee wizard backend
+  half), which is now `done`. That unblocked `#76` (ios-shell) to `ready`, but
+  `#76` itself hasn't landed yet, so this lane's `#77` (Add Coffee wizard UI,
+  needs `76, 27`) stays `blocked`. No other row in the table is
+  `ios-ux`/`ready`. No `Features/`/`DesignSystem/`/`Resources/` files touched.
+
+- [2026-08-23 UTC, later session] No-op session. `status/BACKLOG.md` on
+  `ios-staging` (merged `origin/main` clean, only `status/publish.md`
+  changed): unchanged — `#75` (backend, Add Coffee wizard backend half) is
+  still the only `ready` row anywhere in the table. `#76` (ios-shell) stays
+  `blocked` on `#75`; `#77` (this lane) stays `blocked` on `#76` (`#27` is
+  already `done`). No other row is `ios-ux`/`ready`. No files touched.
 
 - [2026-08-23 UTC] No-op session. `status/BACKLOG.md` on `ios-staging`
   (`9e1fc14`, fast-forwarded cleanly, no merge needed): unchanged again — `#75`
