@@ -8,6 +8,19 @@ _none_
 
 ## Done
 
+- [2026-08-27 UTC, later session] Session check — no ready `ios-shell` row,
+  unchanged from the check right below (same day). `origin/ios-staging`
+  (`c570a56`) and `origin/main` (`b19199d`) are both exactly where the prior
+  session left them — no new commits on either since. Re-confirmed via a
+  fresh `git branch -r --list 'origin/claude/*'` fetch: 135 branches (one
+  fewer than the prior session's 136, i.e. net stable, not growing) and no
+  new candidate beyond what that session already swept and grepped for
+  wizard-era symbols. Re-verified `BACKLOG.md` has zero rows anywhere with
+  status `ready`/`blocked`/`claimed` (grepped the whole table) — every row
+  is `done`, `dropped` (#30), or `human` (#65). All eight `ios-shell`-tagged
+  rows (#17/#22/#41/#46/#74/#76/#81/#84) are `done`. Nothing to pick up; not
+  inventing work per the work loop. No code changes.
+
 - [2026-08-27 UTC] Session check — no ready `ios-shell` row. Confirms the
   immediately-prior session's own conclusion, re-derived independently:
   every `ios-shell`-tagged row (#17/#22/#41/#46/#74/#76/#81/#84) is `done`.
