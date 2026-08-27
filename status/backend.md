@@ -4,7 +4,98 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-27 UTC] #90 optimise `runFlavorNotes` latency (~90s/call on long OCR text) — branch `main`
+(none)
+
+## 2026-08-27 UTC: #90 — optimise `runFlavorNotes` latency (~90s/call on long OCR text)
+
+Only `ready` backend row this cycle (phase 6, no `needs`). Started at
+`origin/main`'s tip (`9598759`, the prior session's own #80 completion note) —
+no fast-forward needed. `git branch -r --list 'origin/claude/*'` — only this
+session's own branch (already at `origin/main`'s tip) — nothing stranded to
+adopt.
+
+**Root cause** (already diagnosed by the row itself, filed while backfilling
+#80): `extractFlavorNotesForCoffee` (`src/lib/worker.js`) built its prompt text
+as the raw concatenation `[raw_title, raw_caption, raw_description]` — and
+`raw_description` carries the appended "OCR text" block (#67/#69/#80's
+`includeCaptioned:true` sweep put one on nearly every coffee), sometimes
+~7K chars. `flash-lite`'s default *thinking* over that much input took ~90s;
+`thinkingBudget:0` is rejected by the model (confirmed by the row itself), so
+disabling thinking outright isn't an option — the only lever left is bounding
+the input.
+
+**Fix** (`src/lib/worker.js`), matching the row's own recommended shape
+exactly ("caption-head + OCR-block-head … rather than blind truncation"): new
+pure `buildFlavorNotesText({title, caption, description})` splits
+`raw_description` at the `"OCR text\n"` marker (the same constant
+`appendOcrTextToCoffee` writes) into the pre-OCR text and the OCR block, caps
+*each* independently to 1500 chars, then joins. A blind truncation of the
+plain concatenation risks losing the OCR block entirely once a caption alone
+exceeds the cap; splitting first guarantees some of the OCR block always
+survives, since that's where a bag's printed notes usually live.
+`extractFlavorNotesForCoffee` now builds its text through this helper instead
+of the raw join — no other call site, no schema change.
+
+**Accepted tradeoff, stated plainly**: this caps to the *head* of each
+segment, not the whole thing — sanity-checked with a synthetic worst case (a
+14K-char OCR body with notes appended at the very end): the capped text does
+NOT include those tail notes. The row explicitly chose "head" over
+truncation-avoidance-at-all-costs, trading a small loss of recall on a
+pathological long+notes-at-the-end bag for bounding every call's latency;
+flagging here in case a future session finds this causing real misses on
+production data — the fix would be to keep the OCR-block cap but bias it to
+include a fixed-size window in the block. Common case (notes near the top of
+the OCR block, right after "Note de degustare"/"Tasting notes" headings)
+still works, and the second `#90` sanity script (below) confirms the
+realistic-size caption+notes-near-front case survives intact.
+
+**6 new `worker.test.js` cases, 278/278 `npm test` green**: short text passes
+through unchanged (byte-identical to the old join, so no regression on the
+common case); missing fields skipped; empty input → `''`; a long caption gets
+capped while the OCR block still survives; a long OCR block gets capped to
+its own head independent of the caption's cap; prior `raw_description` text
+ahead of an appended OCR block is preserved verbatim.
+
+**Before/after size check** (`node -e`, not committed — ad hoc, matching this
+file's own convention for a quick sanity number): a synthetic 20-line caption
++ ~7K-char OCR body → **7472 chars before, 2129 after** — roughly a 3.5×
+reduction in what's sent to the model.
+
+**Live-verified in production** after Railway deploy run `33045693182`
+(`1beb710`, `completed`/`success`): `GET /health` →
+`{"ok":true,"db":true,"service":"mycoffee-api"}`; `GET /api/status` →
+`vertex:true`, `db:true`. `GET /api/admin/jobs` — no job `running` before
+touching `backend/**`, confirmed both before the push and again before the
+timing runs below.
+
+Timed `POST /api/admin/backfill-flavor-notes {force:true}` batches (note:
+`force:true` bypasses the `flavor_notes IS NULL` filter, so with `ORDER BY id`
+unchanged every call re-scans from the *same* lowest ids rather than
+resuming forward — these three calls overlap, they aren't three fresh
+batches; not a bug this row needs to fix, just why the averages below aren't
+directly comparable):
+
+- `limit:10` → `{"scanned":10,"updated":9,"spentUsd":$0.0009}` in **7.2s**
+  (~0.7s/coffee)
+- `limit:30` → `{"scanned":30,"updated":27,"spentUsd":$0.0027}` in **182s**
+  (~6.1s/coffee)
+- `limit:60` → cut off by my own `curl -m 175` before the server responded
+  (this sandbox's outbound proxy has a documented history of dropping
+  long-held POSTs on big batches — see the 2026-08-17 session note in this
+  same file — so a client-side timeout here isn't itself evidence of a
+  regression; the completed 30-item run above is the real data point)
+
+Both completed runs land nowhere near the pre-fix ~90s/call baseline (#80's
+own commit: "a few slow ~90s calls … cut off by the driver's own --max-time
+32"). Couldn't pin down and re-target the *exact* coffee that motivated this
+row specifically — `backfill-flavor-notes` has no per-id targeting, only
+`ORDER BY id LIMIT`, and hunting for the single longest `raw_description`
+among 410 coffees via 410 individual `GET`s wasn't worth the API calls for a
+row this bounded. The synthetic worst-case script above plus the aggregate
+production timing is the evidence on record.
+
+**Backlog updated in the same push**: `#90` → `done`. Nothing depends on it
+(`grep`-checked for `90` in every row's `needs` column) — no row to unblock.
 
 ## 2026-08-26 UTC (session check): no ready row this cycle
 
@@ -203,6 +294,7 @@ spelled out in `BACKLOG.md` so it doesn't have to guess. `#77` (ios-ux) stays
 
 ## Done
 
+- #90 optimise `runFlavorNotes` latency (~90s/call on long OCR text) — SHA `1beb710`. New pure `buildFlavorNotesText` caps the pre-OCR text and the appended OCR block independently instead of blindly truncating the join. 278/278 `npm test` green. Deployed (Railway run `33045693182`, green); live-verified: a 30-coffee forced re-scan averaged ~6.1s/coffee vs. the ~90s/call baseline. No row depends on it.
 - #75 Add Coffee wizard, backend half — `POST /api/coffees/extract` (light-ensemble draft) + `POST /api/coffees` (persist, locked/human-decided) — SHA `0d4693b`. Reuses #19/#21/#24 with no new migration. Live-verified against a real local Postgres 16 (see the session section above). Unblocks #76 → #77.
 
 ## 2026-08-23 UTC (session check): no ready row this cycle
