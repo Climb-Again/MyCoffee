@@ -3,7 +3,9 @@ import Charts
 
 /// All iOS 17-safe: `BarMark`/`LineMark`/`PointMark`/`RuleMark` +
 /// `.chartForegroundStyleScale` only — never iOS 18's `BarPlot`/`LinePlot` or
-/// iOS 26's `Chart3D` (PLAN.md §6.4).
+/// iOS 26's `Chart3D` (PLAN.md §6.4). Only `YearlyStackedChart` still uses
+/// this — the Charts tab's per-dimension breakdown became `BreakdownCard`
+/// (`#89`, no chart, no categorical palette needed).
 enum ChartPalette {
     /// A balanced categorical palette (the Tableau-10 hues) — evenly spaced,
     /// consistent saturation/lightness, and legible in both light and dark.
@@ -33,100 +35,6 @@ enum ChartPalette {
             }
         }
         return (categories, range)
-    }
-}
-
-/// One slice of a category pie. `key` is `nil` for the aggregate "Other"
-/// bucket, which doesn't correspond to a single filterable value and so isn't
-/// tappable. `averageRating` is `nil` when the slice has no rated coffees.
-struct PieSlice: Identifiable {
-    let label: String
-    let count: Int
-    let key: FacetKey?
-    let averageRating: Double?
-    var id: String { label }
-}
-
-/// A donut/pie breakdown of one filterable dimension (origin, roaster, process,
-/// price band, year, …) with a wrapped legend showing each slice's count and
-/// average rating. Colors are pinned by label so the same category keeps its
-/// hue. Tapping a legend label deep-links to the Coffees listing filtered to
-/// that value (PLAN.md §13/#50) — `onSelect` is nil-able so previews/tests can
-/// render a non-interactive chart.
-struct CategoryPieChart: View {
-    let title: String
-    let slices: [PieSlice]
-    var onSelect: ((FacetKey) -> Void)?
-
-    private var scale: (domain: [String], range: [Color]) {
-        ChartPalette.scale(for: slices.map(\.label))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline)
-            if slices.isEmpty {
-                Text("Not enough data yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(height: 60)
-            } else {
-                Chart(slices) { slice in
-                    SectorMark(
-                        angle: .value("Coffees", slice.count),
-                        innerRadius: .ratio(0.55),
-                        angularInset: 1.5
-                    )
-                    .cornerRadius(3)
-                    .foregroundStyle(by: .value(title, slice.label))
-                }
-                .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
-                .chartLegend(.hidden)
-                .frame(height: 180)
-
-                legend
-            }
-        }
-    }
-
-    private var legend: some View {
-        let colors = Dictionary(uniqueKeysWithValues: zip(scale.domain, scale.range))
-        return WrapLayout() {
-            ForEach(slices) { slice in
-                legendRow(slice, color: colors[slice.label] ?? .gray)
-            }
-        }
-    }
-
-    private func legendRow(_ slice: PieSlice, color: Color) -> some View {
-        let content = HStack(spacing: 5) {
-            Circle()
-                .fill(color)
-                .frame(width: 9, height: 9)
-            Text(legendText(for: slice))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.trailing, 4)
-
-        return Group {
-            if let key = slice.key, let onSelect {
-                Button { onSelect(key) } label: { content }
-                    .buttonStyle(.plain)
-            } else {
-                content
-            }
-        }
-    }
-
-    /// "Label · 12 · ★4.3" — the rating clause is dropped when the slice has
-    /// no rated coffees (e.g. the "Other" bucket, or an all-unrated category).
-    private func legendText(for slice: PieSlice) -> String {
-        var text = "\(slice.label) · \(slice.count)"
-        if let averageRating = slice.averageRating {
-            text += " · ★\(String(format: "%.1f", averageRating))"
-        }
-        return text
     }
 }
 
@@ -165,6 +73,102 @@ struct YearlyStackedChart: View {
                 }
                 .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
                 .frame(height: 200)
+            }
+        }
+    }
+}
+
+/// The Charts tab's "what you rate highest" card (`#89`,
+/// `design/coffees_redesign/README.md` §Screen 3) — replaces the old
+/// donut-pie-per-dimension entirely. One bordered card, one dimension at a
+/// time (picked via the caller's chip switcher), rows ordered by **average
+/// rating** rather than count since the card answers "what do I rate
+/// highest" — every row states its own sample size so a thin slice can still
+/// be judged. `onSelect` is nil-able so previews can render non-interactively.
+struct BreakdownCard: View {
+    let title: String
+    let entries: [FacetCounts.Entry]
+    let dimension: FilterDimension
+    let vocabulary: Vocabulary
+    var onSelect: ((FacetKey) -> Void)?
+
+    /// Rated entries (an average to sort and show) first, highest average
+    /// first; unrated entries after, by count — never invented, never hidden.
+    private var rankedEntries: [FacetCounts.Entry] {
+        entries.filter { $0.count > 0 }.sorted { lhs, rhs in
+            switch (lhs.averageRating, rhs.averageRating) {
+            case let (l?, r?): return l > r
+            case (nil, .some): return false
+            case (.some, nil): return true
+            case (nil, nil): return lhs.count > rhs.count
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.system(size: 17, weight: Theme.Weight.heavy))
+                .padding(.bottom, 12)
+            if rankedEntries.isEmpty {
+                Text("Not enough data yet.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Colors.neutral700)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(Array(rankedEntries.enumerated()), id: \.element.id) { index, entry in
+                    row(entry)
+                    if index < rankedEntries.count - 1 {
+                        Rectangle()
+                            .fill(Theme.Colors.hairline)
+                            .frame(height: 1)
+                    }
+                }
+            }
+        }
+        .padding(EdgeInsets(top: 16, leading: 18, bottom: 16, trailing: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Theme.Colors.neutral300, lineWidth: 1)
+        )
+    }
+
+    private func row(_ entry: FacetCounts.Entry) -> some View {
+        let label = facetLabel(entry.key, dimension: dimension, vocabulary: vocabulary)
+        let content = HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.text)
+                HStack(spacing: 4) {
+                    if let average = entry.averageRating {
+                        Image(systemName: Symbols.starFill)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.Colors.accent)
+                        Text(String(format: "%.2f", average))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.text)
+                    }
+                    Text("Based on \(entry.count) bag\(entry.count == 1 ? "" : "s")")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.Colors.neutral700)
+                }
+            }
+            Spacer(minLength: 8)
+            Image(systemName: Symbols.chevronRight)
+                .font(.system(size: 18))
+                .foregroundStyle(Theme.Colors.neutral700)
+        }
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+
+        return Group {
+            if let onSelect {
+                Button { onSelect(entry.key) } label: { content }
+                    .buttonStyle(.plain)
+            } else {
+                content
             }
         }
     }

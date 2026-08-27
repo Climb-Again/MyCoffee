@@ -4,9 +4,44 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-08-27 UTC] #89 InsightsView + InsightsCharts redesign (design handoff §Screen 3) — branch `ios-staging`
+_none_
+
+## Done
+
+- [2026-08-27 UTC] #89 InsightsView + InsightsCharts redesign — see BACKLOG.md's own write-up for full detail
 
 ## Session notes
+
+- [2026-08-27 UTC] `status/BACKLOG.md` on `main`'s copy (this session's starting
+  branch) was stale relative to `origin/ios-staging`'s — #83–#88 were already
+  `done` on `ios-staging`, same visibility gap the 2026-08-24+ sessions in
+  this file already documented (main's dev/ship split means backend/data
+  session checks never see ios-staging-only rows). Checked out `ios-staging`,
+  merged `origin/main` in (one conflict in `status/BACKLOG.md`, same
+  `main`-is-stale shape as the merge conflicts documented above — resolved by
+  keeping `ios-staging`'s side, since it carries the actual completion
+  write-ups `main`'s copy never received). While resolving, noticed `#82`
+  (flavour-notes section) was still marked `ready` even though `#88`'s own
+  write-up explicitly folds it in and closes it out — verified directly
+  against `Features/Coffees/CoffeeDetailView.swift` (the FLAVOUR PROFILE chip
+  section is live) before flipping it to `done`. Picked `#89` (the last open
+  `ios-ux`/`ready` row: `#82` just corrected to `done`, `#85`–`#88` already
+  `done`) — `InsightsView`/`InsightsCharts`/`BriefCard`/`DataQualityCard`
+  redesign per `design/coffees_redesign/README.md` §Screen 3. `CategoryPieChart`
+  (the old donut-per-dimension chart) is gone, replaced by a single
+  `BreakdownCard` fed by a dimension chip switcher, ranked by average rating.
+  Added one new `Theme.Colors.hairline` token (`#EAE7E7`) for the breakdown
+  card's row dividers — the one genuinely new color this spec section
+  introduces. Full detail + the two deliberate deviations from the literal
+  mock (chip copy reuses `FilterDimension.title` instead of a second naming
+  scheme; year chips get a small local `chip()` builder rather than a global
+  `FilterPill` restyle, since that component is still used unrestyled by
+  `FilterSheetView`/`FacetFullListView`, outside this row's scope) are in
+  `status/BACKLOG.md`'s own `#89` row. Not locally compiled (no Xcode in this
+  sandbox) — every removed symbol (`CategoryPieChart`, `PieSlice`,
+  `pieDimensions`, `slices(for:facets:)`) was grep-verified to have no other
+  call sites before deleting. `DesignSystem/Theme.swift`,
+  `Features/Insights/{InsightsView,BriefCard,InsightsCharts,DataQualityCard}.swift`.
 
 - [2026-08-26 UTC, same session as #87] **#88 DONE** — `CoffeeDetailView` 2a
   redesign, folds in #82 — branch `ios-staging`.

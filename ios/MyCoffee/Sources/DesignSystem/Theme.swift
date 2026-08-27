@@ -18,6 +18,9 @@ enum Theme {
         /// All small grey type. ≥4.5:1 contrast on white — do not use a lighter grey.
         static let neutral700 = Color(hex: "605D5D")
         static let neutral900 = Color(hex: "2D2B2B")
+        /// Hairline row dividers (Insights breakdown card, `#89`) — distinct
+        /// from `neutral300`'s heavier chip/frame border.
+        static let hairline = Color(hex: "EAE7E7")
         static let text = Color(hex: "201E1D")
         /// 2a is white, not the system theme's default grouped background.
         static let surface = Color(hex: "FFFFFF")
