@@ -874,6 +874,35 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null, include
   return { scanned: rows.length, updated, spentUsd, errors };
 }
 
+// #90: `runFlavorNotes` takes ~90s/call on a coffee whose `raw_description`
+// carries a long appended "OCR text" block (~7K chars) -- flash-lite's default
+// *thinking* over that much input, and thinkingBudget:0 is rejected by the
+// model so it can't be disabled (see `vertex.js`'s `thinkingBudget` doc).
+// Capping the input text bounds that thinking cost. A blind first-N-chars cut
+// of the concatenation risks dropping the OCR block entirely when the
+// caption alone already exceeds the cap -- and the OCR block is where a
+// bag's printed notes usually live -- so this caps the pre-OCR text (title +
+// caption + any `raw_description` written before the OCR block was appended)
+// and the OCR block independently, each to its own head budget. Pure, so the
+// truncation logic is unit-testable without a DB or a live call.
+const FLAVOR_NOTES_HEAD_CHARS = 1500;
+
+export function buildFlavorNotesText({ title, caption, description } = {}) {
+  const desc = description || '';
+  const ocrMarker = `${OCR_HEADING}\n`;
+  const ocrIdx = desc.indexOf(ocrMarker);
+  const preOcr = ocrIdx === -1 ? desc : desc.slice(0, ocrIdx).trim();
+  const ocrBlock = ocrIdx === -1 ? '' : desc.slice(ocrIdx);
+
+  const head = [title, caption, preOcr].filter(Boolean).join('\n\n').trim();
+  const ocrHeadChars = ocrMarker.length + FLAVOR_NOTES_HEAD_CHARS;
+
+  return [head.slice(0, FLAVOR_NOTES_HEAD_CHARS), ocrBlock.slice(0, ocrHeadChars)]
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+
 // #79/#80: extract one coffee's flavour notes from its assembled text
 // (raw_title + raw_caption + raw_description — the last already carrying any
 // appended "OCR text" block) via a single focused `runFlavorNotes` call. NOT an
@@ -892,7 +921,7 @@ export async function extractFlavorNotesForCoffee(coffeeId, { force = false } = 
   if (!row) return { wrote: false, notes: null, spentUsd: 0 };
   if (!force && row.flavor_notes != null) return { wrote: false, notes: row.flavor_notes, spentUsd: 0 };
 
-  const text = [row.raw_title, row.raw_caption, row.raw_description].filter(Boolean).join('\n\n').trim();
+  const text = buildFlavorNotesText({ title: row.raw_title, caption: row.raw_caption, description: row.raw_description });
   if (!text) return { wrote: false, notes: null, spentUsd: 0 };
 
   const result = await runFlavorNotes({ text });
