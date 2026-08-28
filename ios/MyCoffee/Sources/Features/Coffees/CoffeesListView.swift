@@ -56,6 +56,11 @@ struct CoffeesListView: View {
                 }
             }
             .listStyle(.plain)
+            // #100: the 2a design assumes a `surface` ground everywhere. Without
+            // these two lines the system supplies its own background — black in
+            // dark mode — under adaptive ink, which is the black-on-black bug.
+            .scrollContentBackground(.hidden)
+            .background(Theme.Colors.surface)
             // Placement itself is set by `RootTabView`'s `Tab(value:)` builder
             // (#58) — on iOS 26 that docks this field near the bottom tab bar
             // instead of the top nav bar; the binding/prompt are unchanged.
@@ -118,7 +123,7 @@ struct CoffeesListView: View {
                 Text("Coffees")
                     .font(.system(size: 36, weight: Theme.Weight.heavy))
                     .tracking(-1.08)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.onAccent)
             }
             Spacer(minLength: 0)
             HStack(spacing: 10) {
@@ -156,9 +161,9 @@ struct CoffeesListView: View {
     private func headerIcon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
             .font(.system(size: 20))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.Colors.onAccent)
             .frame(width: 44, height: 44)
-            .overlay(Circle().strokeBorder(Color.white, lineWidth: 1.6))
+            .overlay(Circle().strokeBorder(Theme.Colors.onAccent, lineWidth: 1.6))
             .contentShape(Circle())
     }
 
@@ -209,15 +214,15 @@ struct CoffeesListView: View {
             HStack(spacing: 6) {
                 Text(card.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isActive ? Color.white : Theme.Colors.neutral900)
+                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 Text("\(card.count)")
                     .font(.system(size: 12, weight: Theme.Weight.semibold))
-                    .foregroundStyle(isActive ? Color.white : Theme.Colors.neutral700)
+                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral700)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 7)
             .frame(minHeight: 44)
-            .background(Capsule().fill(isActive ? Theme.Colors.accent : Color.white))
+            .background(Capsule().fill(isActive ? Theme.Colors.accent : Theme.Colors.surface))
             .overlay(Capsule().strokeBorder(isActive ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)

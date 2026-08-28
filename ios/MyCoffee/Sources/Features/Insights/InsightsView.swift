@@ -113,7 +113,7 @@ struct InsightsView: View {
             Text("Insights")
                 .font(.system(size: 36, weight: Theme.Weight.heavy))
                 .tracking(-1.08)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
@@ -141,9 +141,9 @@ struct InsightsView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.Colors.neutral900)
+                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Color.white))
+                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
                 .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -155,10 +155,10 @@ struct InsightsView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.Colors.neutral900)
+                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 .padding(.horizontal, 14)
                 .frame(minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Color.white))
+                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
                 .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)

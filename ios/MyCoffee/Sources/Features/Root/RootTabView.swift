@@ -81,7 +81,7 @@ struct RootTabView: View {
         } label: {
             Image(systemName: Symbols.wizardAdd)
                 .font(.system(size: 24, weight: Theme.Weight.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
                 .frame(width: 56, height: 56)
                 .background(Theme.Colors.accent, in: Circle())
                 .themeShadow(Theme.Shadow.md)

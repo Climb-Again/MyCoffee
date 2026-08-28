@@ -106,7 +106,7 @@ struct CoffeeDetailView: View {
             store.toggleFavorite(coffee)
         } label: {
             Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
                 .frame(width: 44, height: 44)
                 .background(Theme.Colors.accent, in: Circle())
         }
@@ -141,7 +141,7 @@ struct CoffeeDetailView: View {
             if hasPhoto {
                 Image(systemName: Symbols.reviewZoom)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.onAccent)
                     .padding(8)
                     .background(.black.opacity(0.35), in: Circle())
                     .padding(12)

@@ -77,13 +77,13 @@ struct CoffeeRowView: View {
             store.toggleFavorite(coffee)
         } label: {
             ZStack {
-                Circle().fill(coffee.isFavorite ? Theme.Colors.accent : Color.white)
+                Circle().fill(coffee.isFavorite ? Theme.Colors.accent : Theme.Colors.surface)
                 if !coffee.isFavorite {
                     Circle().strokeBorder(Theme.Colors.neutral300, lineWidth: 1)
                 }
                 Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
                     .font(.system(size: 13))
-                    .foregroundStyle(coffee.isFavorite ? Color.white : Theme.Colors.neutral700)
+                    .foregroundStyle(coffee.isFavorite ? Theme.Colors.onAccent : Theme.Colors.neutral700)
             }
             .frame(width: 28, height: 28)
             .frame(width: 44, height: 44)
