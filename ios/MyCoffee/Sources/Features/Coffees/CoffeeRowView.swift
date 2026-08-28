@@ -14,7 +14,6 @@ struct CoffeeRowView: View {
     @ScaledMetric(relativeTo: .body) private var thumbSize: CGFloat = 88
 
     private var roaster: Roaster? { coffee.roaster(vocabulary: vocabulary) }
-    private var originCountry: Country? { coffee.primaryOriginCountry(vocabulary: vocabulary) }
 
     /// "In the user's highest-average set with at least ~5 rated bags"
     /// (design handoff §State) — membership in `CoffeeIndex.topRoasterIDs()`,
@@ -113,7 +112,12 @@ struct CoffeeRowView: View {
 
             if let originLine {
                 HStack(spacing: 4) {
-                    FlagView(isoCode: coffee.isBlend ? nil : originCountry?.isoCode)
+                    // One flag per origin: a blend used to force `nil` here and
+                    // render a lone white flag beside text that already listed
+                    // every country. `allOriginCountries` returns the single
+                    // country for a single-origin coffee, so this is unchanged
+                    // for the other 395 of 411.
+                    FlagsView(isoCodes: coffee.allOriginCountries(vocabulary: vocabulary).map(\.isoCode))
                         .font(.system(size: 13))
                     Text(originLine)
                         .font(.system(size: 12))
