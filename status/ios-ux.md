@@ -1684,3 +1684,22 @@ _none_
 ## Abandoned
 
 _none_
+
+- **2026-08-28 — #100 dark mode made legible (real adaptive palette).** Radu's
+  screenshot showed the shipped build rendering the entire listing near-black on
+  black. Root cause was not a missing dark *design* but a missing dark *mechanism*:
+  `Theme.Colors` held fixed light-only literals, nothing set
+  `preferredColorScheme`, and `surface` was painted in only two places — so the
+  system supplied a black ground under near-black ink. Offered Radu the one-line
+  `.preferredColorScheme(.light)` lock (faithful to the handoff, which specifies
+  no dark palette) versus a real adaptive palette; **he chose the palette.**
+  Landed in `1d87ad4`, compile-green on run **#79**.
+  The non-obvious part was not the palette but the **coupled literals**: three
+  controls filled with a `Color.white` literal while labelling with an adaptive
+  token, so flipping the tokens alone would have produced light-grey-on-white —
+  a worse bug than the one being fixed. Found by grepping every `Color.white` /
+  `Color.black` in `Features/` and checking each against the ink drawn on it.
+  Also note run #79 is the first compile check fired by the **push trigger**
+  rather than a dispatch — and it only fired after `main` was merged into
+  `ios-staging`, because GitHub reads the workflow file from the branch being
+  pushed. A push to `ios-staging` before that merge silently ran nothing.
