@@ -12,6 +12,27 @@ needs to pick its next task lives in the repo. Each backlog row mirrors a GitHub
 issue of the same number: the issue holds the full spec, the backlog holds lane,
 phase, status and dependencies.
 
+## Step 0 — the cheap gate (added 2026-08-27; do this FIRST, every session)
+
+A 2026-08-01→08-27 audit found **35 of 80 commits were "no ready row" no-ops**,
+each of which had first read `BACKLOG.md` (153 KB), the lane file (up to 237 KB),
+`PLAN.md` and `CLAUDE.md` — hundreds of KB of context to discover there was
+nothing to do. So, before reading anything:
+
+```bash
+git pull --rebase -q
+grep -nE '^\| *[0-9]+ *\| *<your-lane> *\|' status/BACKLOG.md | grep -E '\| *ready *\|'
+```
+
+- **No output → STOP.** Do not read `PLAN.md`, `CLAUDE.md`, or your lane file.
+  Do not commit a "session check" note — those 35 commits were pure noise.
+  End the turn with one line: `<lane>: nothing ready`.
+- **Output → proceed**, and only now read what you need. Prefer
+  `tail -80 status/<lane>.md` over reading the whole file; the Done log is long
+  and almost never relevant to the row you just picked.
+
+Check `needs` on the matched row are all `done` before claiming.
+
 ## Protocol
 
 0. **Pick a task** from `status/BACKLOG.md`: status `ready`, lane matching yours,
@@ -63,7 +84,6 @@ only exists on a `claude/*` branch is still `blocked`/`claimed`, never `done`.
 | `data.md` | Data extract + validate | `main` | `ops/**`, `backend/migrations/005_vocab_seed.sql`, `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` |
 | `ios-shell.md` | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | `ios-ux.md` | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
-| `compile.md` | Compile check | dispatch only | nothing — dispatches `publish=false` |
 | `publish.md` | Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is `Climb-Again/mycoffee-private`) |
 
 Full rules in `CLAUDE.md` §4–§5; the work breakdown is in `PLAN.md`.
@@ -80,12 +100,34 @@ not here, and the backend lane implemented the superseded fix (`e238f10`) exactl
 this file still described it. The code it wrote was fine; it just wasn't the fix.
 When a task turns out to need a human, set its status to `human` so no lane claims it.
 
+## `status/BACKLOG.md` has ONE source of truth: `main`
+
+The iOS lanes work on `ios-staging` and used to flip rows only there, while the
+Backend and Data lanes read `main`. On 2026-08-27 the two copies disagreed on
+**11 of 11 open rows** — `main` said 4 `ready` + 7 `blocked` for work
+`ios-staging` had already marked `done`. Each lane was reading a different world.
+
+A lane that flips a row on `ios-staging` **must land the same `BACKLOG.md` change
+on `main` in the same session**:
+
+```bash
+git checkout main && git pull --rebase
+git checkout ios-staging -- status/BACKLOG.md
+git commit -m "Backlog: sync row statuses from ios-staging" && git push origin main
+git checkout ios-staging
+```
+
+Safe by construction: `status/**` matches no workflow path filter, so this
+deploys nothing and builds nothing.
+
 ## Hard interlocks
 
-- **Publish is the only lane that may dispatch `publish=true`.** Compile only ever
-  dispatches `publish=false`. Both share one workflow with
-  `concurrency: ios-testflight, cancel-in-progress: false`, so check for an
-  in-flight run before dispatching.
+- **Publish is the only lane that may dispatch `publish=true`.** The compile-check
+  lane was deleted on 2026-08-27 — `ios-staging` is now compile-checked by a push
+  trigger on the workflow itself (a `push` event can only come from someone with
+  write access, so this stays safe on a public repo). The workflow still uses
+  `concurrency: ios-testflight, cancel-in-progress: false`, so Publish should
+  check for an in-flight run before dispatching.
 - **Never push `backend/**` while an extraction job is `running`** — the push
   redeploys and SIGTERMs the worker. Check `GET /api/admin/jobs` first. The lease
   reaper makes it survivable, not free.

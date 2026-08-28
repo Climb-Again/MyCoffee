@@ -3861,3 +3861,49 @@ that isn't actually mergeable from here.
 ## Abandoned
 
 _none_
+
+- **2026-08-28 — #91 DONE: production re-adjudication, #51's caption-city
+  roaster-country override finally applied to already-adjudicated rows.**
+  `#51` shipped the code in 2026-08-15 but its own session's permission
+  classifier denied the retroactive `POST /api/admin/adjudicate`, so every
+  coffee adjudicated before that date still carried the vocab-derived
+  `roaster_country_id`. Radu approved the re-run on 2026-08-28.
+
+  Procedure: confirmed no job was `running` via `GET /api/admin/jobs` (newest
+  was job 37, `done`, `photosDone: 0` — the merged ingest-drain routine's 08:13
+  pass), captured `GET /api/snapshot` to disk, ran `POST /api/admin/adjudicate`
+  → `{"photosReadjudicated": 411}`, then re-fetched the snapshot and diffed all
+  410 coffees field by field. $0 — no LLM spend, it re-derives from stored
+  `field_candidates`.
+
+  **Measured diff (not asserted — every number below is from the before/after
+  snapshot comparison):**
+
+  | Field | Coffees changed | Notes |
+  |---|---|---|
+  | `roasterCountryId` | **1** | `COphnAhjvqLQ-5U7DXY_TQ`, 42 → 40. The fix this row existed for. |
+  | `altitudeMin/Mid/MaxM` | **31** | `None` → a real altitude (1100, 1850, 1200, 2000 m …). Pure gain. |
+  | `originFarmId` | 3 | Repointed onto newly-created farm rows — see the caveat below. |
+  | `reviewState` | 2 | `clean` → `needs_review`; re-adjudication surfaced splits. Queue 6 → 8. |
+  | *(new coffee)* | 1 | `ESVarM-49a21FnMXw36MqA` — a photo that had never materialized a coffee row now has one (rated 4.2, purchased 2024-10-23). 410 → 411. |
+
+  **Honest read of the outcome:** the row's premise was that *many* coffees
+  carried a stale vocab-guessed roaster country. In fact **one** did. The pass
+  was still clearly worth running — 31 coffees gained altitude data and a
+  missing coffee appeared — but the roaster-country blast radius was one bag,
+  and the backlog row overstated it.
+
+  **It also exposed a latent bug, filed as #98.** The pass created 4 farm rows,
+  two of which duplicate farms that already existed under a longer name:
+  `Banko Gotiti` (185) vs `Banko Gotiti Washing Station` (68), and
+  `Nano Challa Cooperative` (186) vs `Nano Challa` (47). The farm vocabulary has
+  no alias/fuzzy coverage for the `"<name>"` ↔ `"<name> Washing Station"` /
+  `"Cooperative"` suffix pair, so #36/#44's get-or-create mints a second row
+  rather than matching the first. **This is not a #91 regression** — the same
+  path fires on any fresh extraction pass, so it was already latent and would
+  have bitten on the next new coffee; the re-adjudication only made it visible
+  at scale. The other two new rows are legitimate: `BENTI NENKA WASHING STATION`
+  (187) is a genuinely different farm — which is also the negative test case any
+  fuzzy fix must not break — and `Finca El Jaragual` (184) belongs to the new
+  coffee. Fix + the production merge of the 2 duplicate pairs is data-lane work,
+  tracked in #98.

@@ -1,8 +1,15 @@
 name: iOS TestFlight
 
 on:
+  # `main` AND `ios-staging`. A push event can only come from someone with write
+  # access, so this stays safe on a public repo (the rule that must never be
+  # broken is adding `pull_request`/`pull_request_target`, not `push`).
+  # Compile-checking ios-staging on every push replaces the old Wed/Sat compile
+  # lane routine: feedback lands in ~90s instead of up to four days later, and
+  # `publish=true` remains impossible from a push (the upload step is gated on
+  # workflow_dispatch).
   push:
-    branches: [main]
+    branches: [main, ios-staging]
     paths:
       - "ios/**"
       - ".github/workflows/ios-testflight.yml"

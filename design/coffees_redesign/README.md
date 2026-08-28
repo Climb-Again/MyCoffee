@@ -65,11 +65,17 @@ Month headers lose the grey background: `JULY 2026`, 10pt, letter-spacing 0.14em
 ### Row — replaces `CoffeeRowView`
 Left padding 22, no row dividers, 20pt between rows.
 - **Photo** 88×88, radius 10, grayscale, `Thumbnail` with rotation as today. Favourite pinned to its bottom-right corner: 44×44 transparent hit area holding a 28pt circle — filled `#0078ff` with a white heart when favourite, white with a 1pt `#d7d3d3` border and a `#605d5d` outline heart when not. (Keeps the nested-button hit-test trick already in `CoffeeRowView`.)
-- **Middle column**, 3pt gaps: roaster name 10pt semibold uppercase, letter-spacing 0.06em, single line with ellipsis — `#0078ff` when the roaster is one of the user's top-rated, else `#605d5d`. Title 17pt weight 800, letter-spacing −0.02em, up to 2 lines. Origin line: flag emoji 13pt + `Nekisse, Ethiopia · 4.5` 12pt — `#0047c4` when the origin is a top origin (with the user's average appended), else `#605d5d` (no average). Process last: 11pt `#605d5d` plain text, no tinted capsule.
+- **Middle column**, 3pt gaps: roaster name 10pt semibold uppercase, letter-spacing 0.06em, single line with ellipsis — `#0078ff` when the roaster is one of the user's top-rated, else `#605d5d`. Title 17pt weight 800, letter-spacing −0.02em, up to 2 lines. Origin line: flag emoji 13pt + `Nekisse, Ethiopia · 4.5` 12pt in `#605d5d` — **uniform on every row**: always append the user's average for that origin (one decimal); show the name alone only when there are too few rated bags (< ~3) to average. No per-row blue on the origin line — the top-origin emphasis lives on the detail page and Insights, not here (it fragments the list otherwise). Process last: 11pt `#605d5d` plain text, no tinted capsule.
 - **Right column**, 96pt wide, right-aligned: rating 26pt weight 800 (`#0078ff` when ≥4.5, else ink) — no star; price 13pt semibold; €/100 g 10pt `#605d5d`; then the value meter: five 8×4 pills, radius 999, 3pt gaps — filled `#605d5d` (or `#0078ff` when great) against `#d7d3d3`; then the verdict at 10pt semibold letter-spacing 0.08em — `FAIR VALUE` / `PRICEY` in `#605d5d`, `GREAT VALUE` in `#0078ff`.
 - **Removed from the row:** altitude, weight, the process capsule, the country-code boxes for origin (flag instead), the star glyph, the full-width grey date strip. The purchase date lives in the month header.
 
-**Value meter rule** (new derived value, no schema change): compare the coffee's `price_per_100g_eur` against the distribution of the user's other bags — the five pills are its quintile, inverted (cheap = five pills). Verdict wording: bottom quintile `GREAT VALUE`, middle three `FAIR VALUE`, top quintile `PRICEY`. `nil` price → no meter, no verdict.
+**Value meter rule** (new derived value, no schema change): value is **quality for money**, never price alone — a cheap bag you rated badly is not "fair value". Score each **rated** coffee by how its rating compares to what its price predicts:
+- Bucket the library into price bands by `price_per_100g_eur` (quintiles of €/100 g).
+- Within the coffee's own price band, take the mean rating of the user's bags. `delta = thisRating − bandMeanRating`.
+- Pills = the coffee's rating rank *within its price band* (1–5). Verdict from `delta`: clearly above the band mean → `GREAT VALUE` (blue); around it → `FAIR VALUE`; clearly below → `OVERPAID` (was "PRICEY" — the point is you rated it low for the price, not that it's expensive).
+- **Shown only when the coffee has a rating.** No rating → no meter, no verdict (an unrated bag has no value judgement yet). `nil` price → no meter either.
+
+Plain reading: "for what this cost, did you like it more or less than your other bags in the same price range." A €6/100 g bag you rated 3.2 lands `OVERPAID`; a €22/100 g bag you rated 4.7 can still be `GREAT VALUE`.
 
 **Top-preference rule** (new derived value): a roaster or origin country qualifies when it is in the user's highest-average set with at least ~5 rated bags. Show its average to one decimal. This is the only place blue appears in a row besides the rating.
 
@@ -139,7 +145,7 @@ Insights is the right-hand tab, active tint `#0078ff`.
 
 ## State
 No new persisted state. Two derived values, both computable in `CoffeeIndex`:
-- `valueBand(for: Coffee) -> .great | .fair | .pricey` plus a 1–5 pill count, from `price_per_100g_eur` quintiles across the library.
+- `valueBand(for: Coffee) -> .great | .fair | .overpaid` plus a 1–5 pill count. **Requires a rating.** Compares the coffee's rating to the mean rating of bags in the same €/100 g price band (see Value meter rule) — quality-for-money, not price percentile. Returns `nil` when the coffee is unrated or has no price.
 - `topRoasterIDs` / `topOriginCountryIDs` with their averages, from rated coffees with a minimum count.
 
 ## Suggested implementation order
@@ -161,12 +167,13 @@ No new persisted state. Two derived values, both computable in `CoffeeIndex`:
 - The filter chip row, the filter-state line and the list always agree: a lit chip means a filtered list.
 - "Other" buckets never rank among named values.
 - Nothing invented: no field is displayed that `Coffee` doesn't carry, except the two derived values above and flavour notes (see below).
+- The value meter never appears on an **unrated** coffee, and a cheap-but-badly-rated bag reads `OVERPAID`, never `FAIR VALUE`.
 
 ## Open questions for the developer
 
 - **Flavour notes** have no column. Either add `flavour_notes text[]` server-side (extracted in the same pass that produces `roaster_copy_note`) or parse client-side and treat them as read-only. The design assumes 3–5 short notes.
 - **Roasted date** shows on the coffee page whenever `roastedOn` exists; the mock shows it populated. No change needed, just don't hide the row.
-- **Value band** thresholds (quintiles) are a starting point — tune against the real distribution.
+- **Value band** now keys off rating-vs-price-band, not price percentile. The band count (quintiles) and the `delta` cutoffs for great/fair/overpaid are starting points — tune against the real distribution. With few rated bags in a price band the mean is noisy; suppress the verdict (show pills only, or nothing) below ~5 rated bags in the band.
 
 ## Assets
 - App icon `AppIcon-1024.png` — source of the palette; also included here.
