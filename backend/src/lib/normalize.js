@@ -12,6 +12,51 @@ export function normalizeVocabString(s) {
   return String(s).trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+// Facility affixes that farms are written with inconsistently — the same place
+// appears as "Banko Gotiti" on one bag and "Banko Gotiti Washing Station" on
+// the next, and get-or-create then mints a second vocab row (#98).
+//
+// IMPORTANT: this is for COMPARISON ONLY. It never rewrites a stored farm name.
+// A blanket rename would mangle real names — "Several small farmers",
+// "Smallholder farmers" and "Ninety Plus Candela Estates" are all legitimate
+// names Radu wants kept verbatim, and they must never be rewritten.
+//
+// Matching is word-boundary anchored, so "farm" cannot eat "farmers".
+const FARM_AFFIX_TERMS = [
+  'washing and drying station',
+  'washing station',
+  'processing station',
+  'coffee estate',
+  'cooperative',
+  'co-op',
+  'coop',
+  'estates',
+  'estate',
+  'fincas',
+  'finca',
+  'fazenda',
+  'hacienda',
+  'plantation',
+  'station',
+  'mill',
+  'farm',
+];
+
+/// Strip facility affixes for comparison. Returns the input unchanged when
+/// stripping would leave nothing meaningful behind — a name that is ONLY an
+/// affix ("Estate", "The Mill") keeps its identity rather than collapsing to
+/// the empty string and matching everything.
+export function stripFarmAffixes(s) {
+  if (s == null) return '';
+  let out = normalizeVocabString(s);
+  for (const term of FARM_AFFIX_TERMS) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`\\b${escaped}\\b`, 'g'), ' ');
+  }
+  out = out.replace(/\s+/g, ' ').replace(/^[\s,\-–—]+|[\s,\-–—]+$/g, '').trim();
+  return out === '' ? normalizeVocabString(s) : out;
+}
+
 export function foldDiacritics(s) {
   if (s == null) return '';
   return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g, '');

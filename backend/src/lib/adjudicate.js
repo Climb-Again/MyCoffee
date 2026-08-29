@@ -15,15 +15,7 @@
 //   roasted_on                  -> { date: 'YYYY-MM-DD' }
 //   profile                     -> { profileId, isDecaf, detail }
 //   desc_* (prose)               -> { start, end, text }
-import {
-  parseAltitude,
-  parsePrice,
-  parseWeight,
-  parseRating,
-  parseDate,
-  parseProfile,
-  normalizeVocabString,
-} from './normalize.js';
+import { parseAltitude, parsePrice, parseWeight, parseRating, parseDate, parseProfile, normalizeVocabString, stripFarmAffixes } from './normalize.js';
 import { resolveVocab, resolveOriginCountries } from './vocab.js';
 
 export const PROSE_FIELDS = ['desc_farm_lot', 'desc_brew_guide', 'desc_roaster_copy'];
@@ -55,7 +47,14 @@ export function canonicalize(field, rawValue, ctx = {}) {
       return r.resolved && r.id != null ? { id: r.id, confidenceFactor: r.confidence ?? 1 } : null;
     }
     case 'origin_farm_id': {
-      const r = resolveVocab(rawValue, ctx.vocab?.farms, ctx.fuzzyOpts);
+      // #98: compare farms with facility affixes stripped, so "Banko Gotiti
+      // Washing Station" resolves to the existing "Banko Gotiti" instead of
+      // get-or-create minting a near-duplicate row. Comparison only — the
+      // stored name is never rewritten.
+      const r = resolveVocab(rawValue, ctx.vocab?.farms, {
+        ...(ctx.fuzzyOpts ?? {}),
+        compareAs: stripFarmAffixes,
+      });
       if (r.resolved && r.id != null) return { id: r.id, confidenceFactor: r.confidence ?? 1 };
       // Farms are open-ended vocab, 0 seeded to start (PLAN.md §11 #44) -- an
       // unresolved name isn't an extraction failure, it's a farm not yet in

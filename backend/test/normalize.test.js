@@ -14,6 +14,7 @@ import {
   parseProfile,
   parseFarm,
   resolveCityCountry,
+  stripFarmAffixes,
 } from '../src/lib/normalize.js';
 
 test('normalizeVocabString trims, collapses whitespace, lowercases', () => {
@@ -313,4 +314,46 @@ test('parseProfile: an unmodelled process falls back to experimental, silence st
   assert.equal(parseProfile('Procesare: Wet Hulled Giling Basah').profileId, 'experimental');
   // No process mentioned at all -> never guess (and never default to Washed).
   assert.equal(parseProfile('Origine: Brazilia | Varietal: Paraiso').profileId, null);
+});
+
+// ---- #98: farm facility affixes (comparison only, never a rename) ----
+test('stripFarmAffixes collapses facility affixes so duplicates match', () => {
+  const cases = [
+    ['Banko Gotiti Washing Station', 'banko gotiti'],
+    ['Banko Gotiti', 'banko gotiti'],
+    ['Nano Challa Cooperative', 'nano challa'],
+    ['Nano Challa', 'nano challa'],
+    ['BENTI NENKA WASHING STATION', 'benti nenka'],
+    ['Finca El Paraiso', 'el paraiso'],
+    ['el paraiso', 'el paraiso'],
+    ['Elida Estate Farm', 'elida'],
+    ['Chelchele washing and drying station', 'chelchele'],
+    ['Fazenda Um', 'um'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(stripFarmAffixes(input), expected, `stripFarmAffixes(${JSON.stringify(input)})`);
+  }
+});
+
+test('stripFarmAffixes leaves real names that merely contain an affix-like word', () => {
+  // Radu, 2026-08-28: these are correct names and must survive verbatim.
+  // "farm" is word-boundary anchored, so it cannot eat "farmers".
+  for (const name of ['Several small farmers', 'Smallholder farmers', '5 small farmers']) {
+    assert.equal(stripFarmAffixes(name), name.toLowerCase(), name);
+  }
+});
+
+test('stripFarmAffixes never returns empty for an affix-only name', () => {
+  // A name that is ONLY an affix keeps its identity rather than collapsing to
+  // '' and fuzzy-matching everything in the vocabulary.
+  for (const name of ['Estate', 'The Mill', 'Finca']) {
+    assert.notEqual(stripFarmAffixes(name), '');
+  }
+});
+
+test('the two duplicate pairs #91 created now compare equal', () => {
+  assert.equal(stripFarmAffixes('Banko Gotiti Washing Station'), stripFarmAffixes('Banko Gotiti'));
+  assert.equal(stripFarmAffixes('Nano Challa Cooperative'), stripFarmAffixes('Nano Challa'));
+  // ...and a genuinely different farm still does NOT collide with them.
+  assert.notEqual(stripFarmAffixes('BENTI NENKA WASHING STATION'), stripFarmAffixes('Banko Gotiti'));
 });
