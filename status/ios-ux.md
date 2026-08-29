@@ -8,6 +8,8 @@ _none_
 
 ## Done
 
+- [2026-08-29 UTC] Compile check confirmed green for the #93/#94/#99 push (`e48a7f2`) — run #81
+  (`33244352775`), conclusion `success`.
 - [2026-08-29 UTC] #93 Redesign v2 §A — screen chrome (`CoffeesListView.swift`) — branch `ios-staging`
   - A1: header lifted out of the `List` into a fixed `VStack { headerSection; searchField; List }`; native nav bar
     hidden (`.toolbar(.hidden, for: .navigationBar)`), both `.toolbarBackground` calls and `.toolbarColorScheme`
