@@ -67,7 +67,7 @@ struct CountryPageView: View {
 
             Section {
                 ForEach(coffees) { coffee in
-                    NavigationLink(value: coffee.id) {
+                    CoffeeLink(coffee: coffee) {
                         CoffeeRowView(coffee: coffee, vocabulary: vocabulary)
                     }
                 }

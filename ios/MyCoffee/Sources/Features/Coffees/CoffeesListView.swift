@@ -45,7 +45,7 @@ struct CoffeesListView: View {
                     ForEach(sections) { section in
                         Section {
                             ForEach(section.coffees) { coffee in
-                                NavigationLink(value: coffee.id) {
+                                CoffeeLink(coffee: coffee) {
                                     CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
                                 }
                             }
@@ -82,11 +82,6 @@ struct CoffeesListView: View {
             // inline-but-empty title is exactly what left a second blue band
             // behind after the in-`List` header scrolled away.
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: String.self) { coffeeID in
-                if let coffee = store.index.coffee(id: coffeeID) {
-                    CoffeeDetailView(coffee: coffee)
-                }
-            }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheetView(store: store)
             }
