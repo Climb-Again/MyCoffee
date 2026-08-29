@@ -120,6 +120,22 @@ git checkout ios-staging
 Safe by construction: `status/**` matches no workflow path filter, so this
 deploys nothing and builds nothing.
 
+> ⚠️ **This wholesale checkout is only safe when `main` has no `BACKLOG.md`
+> rows of its own that `ios-staging` doesn't have.** It is a full-file
+> overwrite, not a merge. On 2026-08-29 an ios-ux sync ran this recipe while
+> `main` had rows **#92 (done) / #102 / #103 / #104** that `ios-staging`'s
+> copy predated — the checkout silently deleted #102–#104 and reverted #92
+> to `ready`, undoing a backend session's work in the same commit that
+> synced #93/#94/#99. **Before running this recipe, diff row numbers on both
+> sides first:**
+> ```bash
+> diff <(grep -oE '^\| [0-9]+' origin/main:status/BACKLOG.md 2>/dev/null || git show origin/main:status/BACKLOG.md | grep -oE '^\| [0-9]+') \
+>      <(git show origin/ios-staging:status/BACKLOG.md | grep -oE '^\| [0-9]+')
+> ```
+> If `main` has rows `ios-staging` lacks (or vice versa), do a row-level
+> merge — copy just the rows that changed on `ios-staging` into `main`'s
+> copy — instead of the blind `git checkout ios-staging -- status/BACKLOG.md`.
+
 ## Hard interlocks
 
 - **Publish is the only lane that may dispatch `publish=true`.** The compile-check

@@ -6,6 +6,42 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-08-29 UTC (later session): #92's `done` status + #102/#103/#104 restored after a sync clobbered them
+
+Step 0 gate matched #92 as `ready` again — surprising, since the entry right
+below this one shows it was already completed and marked `done` earlier
+today. Diffed `main` before/after the intervening
+`02d8a76 "Backlog: sync row statuses from ios-staging (#93, #94, #99 done)"`
+commit: it ran `status/README.md`'s documented
+`git checkout ios-staging -- status/BACKLOG.md` recipe, which is a
+**full-file overwrite, not a merge**. `ios-staging`'s copy of `BACKLOG.md`
+predated this session's own `baa3104`/`3699761` (#92 done + the #102/#103/#104
+split-off rows), so the checkout silently reverted #92 to `ready` and deleted
+rows #102–#104 outright, in the same commit that correctly synced #93/#94/#99
+from `ios-staging`. Net effect: real, already-merged work vanished from the
+backlog.
+
+**No code or archiving redone** — `status/backend.md` and
+`status/archive/backend-2026-08.md` already reflect #92's actual completed
+state; this was purely a `BACKLOG.md` bookkeeping regression. Restored: row
+`92` back to `done` with its original write-up + SHA (`baa3104`), and rows
+`102`/`103`/`104` (all `ready`, `needs: —`) exactly as they read before the
+clobber. Also added a caution + a row-number-diff check to
+`status/README.md`'s sync recipe so the next `ios-staging→main` sync doesn't
+repeat this — that recipe is used by any lane, so didn't gate it as
+backend-only.
+
+**Did not touch ios-staging's copy of `BACKLOG.md`** — that's outside this
+lane's branch (`main`) per `CLAUDE.md` §4 — but flagging here for whichever
+lane next runs the sync recipe: `origin/ios-staging`'s `BACKLOG.md` *also*
+lacks rows #102–#104 and still shows #92 as `ready` (it never had them —
+they were added straight to `main`), so a naive re-sync in either direction
+will reintroduce this exact loss unless the new diff-first check in
+`status/README.md` is followed.
+
+Docs-only, `status/**` builds/deploys nothing — no `npm test`/live-curl
+needed.
+
 ## 2026-08-29 07:23 UTC: #92 — archive this file's oversized legacy Done log (backend-owned portion)
 
 Gate found exactly one `ready` backend row: #92, phase 6, "Archive the Done
