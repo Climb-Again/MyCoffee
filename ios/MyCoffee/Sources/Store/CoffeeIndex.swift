@@ -7,14 +7,25 @@ private struct OriginCountryTally {
     let allIndices: IndexSet
 }
 
-/// A coffee's price-per-100g standing against the rest of the library
-/// (design handoff §State) — a display-only derived value, no schema change.
-/// `pillCount` is the number of filled pills (1–5) in the listing/detail
-/// "value meter", inverted so cheap = more pills filled.
+/// A coffee's **quality-for-money** standing against the rest of the library
+/// (`UPDATE_BRIEF.md` §B) — a display-only derived value, no schema change.
+///
+/// This deliberately is **not** a price percentile. The first version scored
+/// price alone, so a cheap bag rated 3.2 read `FAIR VALUE`, which is exactly
+/// backwards. The question it answers now is "for what this cost, did you like
+/// it more or less than your other bags in the same price range."
+///
+/// `pillCount` is the number of filled pills (1–5) in the listing/detail value
+/// meter: the coffee's **rating** rank within its own price band, so more pills
+/// always means better-liked-for-the-money.
+///
+/// `band` is `nil` when the coffee's price band holds too few rated bags for its
+/// mean to mean anything (`CoffeeIndex.minRatedPerPriceBand`) — the meter still
+/// shows, the verdict is suppressed rather than guessed.
 struct ValueRating: Sendable, Hashable {
-    enum Band: Sendable { case great, fair, pricey }
+    enum Band: Sendable { case great, fair, overpaid }
 
-    let band: Band
+    let band: Band?
     let pillCount: Int   // 1...5
 }
 
@@ -54,8 +65,30 @@ struct CoffeeIndex: Sendable {
     let pricePer100gWidthCents: Int?
 
     /// Every coffee's `pricePer100gEur` in the library, ascending — the input
-    /// to `valueBand(for:)`'s quintile lookup. Empty when no coffee has a price.
+    /// to `valueBand(for:)`'s price-band lookup. Empty when no coffee has a price.
     let pricePer100gSorted: [Double]
+
+    /// Per price band (index 0–4 = quintile 1–5), the ascending ratings of the
+    /// rated bags in that band, and their mean. Precomputed here so
+    /// `valueBand(for:)` stays O(log n) per row rather than rescanning the
+    /// library for every visible cell.
+    let ratingsByPriceBand: [[Double]]
+    let meanRatingByPriceBand: [Double?]
+
+    /// Below this many rated bags in a price band, the band mean is noise —
+    /// show the pills, suppress the verdict (`UPDATE_BRIEF.md` §B).
+    static let minRatedPerPriceBand = 5
+
+    /// How far a coffee's rating must sit from its price band's mean to earn a
+    /// verdict either way. Chosen against the real library rather than guessed:
+    /// at ±0.20 the 94 rated-and-priced coffees split ~26% `overpaid` / ~48%
+    /// `fair` / ~27% `great`, which is the "clearly above / around / clearly
+    /// below" the brief asks for. (±0.10 splits 39/28/33 — too trigger-happy;
+    /// ±0.30 gives 15/67/18 — too timid.) Per-band spread does vary (SD 0.15 in
+    /// the cheapest band vs 0.40 in the priciest), so if this ever reads wrong
+    /// at the extremes the next refinement is to scale by the band's own SD
+    /// instead of using one absolute cutoff.
+    static let valueDeltaThreshold = 0.20
 
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
@@ -72,7 +105,20 @@ struct CoffeeIndex: Sendable {
         self.priceWidthCents = priceWidth
         self.pricePer100gWidthCents = ppgWidth
         self.postings = Self.buildPostings(coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth)
-        self.pricePer100gSorted = sorted.compactMap { $0.pricePer100gEur }.sorted()
+        let ppgSorted = sorted.compactMap { $0.pricePer100gEur }.sorted()
+        self.pricePer100gSorted = ppgSorted
+
+        var banded = [[Double]](repeating: [], count: 5)
+        if !ppgSorted.isEmpty {
+            for coffee in sorted {
+                guard let price = coffee.pricePer100gEur, let rating = coffee.rating else { continue }
+                banded[Self.quintileRank(price, in: ppgSorted) - 1].append(rating)
+            }
+        }
+        self.ratingsByPriceBand = banded.map { $0.sorted() }
+        self.meanRatingByPriceBand = banded.map { ratings in
+            ratings.isEmpty ? nil : ratings.reduce(0, +) / Double(ratings.count)
+        }
     }
 
     // MARK: - Lookup
@@ -267,15 +313,40 @@ struct CoffeeIndex: Sendable {
 
     // MARK: - Redesign derived values (#84)
 
-    /// The coffee's value-for-money standing (design handoff §Row/§State):
-    /// its `pricePer100gEur` quintile within the library, inverted so
-    /// cheapest = `.great` + 5 filled pills, priciest = `.pricey` + 1. `nil`
-    /// when the coffee (or the library) has no price — no meter, no verdict.
+    /// The coffee's **quality-for-money** standing (`UPDATE_BRIEF.md` §B).
+    ///
+    /// Bucket the library into five price bands by `pricePer100gEur`; inside the
+    /// coffee's own band, compare its rating to the mean rating of the user's
+    /// bags there. Pills are its rating rank within that band; the verdict comes
+    /// from `delta = rating − bandMean`.
+    ///
+    /// `nil` — no meter at all — when the coffee is **unrated** or has no price.
+    /// An unrated bag has no value judgement yet, and the old price-only version
+    /// wrongly gave it one.
     func valueBand(for coffee: Coffee) -> ValueRating? {
-        guard let price = coffee.pricePer100gEur, !pricePer100gSorted.isEmpty else { return nil }
-        let rank = Self.quintileRank(price, in: pricePer100gSorted)
-        let band: ValueRating.Band = rank == 1 ? .great : (rank == 5 ? .pricey : .fair)
-        return ValueRating(band: band, pillCount: 6 - rank)
+        guard let price = coffee.pricePer100gEur,
+              let rating = coffee.rating,
+              !pricePer100gSorted.isEmpty
+        else { return nil }
+
+        let bandIndex = Self.quintileRank(price, in: pricePer100gSorted) - 1
+        let peers = ratingsByPriceBand[bandIndex]
+        guard !peers.isEmpty else { return nil }
+
+        // Higher rating = more pills, so this rank is NOT inverted the way the
+        // old price-based one was.
+        let pillCount = Self.quintileRank(rating, in: peers)
+
+        guard peers.count >= Self.minRatedPerPriceBand,
+              let mean = meanRatingByPriceBand[bandIndex]
+        else { return ValueRating(band: nil, pillCount: pillCount) }
+
+        let delta = rating - mean
+        let band: ValueRating.Band
+        if delta > Self.valueDeltaThreshold { band = .great }
+        else if delta < -Self.valueDeltaThreshold { band = .overpaid }
+        else { band = .fair }
+        return ValueRating(band: band, pillCount: pillCount)
     }
 
     /// Roasters with at least `minCount` rated coffees, sorted descending by

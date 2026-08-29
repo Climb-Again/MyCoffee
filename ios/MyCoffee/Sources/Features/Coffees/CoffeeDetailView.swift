@@ -403,10 +403,12 @@ struct CoffeeDetailView: View {
                 if let valueRating = store.index.valueBand(for: coffee) {
                     VStack(alignment: .trailing, spacing: 4) {
                         valueMeter(valueRating)
-                        Text(verdictLabel(valueRating.band))
-                            .font(.system(size: 10, weight: Theme.Weight.semibold))
-                            .tracking(0.8)
-                            .foregroundStyle(valueRating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        if let band = valueRating.band {
+                            Text(verdictLabel(band))
+                                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                                .tracking(0.8)
+                                .foregroundStyle(band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        }
                     }
                 }
             }
@@ -439,11 +441,13 @@ struct CoffeeDetailView: View {
         }
     }
 
+    /// `.overpaid` replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the point
+    /// is that you rated it low for what it cost, not that it was expensive.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
         case .fair: return "FAIR VALUE"
-        case .pricey: return "PRICEY"
+        case .overpaid: return "OVERPAID"
         }
     }
 

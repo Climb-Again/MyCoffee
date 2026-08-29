@@ -24,21 +24,31 @@ struct CoffeeRowView: View {
         return store.index.topRoasterIDs().contains { $0.id == roasterId }
     }
 
-    /// The best matching average among this coffee's origin countries that
-    /// clears the top-origin bar — `nil` when none do, so the origin line
-    /// stays plain. `topOriginCountryIDs()` is sorted descending by average,
-    /// so the first match is the highest one this coffee can claim.
-    private var topOriginAverage: Double? {
-        let topOrigins = store.index.topOriginCountryIDs()
-        guard !topOrigins.isEmpty else { return nil }
-        let countryIDs = Set(coffee.allOriginCountries(vocabulary: vocabulary).map(\.id))
-        return topOrigins.first { countryIDs.contains($0.id) }?.average
+    /// The user's average for this coffee's origin country — shown on **every**
+    /// row, not just top origins (`UPDATE_BRIEF.md` §C). The old version only
+    /// appended an average when the origin cleared the top-origin bar, and
+    /// coloured the line blue when it did, so the feed alternated between blue
+    /// lines with a number and grey lines without one and read as arbitrary.
+    ///
+    /// `nil` — name alone — in exactly two cases: fewer than `minRatedForAverage`
+    /// rated bags from that country, where an average would be noise; and blends,
+    /// where `originSubtitle` lists several countries and a single trailing
+    /// number could not say which one it belonged to.
+    private var originAverage: Double? {
+        let origins = coffee.allOriginCountries(vocabulary: vocabulary)
+        guard origins.count == 1, let country = origins.first else { return nil }
+        return store.index.topOriginCountryIDs(minCount: Self.minRatedForAverage)
+            .first { $0.id == country.id }?.average
     }
+
+    /// Below this many rated bags from a country, its average is noise — show
+    /// the country name alone (`UPDATE_BRIEF.md` §C: "< ~3").
+    private static let minRatedForAverage = 3
 
     private var originLine: String? {
         guard let base = coffee.originSubtitle(vocabulary: vocabulary) else { return nil }
-        guard let topOriginAverage else { return base }
-        return "\(base) · \(String(format: "%.1f", topOriginAverage))"
+        guard let originAverage else { return base }
+        return "\(base) · \(String(format: "%.1f", originAverage))"
     }
 
     var body: some View {
@@ -121,7 +131,7 @@ struct CoffeeRowView: View {
                         .font(.system(size: 13))
                     Text(originLine)
                         .font(.system(size: 12))
-                        .foregroundStyle(topOriginAverage != nil ? Theme.Colors.accent700 : Theme.Colors.neutral700)
+                        .foregroundStyle(Theme.Colors.neutral700)
                 }
             }
 
@@ -155,10 +165,12 @@ struct CoffeeRowView: View {
             if let valueRating = store.index.valueBand(for: coffee) {
                 valueMeter(valueRating)
                     .padding(.top, 2)
-                Text(verdictLabel(valueRating.band))
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(valueRating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                if let band = valueRating.band {
+                    Text(verdictLabel(band))
+                        .font(.system(size: 10, weight: Theme.Weight.semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                }
             }
         }
         .frame(width: 96, alignment: .trailing)
@@ -178,11 +190,13 @@ struct CoffeeRowView: View {
         }
     }
 
+    /// `.overpaid` replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the point
+    /// is that you rated it low for what it cost, not that it was expensive.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
         case .fair: return "FAIR VALUE"
-        case .pricey: return "PRICEY"
+        case .overpaid: return "OVERPAID"
         }
     }
 }
