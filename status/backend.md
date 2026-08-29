@@ -4,7 +4,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-08-29 07:23 UTC] #92 Archive the Done sections of the oversized lane status files (backend-owned portion) — branch `main`
 
 ## 2026-08-27 UTC: #90 — optimise `runFlavorNotes` latency (~90s/call on long OCR text)
 
