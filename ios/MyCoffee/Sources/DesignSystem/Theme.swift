@@ -112,8 +112,10 @@ extension Theme {
     /// Resolves per-trait, so a single token name is correct in both themes.
     /// `UIColor`'s dynamic provider is the only mechanism that re-resolves on a
     /// live theme change; a `@Environment(\.colorScheme)` check would have to be
-    /// threaded through every call site instead.
-    fileprivate static func adaptive(light: String, dark: String) -> Color {
+    /// threaded through every call site instead. Not `fileprivate`: `#99`'s
+    /// blue chart ramp (`InsightsCharts.swift`) needs its own light/dark hex
+    /// pairs distinct from the named `Colors` tokens, built with this same helper.
+    static func adaptive(light: String, dark: String) -> Color {
         let lightColor = UIColor(Color(hex: light))
         let darkColor = UIColor(Color(hex: dark))
         return Color(uiColor: UIColor { traits in

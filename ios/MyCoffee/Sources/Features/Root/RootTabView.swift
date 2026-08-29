@@ -3,21 +3,19 @@ import SwiftUI
 /// The app's root: two real tabs, Coffees and Insights (`#87`,
 /// `design/coffees_redesign/README.md` §Tab bar). The Review tab is gone —
 /// its count reaches the user through the listing's review nudge (`#86`,
-/// `CoffeesListView.reviewNudge`) instead of a badge. A floating centre
-/// button sits on the boundary between the two tabs, visually completing the
-/// handoff's "Coffees · + · Insights" three-slot bar without the flicker a
-/// real third `Tab` that intercepts selection would cause: with exactly two
-/// tabs the native bar already splits evenly in half, so a button centred at
-/// the bottom edge lands exactly on the seam between them.
+/// `CoffeesListView.reviewNudge`) instead of a badge.
 ///
-/// **#58**: on iOS 26, the value-based `Tab(_:systemImage:value:)` builder
-/// (iOS 18+) is what lets the system dock a tab's `.searchable` field near
-/// the bottom tab bar instead of the top nav bar — the legacy
-/// `.tabItem`/`.tag()` pair never gets that treatment. Deployment target is
-/// iOS 17, so the modern builder is gated behind `#available` with the
-/// original `.tabItem` form kept as the iOS 17 fallback; `CoffeesListView`'s
-/// own `.searchable` call is untouched either way (PLAN.md §13/#58 — "keep
-/// the same binding + prompt, placement only").
+/// **Redesign v2 §A3** (`#94`, `design/coffees_redesign/UPDATE_BRIEF.md`):
+/// round 1 floated the `+` as an `.overlay(alignment: .bottom)` on top of the
+/// native tab bar, so it painted over list rows and the coffee-detail body
+/// text alike. The system tab bar is now hidden outright
+/// (`.toolbar(.hidden, for: .tabBar)`) and replaced with a real three-slot
+/// `.safeAreaInset(edge: .bottom)` bar — Coffees · (+) · Insights — so both
+/// `CoffeesListView` and `CoffeeDetailView` inset *above* it instead of
+/// something floating on top of them. `.searchable`'s iOS-18 bottom-docking
+/// (the old #58 rationale for the value-based `Tab(value:)` builder) no
+/// longer applies now that `CoffeesListView` dropped `.searchable` for its
+/// own plain search field (`#93`), so the plain `.tag()` form is enough here.
 ///
 /// `RootTab.review` (shell-owned, `Store/CoffeeStore.swift`) is left
 /// untouched — dropping the case would be a shared-surface change, and
@@ -28,33 +26,16 @@ struct RootTabView: View {
     @State private var showAddCoffeeWizard = false
 
     var body: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                TabView(selection: $store.selectedTab) {
-                    Tab("Coffees", systemImage: Symbols.tabCoffees, value: RootTab.coffees) {
-                        CoffeesListView()
-                    }
-                    Tab("Insights", systemImage: Symbols.tabInsights, value: RootTab.insights) {
-                        InsightsView()
-                    }
-                }
-                .tint(Theme.Colors.accent)
-            } else {
-                TabView(selection: $store.selectedTab) {
-                    CoffeesListView()
-                        .tabItem { Label("Coffees", systemImage: Symbols.tabCoffees) }
-                        .tag(RootTab.coffees)
+        TabView(selection: $store.selectedTab) {
+            CoffeesListView()
+                .tag(RootTab.coffees)
 
-                    InsightsView()
-                        .tabItem { Label("Insights", systemImage: Symbols.tabInsights) }
-                        .tag(RootTab.insights)
-                }
-                .tint(Theme.Colors.accent)
-            }
+            InsightsView()
+                .tag(RootTab.insights)
         }
-        .overlay(alignment: .bottom) {
-            addCoffeeButton
-                .padding(.bottom, 76)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomBar
         }
         .environmentObject(store)
         .task {
@@ -72,6 +53,41 @@ struct RootTabView: View {
             AddCoffeeWizardView()
                 .environmentObject(store)
         }
+    }
+
+    /// Coffees · (+) · Insights, per the handoff's three-slot bar. Not shown
+    /// on the coffee-detail page — `CoffeeDetailView` pushes onto
+    /// `CoffeesListView`'s own `NavigationStack`, which sits inside this
+    /// `TabView`'s tab content, so the inset (and this bar) stays with the
+    /// tab, not the pushed detail screen. Acceptance per `#94`: never
+    /// overlaps a row or the detail page.
+    private var bottomBar: some View {
+        HStack(spacing: 0) {
+            tabButton(title: "Coffees", systemImage: Symbols.tabCoffees, tab: .coffees)
+            addCoffeeButton
+                .padding(.horizontal, 24)
+            tabButton(title: "Insights", systemImage: Symbols.tabInsights, tab: .insights)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(Theme.Colors.surface)
+    }
+
+    private func tabButton(title: String, systemImage: String, tab: RootTab) -> some View {
+        let isSelected = store.selectedTab == tab
+        return Button {
+            store.selectedTab = tab
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 20))
+                Text(title)
+                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+            }
+            .foregroundStyle(isSelected ? Theme.Colors.accent : Theme.Colors.neutral700)
+            .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
+        }
+        .buttonStyle(.plain)
     }
 
     /// Design handoff §Tab bar: 56pt `#0078ff` circle, white 24pt plus, `md` shadow.

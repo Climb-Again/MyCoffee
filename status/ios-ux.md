@@ -8,6 +8,63 @@ _none_
 
 ## Done
 
+- [2026-08-29 UTC] #93 Redesign v2 §A — screen chrome (`CoffeesListView.swift`) — branch `ios-staging`
+  - A1: header lifted out of the `List` into a fixed `VStack { headerSection; searchField; List }`; native nav bar
+    hidden (`.toolbar(.hidden, for: .navigationBar)`), both `.toolbarBackground` calls and `.toolbarColorScheme`
+    removed. The blue band draws via `.background(Theme.Colors.accent.ignoresSafeArea(edges: .top))` on the
+    non-ignoring `headerSection`, so content lands below the status bar while the colour extends under it — one
+    band, not two. Padding tightened (top 8→4, bottom 20→10, title 36→30pt) to work toward the ≤108pt budget; not
+    verified on-device (no local Xcode/simulator this session) — flagging for whoever runs the next compile/TestFlight
+    build to eyeball against the `2a` reference.
+  - A2: `.searchable` removed; new `searchField` row (plain `TextField` + `Symbols.search` magnifier in
+    `neutral700`, inside `Capsule().fill(neutral100)`, `minHeight 44`, 22pt side margins) sits between the header and
+    the `List`, on `Theme.Colors.surface`.
+  - A4: `monthHeader` gets `.background(Theme.Colors.surface)` + `.listRowInsets(EdgeInsets())`.
+    **DEVIATION** from the brief's literal `Color.white`: using the adaptive `surface` token instead, since pairing
+    a literal with adaptive ink is the exact dark-mode bug `#100` fixed — `surface` is the same white in light mode.
+  - A5: `headerIcon` ring (`Circle().strokeBorder`) removed. Sort + Settings folded into one `Menu` (reuses the
+    existing `Symbols.settings` glyph, no new icon) with a `Picker("Sort")` and a `Button` for Settings inside;
+    Filter stays a separate button since it has its own active/inactive icon state.
+  - A6: `.listRowInsets(EdgeInsets())` added to the coffee-row `ForEach` (was already on `monthHeader` via A4).
+    `CoffeeRowView`'s own padding (`.leading 22 / .trailing 16`) already matches the brief's target margin, so it
+    was left untouched — not one of the files this row lists.
+  - Added `Symbols.search = "magnifyingglass"` (`DesignSystem/Symbols.swift`) — the one new symbol name a plain
+    search field needs; `Symbols.sort` is now unused (kept, harmless) since sort moved into the overflow menu using
+    the existing settings glyph.
+- [2026-08-29 UTC] #94 Redesign v2 §A3 — `+` moves into the bottom bar (`RootTabView.swift`) — branch `ios-staging`
+  - System tab bar hidden (`.toolbar(.hidden, for: .tabBar)`), replaced with a real `.safeAreaInset(edge: .bottom)`
+    three-slot bar (Coffees · (+) · Insights) built from two new `tabButton`s plus the existing `addCoffeeButton`
+    (unchanged 56pt `#0078ff` circle/white 24pt plus/`md` shadow). Because it's a safe-area inset rather than an
+    overlay, `CoffeesListView`'s `List` and `CoffeeDetailView`'s pushed content both inset above it — nothing
+    overlaps, and it doesn't show on the detail page since that page lives inside the Coffees tab's own
+    `NavigationStack`, not as a sibling of the `TabView`.
+  - Simplified `TabView` to the plain `.tag()` form and dropped the iOS-18-only `Tab(value:)` builder — its whole
+    reason to exist (docking `.searchable` near the bottom bar, `#58`) is moot now that `#93` replaced
+    `CoffeesListView`'s `.searchable` with a plain in-page search field.
+- [2026-08-29 UTC] #99 Bring the pie charts back to Insights, blue palette (`InsightsCharts.swift`,
+  `InsightsView.swift`) — branch `ios-staging`
+  - Adopted stranded prior work from `origin/claude/hopeful-johnson-motfkj` (commit `19f64f6`) rather than
+    re-deriving Radu's decisions: the backlog row already carried "replace, use blue palette" plus the three
+    ramp constraints and the dark-mode caveat before this session started.
+  - Restored `PieSlice`/`CategoryPieChart` (donut + wrapped legend, `★4.3`-style per-slice average, tap-to-filter
+    via `onSelect`) into `InsightsCharts.swift`, replacing `#89`'s `BreakdownCard` outright (decision 1: replace,
+    not a third pill) — `BreakdownCard` deleted, nothing else referenced it.
+  - New `ChartPalette.blueRamp`: 6 adaptive steps, **not** a reuse of `Theme.Colors.accent100...accent800` — those
+    dark-mode values are tuned for on-`surface` *text* contrast and would land several ramp steps at a luminance
+    close to `surface`'s near-black (`#141212`), washing slices into the background together (the exact risk #99
+    flagged). Wrote 6 dedicated light/dark hex pairs instead, via `Theme.adaptive(light:dark:)` (un-`fileprivate`'d
+    for this cross-file use) — light runs deep→pale, dark runs bright→medium, so "index 0" is always the strongest
+    step against *that* theme's surface. Not verified on a physical dark-mode screenshot this session; flagging for
+    on-device review per the row's own note.
+  - `ChartPalette.blueRampColors(for:)` assigns steps by rank (slices arrive pre-sorted by count descending, so
+    index *is* rank), cycling past 6 — the top-8+Other cap needs up to 8 colours from a 6-step ramp, so the two
+    smallest kept slices can repeat a step; acceptable since the legend's label+count+rating is what carries
+    identity now, never colour alone (constraint 3). "Other" is always neutral grey, never a ramp step.
+  - `InsightsView.chartsSection` keeps `#89`'s dimension chip switcher and time-window control unchanged, just
+    swapped what they feed: `pieSlices(for:facets:)` (top-8-by-count + Other, restored from the pre-#89 code) into
+    `CategoryPieChart` instead of raw facet entries into `BreakdownCard`. Chart title is now `dimension.title`
+    (e.g. "Origin country") rather than the old fixed "What you rate highest" — that copy was tied to
+    `BreakdownCard`'s rating-ranked semantics, and slices here rank by value, not rating.
 - [2026-08-27 UTC] #89 InsightsView + InsightsCharts redesign — see BACKLOG.md's own write-up for full detail
 
 ## Session notes

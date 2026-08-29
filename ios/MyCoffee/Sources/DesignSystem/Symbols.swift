@@ -13,6 +13,7 @@ enum Symbols {
     static let filter = "line.3.horizontal.decrease.circle"
     static let filterFilled = "line.3.horizontal.decrease.circle.fill"
     static let sort = "arrow.up.arrow.down.circle"
+    static let search = "magnifyingglass"
     static let heart = "heart"
     static let heartFill = "heart.fill"
     static let starFill = "star.fill"
