@@ -762,6 +762,20 @@ every new folder is picked up. The only addition is an optional `MyCoffeeTests`
 unit-test target — run on dispatch only, never on every `main` push, since macOS
 minutes bill at 10×.
 
+> **Superseded, 2026-08-29 (#103).** This section says Photos stays the capture
+> surface "permanently" — no camera, no `PhotosPicker`. That is no longer true
+> and has been overtaken twice: **#77** added a `PhotosPicker` to the Add Coffee
+> wizard without amending this text, and **#103** added a camera capture
+> alongside it at Radu's request ("the flow to add coffee should be to open
+> camera not upload from photos — or both, with an option when you start").
+> `Info.plist` now carries `NSCameraUsageDescription`, which iOS requires or it
+> kills the app on first camera access.
+>
+> What still holds, and is the part worth keeping: **the Mac `osxphotos`
+> exporter remains the bulk ingestion path**, and the app is not trying to
+> replace it. The in-app wizard is for adding one bag at a time; `PHAsset` still
+> cannot read Photos captions, so nothing here depends on PhotoKit metadata.
+
 ### 6.8 Add Coffee wizard (in-app, paste-text driven) — added post-plan
 
 Radu asked for a manual add flow after the shell shipped. It **supersedes the

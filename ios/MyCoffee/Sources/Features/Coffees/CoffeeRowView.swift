@@ -135,10 +135,20 @@ struct CoffeeRowView: View {
                 }
             }
 
-            if let profile = coffee.profile {
-                Text(profile.displayName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.Colors.neutral700)
+            // #104: the tinted oval is back. The 2a handoff §Row called for
+            // "11pt plain text, no tinted capsule"; Radu wants the capsule.
+            // `ProcessTag` was never deleted — it still carries its own
+            // light/dark hex pair per process (so it needs none of #100's
+            // treatment) and the two layout guards paid for earlier: an
+            // explicit HStack rather than a `Label`, which collapsed to
+            // icon-only under `fixedSize`, plus lineLimit(1) + fixedSize
+            // against the character-per-line wrap.
+            //
+            // Still gated on a non-nil profile: an unknown process omits the
+            // row entirely rather than showing ProcessTag's "Unknown" pill,
+            // per "missing fields omit their row".
+            if coffee.profile != nil {
+                ProcessTag(profile: coffee.profile)
             }
         }
     }
@@ -169,7 +179,7 @@ struct CoffeeRowView: View {
                     Text(verdictLabel(band))
                         .font(.system(size: 10, weight: Theme.Weight.semibold))
                         .tracking(0.8)
-                        .foregroundStyle(band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
                 }
             }
         }
@@ -182,7 +192,7 @@ struct CoffeeRowView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
                     .fill(
                         pip < rating.pillCount
-                            ? (rating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
                             : Theme.Colors.neutral300
                     )
                     .frame(width: 8, height: 4)
@@ -190,12 +200,16 @@ struct CoffeeRowView: View {
         }
     }
 
-    /// `.overpaid` replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the point
-    /// is that you rated it low for what it cost, not that it was expensive.
+    /// One word per pill (#105) — the label and the meter are the same five-step
+    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
+    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
+    /// point is that you rated it low for what it cost, not that it was dear.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
+        case .good: return "GOOD VALUE"
         case .fair: return "FAIR VALUE"
+        case .poor: return "POOR VALUE"
         case .overpaid: return "OVERPAID"
         }
     }

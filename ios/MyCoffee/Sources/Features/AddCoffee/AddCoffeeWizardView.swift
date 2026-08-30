@@ -16,6 +16,12 @@ struct AddCoffeeWizardView: View {
 
     @State private var step: Step = .photos
     @State private var pickerItems: [PhotosPickerItem] = []
+    /// Frames captured with the camera (#103). Kept separate from
+    /// `pickerItems` because they are already `Data` — there is no
+    /// `loadTransferable` round trip — and both sources merge in
+    /// `loadImagesAndContinue`.
+    @State private var capturedImages: [Data] = []
+    @State private var showCamera = false
     @State private var imagesData: [Data] = []
     @State private var fullText = ""
     @State private var photoIds: [String] = []
@@ -81,10 +87,44 @@ struct AddCoffeeWizardView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
-            PhotosPicker(selection: $pickerItems, maxSelectionCount: 6, matching: .images) {
-                Label(pickerItems.isEmpty ? "Choose photos" : "\(pickerItems.count) photo\(pickerItems.count == 1 ? "" : "s") selected — change", systemImage: Symbols.wizardPhotos)
+            // #103: camera OR library, chosen up front. The camera button is
+            // hidden rather than disabled where there is no camera (Simulator),
+            // so the library is simply the only route instead of a dead button.
+            VStack(spacing: 10) {
+                if CameraPicker.isAvailable {
+                    Button {
+                        showCamera = true
+                    } label: {
+                        Label("Take photo", systemImage: Symbols.wizardCamera)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
+                PhotosPicker(selection: $pickerItems, maxSelectionCount: 6, matching: .images) {
+                    Label("Choose from library", systemImage: Symbols.wizardPhotos)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                if selectedCount > 0 {
+                    Text("\(selectedCount) photo\(selectedCount == 1 ? "" : "s") ready")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .buttonStyle(.bordered)
+            .padding(.horizontal, 24)
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker { image in
+                    // 0.85 JPEG: camera frames come off the sensor far larger
+                    // than a library asset, and the 50 MB app+data budget
+                    // (CLAUDE.md §12) applies to what we cache after upload.
+                    if let data = image.jpegData(compressionQuality: 0.85) {
+                        capturedImages.append(data)
+                    }
+                }
+                .ignoresSafeArea()
+            }
 
             Spacer()
 
@@ -99,17 +139,22 @@ struct AddCoffeeWizardView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(pickerItems.isEmpty || isBusy)
+            .disabled(selectedCount == 0 || isBusy)
         }
         .padding()
     }
+
+    /// Photos ready to upload, from either source.
+    private var selectedCount: Int { pickerItems.count + capturedImages.count }
 
     private func loadImagesAndContinue() async {
         isBusy = true
         busyMessage = "Loading photos…"
         defer { isBusy = false }
 
-        var datas: [Data] = []
+        // Camera frames first, in capture order, then anything picked from the
+        // library — both end up as JPEG `Data` on the same upload path.
+        var datas: [Data] = capturedImages
         for item in pickerItems {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 datas.append(data)

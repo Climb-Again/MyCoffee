@@ -23,10 +23,25 @@ private struct OriginCountryTally {
 /// mean to mean anything (`CoffeeIndex.minRatedPerPriceBand`) — the meter still
 /// shows, the verdict is suppressed rather than guessed.
 struct ValueRating: Sendable, Hashable {
-    enum Band: Sendable { case great, fair, overpaid }
+    /// Five steps, one per pill (#105). The meter and its label are the SAME
+    /// scale — `pillCount == band.rawValue` whenever a band exists — so they
+    /// can never contradict each other. Before this, the meter had five steps
+    /// and the label three, and 4 pills and 2 pills both printed
+    /// `FAIR VALUE`; Radu caught it on the shipped build.
+    enum Band: Int, Sendable {
+        case overpaid = 1
+        case poor = 2
+        case fair = 3
+        case good = 4
+        case great = 5
+
+        /// Whether to tint the meter and label with the accent — the positive
+        /// half of the scale.
+        var isPositive: Bool { self == .good || self == .great }
+    }
 
     let band: Band?
-    let pillCount: Int   // 1...5
+    let pillCount: Int   // 1...5, and == band.rawValue when band != nil
 }
 
 /// A vocab entry (roaster or origin country) with its average rating across
@@ -79,16 +94,23 @@ struct CoffeeIndex: Sendable {
     /// show the pills, suppress the verdict (`UPDATE_BRIEF.md` §B).
     static let minRatedPerPriceBand = 5
 
-    /// How far a coffee's rating must sit from its price band's mean to earn a
-    /// verdict either way. Chosen against the real library rather than guessed:
-    /// at ±0.20 the 94 rated-and-priced coffees split ~26% `overpaid` / ~48%
-    /// `fair` / ~27% `great`, which is the "clearly above / around / clearly
-    /// below" the brief asks for. (±0.10 splits 39/28/33 — too trigger-happy;
-    /// ±0.30 gives 15/67/18 — too timid.) Per-band spread does vary (SD 0.15 in
-    /// the cheapest band vs 0.40 in the priciest), so if this ever reads wrong
-    /// at the extremes the next refinement is to scale by the band's own SD
-    /// instead of using one absolute cutoff.
-    static let valueDeltaThreshold = 0.20
+    /// The two cutoffs that split `delta` into the five steps above. Measured
+    /// against the real library, not guessed: ±0.10/±0.30 spreads the 94
+    /// rated-and-priced coffees 14% / 26% / 25% / 14% / 18% across
+    /// overpaid → great, the most even of the shapes tried (±0.08/±0.25 and
+    /// ±0.10/±0.25 both thin out `good` to 11%; ±0.12/±0.35 pushes `overpaid`
+    /// down to 10%).
+    ///
+    /// Absolute cutoffs rather than a forced rank: in a price band where every
+    /// bag really is equally good, nobody should be branded `OVERPAID` for
+    /// sitting 0.05 below the mean. The cost is that a band with unusually tight
+    /// spread will cluster on `fair` — correct, if less colourful.
+    ///
+    /// Per-band spread varies (SD 0.15 in the cheapest band vs 0.40 in the
+    /// priciest), so if this reads wrong at the extremes, scale by the band's
+    /// own SD rather than moving these numbers.
+    static let valueDeltaNear = 0.10
+    static let valueDeltaFar = 0.30
 
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
@@ -333,20 +355,24 @@ struct CoffeeIndex: Sendable {
         let peers = ratingsByPriceBand[bandIndex]
         guard !peers.isEmpty else { return nil }
 
-        // Higher rating = more pills, so this rank is NOT inverted the way the
-        // old price-based one was.
-        let pillCount = Self.quintileRank(rating, in: peers)
-
         guard peers.count >= Self.minRatedPerPriceBand,
               let mean = meanRatingByPriceBand[bandIndex]
-        else { return ValueRating(band: nil, pillCount: pillCount) }
+        else {
+            // Too few rated bags in this band to judge: show the meter from the
+            // coffee's rating rank, but no label. This is the one case where
+            // pills without a verdict is correct rather than contradictory.
+            return ValueRating(band: nil, pillCount: Self.quintileRank(rating, in: peers))
+        }
 
+        // One scale: the band IS the pill count (#105).
         let delta = rating - mean
         let band: ValueRating.Band
-        if delta > Self.valueDeltaThreshold { band = .great }
-        else if delta < -Self.valueDeltaThreshold { band = .overpaid }
-        else { band = .fair }
-        return ValueRating(band: band, pillCount: pillCount)
+        if delta > Self.valueDeltaFar { band = .great }
+        else if delta > Self.valueDeltaNear { band = .good }
+        else if delta >= -Self.valueDeltaNear { band = .fair }
+        else if delta >= -Self.valueDeltaFar { band = .poor }
+        else { band = .overpaid }
+        return ValueRating(band: band, pillCount: band.rawValue)
     }
 
     /// Roasters with at least `minCount` rated coffees, sorted descending by

@@ -74,4 +74,5 @@ enum Symbols {
     // Add Coffee wizard (#77)
     static let wizardAdd = "plus"
     static let wizardPhotos = "photo.on.rectangle.angled"
+    static let wizardCamera = "camera.fill"
 }

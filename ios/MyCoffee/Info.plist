@@ -18,6 +18,13 @@
 	<string>APPL</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- #103: REQUIRED. iOS terminates the app the instant it touches the
+	     camera without this key — a hard kill, not a permission denial.
+	     The Add Coffee wizard offers a camera capture alongside the photo
+	     library. No NSPhotoLibraryUsageDescription is needed: PhotosPicker
+	     uses PHPickerViewController, which runs out of process. -->
+	<key>NSCameraUsageDescription</key>
+	<string>MyCoffee uses the camera to photograph a coffee bag when you add it, so the printed details can be read from the label.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UILaunchScreen</key>

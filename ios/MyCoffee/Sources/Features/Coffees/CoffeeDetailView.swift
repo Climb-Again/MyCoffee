@@ -407,7 +407,7 @@ struct CoffeeDetailView: View {
                             Text(verdictLabel(band))
                                 .font(.system(size: 10, weight: Theme.Weight.semibold))
                                 .tracking(0.8)
-                                .foregroundStyle(band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                                .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
                         }
                     }
                 }
@@ -433,7 +433,7 @@ struct CoffeeDetailView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
                     .fill(
                         pip < rating.pillCount
-                            ? (rating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
                             : Theme.Colors.neutral300
                     )
                     .frame(width: 8, height: 4)
@@ -441,12 +441,16 @@ struct CoffeeDetailView: View {
         }
     }
 
-    /// `.overpaid` replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the point
-    /// is that you rated it low for what it cost, not that it was expensive.
+    /// One word per pill (#105) — the label and the meter are the same five-step
+    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
+    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
+    /// point is that you rated it low for what it cost, not that it was dear.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
+        case .good: return "GOOD VALUE"
         case .fair: return "FAIR VALUE"
+        case .poor: return "POOR VALUE"
         case .overpaid: return "OVERPAID"
         }
     }
