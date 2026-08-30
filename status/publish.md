@@ -53,6 +53,64 @@ _none_
 
 ## Done
 
+### 2026-08-30 UTC: BLOCKED — `MATCH_PAT` rejected by GitHub, filed as BACKLOG #106 (human)
+
+Step 0: `origin/main..origin/ios-staging` was **10** commits — real UX work
+(#100–#105: real dark palette, one-flag-per-origin-country, redesign v2 chrome/
+bottom bar/pie charts, coffee-link navigation fix, quality-for-money value meter,
+process oval + camera in Add Coffee). Not a no-op.
+
+Step 1 (dispatch token): `GH_ACTIONS_PAT` is set in-env and unused directly —
+went straight to the GitHub MCP connector (`mcp__github__actions_run_trigger`,
+`run_workflow`) per the standing note above that it's the one credential proven
+to carry `actions:write`; no need to burn a probe dispatch against the untested
+env PATs given that note already established they lack the permission.
+
+Step 2 (merge): `ios-staging` tip `ea8c3b3` was compile-green (run **#84**,
+`33307620480`, success). Merged `origin/ios-staging` into `main` — one conflict,
+`status/backend.md`: `main`'s copy still carried the full 2026-08-05→08-14
+session-log block that ios-staging's #92 archival had already moved verbatim
+into `status/archive/backend-history.md` (confirmed by grepping matching
+section headers in the archive file before resolving) — took ios-staging's side
+(the block, already duplicated in the archive) and kept `main`'s newer prose
+above/below it. `status/BACKLOG.md` had **zero** diff between the two branches
+pre-merge — already in sync, no reconciliation needed this cycle. Pushed as
+`b49becc`. That push's own compile-check (run **#85**, `33332555714`) went
+green.
+
+Step 3 (dispatch): No `ios-testflight` run was in-progress; dispatched
+`publish=true` on `main` (run **#86**, `33332564889`) — it correctly queued
+behind #85 (serial concurrency) then ran. **Failed in 3 s** at the `match` step:
+
+```
+Cloning into '.../d20260830-2838-6rxohn'...
+remote: Invalid username or token. Password authentication is not supported for Git operations.
+fatal: Authentication failed for 'https://github.com/Climb-Again/mycoffee-private.git/'
+[!] Error cloning certificates git repo, please make sure you have access to the repository
+```
+
+Root cause is the `MATCH_PAT` secret itself, not code: `ios-testflight.yml`
+builds `MATCH_GIT_URL` as `https://x-access-token:${{ secrets.MATCH_PAT }}@github.com/...`
+(the correct fine-grained-PAT format), and nothing in `Fastfile`/the workflow
+changed since run #77's green ship — so the token GitHub is rejecting is the
+same one that worked then. This is a repeat of run #5's exact failure (see
+"How the ship was unblocked" above), which was fixed back then by installing an
+org-scoped `MATCH_PAT`; the most likely explanation is the fine-grained PAT
+expired (they carry a mandatory expiry) or was revoked/rotated outside this
+session's visibility. **Not fixable by a lane** — no session has the access to
+mint or rotate a PAT for `Climb-Again/mycoffee-private` on Radu's behalf.
+Filed as `status/BACKLOG.md` **#106**, tagged `human`, with the exact secret
+path Radu needs to update. Stopping here per the "6 iterations, full diagnosis"
+rule — but this isn't a flake to retry; every retry would fail identically and
+instantly until the secret is replaced.
+
+**State:** `main` is merged and compile-green (`b49becc`, includes #100–#105).
+TestFlight upload is the only blocked step. Once Radu updates `MATCH_PAT`,
+re-dispatching `publish=true` on `main` at this same SHA should go green with
+no further code changes.
+
+## Done (earlier)
+
 - First `publish=true` TestFlight ship green (run #14). Fixes: MCP-app dispatch,
   team-from-profile (`635a822`), `CFBundleExecutable` (`d601a2c`); retained
   legacy-dir profile mirror (`526d34e`).
