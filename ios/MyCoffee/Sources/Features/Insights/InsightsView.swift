@@ -4,9 +4,9 @@ import SwiftUI
 ///
 /// - **Insights** — the headline average, the editorial "This month" brief,
 ///   and the gated correlation findings ("what tends to score well").
-/// - **Charts** — a single "what you rate highest" breakdown card, switched
-///   across dimensions, under a time-window control (All / last 12m /
-///   last 18m / pick specific years).
+/// - **Charts** — a per-dimension donut/pie breakdown, switched across
+///   dimensions, under a time-window control (All / last 12m / last 18m /
+///   pick specific years).
 /// - **Data** — the data-quality card (what still needs editing).
 ///
 /// The findings/charts run on-device against the already-synced index —
@@ -18,10 +18,14 @@ import SwiftUI
 /// `#89` redesign (`design/coffees_redesign/README.md` §Screen 3): blue
 /// header field (matching the Coffees tab), three-pill section control
 /// replacing the segmented Picker, a card-free headline, the restyled
-/// `BriefCard`/findings, and — the big functional change — `CategoryPieChart`
-/// (one donut per dimension) replaced by `BreakdownCard`: one bordered card,
-/// a dimension chip switcher, rows ordered by average rating rather than
-/// count, every row stating its own sample size.
+/// `BriefCard`/findings.
+///
+/// `#99` (2026-08-28, Radu: "bring the pie charts back"): #89's
+/// `CategoryPieChart`-replaced-by-`BreakdownCard` swap is reverted the other
+/// way — the dimension chip switcher stays, but it now drives a
+/// `CategoryPieChart` (`InsightsCharts.swift`) in a single-hue blue ramp
+/// (replacing the old Tableau-10 rotation) instead of `BreakdownCard`'s
+/// ranked list, which is gone.
 struct InsightsView: View {
     @EnvironmentObject private var store: CoffeeStore
     @State private var useZScore = false
@@ -113,7 +117,7 @@ struct InsightsView: View {
             Text("Insights")
                 .font(.system(size: 36, weight: Theme.Weight.heavy))
                 .tracking(-1.08)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
@@ -141,9 +145,9 @@ struct InsightsView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.Colors.neutral900)
+                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Color.white))
+                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
                 .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -155,10 +159,10 @@ struct InsightsView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.Colors.neutral900)
+                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 .padding(.horizontal, 14)
                 .frame(minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Color.white))
+                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
                 .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -299,11 +303,10 @@ struct InsightsView: View {
 
     // MARK: - Charts section
 
-    /// "What you rate highest" — one `BreakdownCard` for the switcher's
-    /// currently-picked dimension, sourced from facet counts computed over
-    /// the *windowed* subset (a throwaway `CoffeeIndex` over the date-filtered
-    /// coffees) so the ranking always agrees with what filtering to that
-    /// window would show.
+    /// One `CategoryPieChart` for the switcher's currently-picked dimension,
+    /// sourced from facet counts computed over the *windowed* subset (a
+    /// throwaway `CoffeeIndex` over the date-filtered coffees) so the
+    /// breakdown always agrees with what filtering to that window would show.
     private var chartsSection: some View {
         let windowed = windowedCoffees
         let facets = CoffeeIndex(coffees: windowed, vocabulary: vocabulary).facets(for: CoffeeFilter())
@@ -316,15 +319,37 @@ struct InsightsView: View {
                     .foregroundStyle(Theme.Colors.neutral700)
             } else {
                 dimensionSwitcher
-                BreakdownCard(
-                    title: "What you rate highest",
-                    entries: facets[chartsDimension],
-                    dimension: chartsDimension,
-                    vocabulary: vocabulary,
+                // #99: the pies are the Charts presentation now — they
+                // replace #89's `BreakdownCard`, not sit alongside it.
+                CategoryPieChart(
+                    title: chartsDimension.title,
+                    slices: pieSlices(for: chartsDimension, facets: facets),
                     onSelect: { key in selectInCoffees(dimension: chartsDimension, key: key) }
                 )
             }
         }
+    }
+
+    /// Top-8 slices by count + a neutral "Other" for the remainder (§99
+    /// constraint 1) — "Other" carries no average since per-entry means can't
+    /// be re-averaged without their rated counts, and a wrong number is worse
+    /// than none.
+    private func pieSlices(for dimension: FilterDimension, facets: FacetCounts) -> [PieSlice] {
+        let entries = facets[dimension]
+            .filter { $0.count > 0 }
+            .sorted { $0.count > $1.count }
+        let maxSlices = 8
+        var slices = entries.prefix(maxSlices).map {
+            PieSlice(
+                label: facetLabel($0.key, dimension: dimension, vocabulary: vocabulary),
+                count: $0.count,
+                key: $0.key,
+                averageRating: $0.averageRating
+            )
+        }
+        let overflow = entries.dropFirst(maxSlices).reduce(0) { $0 + $1.count }
+        if overflow > 0 { slices.append(PieSlice(label: "Other", count: overflow, key: nil, averageRating: nil)) }
+        return slices
     }
 
     /// Four equal pills — All / 12m / 18m / By year (§Screen 3 "Time window").

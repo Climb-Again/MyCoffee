@@ -106,7 +106,7 @@ struct CoffeeDetailView: View {
             store.toggleFavorite(coffee)
         } label: {
             Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
                 .frame(width: 44, height: 44)
                 .background(Theme.Colors.accent, in: Circle())
         }
@@ -141,7 +141,7 @@ struct CoffeeDetailView: View {
             if hasPhoto {
                 Image(systemName: Symbols.reviewZoom)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.onAccent)
                     .padding(8)
                     .background(.black.opacity(0.35), in: Circle())
                     .padding(12)
@@ -403,10 +403,12 @@ struct CoffeeDetailView: View {
                 if let valueRating = store.index.valueBand(for: coffee) {
                     VStack(alignment: .trailing, spacing: 4) {
                         valueMeter(valueRating)
-                        Text(verdictLabel(valueRating.band))
-                            .font(.system(size: 10, weight: Theme.Weight.semibold))
-                            .tracking(0.8)
-                            .foregroundStyle(valueRating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        if let band = valueRating.band {
+                            Text(verdictLabel(band))
+                                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                                .tracking(0.8)
+                                .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        }
                     }
                 }
             }
@@ -431,7 +433,7 @@ struct CoffeeDetailView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
                     .fill(
                         pip < rating.pillCount
-                            ? (rating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
                             : Theme.Colors.neutral300
                     )
                     .frame(width: 8, height: 4)
@@ -439,11 +441,17 @@ struct CoffeeDetailView: View {
         }
     }
 
+    /// One word per pill (#105) — the label and the meter are the same five-step
+    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
+    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
+    /// point is that you rated it low for what it cost, not that it was dear.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
+        case .good: return "GOOD VALUE"
         case .fair: return "FAIR VALUE"
-        case .pricey: return "PRICEY"
+        case .poor: return "POOR VALUE"
+        case .overpaid: return "OVERPAID"
         }
     }
 

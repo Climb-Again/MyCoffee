@@ -14,7 +14,6 @@ struct CoffeeRowView: View {
     @ScaledMetric(relativeTo: .body) private var thumbSize: CGFloat = 88
 
     private var roaster: Roaster? { coffee.roaster(vocabulary: vocabulary) }
-    private var originCountry: Country? { coffee.primaryOriginCountry(vocabulary: vocabulary) }
 
     /// "In the user's highest-average set with at least ~5 rated bags"
     /// (design handoff §State) — membership in `CoffeeIndex.topRoasterIDs()`,
@@ -25,21 +24,31 @@ struct CoffeeRowView: View {
         return store.index.topRoasterIDs().contains { $0.id == roasterId }
     }
 
-    /// The best matching average among this coffee's origin countries that
-    /// clears the top-origin bar — `nil` when none do, so the origin line
-    /// stays plain. `topOriginCountryIDs()` is sorted descending by average,
-    /// so the first match is the highest one this coffee can claim.
-    private var topOriginAverage: Double? {
-        let topOrigins = store.index.topOriginCountryIDs()
-        guard !topOrigins.isEmpty else { return nil }
-        let countryIDs = Set(coffee.allOriginCountries(vocabulary: vocabulary).map(\.id))
-        return topOrigins.first { countryIDs.contains($0.id) }?.average
+    /// The user's average for this coffee's origin country — shown on **every**
+    /// row, not just top origins (`UPDATE_BRIEF.md` §C). The old version only
+    /// appended an average when the origin cleared the top-origin bar, and
+    /// coloured the line blue when it did, so the feed alternated between blue
+    /// lines with a number and grey lines without one and read as arbitrary.
+    ///
+    /// `nil` — name alone — in exactly two cases: fewer than `minRatedForAverage`
+    /// rated bags from that country, where an average would be noise; and blends,
+    /// where `originSubtitle` lists several countries and a single trailing
+    /// number could not say which one it belonged to.
+    private var originAverage: Double? {
+        let origins = coffee.allOriginCountries(vocabulary: vocabulary)
+        guard origins.count == 1, let country = origins.first else { return nil }
+        return store.index.topOriginCountryIDs(minCount: Self.minRatedForAverage)
+            .first { $0.id == country.id }?.average
     }
+
+    /// Below this many rated bags from a country, its average is noise — show
+    /// the country name alone (`UPDATE_BRIEF.md` §C: "< ~3").
+    private static let minRatedForAverage = 3
 
     private var originLine: String? {
         guard let base = coffee.originSubtitle(vocabulary: vocabulary) else { return nil }
-        guard let topOriginAverage else { return base }
-        return "\(base) · \(String(format: "%.1f", topOriginAverage))"
+        guard let originAverage else { return base }
+        return "\(base) · \(String(format: "%.1f", originAverage))"
     }
 
     var body: some View {
@@ -77,13 +86,13 @@ struct CoffeeRowView: View {
             store.toggleFavorite(coffee)
         } label: {
             ZStack {
-                Circle().fill(coffee.isFavorite ? Theme.Colors.accent : Color.white)
+                Circle().fill(coffee.isFavorite ? Theme.Colors.accent : Theme.Colors.surface)
                 if !coffee.isFavorite {
                     Circle().strokeBorder(Theme.Colors.neutral300, lineWidth: 1)
                 }
                 Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
                     .font(.system(size: 13))
-                    .foregroundStyle(coffee.isFavorite ? Color.white : Theme.Colors.neutral700)
+                    .foregroundStyle(coffee.isFavorite ? Theme.Colors.onAccent : Theme.Colors.neutral700)
             }
             .frame(width: 28, height: 28)
             .frame(width: 44, height: 44)
@@ -113,18 +122,33 @@ struct CoffeeRowView: View {
 
             if let originLine {
                 HStack(spacing: 4) {
-                    FlagView(isoCode: coffee.isBlend ? nil : originCountry?.isoCode)
+                    // One flag per origin: a blend used to force `nil` here and
+                    // render a lone white flag beside text that already listed
+                    // every country. `allOriginCountries` returns the single
+                    // country for a single-origin coffee, so this is unchanged
+                    // for the other 395 of 411.
+                    FlagsView(isoCodes: coffee.allOriginCountries(vocabulary: vocabulary).map(\.isoCode))
                         .font(.system(size: 13))
                     Text(originLine)
                         .font(.system(size: 12))
-                        .foregroundStyle(topOriginAverage != nil ? Theme.Colors.accent700 : Theme.Colors.neutral700)
+                        .foregroundStyle(Theme.Colors.neutral700)
                 }
             }
 
-            if let profile = coffee.profile {
-                Text(profile.displayName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.Colors.neutral700)
+            // #104: the tinted oval is back. The 2a handoff §Row called for
+            // "11pt plain text, no tinted capsule"; Radu wants the capsule.
+            // `ProcessTag` was never deleted — it still carries its own
+            // light/dark hex pair per process (so it needs none of #100's
+            // treatment) and the two layout guards paid for earlier: an
+            // explicit HStack rather than a `Label`, which collapsed to
+            // icon-only under `fixedSize`, plus lineLimit(1) + fixedSize
+            // against the character-per-line wrap.
+            //
+            // Still gated on a non-nil profile: an unknown process omits the
+            // row entirely rather than showing ProcessTag's "Unknown" pill,
+            // per "missing fields omit their row".
+            if coffee.profile != nil {
+                ProcessTag(profile: coffee.profile)
             }
         }
     }
@@ -151,10 +175,12 @@ struct CoffeeRowView: View {
             if let valueRating = store.index.valueBand(for: coffee) {
                 valueMeter(valueRating)
                     .padding(.top, 2)
-                Text(verdictLabel(valueRating.band))
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(valueRating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                if let band = valueRating.band {
+                    Text(verdictLabel(band))
+                        .font(.system(size: 10, weight: Theme.Weight.semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
+                }
             }
         }
         .frame(width: 96, alignment: .trailing)
@@ -166,7 +192,7 @@ struct CoffeeRowView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
                     .fill(
                         pip < rating.pillCount
-                            ? (rating.band == .great ? Theme.Colors.accent : Theme.Colors.neutral700)
+                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
                             : Theme.Colors.neutral300
                     )
                     .frame(width: 8, height: 4)
@@ -174,11 +200,17 @@ struct CoffeeRowView: View {
         }
     }
 
+    /// One word per pill (#105) — the label and the meter are the same five-step
+    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
+    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
+    /// point is that you rated it low for what it cost, not that it was dear.
     private func verdictLabel(_ band: ValueRating.Band) -> String {
         switch band {
         case .great: return "GREAT VALUE"
+        case .good: return "GOOD VALUE"
         case .fair: return "FAIR VALUE"
-        case .pricey: return "PRICEY"
+        case .poor: return "POOR VALUE"
+        case .overpaid: return "OVERPAID"
         }
     }
 }

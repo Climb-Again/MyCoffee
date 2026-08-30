@@ -2,11 +2,19 @@ import SwiftUI
 
 /// The Coffees tab: 2a-redesign blue header field, review nudge, filter chip
 /// row (replacing `TopFilterCardsRow`), filter-state line, quiet month
-/// headers, `.searchable` listing with sticky section headers, filter sheet,
-/// sort menu, and navigation into detail (`#86`,
-/// `design/coffees_redesign/README.md` §Screen 1). `List` +
-/// `.listStyle(.plain)` gives sticky headers and real cell reuse for free —
-/// not `ScrollView` + `LazyVStack`.
+/// headers, listing with sticky section headers, filter sheet, sort menu, and
+/// navigation into detail (`#86`, `design/coffees_redesign/README.md`
+/// §Screen 1). `List` + `.listStyle(.plain)` gives sticky headers and real
+/// cell reuse for free — not `ScrollView` + `LazyVStack`.
+///
+/// **Redesign v2 §A** (`#93`, `design/coffees_redesign/UPDATE_BRIEF.md`):
+/// the header and search field are lifted **out of the `List`** into a fixed
+/// `VStack` above it. Round 1 painted the nav bar blue *and* put a blue
+/// header row inside the `List` — the header scrolled away but the
+/// now-titleless nav bar's blue toolbar background stayed, leaving an empty
+/// blue band pinned at the top. Hiding the nav bar entirely and making the
+/// header a real, non-scrolling sibling of the `List` removes the second band
+/// by construction rather than by tuning it away.
 struct CoffeesListView: View {
     @EnvironmentObject private var store: CoffeeStore
 
@@ -16,70 +24,64 @@ struct CoffeesListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            VStack(spacing: 0) {
                 headerSection
+                searchField
 
-                if store.reviewQueueCount > 0 {
-                    reviewNudge
-                }
+                List {
+                    if store.reviewQueueCount > 0 {
+                        reviewNudge
+                    }
 
-                let cards = store.topFilterCards
-                if !cards.isEmpty {
-                    filterChipsSection(cards)
-                }
+                    let cards = store.topFilterCards
+                    if !cards.isEmpty {
+                        filterChipsSection(cards)
+                    }
 
-                if !store.filter.isEmpty {
-                    filterStateLine
-                }
+                    if !store.filter.isEmpty {
+                        filterStateLine
+                    }
 
-                ForEach(sections) { section in
-                    Section {
-                        ForEach(section.coffees) { coffee in
-                            NavigationLink(value: coffee.id) {
-                                CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
+                    ForEach(sections) { section in
+                        Section {
+                            ForEach(section.coffees) { coffee in
+                                CoffeeLink(coffee: coffee) {
+                                    CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
+                                }
                             }
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        } header: {
+                            monthHeader(section.header)
                         }
+                    }
+
+                    if store.filteredCoffees.isEmpty {
+                        ContentUnavailableView(
+                            "No coffees match",
+                            systemImage: Symbols.emptyCup,
+                            description: Text("Try clearing some filters.")
+                        )
                         .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    } header: {
-                        monthHeader(section.header)
                     }
                 }
-
-                if store.filteredCoffees.isEmpty {
-                    ContentUnavailableView(
-                        "No coffees match",
-                        systemImage: Symbols.emptyCup,
-                        description: Text("Try clearing some filters.")
-                    )
-                    .listRowSeparator(.hidden)
+                .listStyle(.plain)
+                // #100: the 2a design assumes a `surface` ground everywhere. Without
+                // these two lines the system supplies its own background — black in
+                // dark mode — under adaptive ink, which is the black-on-black bug.
+                .scrollContentBackground(.hidden)
+                .background(Theme.Colors.surface)
+                .refreshable {
+                    await store.refresh()
                 }
             }
-            .listStyle(.plain)
-            // Placement itself is set by `RootTabView`'s `Tab(value:)` builder
-            // (#58) — on iOS 26 that docks this field near the bottom tab bar
-            // instead of the top nav bar; the binding/prompt are unchanged.
-            // The system search chrome's fill/radius is not independently
-            // stylable via public API, so the "pill search field" token from
-            // the handoff isn't applied here — same system-behaviour carve-out
-            // #58 already took for its placement.
-            .searchable(text: $store.filter.query, prompt: "Search coffees, roasters, farms")
-            // The custom `headerSection` row carries the "Coffees" title and
-            // the filter/sort/settings actions now, so the native nav bar
-            // itself is reduced to an inline, colour-matched strip rather than
-            // hidden outright — hiding it entirely risked interacting badly
-            // with #58's iOS 26 `.searchable` bottom-docking, which is keyed
-            // off the tab's own `Tab(value:)` builder, not this view's bar.
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.Colors.accent, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .navigationDestination(for: String.self) { coffeeID in
-                if let coffee = store.index.coffee(id: coffeeID) {
-                    CoffeeDetailView(coffee: coffee)
-                }
-            }
+            .background(Theme.Colors.surface)
+            // §A1: one header band, no native nav bar underneath it at all —
+            // the previous `.toolbarBackground(...)` pair plus an
+            // inline-but-empty title is exactly what left a second blue band
+            // behind after the in-`List` header scrolled away.
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheetView(store: store)
             }
@@ -94,9 +96,6 @@ struct CoffeesListView: View {
                     await store.load()
                 }
             }
-            .refreshable {
-                await store.refresh()
-            }
         }
     }
 
@@ -109,16 +108,16 @@ struct CoffeesListView: View {
     }
 
     private var headerSection: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(headerStats)
                     .font(.system(size: 10, weight: Theme.Weight.semibold))
                     .tracking(1.4)
                     .foregroundStyle(Theme.Colors.accent200)
                 Text("Coffees")
-                    .font(.system(size: 36, weight: Theme.Weight.heavy))
+                    .font(.system(size: 30, weight: Theme.Weight.heavy))
                     .tracking(-1.08)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.onAccent)
             }
             Spacer(minLength: 0)
             HStack(spacing: 10) {
@@ -127,39 +126,63 @@ struct CoffeesListView: View {
                 } label: {
                     headerIcon(store.filter.isEmpty ? Symbols.filter : Symbols.filterFilled)
                 }
+                // §A5: sort + settings fold into one overflow menu rather than
+                // a third ringed button on the header band.
                 Menu {
                     Picker("Sort", selection: $store.sort) {
                         ForEach(SortOption.allCases, id: \.self) { option in
                             Text(option.displayName).tag(option)
                         }
                     }
-                } label: {
-                    headerIcon(Symbols.sort)
-                }
-                Button {
-                    showSettings = true
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Label("Settings", systemImage: Symbols.settings)
+                    }
                 } label: {
                     headerIcon(Symbols.settings)
                 }
             }
         }
         .padding(.horizontal, 22)
-        .padding(.top, 8)
-        .padding(.bottom, 20)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.Colors.accent)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        // §A1: the blue extends under the status bar; the `VStack` itself
+        // isn't ignoring the safe area, so its content still lands below it —
+        // one continuous band, not a second one layered under the nav bar.
+        .background(Theme.Colors.accent.ignoresSafeArea(edges: .top))
     }
 
+    // §A5: no ring — a plain glyph on the blue band.
     private func headerIcon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
             .font(.system(size: 20))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.Colors.onAccent)
             .frame(width: 44, height: 44)
-            .overlay(Circle().strokeBorder(Color.white, lineWidth: 1.6))
             .contentShape(Circle())
+    }
+
+    // MARK: - Search
+
+    /// §A2: a plain white pill under the header — not `.searchable`, which
+    /// docks translucent-on-blue above the title and can't be restyled via
+    /// public API.
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: Symbols.search)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.Colors.neutral700)
+            TextField("Search coffees, roasters, farms", text: $store.filter.query)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.Colors.text)
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(Capsule().fill(Theme.Colors.neutral100))
+        .padding(.horizontal, 22)
+        .padding(.vertical, 10)
+        .background(Theme.Colors.surface)
     }
 
     // MARK: - Review nudge
@@ -209,15 +232,15 @@ struct CoffeesListView: View {
             HStack(spacing: 6) {
                 Text(card.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isActive ? Color.white : Theme.Colors.neutral900)
+                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 Text("\(card.count)")
                     .font(.system(size: 12, weight: Theme.Weight.semibold))
-                    .foregroundStyle(isActive ? Color.white : Theme.Colors.neutral700)
+                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral700)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 7)
             .frame(minHeight: 44)
-            .background(Capsule().fill(isActive ? Theme.Colors.accent : Color.white))
+            .background(Capsule().fill(isActive ? Theme.Colors.accent : Theme.Colors.surface))
             .overlay(Capsule().strokeBorder(isActive ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -256,6 +279,13 @@ struct CoffeesListView: View {
             .padding(.leading, 22)
             .padding(.top, 20)
             .padding(.bottom, 10)
+            // §A4: opaque so a sticky header never prints over the row it's
+            // covering while scrolling. DEVIATION: the brief says
+            // `Color.white` literally, written before #100 shipped adaptive
+            // dark-mode tokens; `surface` is the same white in light mode and
+            // avoids re-introducing a literal-on-token dark-mode bug.
+            .background(Theme.Colors.surface)
+            .listRowInsets(EdgeInsets())
     }
 
     // MARK: - Sectioning

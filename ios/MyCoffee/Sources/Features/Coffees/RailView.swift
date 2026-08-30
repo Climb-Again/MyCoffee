@@ -47,7 +47,7 @@ struct RailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(rail.coffees.prefix(10)) { coffee in
-                        NavigationLink(value: coffee.id) {
+                        CoffeeLink(coffee: coffee) {
                             RailCard(coffee: coffee, vocabulary: vocabulary)
                         }
                         .buttonStyle(.plain)
@@ -110,7 +110,7 @@ struct RailMoreView: View {
     var body: some View {
         List {
             ForEach(coffees) { coffee in
-                NavigationLink(value: coffee.id) {
+                CoffeeLink(coffee: coffee) {
                     CoffeeRowView(coffee: coffee, vocabulary: store.index.vocabulary)
                 }
             }

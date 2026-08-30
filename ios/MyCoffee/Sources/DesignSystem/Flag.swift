@@ -17,6 +17,32 @@ extension String {
     }
 }
 
+/// Renders **one flag per origin country**, for a coffee that legitimately has
+/// several (a blend: `origin_country_ids`). The listing row used to pass `nil`
+/// for any blend, so every multi-origin coffee showed a single white flag even
+/// though its text already read "Colombia · Brazil".
+///
+/// Falls back to the same white flag as `FlagView` when nothing resolves — a
+/// blend whose origins are unknown still gets a marker rather than an empty gap.
+/// The flags concatenate into one `Text`: each is a single grapheme cluster, so
+/// this lays out as compactly as one glyph run and can't wrap mid-flag. Pinned
+/// with `lineLimit(1)` + `fixedSize` for the same reason the rating and process
+/// tag are — under horizontal pressure SwiftUI would otherwise break the run.
+struct FlagsView: View {
+    let isoCodes: [String?]
+
+    private var emoji: String {
+        let flags = isoCodes.compactMap { $0?.flagEmoji }
+        return flags.isEmpty ? "🏳️" : flags.joined()
+    }
+
+    var body: some View {
+        Text(emoji)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
 /// Renders a country's flag emoji, falling back to a white flag + code for
 /// pseudo-countries (`Blend`) or anything without a resolvable ISO code.
 struct FlagView: View {
