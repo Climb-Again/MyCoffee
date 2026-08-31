@@ -6,7 +6,103 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-08-31 07:40 UTC] #106 "Evaluate this coffee" scoring endpoint — branch `main`
+(none)
+
+## 2026-08-31 UTC: #106 "Evaluate this coffee" — scoring endpoint built + validated (not yet shippable)
+
+**Found and fixed a row-number collision in `status/BACKLOG.md` before claiming**:
+row `106` was used for two unrelated entries — this "Evaluate this coffee" row
+and the Publish lane's 2026-08-30 `MATCH_PAT` blocker (`status/publish.md`).
+Root cause: `status/README.md` claims "each backlog row mirrors a GitHub issue
+of the same number", but `Climb-Again/MyCoffee`'s actual issue tracker tops
+out at **#38** (confirmed via `mcp__github__list_issues`) — these backlog
+numbers have been a lane-local counter for a long time, with no GitHub-side
+uniqueness check, and two lane sessions landed on the same next-number.
+Kept `#106` on this row since `#107` already cross-references it twice by
+that number ("Unlike #106…", "pairing with #106…"); renumbered the Publish
+row to **#108** in `BACKLOG.md` only — did **not** touch `status/publish.md`
+(not backend's file to edit); its own "#106" label there is now stale and
+worth a one-line fix next time the Publish lane is in that file.
+
+**What shipped:** `POST /api/coffees/evaluate` (`backend/src/routes/coffees.js`)
++ `backend/src/lib/scoring.js` (pure, DB-free scoring math, 10 unit tests in
+`backend/test/scoring.test.js`). Reuses the exact photo→OCR→light-extraction
+path `/api/coffees/extract` already uses (#75) — no new extraction work.
+Read-only, no DB writes, same as `/extract`.
+
+**Design, following the row's own spec:**
+- **Affinity** — blend of shrunk means (k=5) for origin/roaster/process/
+  roaster-country, weighted by `r² · n/(n+5)` (r = each signal's own measured
+  correlation: 0.31/0.30/0.30/0.26), expressed as a percentile within the
+  rated library. **Validated this exact weighting against the real 363 rated
+  coffees (fetched live via `GET /api/snapshot`, CLAUDE.md §7) with the same
+  leave-one-out methodology the row's own pre-design study used: LOO r=0.388,
+  MAE 0.2996** — matches the row's reported r≈0.39 / MAE 0.299 almost exactly,
+  so this is the right formula, not just a plausible-looking one.
+- **Value** — €/100g quintile bands (band 1 cheapest), band-mean rating vs.
+  this draft's affinity estimate, #105's exact ±0.10/±0.30 cutoffs → 1-5 pill
+  count → ×20. Band bucketing reproduces #95's own reported band means
+  (3.953/4.132/4.184/4.395/4.244 vs. #95's "3.95→4.40 then dips to 4.24")
+  almost exactly. Suppressed (component `null`) when the price band has
+  fewer than 5 rated+priced coffees, matching #95's own suppression rule.
+- **Confidence gate** — `low` iff origin, roaster AND process (not roaster
+  country — the row's own wording) are each under 5 rated bags; suppresses
+  the headline `score` but still returns all components, per spec. **Checked
+  against the real corpus: only 1 of 363 rated coffees would ever hit this
+  gate** — his purchase pattern rarely combines a brand-new roaster, origin
+  AND process at once, so most real evaluations will show a headline number
+  and the gate mostly protects a genuinely novel candidate bag, which is
+  exactly the case it exists for.
+- **Novelty** — `isNewRoaster`/`isNewOrigin` tags (any-coffee, not just rated,
+  counts). **Judgment call flagged for Radu**: the row suggests blending it
+  into the final number at 15% weight but also calls novelty "neither good
+  nor bad" — contributing it as a *directional* score would contradict that,
+  so it enters the weighted blend as a fixed neutral 50 (`score = 0.50·value
+  + 0.35·affinity + 0.15·50`) and is surfaced to the client as tags only. He
+  may prefer dropping it from the blend entirely once he sees it in practice.
+
+**10-sample review, run against real production data (LOO on each sample's
+own group stats, so the corpus reads it as truly "not owned yet"), to satisfy
+the row's own gate ("do not ship until Radu has seen ~10 real evaluations")
+enough to let a *backend* session call this done — the on-device/UI rollout
+is a separate decision for whoever builds that:**
+
+| actual rating | affinity raw | affinity score | confidence | price band | value score | headline |
+|---|---|---|---|---|---|---|
+| 3.5 | 4.07 | 65 | normal | no price | — | — |
+| 4.8 | 4.05 | 54 | normal | 5 (n≥5) | 40 | 46 |
+| 4.1 | 4.03 | 42 | normal | 2 (n≥5) | 60 | 52 |
+| 4.1 | 4.14 | 87 | normal | no price | — | — |
+| 4.5 | 4.09 | 70 | normal | no price | — | — |
+| 4.3 | 4.13 | 85 | normal | no price | — | — |
+| 4.5 | 4.15 | 88 | normal | 5 (n≥5) | 60 | 68 |
+| 4.9 | 4.17 | 92 | normal | 4 (n≥5) | 40 | 60 |
+| 3.5 | 4.08 | 69 | normal | no price | — | — |
+| 4.2 | 3.90 | 10 | normal | no price | — | — |
+| 4.0 (the one coffee in the whole corpus this hits) | 4.0 | — | **low** | no price | — | **suppressed** |
+
+Reads sensibly directionally (the two highest actual ratings, 4.8 and 4.9,
+land the two highest headlines in the sample, 46 and 60→68) but is clearly
+noisy at the individual-bag level (4.1 actual → headline 52, one of the
+higher scores) — which is exactly what the row's own pre-design numbers
+(r≈0.39, most ratings within 3.5–4.5) predict, not a bug. **This is the
+sample Radu needs to look at before any lane builds UI on top of this
+endpoint** — full sample regeneration script + raw numbers are reproducible
+from `GET /api/snapshot` with the LOO procedure above if he wants more than
+10.
+
+Verified with `cd backend && npm test` (295/295 green) and against a real
+local Postgres 16 (seeded synthetic roaster/coffee rows — no way to load the
+production 411-row corpus locally, so this only confirms the SQL executes
+correctly and returns a sane shape, not the formula's accuracy; that
+validation is the LOO study above, run directly against the live snapshot).
+Confirmed via `GET /api/admin/jobs` that no extraction job was `running`
+before pushing (CLAUDE.md §12).
+
+**Not done — deliberately, per the row's own gate:** no iOS UI, no
+"Evaluate" entry point in the app. This is backend-lane scope only; the row
+stays open for whichever lane builds the screen, and that lane should show
+Radu this sample (or a bigger one) before shipping the on-device feature.
 
 ## 2026-08-29 UTC (later session): #92's `done` status + #102/#103/#104 restored after a sync clobbered them
 
