@@ -6,7 +6,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-08-31 07:40 UTC] #106 "Evaluate this coffee" scoring endpoint — branch `main`
 
 ## 2026-08-29 UTC (later session): #92's `done` status + #102/#103/#104 restored after a sync clobbered them
 
