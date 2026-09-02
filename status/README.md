@@ -100,6 +100,38 @@ not here, and the backend lane implemented the superseded fix (`e238f10`) exactl
 this file still described it. The code it wrote was fine; it just wasn't the fix.
 When a task turns out to need a human, set its status to `human` so no lane claims it.
 
+## Numbering a new row — never reuse a number
+
+`BACKLOG.md` is what every lane **greps** to claim work, so a duplicate row
+number is an operational hazard, not untidiness: a lane matching `^| 109 |`
+gets two unrelated rows and can claim the wrong one.
+
+This happened on **2026-09-02**: two sessions filed rows the same day, both took
+"the next number" from a read that was already stale, and **#108, #109 and #110
+each ended up defined twice** — iPad vs a publish incident, Indonesia/Thailand vs
+a value-meter redefinition, honey vs the v3 redesign. The later row of each pair
+was renumbered to #114/#115/#116; the first-filed one keeps its number, so
+existing references stay valid.
+
+**Before writing a row:**
+
+```bash
+git pull --rebase                     # a stale read is how this went wrong
+grep -oE '^\| *[0-9]{1,3} *\|' status/BACKLOG.md | tr -d '| ' | sort -n | tail -1
+```
+
+Use that number **+ 1**. Then, before pushing:
+
+```bash
+bash status/check-backlog.sh          # fails on duplicates and dangling `needs`
+```
+
+CI runs the same script on every push touching `status/BACKLOG.md`
+(`.github/workflows/backlog-check.yml`), so a collision fails the check rather
+than sitting there waiting for a lane to trip over it. Renumber the **newer**
+row when fixing one, and grep the prose for `#<old>` references first — they
+may point at either row.
+
 ## `status/BACKLOG.md` has ONE source of truth: `main`
 
 The iOS lanes work on `ios-staging` and used to flip rows only there, while the
