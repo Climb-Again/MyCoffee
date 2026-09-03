@@ -377,3 +377,47 @@ test('the two duplicate pairs #91 created now compare equal', () => {
   // ...and a genuinely different farm still does NOT collide with them.
   assert.notEqual(stripFarmAffixes('BENTI NENKA WASHING STATION'), stripFarmAffixes('Banko Gotiti'));
 });
+
+// ---- #123: every envelope must reject the DEGENERATE end, not just out-of-range ----
+//
+// The bug this locks down: inRatingScale was `>= 0`, so a stray `0` in the text
+// became a real rating. #39 added these envelopes precisely so an implausible
+// number reads as ABSENT; an inclusive floor defeats that. These tests walk the
+// low end of all four so the next envelope added has an obvious pattern to copy.
+test('parseRating rejects 0 — in this app 0 means unrated, not "I hated it"', () => {
+  for (const input of ['0', '0.0', '0/5', '0,0', '⭐️ 0']) {
+    assert.equal(parseRating(input), null, `parseRating(${JSON.stringify(input)}) must be null`);
+  }
+});
+
+test('parseRating still accepts the smallest real ratings', () => {
+  // The live library's lowest genuine rating is 2.0, but nothing should stop a
+  // legitimately low score from parsing — only 0 is reserved for "absent".
+  for (const [input, expected] of [['0.5/5', 0.5], ['1', 1], ['2.0', 2], ['5/5', 5]]) {
+    assert.equal(parseRating(input)?.value, expected, input);
+  }
+});
+
+test('parseRating still rejects above-scale values', () => {
+  for (const input of ['5.1', '6/5', '9']) {
+    assert.equal(parseRating(input), null, input);
+  }
+});
+
+test('parsePrice rejects a zero price — it would read as infinitely cheap', () => {
+  // No upper bound on purpose: an expensive bag is plausible. But 0 makes
+  // price_per_100g 0, which the value bands score as GREAT VALUE.
+  for (const input of ['0', '0.00', '€0', '0 EUR', '€0.00']) {
+    assert.equal(parsePrice(input), null, `parsePrice(${JSON.stringify(input)}) must be null`);
+  }
+  assert.equal(parsePrice('€15.95')?.amount, 15.95);
+});
+
+test('parseAltitude and parseWeight already reject their degenerate ends', () => {
+  // Recorded so a later refactor cannot quietly loosen these to match the old
+  // rating floor: altitude floors at 200m, weight at 1g.
+  assert.equal(parseAltitude('0 m'), null);
+  assert.equal(parseAltitude('0-0 m'), null);
+  assert.equal(parseWeight('0g'), null);
+  assert.equal(parseWeight('250g')?.grams, 250);
+});

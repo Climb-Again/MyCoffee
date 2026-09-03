@@ -172,6 +172,18 @@ const CURRENCY_PATTERNS = [
   [/(\d[\d.,]*)\s*chf\b/i, 'CHF'],
 ];
 
+// A price of zero (or below) is never a real bag — and unlike the rating it
+// poisons derived values silently: `price_per_100g_eur` becomes 0, which the
+// value bands (#95/#105) read as infinitely cheap and score GREAT VALUE.
+// `parsePrice` had NO envelope at all, unlike altitude (200-4000m) and weight
+// (1-5000g); found while auditing the degenerate end of every envelope for
+// #123. No zero prices exist in production today, so this is a guard, not a
+// repair. Deliberately no upper bound: a genuinely expensive bag is plausible
+// and an arbitrary ceiling would reject real data.
+function isPlausiblePrice(amount) {
+  return amount != null && amount > 0;
+}
+
 export function parsePrice(text) {
   if (!text) return null;
   const s = String(text);
@@ -179,7 +191,7 @@ export function parsePrice(text) {
     const m = s.match(re);
     if (m) {
       const amount = parseNumber(m[1], { field: 'price' });
-      if (amount == null) continue;
+      if (!isPlausiblePrice(amount)) continue;
       return { amount, currency, confidence: 1.0 };
     }
   }
@@ -187,7 +199,7 @@ export function parsePrice(text) {
   const bare = s.match(/(\d[\d.,]*)/);
   if (!bare) return null;
   const amount = parseNumber(bare[1], { field: 'price' });
-  if (amount == null) return null;
+  if (!isPlausiblePrice(amount)) return null;
   return { amount, currency: null, confidence: 0.5 };
 }
 
@@ -226,8 +238,18 @@ export function parseWeight(text) {
 
 // A rating is always out of 5 — anything outside that scale is a different
 // quantity (an altitude, a count) misfiring this parser, not a real rating.
+//
+// The floor is EXCLUSIVE (#123). It used to be `>= 0`, which let a stray `0`
+// through as a real rating: coffee `4dBosHoqKJ89ABPeZgGVEg` was added on
+// 2026-09-03 reading 0.0, `reviewState: clean`, nothing flagged. In this app a
+// rating of 0 means "not rated yet", never "I hated it" — the real distribution
+// starts at 2.0 with nothing between. Counting it as rated dragged the library
+// mean 4.0285 -> 4.0175 and its roaster 4.274 -> 4.167.
+//
+// #39 added these envelopes so an implausible number reads as ABSENT rather
+// than as a value; an inclusive floor defeats that at the degenerate end.
 function inRatingScale(value) {
-  return value != null && value >= 0 && value <= 5;
+  return value != null && value > 0 && value <= 5;
 }
 
 export function parseRating(text) {
