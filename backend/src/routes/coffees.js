@@ -376,7 +376,13 @@ export default async function coffeesRoutes(app) {
         [row.photo_id, dbField, JSON.stringify(outcome.value)],
       );
       resolutions[dbField] = { decision: 'accepted', value: outcome.value };
-      results.push({ field: edits[i].field, value: outcome.value });
+      // Echo the RAW string the client sent, not `outcome.value` (the
+      // denormalized shape). denormalize() returns an OBJECT for price
+      // ({amount,currency}), altitude ({min,max}) and profile — and the iOS
+      // response DTOs decode `value` as a String, so an object there threw
+      // "Decoding failed / not in the correct format" AFTER the write had
+      // already succeeded, making a saved coffee/edit look like a failure.
+      results.push({ field: edits[i].field, value: edits[i].value });
     }
 
     await applyResolutionsToCoffee(row.coffee_id, row.photo_id, resolutions, ctx);
@@ -667,7 +673,13 @@ export default async function coffeesRoutes(app) {
         return reply.code(422).send({ error: outcome.error, field: edits[i].field, value: edits[i].value });
       }
       resolutions[dbField] = { decision: 'accepted', value: outcome.value };
-      results.push({ field: edits[i].field, value: outcome.value });
+      // Echo the RAW string the client sent, not `outcome.value` (the
+      // denormalized shape). denormalize() returns an OBJECT for price
+      // ({amount,currency}), altitude ({min,max}) and profile — and the iOS
+      // response DTOs decode `value` as a String, so an object there threw
+      // "Decoding failed / not in the correct format" AFTER the write had
+      // already succeeded, making a saved coffee/edit look like a failure.
+      results.push({ field: edits[i].field, value: edits[i].value });
     }
 
     await applyResolutionsToCoffee(coffee.id, primaryPhoto.id, resolutions, ctx);
