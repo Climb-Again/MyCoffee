@@ -6,7 +6,67 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-09-03 07:23 UTC] #107 "What to buy next" rotation recommendation — branch `main`
+(none)
+
+## 2026-09-03 UTC: #107 "What to buy next" rotation recommendation — DONE, `4878a28`
+
+Implemented per the row's own worked algorithm: for each entity in
+{roaster, origin country, process} with **n ≥ 5 rated bags** (`ROTATION_MIN_N`,
+hard floor — see the known-weakness fix below), affinity = `shrunkMean`
+(reused from `scoring.js`'s #106 blend, k=5, the shared-vocabulary ask in
+#107's own row) expressed as `z = (affinity − globalMean) / 0.44`; typical
+gap = median days between purchases, shrunk toward the corpus-wide purchase
+cadence (`globalGapDays`, computed as span/n over every dated purchase) with
+the same k=5, floored at 14 days; overdue = `daysSinceLast / typicalGap`
+capped at 3.0; `score = z × overdue`. Cross-kind ranking, top 5.
+
+Fixed the row's own flagged weakness on pickup rather than leaving it: the
+prototype's soft ~5-bag floor let `Sumo Coffee Roasters` (4 bags, 14-day
+median gap, 33.9x "overdue") through — `ROTATION_MIN_N = 5` is now a hard
+gate in `rotationScoreFor`, and `typicalGapDays` shrinks small purchase
+counts toward `globalGapDays` instead of trusting an unstable median
+outright (`src/lib/scoring.js`).
+
+New functions in `src/lib/scoring.js` (pure, no DB access, same convention
+as #106's `evaluateCoffee`): `typicalGapDays`, `rotationScoreFor`,
+`rankRotationCandidates`, `rotationReason`. Wired into `GET /api/brief` as
+a new `rotationSuggestions` field (`src/routes/brief.js`), computed live on
+every call from real `coffees`/`roasters`/`countries`/`profiles` aggregates
+— independent of the still-skeleton stored `brief` row, per the row's own
+preference to reuse the existing "what should I know today" surface rather
+than build a new screen. iOS rendering (a `BriefCard` slot) is not part of
+this row's backend scope — left for the iOS lanes.
+
+20 new `node:test` cases in `test/scoring.test.js` cover the pure math
+(gap shrinkage + floor, the null-below-`ROTATION_MIN_N` gate, overdue cap,
+cross-kind ranking + limit, negative-affinity-suppresses-score using the
+row's own "April" example, and the exact reason-string format from the
+row's worked example). Full suite: **304/304 green**
+(`cd backend && npm ci && npm test`).
+
+**Verified live against production** (`GET /api/admin/jobs` showed no
+`running` job before pushing, so the push was safe per CLAUDE.md §12):
+`GET /api/brief` now returns
+
+```
+Brewing Dealers  (4.21, 11 bags, 97d vs 29d usual, score 1.23)
+Uganda           (4.30,  8 bags, 336d vs 222d usual, score 0.95)
+DAK Coffee Roasters (4.25, 39 bags, 39d vs 22d usual, score 0.89)
+Co-fermented     (4.35, 27 bags, 19d vs 18d usual, score 0.78)
+Kenya            (4.12, 24 bags, 139d vs 70d usual, score 0.42)
+```
+
+Same top-5 entity set and closely matching affinity values as the row's own
+"live output at time of filing" (Brewing Dealers/Uganda/DAK/Co-fermented/
+Kenya) — confirms the aggregation queries are correct against the real
+corpus. `typicalGapDays`/`score` numbers differ from the row's filing-time
+snapshot because of the deliberate gap-shrinkage fix above (and ~a month of
+elapsed purchases) — that's the intended effect of closing the known
+weakness, not a discrepancy. `Sumo Coffee Roasters` does not appear, as
+expected now that `ROTATION_MIN_N` excludes its 4 bags outright.
+
+Backlog #107 flipped `ready` → `done` in the same push (no other row's
+`needs` referenced it).
 
 ## 2026-08-31 UTC: #106 "Evaluate this coffee" — scoring endpoint built + validated (not yet shippable)
 
