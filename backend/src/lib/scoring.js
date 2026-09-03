@@ -168,3 +168,111 @@ export function evaluateCoffee({
     },
   };
 }
+
+// "What to buy next" rotation recommendation (#107) -- ranks entities
+// (roaster / origin country / process) Radu already buys by how much he
+// likes them times how overdue he is for a repeat purchase. Reuses
+// `shrunkMean` from #106 above on purpose (#107's own row: "they should
+// share one vocabulary of affinity so the two never contradict each
+// other"). Unlike #106, this never predicts an unseen rating -- affinity
+// here is deliberately allowed to go negative (see `MIN_ENTITY_N` below),
+// so a merely-stale entity a bag away from wear-out doesn't get
+// recommended just for being old.
+
+const DAY_MS = 86_400_000;
+
+// Prototype leak (status/backend.md): a ~5-bag floor was intended from the
+// start but a softer check let `Sumo Coffee Roasters` (4 bags, one 14-day
+// gap) through with a 33.9x "overdue" the cap merely hid rather than fixed.
+// Hard floor now: an entity needs 5+ rated bags before it's ranked at all.
+export const ROTATION_MIN_N = 5;
+
+// Std-dev of per-entity shrunk-mean affinity across the real corpus
+// (status/backend.md) -- turns the raw affinity into a z-score so entities
+// can be compared on one scale regardless of how tight ratings cluster.
+export const ROTATION_AFFINITY_STD_DEV = 0.44;
+
+export const ROTATION_OVERDUE_CAP = 3.0;
+
+// A typical-gap estimate can't go below this even after shrinkage -- guards
+// against a same-week double purchase reading as a wildly short cadence.
+export const ROTATION_GAP_FLOOR_DAYS = 14;
+
+// Shrinkage strength for typicalGapDays, same k as shrunkMean by convention.
+const ROTATION_GAP_SHRINK_K = 5;
+
+// `purchaseDatesAscending`: every purchase of this entity (not just rated
+// ones -- cadence is about buying, not opinion), sorted ascending, as
+// epoch millis. `globalGapDays`: Radu's overall purchase cadence, used to
+// pull an unstable few-purchase median toward something sane rather than
+// trusting e.g. a single 14-day gap outright (the fix for the Sumo leak
+// above: a hard n>=5 floor on the *rated* count still lets a thinly-
+// purchased entity through on the gap side, so the gap itself is shrunk).
+export function typicalGapDays(purchaseDatesAscending, globalGapDays, k = ROTATION_GAP_SHRINK_K) {
+  const gaps = [];
+  for (let i = 1; i < purchaseDatesAscending.length; i++) {
+    gaps.push((purchaseDatesAscending[i] - purchaseDatesAscending[i - 1]) / DAY_MS);
+  }
+  const n = gaps.length;
+  const median = n === 0 ? globalGapDays : medianOf(gaps);
+  const shrunk = (n * median + k * globalGapDays) / (n + k);
+  return Math.max(shrunk, ROTATION_GAP_FLOOR_DAYS);
+}
+
+function medianOf(sortedOrNot) {
+  const s = [...sortedOrNot].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// One entity's rotation score, or null if it doesn't clear ROTATION_MIN_N.
+// `n`/`mean`: rated-bag count and mean rating for this entity.
+// `purchaseDatesAscending`/`lastPurchaseAt`: this entity's own purchase
+// history (all purchases, not just rated) -- `lastPurchaseAt` as epoch
+// millis, `now` defaulting to the real clock so tests can pin it.
+export function rotationScoreFor({
+  n,
+  mean,
+  globalMean,
+  purchaseDatesAscending,
+  lastPurchaseAt,
+  globalGapDays,
+  now = Date.now(),
+}) {
+  if (!n || n < ROTATION_MIN_N) return null;
+  const affinity = shrunkMean(n, mean, globalMean);
+  const z = (affinity - globalMean) / ROTATION_AFFINITY_STD_DEV;
+  const gap = typicalGapDays(purchaseDatesAscending, globalGapDays);
+  const daysSinceLast = (now - lastPurchaseAt) / DAY_MS;
+  const overdue = Math.min(daysSinceLast / gap, ROTATION_OVERDUE_CAP);
+  const score = z * overdue;
+  return {
+    affinity: Math.round(affinity * 100) / 100,
+    z: Math.round(z * 100) / 100,
+    typicalGapDays: Math.round(gap),
+    daysSinceLast: Math.round(daysSinceLast),
+    overdue: Math.round(overdue * 100) / 100,
+    score,
+  };
+}
+
+// candidates: [{ entity, id, name, n, mean, purchaseDatesAscending, lastPurchaseAt }, ...]
+// across all three kinds at once -- ranking is cross-kind by design (#107:
+// "rank descending"), the caller doesn't pre-split by entity type.
+export function rankRotationCandidates(candidates, { globalMean, globalGapDays, limit = 5, now = Date.now() }) {
+  const scored = [];
+  for (const c of candidates) {
+    const result = rotationScoreFor({ ...c, globalMean, globalGapDays, now });
+    if (!result) continue;
+    scored.push({ entity: c.entity, id: c.id, name: c.name, n: c.n, ...result });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
+// The reason string from #107's own worked example: "4.21 over 11 bags, 92
+// days since the last one vs your usual 38".
+export function rotationReason(candidate) {
+  return `${candidate.affinity.toFixed(2)} over ${candidate.n} bag${candidate.n === 1 ? '' : 's'}, ` +
+    `${candidate.daysSinceLast} days since the last one vs your usual ${candidate.typicalGapDays}`;
+}

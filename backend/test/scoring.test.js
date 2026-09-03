@@ -13,6 +13,13 @@ import {
   priceBandFor,
   pillCountFromDelta,
   evaluateCoffee,
+  typicalGapDays,
+  rotationScoreFor,
+  rankRotationCandidates,
+  rotationReason,
+  ROTATION_MIN_N,
+  ROTATION_GAP_FLOOR_DAYS,
+  ROTATION_OVERDUE_CAP,
 } from '../src/lib/scoring.js';
 
 test('shrunkMean pulls toward the global mean, harder at low n', () => {
@@ -134,4 +141,106 @@ test('evaluateCoffee: well-evidenced + priced draft gets a headline number in ra
   assert.ok(result.score >= 0 && result.score <= 100);
   assert.equal(result.components.novelty.isNewRoaster, false);
   assert.equal(result.components.novelty.isNewOrigin, false);
+});
+
+// "What to buy next" rotation recommendation (#107). Pure math only, same
+// synthetic-fixture convention as the #106 tests above.
+const DAY_MS = 86_400_000;
+
+test('typicalGapDays: large n barely shrinks toward the global cadence', () => {
+  const dates = Array.from({ length: 51 }, (_, i) => i * 30 * DAY_MS); // 50 gaps of 30 days
+  const gap = typicalGapDays(dates, 4.5);
+  assert.ok(gap > 25 && gap < 30, `expected close to 30, got ${gap}`);
+});
+
+test('typicalGapDays: a single gap floors at ROTATION_GAP_FLOOR_DAYS rather than trusting it outright', () => {
+  const dates = [0, 14 * DAY_MS];
+  assert.equal(typicalGapDays(dates, 4.5), ROTATION_GAP_FLOOR_DAYS);
+});
+
+test('typicalGapDays: a single purchase (no gap at all) falls back to the global cadence, floored', () => {
+  assert.equal(typicalGapDays([0], 4.5), ROTATION_GAP_FLOOR_DAYS);
+});
+
+test('rotationScoreFor returns null below ROTATION_MIN_N', () => {
+  const result = rotationScoreFor({
+    n: ROTATION_MIN_N - 1,
+    mean: 4.5,
+    globalMean: 4.0,
+    purchaseDatesAscending: [0],
+    lastPurchaseAt: 0,
+    globalGapDays: 30,
+    now: 100 * DAY_MS,
+  });
+  assert.equal(result, null);
+});
+
+test('rotationScoreFor: affinity can go negative, so staleness alone never rescues a below-average entity', () => {
+  const n = 20;
+  const gapDays = 40;
+  const purchaseDatesAscending = Array.from({ length: n }, (_, i) => i * gapDays * DAY_MS);
+  const lastPurchaseAt = purchaseDatesAscending[n - 1];
+  const result = rotationScoreFor({
+    n,
+    mean: 3.78, // below the global mean -- #107's own "April" example
+    globalMean: 4.03,
+    purchaseDatesAscending,
+    lastPurchaseAt,
+    globalGapDays: 4.5,
+    now: lastPurchaseAt + 25 * gapDays * DAY_MS, // heavily overdue
+  });
+  assert.ok(result.affinity < 4.03);
+  assert.ok(result.z < 0);
+  assert.ok(result.overdue > 1, 'should read as overdue');
+  assert.ok(result.score < 0, 'a merely stale, below-average entity must not score positively');
+});
+
+test('rotationScoreFor caps overdue at ROTATION_OVERDUE_CAP', () => {
+  const n = 10;
+  const gapDays = 20;
+  const purchaseDatesAscending = Array.from({ length: n }, (_, i) => i * gapDays * DAY_MS);
+  const lastPurchaseAt = purchaseDatesAscending[n - 1];
+  const result = rotationScoreFor({
+    n,
+    mean: 4.5,
+    globalMean: 4.0,
+    purchaseDatesAscending,
+    lastPurchaseAt,
+    globalGapDays: 4.5,
+    now: lastPurchaseAt + 100 * gapDays * DAY_MS, // absurdly overdue
+  });
+  assert.equal(result.overdue, ROTATION_OVERDUE_CAP);
+});
+
+test('rankRotationCandidates: ranks across entity kinds descending, excludes thin entities, respects limit', () => {
+  const now = 2000 * DAY_MS;
+  const makeCandidate = (entity, id, name, n, mean, gapDays, daysSinceLast) => {
+    const lastPurchaseAt = now - daysSinceLast * DAY_MS;
+    const purchaseDatesAscending = Array.from(
+      { length: n },
+      (_, i) => lastPurchaseAt - (n - 1 - i) * gapDays * DAY_MS,
+    );
+    return { entity, id, name, n, mean, purchaseDatesAscending, lastPurchaseAt };
+  };
+  const candidates = [
+    makeCandidate('roaster', 1, 'Well-liked and overdue', 10, 4.8, 30, 300),
+    makeCandidate('originCountry', 2, 'Too few rated bags', 3, 5.0, 10, 500),
+    makeCandidate('process', 3, 'Below average and stale', 10, 3.5, 30, 300),
+    makeCandidate('roaster', 4, 'Well-liked but recent', 10, 4.8, 30, 5),
+  ];
+  const ranked = rankRotationCandidates(candidates, { globalMean: 4.0, globalGapDays: 4.5, limit: 2, now });
+  assert.equal(ranked.length, 2);
+  assert.equal(ranked[0].name, 'Well-liked and overdue');
+  assert.ok(ranked.every((r) => r.name !== 'Too few rated bags'), 'n < ROTATION_MIN_N must be excluded');
+  assert.ok(ranked[0].score > ranked[1].score);
+});
+
+test('rotationReason formats the worked example from #107', () => {
+  const reason = rotationReason({ affinity: 4.21, n: 11, daysSinceLast: 92, typicalGapDays: 38 });
+  assert.equal(reason, '4.21 over 11 bags, 92 days since the last one vs your usual 38');
+});
+
+test('rotationReason: singular "bag" for n=1', () => {
+  const reason = rotationReason({ affinity: 4.0, n: 1, daysSinceLast: 10, typicalGapDays: 14 });
+  assert.match(reason, /1 bag,/);
 });
