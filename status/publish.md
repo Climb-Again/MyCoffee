@@ -53,6 +53,33 @@ _none_
 
 ## Done
 
+### 2026-09-03 UTC (Thu cron): nothing to ship — no dispatch this session
+
+Step 0: `origin/main..origin/ios-staging` = **0** commits (`ios-staging` tip
+`ea8c3b3` is exactly the merge-base with `main` — no unmerged iOS work).
+`status/publish.md`'s own last entry was stale (still showed run #86 BLOCKED
+on `MATCH_PAT`), so before trusting the "nothing new" shortcut I checked the
+Actions API directly: **run #88** (`workflow_dispatch`, `publish=true`,
+`680ab2a`) completed **success** 2026-09-02T10:27–10:29 UTC — `680ab2a`'s
+`Build & upload to TestFlight` step ran for real, not skipped. This matches
+`status/BACKLOG.md` #108, which another session/human had already marked
+"RESOLVED 2026-09-02" after Radu rotated `MATCH_PAT`, but no one had backfilled
+this file — logging it now so the next session doesn't re-diagnose the same
+gap.
+
+Diffed `ios/**` and `.github/workflows/**` between the shipped SHA (`680ab2a`)
+and current `origin/main` (`0bf798a`): the only change is a new
+`.github/workflows/backlog-check.yml` (row-uniqueness CI, doesn't touch the
+iOS pipeline). Everything else landed on `main` since #88 (#106, #107,
+#109–#124) is backend-only (`backend/**`, migrations, `status/BACKLOG.md`) —
+deployed continuously by Railway, not the iOS TestFlight pipeline. So the app
+binary at the current `main` HEAD would be byte-identical to what #88 already
+uploaded. No dispatch — a re-ship would just burn a build slot for zero user-
+visible change. Next publish session: same check, but note the real signal is
+"any `ios/**` / `.github/workflows/ios-testflight.yml` / `Fastfile` diff since
+`680ab2a`", not just the `ios-staging` gap, since backend work keeps moving
+`main`'s SHA without touching the app.
+
 ### 2026-08-30 UTC: BLOCKED — `MATCH_PAT` rejected by GitHub, filed as BACKLOG #106 (human)
 
 Step 0: `origin/main..origin/ios-staging` was **10** commits — real UX work
