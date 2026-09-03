@@ -191,6 +191,26 @@ test('parseDate: day-first, and rejects a roast date after the photo date', () =
   assert.equal(parseDate('not a date'), null);
 });
 
+test('parseDate: spelled-out months, English + Romanian, day-first and month-first', () => {
+  const cases = [
+    ['07 August 2026', 2026, 8, 7], // the screenshot case ("Data de prăjire: 07 August 2026")
+    ['7 iunie 2021', 2021, 6, 7], // Romanian, day-first
+    ['1 Aug. 2026', 2026, 8, 1], // abbreviated month with period
+    ['August 7, 2026', 2026, 8, 7], // English, month-first
+    ['Sept 15 2025', 2025, 9, 15], // abbreviated month-first, no comma
+    ['1 Mai 2021', 2021, 5, 1], // Romanian "mai"
+  ];
+  for (const [text, y, mo, d] of cases) {
+    const r = parseDate(text);
+    assert.ok(r && !r.rejected, `expected a date for ${text}`);
+    assert.equal(r.date.getUTCFullYear(), y, `year for ${text}`);
+    assert.equal(r.date.getUTCMonth() + 1, mo, `month for ${text}`);
+    assert.equal(r.date.getUTCDate(), d, `day for ${text}`);
+  }
+  // An unknown month word is not a date.
+  assert.equal(parseDate('07 Smarch 2026'), null);
+});
+
 // ---- Roast profile + decaf (orthogonal axes) ----
 
 test('parseProfile: maps aliases onto exactly the six profiles, never defaults to Washed', () => {

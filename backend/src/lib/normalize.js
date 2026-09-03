@@ -257,6 +257,28 @@ export function parseRating(text) {
 
 // ---- Dates ----
 
+// Spelled-out month names, English + Romanian, plus common abbreviations.
+// Romanian month names carry no diacritics, but callers fold before lookup so
+// any accented input still resolves. Keys are lowercase/folded.
+export const MONTH_NAMES = {
+  jan: 1, january: 1, ian: 1, ianuarie: 1,
+  feb: 2, february: 2, februarie: 2,
+  mar: 3, march: 3, martie: 3,
+  apr: 4, april: 4, aprilie: 4,
+  may: 5, mai: 5,
+  jun: 6, june: 6, iunie: 6,
+  jul: 7, july: 7, iulie: 7,
+  aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9, septembrie: 9,
+  oct: 10, october: 10, octombrie: 10,
+  nov: 11, november: 11, noiembrie: 11,
+  dec: 12, december: 12, decembrie: 12,
+};
+
+// A spelled-out month can be any of the names above; the class also admits
+// Romanian diacritics so accented input reaches the folded lookup.
+const MONTH_WORD = '[A-Za-zăâîșțĂÂÎȘȚ]+';
+
 export function parseDate(text, { photoDate } = {}) {
   if (!text) return null;
   const s = String(text).trim();
@@ -270,15 +292,23 @@ export function parseDate(text, { photoDate } = {}) {
     year = parseInt(m[3], 10);
     if (year < 100) year += year < 70 ? 2000 : 1900;
     if (month > 12 && day <= 12) [day, month] = [month, day];
-  } else {
-    m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); // ISO
-    if (m) {
-      year = +m[1];
-      month = +m[2];
-      day = +m[3];
-    }
+  } else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) {
+    // ISO
+    year = +m[1];
+    month = +m[2];
+    day = +m[3];
+  } else if ((m = s.match(new RegExp(`^(\\d{1,2})\\.?\\s+(${MONTH_WORD})\\.?,?\\s+(\\d{4})$`)))) {
+    // Day-first spelled-out: "07 August 2026", "7 iunie 2021", "1 Aug. 2026".
+    day = parseInt(m[1], 10);
+    month = MONTH_NAMES[foldDiacritics(m[2]).toLowerCase()];
+    year = parseInt(m[3], 10);
+  } else if ((m = s.match(new RegExp(`^(${MONTH_WORD})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})$`)))) {
+    // Month-first spelled-out: "August 7, 2026", "Aug 7 2026".
+    month = MONTH_NAMES[foldDiacritics(m[1]).toLowerCase()];
+    day = parseInt(m[2], 10);
+    year = parseInt(m[3], 10);
   }
-  if (year == null || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year == null || month == null || month < 1 || month > 12 || day < 1 || day > 31) return null;
 
   const date = new Date(Date.UTC(year, month - 1, day));
   if (Number.isNaN(date.getTime())) return null;
