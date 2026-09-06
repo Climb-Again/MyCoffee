@@ -1,17 +1,16 @@
 # Roaster content checklist — logos + blurbs
 
-_Generated 2026-09-06 from the live backend snapshot (110 roasters, 414 coffees). Regenerate anytime with `ops/roaster-assets/gen-checklist.py`._
+_Generated 2026-09-06 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
 
-Tracks backlog **#132–#134**. Fill a logo by dropping `logos/<slug>.png` (name the file by roaster; slug shown below is the key). Paste blurbs in chat — I stage them keyed by slug.
+Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file by roaster; the `slug` below is the key I map it to). Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug.
 
-- **Logo** / **Blurb** columns: ☐ = missing, ✅ = provided.
-- `slug` is the stable DB key — logo filenames map to it.
+- **Logo** / **Blurb**: ☐ = missing, ✅ = provided.
 
-## In your library (64 roasters, sorted by # coffees)
+## In your library (64 roasters, by # coffees)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees |
 |---|---|---|---|---|---|
-| ☐ | ☐ | Gardelli | `gardelli` | Italy | 91 |
+| ☐ | ✅ | Gardelli | `gardelli` | Italy | 91 |
 | ☐ | ☐ | The Barn | `the-barn` | Germany | 65 |
 | ☐ | ☐ | Mabo | `mabo` | Romania | 50 |
 | ☐ | ☐ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 |
@@ -76,7 +75,7 @@ Tracks backlog **#132–#134**. Fill a logo by dropping `logos/<slug>.png` (name
 | ☐ | ☐ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 |
 | ☐ | ☐ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 |
 
-## Seeded but unused — 0 coffees (46) — likely low priority / test fixtures
+## Seeded but unused — 0 coffees (46) — low priority / test fixtures
 
 | Logo | Blurb | Roaster | slug | Country | Coffees |
 |---|---|---|---|---|---|
