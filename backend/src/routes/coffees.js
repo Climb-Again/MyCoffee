@@ -10,6 +10,7 @@
 //   POST /api/coffees/:publicId/edit     generic per-field edit (PLAN.md §12 #40)
 //   POST /api/coffees/extract     Add Coffee wizard: synchronous light-ensemble draft (PLAN.md §6.8, #75)
 //   POST /api/coffees             Add Coffee wizard: persist the confirmed draft (PLAN.md §6.8, #75)
+//   POST /api/coffees/quick-create Add Coffee: create instantly, extract in the background (#118)
 //   POST /api/coffees/evaluate    "Evaluate this coffee" -- fit score for a bag not yet owned (#106)
 //
 // Reads use requireAnyToken; the favorite/edit writes use requireIngestToken,
@@ -32,6 +33,8 @@ import {
   buildRawText,
   runLightExtraction,
   pickRawExtractedValue,
+  defaultVoters,
+  processPhoto,
 } from '../lib/worker.js';
 import { toEur } from '../lib/fx.js';
 import { evaluateCoffee, blendAffinity } from '../lib/scoring.js';
@@ -60,6 +63,31 @@ const THUMB_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 function baseUrlFor(req) {
   return `${req.protocol}://${req.hostname}`;
+}
+
+// Fires the full-ensemble extraction for one just-created photo without
+// making the request wait on it (#118). Deliberately not `await`ed by the
+// caller -- errors are caught right here, never left to become an unhandled
+// rejection that would crash the whole process out from under an unrelated
+// request. On failure this releases the photo's lease and counts it as a
+// normal extraction failure (same fields `runWorker`'s own per-photo catch
+// updates), so a photo that fails here is retried by the daily batch worker
+// exactly as if the batch had claimed and failed it itself, up to the same
+// `extraction_failures` cutoff (#64).
+function kickBackgroundExtraction(photo, log) {
+  (async () => {
+    const voters = await defaultVoters();
+    const sharedCtx = await loadSharedContext();
+    await processPhoto(photo, voters, sharedCtx, { includeImages: true });
+  })().catch((err) => {
+    log?.error?.(`[quick-create] background extraction failed for photo ${photo.id}: ${err.message}`);
+    return query(
+      `UPDATE photos SET extraction_failures = extraction_failures + 1,
+              extraction_leased_until = NULL, extraction_leased_by = NULL
+       WHERE id = $1`,
+      [photo.id],
+    ).catch(() => {});
+  });
 }
 
 // Compact row for the snapshot: ids only, no resolved names (those live once
@@ -474,6 +502,65 @@ export default async function coffeesRoutes(app) {
     }
 
     return { fields, spentUsd };
+  });
+
+  // Add Coffee: create instantly, extract in the background (#118). Radu:
+  // "takes a looong time to extract... should happen in the background, not
+  // even sure if i need to keep app on and for how long" -- /extract above
+  // makes the wizard wait on a live LLM ensemble before it can even show a
+  // confirm screen. This route skips that wait entirely: it creates the
+  // coffee from the photo alone (upsertCoffeeBase, no LLM call) and returns
+  // immediately with `reviewState: 'unextracted'` -- the same value a coffee
+  // already carries before any extraction has ever run (008_coffees.sql's
+  // column default), so the client already has everything it needs to render
+  // an "extracting..." state with no new field. The actual extraction runs
+  // after the response is sent, reusing the exact full-ensemble pipeline the
+  // daily batch worker uses for every other photo (`defaultVoters()` +
+  // `processPhoto()`) -- so the result the review queue and snapshot sync see
+  // is indistinguishable from one the batch worker produced. `photoIds[0]` is
+  // the only one the background pass ever extracts from (matches the batch
+  // worker's own one-photo-in, one-coffee-out shape); any other photoIds
+  // (e.g. a back-of-bag shot) attach for display only, same as SAVE below.
+  app.post('/api/coffees/quick-create', { preHandler: requireIngestToken }, async (req, reply) => {
+    const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
+    if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });
+
+    const { rows: photoRows } = await query(`SELECT * FROM photos WHERE public_id = ANY($1)`, [photoIds]);
+    const byPublicId = new Map(photoRows.map((p) => [p.public_id, p]));
+    const missing = photoIds.find((id) => !byPublicId.has(id));
+    if (missing) return reply.code(404).send({ error: 'photo_not_found', photoId: missing });
+
+    const primaryPhoto = byPublicId.get(photoIds[0]);
+    if (!primaryPhoto.has_image) return reply.code(422).send({ error: 'photo_missing_image', photoId: photoIds[0] });
+
+    const photoText = await fetchLatestText(primaryPhoto.id);
+    const coffee = await upsertCoffeeBase(primaryPhoto, photoText);
+
+    // Any photo beyond the primary (e.g. a second, back-of-bag shot) never
+    // reaches a voter here -- the async pipeline is one-photo-in like the
+    // batch worker's own claimBatch. Mark them processed right away so they
+    // can't later be claimed past their `awaiting_text` deadline and spawn a
+    // duplicate coffee row (upsertCoffeeBase keys off photo_id) -- same fix
+    // #75's SAVE route already applies to its own photoIds.
+    const secondaryIds = photoRows.filter((p) => p.id !== primaryPhoto.id).map((p) => p.id);
+    if (secondaryIds.length > 0) {
+      await query(`UPDATE photos SET state = 'processed', updated_at = now() WHERE id = ANY($1)`, [secondaryIds]);
+    }
+
+    // Lease the primary photo before the background pass starts so the daily
+    // batch's `claimBatch` (which only checks `extraction_leased_until IS
+    // NULL`) can't also grab it while this run is in flight -- the same
+    // mutual-exclusion field the batch worker uses for itself.
+    // `processPhoto()` clears this lease itself once it finishes.
+    await query(
+      `UPDATE photos SET extraction_leased_until = now() + interval '10 minutes', extraction_leased_by = 'quick-create'
+       WHERE id = $1`,
+      [primaryPhoto.id],
+    );
+
+    kickBackgroundExtraction(primaryPhoto, req.log);
+
+    return reply.code(201).send({ id: coffee.public_id, reviewState: coffee.review_state });
   });
 
   // "Evaluate this coffee" (#106): score a bag Radu doesn't own yet for fit
