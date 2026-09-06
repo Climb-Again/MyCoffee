@@ -6,7 +6,97 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-09-06 07:23 UTC] #118 Add Coffee: move extraction to a fire-and-forget background pass (backend half) — branch `main`
+(none)
+
+## 2026-09-06 07:23 UTC: #118 Add Coffee background extraction (backend half) — DONE, `a73b520`
+
+Radu (2026-09-03): "takes a looong time to extract… should happen in the
+background, not even sure if i need to keep app on and for how long." Today's
+wizard blocks on `POST /api/coffees/extract` — a live rules+flash+reconciler
+ensemble — before the confirm screen can even show.
+
+**No migration.** The fix doesn't need a new "pending" status: `coffees.
+review_state` already defaults to `'unextracted'` (008_coffees.sql) and
+nothing before this row ever left that value visible to the client, because
+the old flow always resolved fields synchronously before the coffee's row
+ever existed. A coffee created by the new endpoint sits at `'unextracted'`
+until the background pass adjudicates it, which is exactly the "still
+extracting" signal the client needs — for free.
+
+**New `POST /api/coffees/quick-create {photoIds}`:** `upsertCoffeeBase`
+(no LLM call, matches `/extract`'s and SAVE's existing photo validation —
+404 `photo_not_found`, 422 `photo_missing_image`), returns `201 {id,
+reviewState}` immediately. Then, **not awaited**, fires the exact
+full-ensemble pipeline the daily batch worker uses per photo —
+`defaultVoters()` + `processPhoto()` from `src/lib/worker.js` — so the result
+that lands in `field_candidates`/`field_resolutions`/`coffees` and shows up
+in the review queue is produced by the *same code path* a batch-worked photo
+goes through, not a parallel one.
+
+Two things I checked deliberately rather than assumed:
+
+1. **Why not `runWorker()`?** It takes the extraction advisory lock and
+   returns `{started:false, reason:'already_running'}` if the daily ingest
+   job (fires 08:13 UTC) happens to be running when Radu adds a coffee — that
+   would silently strand the new coffee at `unextracted` forever with no
+   retry. `processPhoto()` alone takes no such lock, so it runs alongside
+   the daily batch safely as long as the specific photo can't be
+   double-claimed (next point).
+2. **Concurrency with `claimBatch`:** the primary photo is leased
+   (`extraction_leased_until`/`extraction_leased_by='quick-create'`)
+   *synchronously*, before the background pass fires — `claimBatch` excludes
+   anything already leased, so the daily batch can't grab the same photo
+   mid-run. `processPhoto()`'s own completion path clears the lease, same as
+   it does for a batch-claimed photo.
+
+A background failure is caught in the route handler itself (never left as an
+unhandled rejection — that would crash the whole Node process out from under
+unrelated requests) and increments `extraction_failures`/clears the lease,
+the exact fields `runWorker`'s own per-photo `catch` updates — so a failed
+quick-create photo re-enters `claimBatch`'s normal eligibility and gets
+retried by the next daily run, up to the same `extraction_failures` cutoff
+(#64) as any other failure.
+
+A second/back-of-bag `photoId` is marked `state='processed'` immediately
+(the same fix #75's SAVE route already applies), since the async pipeline is
+one-photo-in like the batch worker itself. **Known, unchanged scope gap:**
+that second photo's image is never sent to a voter here — the synchronous
+`/extract`+SAVE path unions every provided photoId's image, this one
+doesn't. Fixing that would mean teaching `processPhoto()` to accept more
+than one image, which is a bigger change than this row asked for; noted for
+whoever picks up multi-photo quality later.
+
+**Additive, not a replacement.** `POST /api/coffees/extract` and `POST
+/api/coffees` are untouched — the current synchronous wizard flow keeps
+working exactly as today. This also sidesteps the original write-up's
+"Product decision for Radu" (dropping confirm-before-save) — the *iOS* half
+gets to decide independently whether to keep a lightweight confirm step
+against the pending coffee, or drop straight to the review queue; nothing
+on the backend forces either choice.
+
+4 new tests (`coffees-extract.test.js`, same no-DB validation convention
+`/extract`/`/evaluate` already use) — **315/315 `npm test` green** (was 311).
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 20 jobs, **0 `running`** — safe to
+push `backend/**` per the hard rule. Railway redeploy (`railway-deploy.yml`
+run `34036817991`) went green.
+
+**Honest gap:** the DB-touching path itself (upsert → lease → background
+`processPhoto` → lease-clear/failure-increment) was **not** exercised
+end-to-end against real data — doing so would create a genuine spurious
+coffee row from a live photo, and no local Postgres was available in this
+session to run the "fresh DB + mocked Vertex" verification #75's own session
+used. This is a real gap versus that convention, not a pass I'm claiming;
+flagging it explicitly rather than reporting green on faith. Whoever next
+touches this endpoint (or Radu, testing the real wizard once #130/#131 wire
+it up) is the actual first live exercise of the background-completion path.
+
+Flipped `#118` → `done` in `BACKLOG.md`, filed `#130` (ios-shell) and `#131`
+(ios-ux) for the client half — both `ready` immediately since their only
+`needs` (118) is done in this same push.
+
+`backend/src/routes/coffees.js`, `backend/test/coffees-extract.test.js`.
 
 ## 2026-09-03 UTC: #107 "What to buy next" rotation recommendation — DONE, `4878a28`
 
