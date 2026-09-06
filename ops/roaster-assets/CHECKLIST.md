@@ -14,7 +14,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | The Barn | `the-barn` | Germany | 65 |
 | ☐ | ✅ | Mabo | `mabo` | Romania | 50 |
 | ✅ | ☐ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 |
-| ☐ | ☐ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |
+| ☐ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |
 | ☐ | ☐ | April | `april` | Denmark | 14 |
 | ☐ | ☐ | Brewing Dealers | `brewing-dealers` | Spain | 13 |
 | ☐ | ☐ | People Possession | `people-possession` | France | 11 |

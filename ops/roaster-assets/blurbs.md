@@ -45,3 +45,29 @@ Brand DNA & sourcing:
   be tracked from the exact estate soil directly to the cup.
 - **Vibrant visual identity** — known for striking, highly colourful geometric
   packaging that pairs bold creative design with world-class contents.
+
+## manhattan-coffee-roasters
+
+Manhattan Coffee Roasters is an elite, globally revered Dutch roastery based in
+Rotterdam, Netherlands. Founded in 2017 by Ben Morrow and Esther Maasdam, the
+brand is celebrated for its uncompromising focus on ultra-rare micro-lots,
+processing innovation, and clean flavour profiles. The name honours Rotterdam's
+historic maritime link to New York — the city's waterfront is locally nicknamed
+"Manhattan aan de Maas".
+
+Brand DNA & roasting style:
+
+- **Competition-grade pedigree** — the founders hold numerous international
+  competition titles: Ben Morrow is a world-class latte-art champion and barista,
+  and Esther Maasdam is a multi-time Dutch Cup Tasters Champion.
+- **Fluid air-bed roasting** — instead of a traditional drum, Manhattan uses a
+  fully electric Typhoon fluid hot-air-bed roaster that levitates the beans on hot
+  air currents, shortening roast time, eliminating smoky bitterness, and
+  maximising flavour clarity.
+- **Tiered sourcing** — offerings are organised into transparent tiers (Specialty,
+  Rare, Exceptional, Competition, World Class), and the roastery is famous for
+  pioneering expressive, experimental processed coffees with intense notes like
+  lychee, passionfruit, and violet.
+- **Onyx partnership** — maintains a major European fulfilment partnership with
+  US powerhouse Onyx Coffee Lab, sharing a dedicated green-sourcing and packaging
+  space in its Rotterdam facility.
