@@ -1,0 +1,29 @@
+name: Backlog check
+
+# status/BACKLOG.md is what every lane greps to claim work, so a duplicate row
+# number is an operational hazard, not a cosmetic one: two sessions filing "the
+# next number" from a stale read on 2026-09-02 produced three collisions
+# (#108/#109/#110), and a lane claiming `^| 109 |` would have found two
+# unrelated rows. Enforced here rather than left to memory (Radu: "always
+# ensure no duplicates").
+#
+# No secrets, no matrix, ~5s on ubuntu. Deliberately NOT added to the iOS or
+# Railway workflows' path filters — this is the only job that watches status/**.
+on:
+  push:
+    branches: [main, ios-staging]
+    paths:
+      - "status/BACKLOG.md"
+      - "status/check-backlog.sh"
+      - ".github/workflows/backlog-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash status/check-backlog.sh
