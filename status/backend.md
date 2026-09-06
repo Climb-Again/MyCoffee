@@ -6,7 +6,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-09-06 07:23 UTC] #118 Add Coffee: move extraction to a fire-and-forget background pass (backend half) — branch `main`
 
 ## 2026-09-03 UTC: #107 "What to buy next" rotation recommendation — DONE, `4878a28`
 
