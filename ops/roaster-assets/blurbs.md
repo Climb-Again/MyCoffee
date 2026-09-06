@@ -26,3 +26,22 @@ Core philosophies & roasting style:
 - **Freshened to order** — sourcing rare micro-lots, high-scoring single origins,
   and elite Geisha varieties; coffee is roasted multiple times a week and shipped
   immediately to guarantee optimal freshness.
+
+## mabo
+
+MABÓ Coffee Roasters is an acclaimed specialty coffee brand based in Bucharest,
+Romania, co-founded by Marius Beju and Bogdan Georgescu. The brand achieved
+international recognition after Bogdan won Vice-Champion honours at the 2019 World
+Coffee Roasting Championship. Voted by the public as one of the Top 3 specialty
+coffee roasters in Europe, MABÓ has a reputation for precision, traceability, and
+premium micro-lots.
+
+Brand DNA & sourcing:
+
+- **From IT to roasting** — Bogdan Georgescu moved from a technical IT career into
+  master roasting; his data-driven mindset translates into meticulous roast
+  profiles that highlight the authentic sweetness and clarity of every origin.
+- **Strict traceability** — MABÓ sources transparently traded micro-lots that can
+  be tracked from the exact estate soil directly to the cup.
+- **Vibrant visual identity** — known for striking, highly colourful geometric
+  packaging that pairs bold creative design with world-class contents.
