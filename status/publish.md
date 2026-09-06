@@ -53,6 +53,54 @@ _none_
 
 ## Done
 
+### 2026-09-06 UTC (Sun cron): nothing to ship — but found and fixed why the iOS lanes went quiet
+
+**Step 0 — no dispatch.** `origin/main..origin/ios-staging` = **0** commits, and
+the diff in app-relevant paths (`ios/**`, `.github/workflows/ios-testflight.yml`)
+between the last shipped SHA `680ab2a` (run #88, green 2026-09-02) and current
+`origin/main` `c12ef99` is **empty**. Everything that landed on `main` since #88
+is backend/ops/backlog work plus one unrelated workflow (`backlog-check.yml`).
+The binary at HEAD would be byte-identical to what #88 already uploaded, so a
+dispatch would burn a build slot for zero user-visible change. Followed the
+previous session's own advice and used the `ios/**`-diff signal rather than the
+`ios-staging` gap alone.
+
+Also checked the stranded-lane-branch trap (CLAUDE.md §12) before concluding:
+the two recent `origin/claude/*` branches (`determined-dirac-wjd3sp`,
+`coffee-ocr-origin-extraction-bx49z9`) carry ops and backlog commits only —
+`git diff origin/main...<branch> -- ios/` is empty for both. No orphaned iOS work.
+
+**The real finding: both iOS lanes had been silently stalled for a week.**
+`ios-staging` had not moved since 2026-08-30, and `status/ios-shell.md` /
+`status/ios-ux.md` had not been written since 2026-08-29 — six scheduled iOS
+firings (Mon/Wed/Fri, 08-31 → 09-04) with no commit, no claim, no status write.
+Root cause: **`status/BACKLOG.md` on `ios-staging` topped out at row #105.**
+Every iOS-owned row filed since — #109, #111, #112, #114, #116, #117, #120,
+#125, #130, #131, #134, #135 — existed only on `main`. The gate-first lane
+prompts (audit change 5) grep the backlog on their own working branch, matched
+no `ready` row, and stopped silently exactly as designed. The lanes were not
+broken; they were reading a backlog that did not contain their work.
+
+This is the 2026-08-27 audit's single-source-of-truth rule running in one
+direction only. That rule tells a lane flipping a row on `ios-staging` to land
+the same change on `main`. Nothing carries **new rows filed on `main`** back down
+to `ios-staging`, and the backend/data lanes have filed 30 rows there since.
+
+**Fix applied** (`ios-staging` `5d01de4`): took `main`'s `status/BACKLOG.md`
+wholesale onto `ios-staging`, after verifying it is lossless — on the 105 rows
+both branches share, every status agrees exactly, and `ios-staging` holds no row
+`main` lacks, so `main` is a strict superset and none of the iOS lanes' own truth
+was overwritten. Also brought across `status/check-backlog.sh` and
+`.github/workflows/backlog-check.yml`: that workflow already lists `ios-staging`
+in its push branches but had never existed on that branch, so row-uniqueness has
+been enforced on `main` only. `bash status/check-backlog.sh` passes on the merged
+file (123 rows, no duplicates, no dangling needs). `status/**` matches no build or
+deploy path filter, so this shipped nothing.
+
+Expect the iOS lanes to claim work again at their next firing (Mon 2026-09-07).
+Filed **#136** for the durable two-way fix — this manual sync unblocks today, it
+does not stop the copies drifting again.
+
 ### 2026-09-03 UTC (Thu cron): nothing to ship — no dispatch this session
 
 Step 0: `origin/main..origin/ios-staging` = **0** commits (`ios-staging` tip
