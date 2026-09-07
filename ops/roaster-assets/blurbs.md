@@ -226,3 +226,26 @@ Core philosophies & roasting style:
   descriptive titles like Strawberry Ice Cream, Tropical Blend, and Berry Blast.
 - **Constantly rotating menus** — to keep freshness and chase seasonal harvests,
   the green-coffee offering is rotated and fully refreshed every 2–3 months.
+
+## coffea-circulor
+
+Coffea Circulor is a highly scientific, multi-award-winning specialty coffee
+roaster, producer, and research lab. Rooted in United Nations environmental and
+field research in Kenya from 2005 and formally established in 2010 by Thore-Andre
+Thorsen and Ivica Cvetanovski, it splits its operations between Gothenburg, Sweden
+and Arendal, Norway, and is recognised as one of the most intellectually rigorous,
+hyper-transparent, and competition-dominant roasteries in the world.
+
+Core philosophies & roasting style:
+
+- **The "orthodox" sensory approach** — a proprietary roasting ideology focused on
+  structural clarity, high natural sweetness, and complex acidity; roasts are
+  exceptionally light and analytical, targeted at professional competition stages
+  like the World Brewers Cup.
+- **Algorithmic transparency & trade** — a strict in-house pricing matrix that
+  bypasses commodity markets, with each product page laying out exact farm-gate
+  prices paid to growers, transit logistics, and processing overheads.
+- **Proprietary post-harvest innovation** — actively manages production, inventing
+  its own processing nomenclatures (like the signature "Wave NX" anaerobic
+  fermentations) and working hand-in-hand with elite growers in Kenya, Ecuador, and
+  Panama to orchestrate micro-lots from the ground up.
