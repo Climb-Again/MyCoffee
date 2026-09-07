@@ -714,3 +714,25 @@ Core philosophies & roasting style:
   Wave design and bold retro typography.
 - **Integrated artisan bakery** — a fully functional pastry house famous across
   Amsterdam for its marble cakes, American-style pies, and sweet pastries.
+
+## tanat-coffee
+
+Tanat Coffee (formerly Kawa Coffee Roasters) is an ultra-modern, innovative
+specialty roaster based in Paris, France. Founded in 2016 by Alexis and recently
+rebranded from Kawa to Tanat, it's internationally revered as a pioneer of
+experimental post-harvest fermentations and "funky" flavour profiles in the French
+and European third-wave scenes.
+
+Core philosophies & roasting style:
+
+- **Conscious & progressive innovation** — direct, multi-year producer
+  relationships for fully traceable micro-lots, with active co-fermentation
+  research in Colombia and collaborations with farmers in Ethiopia.
+- **Vibrant & fruity roasting** — light, meticulous roasts that highlight intense
+  fruit sugars, floral aromas, and structural clarity, reading closer to intricate
+  desserts or fine wine than traditional heavy roasts.
+- **Anti-capsule manifesto** — honouring "living coffee," Tanat takes a firm stance
+  against aluminium and plastic pods as the antithesis of artisanal extraction.
+- **Social-impact framework** — uses its scale for social projects, e.g. directing
+  a portion of sales from its pink-packaged Rwanda bags into breast-cancer
+  initiatives.
