@@ -1108,3 +1108,27 @@ Core philosophies & roasting style:
 - **The "slow down" flagship space** — a warm, minimalist Oradea tasting bar built
   to strip away fast-casual distractions, functioning as an educational hub for
   cupping flights and unpretentious, expert-led tasting.
+
+## mere-black-coffee
+
+Mere Black Coffee is an emerging, accessibility-driven brand in the Central and
+Eastern European specialty market. Its core mission is to remove the high financial
+barriers often tied to premium coffee culture, delivering 100% Arabica beans
+optimised for daily offices and home automatic espresso systems. With deep roots
+across Poland and Romania, it has scaled largely through major e-commerce platforms
+like eMAG and Allegro rather than a café network.
+
+Core philosophies & roasting style:
+
+- **The everyday-ritual manifesto** — coffee as a functional, universal daily ritual
+  for workplace productivity and personal pleasure, without third-wave elitism or
+  intimidating price tags.
+- **Balanced medium roasting** — a uniform medium roast targeting low acidity,
+  balanced body, and a smooth, familiar mouthfeel, calibrated to run cleanly through
+  bean-to-cup machines and stove-top moka pots rather than Nordic-light profiles.
+- **Single-origin traceability** — clean single origins from Honduras, Brazil,
+  Guatemala, Peru, and Colombia, spotlighting classic chocolatey, nutty, and
+  stone-fruit profiles.
+- **Digital-first wholesale supply** — no traditional retail café storefront;
+  foil-lined 250 g and 1 kg bags aimed at breakrooms, distribution partnerships, and
+  direct-to-door retail.
