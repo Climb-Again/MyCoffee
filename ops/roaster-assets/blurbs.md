@@ -693,3 +693,24 @@ Core philosophies & roasting style:
 - **Innovative product formats** — early specialty adopters of high-end coffee
   capsules and nitrogen-sealed drip bags using the same premium micro-lots poured
   on their bars.
+
+## rumbaba
+
+Rum Baba Coffee Roasters is a vibrant, popular independent specialty roastery and
+bakery in Amsterdam, Netherlands. Founded in 2013 by Jeroen Keyzer and his partner
+Marielusan Drost — emerging from Amsterdam-Oost's pioneering café Coffee Bru — the
+brand is revered for an unpretentious, high-energy approach that brings quality
+craft coffee into everyday life.
+
+Core philosophies & roasting style:
+
+- **The "everyday specialty" focus** — rather than treating specialty as an
+  intimidating occasional luxury, Rum Baba makes its high-end lots accessible, fun,
+  and part of a normal daily routine.
+- **Bright & clean profiles** — a transparent rotation of seasonal micro-lots
+  profiled for natural fruit sugars, crisp clarity, and balance: vibrant filter
+  roasts alongside complex, creamy espresso.
+- **Aesthetic 80s packaging** — playfully bright, colour-blocked bags with 80s New
+  Wave design and bold retro typography.
+- **Integrated artisan bakery** — a fully functional pastry house famous across
+  Amsterdam for its marble cakes, American-style pies, and sweet pastries.
