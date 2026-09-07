@@ -8,6 +8,68 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-07 07:23 UTC: #121 Add Coffee wizard drops a new (not-in-vocab) roaster — DONE, `a345d1b`
+
+Radu (2026-09-03): imported a Spojka/Colombia bag; "Spojka" was right there in
+the pasted text but the coffee saved with `roaster_id: NULL`.
+
+**Root cause, confirmed by reading `adjudicate.js`/`resolveField.js`
+end-to-end:** `canonicalize('roaster_id', …)` returns `null` for a name that
+doesn't resolve against the roaster vocab (unlike `origin_farm_id`, which
+deliberately carries an unresolved name through as `{id: null, name}` — see
+that function's own comment on why farms and roasters differ: roaster vocab
+is well-seeded, so an unresolvable *second* candidate there is more likely
+extractor noise than a genuine new roaster). So a lone, agreeing "Spojka"
+candidate from every voter still canonicalizes to nothing,
+`adjudicateField` reports `{decision: 'absent', value: null}`, and
+`POST /api/coffees/extract`'s old field-building loop skipped the whole
+`roaster` field on `resolution.value == null` — even though
+`pickRawExtractedValue` had the raw string "Spojka" sitting right there in
+`candidatesByField`, unused.
+
+**Fix:** extracted that loop into a pure, exported `buildExtractFields()`
+(`routes/coffees.js`) and added one carve-out: when `roaster_id` is
+unresolved *but* a voter did propose a raw name, include the field anyway
+with `value: <raw name>`, `confidence: 0`, `decision: 'draft'`, instead of
+dropping it. Every other field's existing "absent is dropped" behaviour is
+unchanged (own test: an unresolvable `price` still drops, confirming the
+carve-out is roaster-only).
+
+**Why no `ios-ux` change was needed, despite the backlog row's own text
+saying the fix "spans... the wizard's roaster field rendering
+(`ios-ux Features/AddCoffee/**`)":** read (did not edit)
+`Features/AddCoffee/AddCoffeeWizardView.swift` + `Models/CoffeeDraft.swift`.
+`DraftField.isAbsent` — the only thing that hides a field from the confirm
+screen — is `value == nil && candidates.isEmpty`, not keyed off `decision`
+at all. `decision` decodes as a plain `String?` (not a Swift enum) and its
+only consumer, `confidenceBadge`, already has a `default: EmptyView()` case.
+So a field that now arrives with a non-null raw value and `decision:
+"draft"` was already going to render as a normal editable row, get
+pre-filled into `editedValues`, and flow into `CoffeeFieldEdit` on Save —
+which lands on `POST /api/coffees` → `resolveField` →
+`getOrCreateVocabEntry`, the exact get-or-create path #121's own diagnosis
+confirmed already exists (it's what created roaster id 110 for "Spojka" when
+Radu edited it manually on 2026-09-03). The backend fix alone closes the
+loop end-to-end.
+
+**Verification:** `cd backend && npm ci && npm test` — **325/325 green**,
+including 4 new cases exercising `buildExtractFields` directly via
+`adjudicateRecord` (no DB, no voter ensemble): a normal vocab-resolved
+roaster stays `accepted`; an unresolved "Spojka" now surfaces as
+`{value: 'Spojka', decision: 'draft', confidence: 0}` instead of being
+dropped; a field with zero candidates is still omitted; an unresolvable
+*price* still drops (proving the carve-out doesn't leak to other fields).
+
+Checked `GET /api/admin/jobs` before pushing — no job `running` (newest was
+job 46, `done`, `photosDone: 0`, the daily ingest drain). Pushed straight to
+`main` (`a345d1b`); `railway-deploy.yml` run
+[34095835234](https://github.com/Climb-Again/MyCoffee/actions/runs/34095835234)
+deployed it. `GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`
+post-deploy.
+
+No backlog row's `needs` references `121`, so nothing else unblocks. Flipped
+`#121` → `done` in `BACKLOG.md` with a short pointer back to this writeup.
+
 ## 2026-09-06 07:23 UTC: #118 Add Coffee background extraction (backend half) — DONE, `a73b520`
 
 Radu (2026-09-03): "takes a looong time to extract… should happen in the
