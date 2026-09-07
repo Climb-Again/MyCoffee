@@ -116,3 +116,48 @@ Brand identity & sourcing:
   single origins, People Possession champions high-end experimental blending,
   deliberately combining distinct varieties to engineer unexpected flavour
   symphonies (notes like coconut, papaya, or kaffir lime).
+
+## tim-wendelboe
+
+Tim Wendelboe is one of the most influential figures in modern specialty coffee.
+Based in Oslo, Norway, he is a 2004 World Barista Champion and 2005 World Cup
+Tasters Champion. His namesake micro-roastery, espresso bar, and training centre —
+founded in 2007 in Oslo's Grünerløkka district — virtually defined the globally
+revered Nordic light-roast style, and the brand is consistently ranked among the
+best roasteries and coffee bars in the world.
+
+Core philosophies & roasting style:
+
+- **Pioneer of light roast** — roasts high-grown, exceptional green coffee quickly
+  and very lightly, removing any smoky or toasty roast defect and treating both
+  espresso and filter strictly as an agricultural product meant to taste purely of
+  its terroir.
+- **Decades-long direct trade** — works with a tight-knit circle of producers in
+  Colombia, Kenya, Ethiopia, El Salvador, and Honduras, visiting them annually and
+  publicly publishing the premiums paid to farmers to champion transparency.
+- **Finca El Suelo** — since 2019 has run his own coffee farm in Huila, Colombia,
+  experimenting directly with soil health and organic cultivation.
+
+## april
+
+April Coffee Roasters is a highly esteemed specialty coffee roastery based in
+Copenhagen, Denmark. Founded in 2016 by Patrik Rolf — a world-class competitor who
+took silver at the 2019 World Brewers Cup and reached multiple World Barista
+Championship finals — April is globally recognised for its hyper-analytical, modern
+Scandinavian roasting style and technical innovations.
+
+Core philosophies & roasting style:
+
+- **The "April style" roast** — emphasises sweetness, balance, and absolute
+  clarity; moving away from heavier, toastier notes, April roasts single origins
+  very precisely on modern Loring machines to let terroir and variety shine.
+- **The April Coffee Brewer** — Patrik Rolf designed a proprietary flat-bottomed
+  pour-over dripper engineered for optimal extraction, flavour clarity, and thermal
+  stability.
+- **Sustainable partner pricing** — a community-driven sourcing model that lets
+  farmers themselves set green-lot prices, deliberately paying premium rates to
+  encourage elite farming and long-term sustainability.
+- **Coffee omakase** — at their Copenhagen R&D headquarters and retail spaces they
+  host multi-course coffee tasting menus, pairing rare auction lots (like high-end
+  Panamanian Geishas) with specialised water formulations, treating coffee with the
+  reverence of fine wine.
