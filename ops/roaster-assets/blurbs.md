@@ -1083,3 +1083,28 @@ Core philosophies & roasting style:
 - **"Warm minimalism" spaces** — the Uncommon Cafe and Uncommon Bar in Amsterdam's
   Oud West: calming community hubs pairing rotating seasonal coffees with wild
   pastries, fermented morning dishes, and handcrafted ceramics.
+
+## radical-coffee
+
+Radical Coffee is an independent, uncompromising force in Romania's modern specialty
+coffee scene. Founded in Oradea, Bihor County, it has grown from a passionate local
+venture into one of the country's most fiercely purist independent micro-roasteries,
+working from its espresso bar and production house on Strada Iuliu Maniu and serving
+as a regional benchmark for precise, artisanal roasting.
+
+Core philosophies & roasting style:
+
+- **The no-sugar manifesto** — an intense purist stance on beverage integrity: no
+  added sugars, flavoured syrups, or heavily modified drink requests. They believe
+  carefully cultivated beans need no masking agents and brew to highlight the crop's
+  native notes.
+- **100% manual craftsmanship** — a strictly manual operation; founder Andrei and
+  the team stand by the machine for every batch, adjusting heat by hand to keep
+  profile clarity across micro-lot variations.
+- **Ultra-seasonal sourcing** — green selection rotates strictly with global harvest
+  cycles, sourcing high-scoring lots (e.g. complex anaerobics from Brazil, clean
+  single origins from Costa Rica) and cycling the catalogue rapidly for peak
+  freshness.
+- **The "slow down" flagship space** — a warm, minimalist Oradea tasting bar built
+  to strip away fast-casual distractions, functioning as an educational hub for
+  cupping flights and unpretentious, expert-led tasting.

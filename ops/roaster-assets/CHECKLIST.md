@@ -16,7 +16,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ☐ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ☐ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
-| ☐ | ☐ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
+| ☐ | ✅ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
 | ☐ | ☐ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 | 3.8 |
 | ☐ | ☐ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
