@@ -488,3 +488,27 @@ Core philosophies & roasting style:
   profiles open up fully.
 - **Prestigious culinary footprint** — the exclusive coffee partner of Turku's
   Michelin-starred restaurant Kaskis since 2020.
+
+## legendary-everyday
+
+> ⚠️ DB has this roaster's country as **Netherlands**, but it roasts in Bucharest,
+> Romania (per Radu / the brand). #133 should correct `roasters.country_id`.
+
+Legendary Everyday is an innovative specialty coffee roastery founded by Ben
+Morrow, one of the original co-founders of Manhattan Coffee Roasters — now based
+and roasting in Bucharest, Romania. After years helping shape Manhattan into a
+global benchmark, Ben stepped away to build his own path, designing Legendary
+Everyday as a masterclass in approachable, ego-free excellence.
+
+Brand DNA & roasting philosophy:
+
+- **Ben Morrow's legacy** — a former multi-time international competitor (notably a
+  New York Coffee Masters winner), Ben channels three decades of collective
+  industry mastery into his roast profiles.
+- **Ego-free sourcing** — stripping away third-wave pretense, the brand skips
+  overly complicated techniques and jargon to prioritise raw material quality,
+  buying standout lots directly from trusted producers (such as Colombia's Finca
+  Las Flores).
+- **Dependable, balanced profiles** — roasted with clean precision every Thursday,
+  the beans are consistent, deeply sweet, and easy to brew at home, removing the
+  stress of perfect technique.

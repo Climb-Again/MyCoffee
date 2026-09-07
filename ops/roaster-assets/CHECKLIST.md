@@ -58,7 +58,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Koff & Bun | `koff-bun` | Thailand | 1 |
 | ☐ | ☐ | Koppi | `koppi` | Sweden | 1 |
 | ☐ | ☐ | La Cabra | `la-cabra` | Denmark | 1 |
-| ☐ | ☐ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 |
+| ☐ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 |
 | ☐ | ☐ | Maggma Beans | `maggma-beans` | Sweden | 1 |
 | ☐ | ☐ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 |
