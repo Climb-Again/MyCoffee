@@ -31,8 +31,8 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 |
 | ✅ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
 | ☐ | ☐ | Cupping Room | `cupping-room` | Hong Kong | 2 |
-| ☐ | ☐ | Elbgold | `elbgold` | Germany | 2 |
-| ☐ | ☐ | Goriffee | `goriffee` | Slovakia | 2 |
+| ☐ | ✅ | Elbgold | `elbgold` | Germany | 2 |
+| ☐ | ✅ | Goriffee | `goriffee` | Slovakia | 2 |
 | ☐ | ☐ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 |
 | ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 |
 | ☐ | ☐ | Manufaktura | `manufaktura` | Romania | 2 |

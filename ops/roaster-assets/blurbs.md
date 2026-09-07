@@ -422,3 +422,47 @@ Boo Modern Coffee (formerly Boo! Coffee Roasters) is a fast-rising specialty cof
 That attention to detail carries into daily production. Boo roasts on a precise 5kg Typhoon hot-air fluid-bed machine, which fluidizes the beans on hot-air currents to eliminate harsh, smoky bitterness and emphasize clean, crisp, bright flavour. The whole catalogue is roasted as an omni-roast, developing each single-origin lot to express its natural sweetness and vibrant acidity whether brewed as filter or espresso.
 
 The team is competitive by nature: before the world roasting crown, Benoit won the 2024 Belgian AeroPress Championship, with Benjamin placing second.
+
+## elbgold
+
+elbgold is a foundational pioneer of the specialty coffee movement in Hamburg,
+Germany. Founded in 2004 by Annika Taschinski and Thomas Kliefoth, it is one of
+Germany's earliest and most respected third-wave brands, grown from a single café
+into a local powerhouse running several beautifully designed locations and
+processing over 110 tonnes of high-grade green coffee a year.
+
+Core philosophies & roasting style:
+
+- **Deep direct-trade roots** — the founders visit origins like Ethiopia,
+  Honduras, and Costa Rica personally, building farmer partnerships that often span
+  a decade, bypassing commodity markets and paying premiums locked to cup quality.
+- **Vintage Probat craftsmanship** — balancing data with traditional artistry, the
+  team develops custom profiles on a restored 1930s Probat G45 drum roaster in
+  their Schanzenviertel facility.
+- **The "coffee-laboratory" concept** — their flagship features a 6.5 m bluestone
+  and brass counter and works as an experimental destination with vacuum syphons,
+  slow cold-drips, and nitro brew.
+- **In-house patisserie** — a dedicated pastry kitchen led by award-winning chefs
+  bakes artisanal biscuits, cakes, and sweets daily for a complete experience.
+
+## goriffee
+
+Goriffee Coffee Roasters is a progressive, social-impact specialty roastery based
+in Bratislava, Slovakia. Founded in 2012 by Erik Šimšík, Matej Hambalko, and Amir
+Al Jabri, it anchors the Slovak third-wave scene and is respected across Central
+Europe for its dedication to direct trade, social responsibility, and full
+farm-to-cup transparency.
+
+Story & concept:
+
+- **The African spark** — the brand was born from a trip to Africa where Erik fell
+  in love with Rwandan Arabica; the name blends "Gorilla" (Rwanda's endangered
+  Virunga mountain gorillas) with "Coffee."
+- **The Giesen foundation** — from an industrial warehouse in Bratislava, Goriffee
+  fresh-roasts weekly small batches on a Dutch Giesen W15A integrated with Cropster
+  analytics for tight control across the roast spectrum.
+- **Beyond the bean (cascara pioneers)** — an eco-conscious drive to use the whole
+  coffee tree: cascara (tea from dried coffee cherries) and antioxidant teas from
+  dried coffee leaves.
+- **Goriffee Lab** — a dedicated innovation and exchange platform where farmers
+  collaborate directly on post-harvest development and experimental processing.
