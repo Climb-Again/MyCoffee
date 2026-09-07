@@ -24,23 +24,23 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 |
 | ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
 | ☐ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 |
-| ☐ | ✅ | Origo | `origo` | Romania | 4 |
-| ☐ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
-| ☐ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 |
-| ☐ | ✅ | ONYX | `onyx` | United States | 3 |
-| ☐ | ☐ | WatchHouse | `watchhouse` | United Kingdom | 3 |
-| ☐ | ☐ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
+| ✅ | ✅ | Origo | `origo` | Romania | 4 |
+| ✅ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
+| ✅ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 |
+| ✅ | ✅ | ONYX | `onyx` | United States | 3 |
+| ☐ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 |
+| ☐ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
 | ☐ | ☐ | Cupping Room | `cupping-room` | Hong Kong | 2 |
 | ☐ | ☐ | Elbgold | `elbgold` | Germany | 2 |
 | ☐ | ☐ | Goriffee | `goriffee` | Slovakia | 2 |
 | ☐ | ☐ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 |
-| ☐ | ☐ | Livingfoodlab | `livingfoodlab` |  | 2 |
+| ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 |
 | ☐ | ☐ | Manufaktura | `manufaktura` | Romania | 2 |
 | ☐ | ☐ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 |
 | ☐ | ☐ | Right Side | `right-side` | Spain | 2 |
 | ☐ | ☐ | Rumbaba | `rumbaba` | Netherlands | 2 |
 | ☐ | ☐ | Uncommon | `uncommon` | Netherlands | 2 |
-| ☐ | ☐ | 17g Coffee | `17g-coffee` |  | 1 |
+| ☐ | ☐ | 17g Coffee | `17g-coffee` | Switzerland | 1 |
 | ☐ | ☐ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 |
 | ☐ | ☐ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 |
 | ☐ | ☐ | Coffeein | `coffeein` | Slovakia | 1 |
@@ -55,20 +55,20 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Kaffa | `kaffa` | Slovakia | 1 |
 | ☐ | ☐ | Kawa | `kawa` | France | 1 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 |
-| ☐ | ☐ | Koff & Bun | `koff-bun` |  | 1 |
+| ☐ | ☐ | Koff & Bun | `koff-bun` | Thailand | 1 |
 | ☐ | ☐ | Koppi | `koppi` | Sweden | 1 |
 | ☐ | ☐ | La Cabra | `la-cabra` | Denmark | 1 |
 | ☐ | ☐ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 |
 | ☐ | ☐ | Maggma Beans | `maggma-beans` | Sweden | 1 |
-| ☐ | ☐ | Mere Black Coffee | `mere-black-coffee` |  | 1 |
+| ☐ | ☐ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 |
-| ☐ | ☐ | Monmouth | `monmouth` |  | 1 |
+| ☐ | ☐ | Monmouth | `monmouth` | United Kingdom | 1 |
 | ☐ | ☐ | Nowhere | `nowhere` | Italy | 1 |
-| ☐ | ☐ | Radical Coffee | `radical-coffee` |  | 1 |
+| ☐ | ☐ | Radical Coffee | `radical-coffee` | Romania | 1 |
 | ☐ | ☐ | Root & Branch | `root-branch` | Ireland | 1 |
 | ☐ | ☐ | Sentido | `sentido` | Japan | 1 |
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 |
-| ☐ | ☐ | Spojka | `spojka` |  | 1 |
+| ☐ | ☐ | Spojka | `spojka` | Slovakia | 1 |
 | ☐ | ☐ | Sprout Coffee Roasters | `sprout-coffee-roasters` | Netherlands | 1 |
 | ☐ | ☐ | Taf | `taf` | Greece | 1 |
 | ☐ | ☐ | Tanat Coffee | `tanat-coffee` | France | 1 |
