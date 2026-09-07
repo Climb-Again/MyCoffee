@@ -17,7 +17,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |
 | ☐ | ☐ | April | `april` | Denmark | 14 |
 | ☐ | ✅ | Brewing Dealers | `brewing-dealers` | Spain | 13 |
-| ☐ | ☐ | People Possession | `people-possession` | France | 11 |
+| ☐ | ✅ | People Possession | `people-possession` | France | 11 |
 | ☐ | ☐ | Tim Wendelboe | `tim-wendelboe` | Norway | 8 |
 | ☐ | ☐ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 |
 | ☐ | ☐ | Coffea Circulor | `coffea-circulor` | Norway | 6 |

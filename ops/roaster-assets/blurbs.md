@@ -93,3 +93,26 @@ Brand identity & sourcing:
 - **Award-winning design** — recognised for striking visual presentation, earning
   design accolades including a Pentawards global design nomination for its
   beautifully designed premium glass bottle and custom container packaging.
+
+## people-possession
+
+People Possession is a radical, avant-garde specialty coffee roaster based in
+Paris, France. Established in 2023 as a creative collective emerging from the same
+workshop as TANAT Coffee, the brand has built a cult following for treating coffee
+as a medium for underground sub-culture, visual art, fashion, and extreme flavour
+experimentation.
+
+Brand identity & sourcing:
+
+- **Radical, expressive profiles** — moving away from strict tradition, People
+  Possession targets extreme flavour profiles, wild co-fermentations, high-altitude
+  Geishas, and intense anaerobic naturals that often read more like intricate fruit
+  desserts or perfume than basic coffee.
+- **Signature aluminium cans** — rejecting standard bags, their single origins and
+  blends are packaged in distinctively designed, custom-labelled resealable
+  aluminium cans and collectible containers (down to a flip-open cigarette box for
+  elite lots).
+- **The art of the modern blend** — while specialty coffee historically praises
+  single origins, People Possession champions high-end experimental blending,
+  deliberately combining distinct varieties to engineer unexpected flavour
+  symphonies (notes like coconut, papaya, or kaffir lime).
