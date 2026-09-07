@@ -13,8 +13,14 @@ punctuation don't matter:
 - `DAK Coffee Roasters.png` → `dak-coffee-roasters`
 - `The Naughty Dog.jpg` → `the-naughty-dog`
 
-PNG or JPG, square-ish, ideally ≥256 px. See `CHECKLIST.md` for every roaster's
-exact slug and how many coffees it has (fill the high-count ones first).
+Any common format (PNG/JPG/WebP/AVIF), square-ish, ideally ≥256 px. See
+`CHECKLIST.md` for every roaster's exact slug and how many coffees it has (fill
+the high-count ones first).
+
+**Logos are normalized to WebP** (longest side ≤512 px, transparency preserved) to
+minimize weight against the 30 MB image-cache budget — run
+`python3 ops/roaster-assets/normalize-logos.py` after adding new ones (the Tue/Fri
+intake routine does this automatically), then regenerate the checklist.
 
 > ⚠️ **Hosting is still an open decision (#132).** Committing logo files here is
 > the intake step; how they're *served* to the app (a CDN `logo_url` fetched
