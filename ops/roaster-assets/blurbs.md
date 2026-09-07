@@ -888,3 +888,22 @@ Core philosophies & roasting style:
 - **Mindful community framework** — an environmentally and socially conscious
   mindset, paying premiums to independent farms and connecting the local community
   to each cup's agricultural backstory.
+
+## d-origen
+
+D·Origen Coffee Roasters is an influential, award-winning pioneer of Spain's
+specialty coffee movement. Founded in 2012 by Michael Uhlig in El Albir (Alicante)
+on the Costa Blanca, it was among the first roasteries in Spain dedicated to
+specialty-grade lots. Its unusual standing in Europe: they don't just source coffee
+— they grow it, managing their own family estate in Central America.
+
+Core philosophies & vertical sourcing:
+
+- **From farm to cup** — the family acquired its own farm, Barú Black Mountain, in
+  Panama's high-altitude volcanic terroir, giving total agricultural control to
+  experiment with varietals and post-harvest fermentations from the soil up.
+- **Spain's best espresso winners** — the roasting team has won "Best Espresso in
+  Spain" three times (2014, 2016, 2023).
+- **Meticulous packaging tiers** — the catalogue is segmented into curated Packs,
+  balanced Blends engineered for vibrant sweetness, and ultra-premium Rare Editions
+  showcasing experimental micro-lots and unusual botanical varietals.

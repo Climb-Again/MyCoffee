@@ -27,7 +27,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 | 4.0 |
 | ☐ | ✅ | FRUKT | `frukt` | Finland | 1 | 4.0 |
 | ☐ | ☐ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
-| ☐ | ☐ | D-Origen | `d-origen` | Spain | 1 | 4.0 |
+| ☐ | ✅ | D-Origen | `d-origen` | Spain | 1 | 4.0 |
 | ☐ | ☐ | Right Side | `right-side` | Spain | 2 | 4.0 |
 | ☐ | ☐ | Kawa | `kawa` | France | 1 | 3.9 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
