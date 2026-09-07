@@ -337,3 +337,24 @@ Brand concept & roasting style:
 - **Roastery & academy** — beyond retail, Origo runs its own production hub and
   hosts certified barista training and public cupping classes to nurture the
   community.
+
+## sumo-coffee-roasters
+
+Sumo Coffee Roasters is an acclaimed specialty coffee roastery based in Dublin,
+Ireland, founded in 2020 by Daniel Horbat and his partner Alexandra. Daniel is the
+2019 World Cup Tasters Champion (plus a three-time Irish Cup Tasters Champion and
+Irish Brewers Cup Champion), and Sumo has built a reputation for competition-level
+precision, radical transparency, and an adventurous flavour catalogue. Daniel is
+originally from Romania, so Sumo has deep roots in the Bucharest coffee community.
+
+Brand DNA & sourcing:
+
+- **The "Sumo" ethos** — named for the values of sumo wrestling (respect,
+  dedication, perseverance); they approach roasting as a discipline that honours
+  the farmers' agricultural craft.
+- **World-class palate precision** — with a world-champion taster at the helm,
+  green sourcing is ultra-curated: extraordinary high-scoring micro-lots from clean
+  classic profiles to wild yeast-inoculated and anaerobic thermal-shock lots.
+- **Direct & fair trade** — short supply chains and premium direct-trade prices to
+  elite producers (such as Finca Las Flores in Colombia) to help sustain farming
+  ecosystems.

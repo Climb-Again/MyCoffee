@@ -25,7 +25,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
 | ☐ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 |
 | ☐ | ✅ | Origo | `origo` | Romania | 4 |
-| ☐ | ☐ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
+| ☐ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
 | ☐ | ☐ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 |
 | ☐ | ☐ | ONYX | `onyx` | United States | 3 |
 | ☐ | ☐ | WatchHouse | `watchhouse` | United Kingdom | 3 |
