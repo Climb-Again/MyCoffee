@@ -926,3 +926,26 @@ Core philosophies & roasting style:
 - **Vintage restorations & convection precision** — from their Castelldefels
   facility they restore and fine-tune classic roasting machinery, focusing on
   flavour clarity, clean extractions, and terroir over smoky defects.
+
+## kawa
+
+> Note: Kawa rebranded to **Tanat** in early 2025 (see the `tanat-coffee` entry).
+> This coffee is in the library under the older "Kawa" name, so the blurb is kept
+> here too.
+
+Kawa Coffee Roasters was a highly influential specialty roastery based in Paris,
+France. Founded in 2016 by Alexis Gagnaire — a 3rd-place finisher at the 2019 World
+AeroPress Championship and silver medallist at the 2021 French Roasting
+Championship — it became known across Europe for progressive, fruit-forward
+post-harvest fermentations. In early 2025, ahead of its 10th anniversary, the team
+rebranded from Kawa to Tanat Coffee.
+
+Core philosophies & roasting style:
+
+- **Terroir-driven expression** — precise, consistent light roasts that highlight
+  each terroir's genetic sweetness and floral notes and extract cleanly.
+- **Anti-capsule movement** — a vocal stance against aluminium and plastic pods on
+  grounds of cost, waste, and poor traceability.
+- **Experimental green partnerships** — direct collaborations with forward-thinking
+  producers (e.g. Jamison Savage in Panama and advanced Colombian farms) for
+  competition-level lots.
