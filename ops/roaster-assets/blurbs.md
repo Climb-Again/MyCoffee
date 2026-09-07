@@ -1056,3 +1056,30 @@ Core philosophies & roasting style:
   planting via the Eden Reforestation Project.
 - **Storytelling & accessible packaging** — bold, illustrated bags that mirror the
   emotional feeling of each brew, fully eco-friendly and 100% recyclable.
+
+## uncommon
+
+Uncommon is a pioneering force in Amsterdam's modern specialty coffee scene.
+Co-founded in 2018 by Claye Tobin, Josh Cotton, and Nina Tromp — all veterans of
+the Dutch coffee landscape — it has grown from a local project into one of Europe's
+most revered independent roasteries: a progressive, human-centric roasting house
+built to honour the farmers behind each coffee, pairing award-winning curation with
+a calming design aesthetic and transparent sourcing.
+
+Core philosophies & roasting style:
+
+- **The "uncommon story" manifesto** — a purist stance on origin identity: every
+  farm, interaction, and coffee has an "uncommon" story. They bypass generic
+  commercial sourcing for rare, high-scoring micro-lots — unusual processing,
+  distinct micro-climates, and sought-after varieties like Sudan Rume, Tabi, and
+  Pink Bourbon.
+- **Nordic-influenced roasting** — a transparent, sweet profile roasted to precise
+  parameters that emphasise origin clarity over smoky roast character, letting the
+  terroir and variety guide the cup.
+- **Direct trade & ecosystem impact** — organic-certified or sustainably grown
+  coffees via deep direct-trade partnerships across East Africa, Central America, and
+  Colombia, funding tree-replanting, clean-water systems, and steady income for
+  processing workers.
+- **"Warm minimalism" spaces** — the Uncommon Cafe and Uncommon Bar in Amsterdam's
+  Oud West: calming community hubs pairing rotating seasonal coffees with wild
+  pastries, fermented morning dishes, and handcrafted ceramics.
