@@ -512,3 +512,25 @@ Brand DNA & roasting philosophy:
 - **Dependable, balanced profiles** — roasted with clean precision every Thursday,
   the beans are consistent, deeply sweet, and easy to brew at home, removing the
   stress of perfect technique.
+
+## spojka
+
+Spojka Roastery Company is an artistic, community-driven specialty coffee roastery
+based in Prešov, Slovakia. Founded in December 2022 by head roaster and former
+barista Viktor Štefančík, its name comes from the Slovak word for "connection" or
+"clutch" — symbolising a mission to unite producers, roasters, and coffee lovers.
+It has quickly caught the European third-wave community's attention for its
+street-art style and intense focus on single-origin micro-lots.
+
+Brand DNA & roasting style:
+
+- **Street art & hand-painted packaging** — Spojka treats packaging as artistic
+  expression, hand-spray-painting each bag with graffiti aesthetics and stapling a
+  raw info card on top; this award-winning setup lets them launch rare small-batch
+  micro-lots fast.
+- **High-scoring single origins** — targeting exceptional coffees at SCA 85+, with
+  exclusive auction lots from esteemed family estates in Colombia, Indonesia, and
+  Ethiopia.
+- **The "Brewtiful" community ethos** — under the catchphrase "Brewtiful People —
+  let's unite, not divide," Spojka prioritises building a diverse community around
+  approachable yet technically executed coffee.
