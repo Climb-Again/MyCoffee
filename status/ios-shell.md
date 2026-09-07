@@ -6,15 +6,44 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-07 04:19 UTC] #109 cheap-for-quality value meter rework — branch `ios-staging`
-- [2026-09-07 04:19 UTC] #112 cache derived values for 60fps scroll — branch `ios-staging`
-- [2026-09-07 04:19 UTC] #130 Add Coffee submit-and-return, pending coffee in store — branch `ios-staging`
+_none_
 
 ## Abandoned
 
-_none_
+- [2026-09-07 04:19 UTC] #130 Add Coffee submit-and-return, pending coffee in store — claimed then un-claimed same session: its `needs` (#118) turned out not to be on `main` despite reading `done` (see the #118 finding below). Genuinely `blocked`, not a stale-claim case.
 
 ## Session notes
+
+- **2026-09-07 — found ~30 commits stranded on `origin/claude/adoring-ride-2q9qas`, never merged to `main`; #118 was falsely marked `done`.**
+  Ran the Step-0 gate, saw #109/#112/#117/#130/#134 `ready`, claimed #109/#112/#130.
+  Before touching #130 (needs #118), checked whether its dependency was real —
+  `git branch -r --list 'origin/claude/*'` turned up one branch, and
+  `git log origin/main..origin/claude/adoring-ride-2q9qas` showed **~30 unmerged
+  commits**: backend #107/#118–129, data #110/#133 (roaster blurbs), and a
+  Publish-lane note (`63a3593`) — none on `main`. `a73b520` (#118's backend
+  route, `POST /api/coffees/quick-create`) is one of them.
+
+  **Worse: production is running it anyway.** `curl -X POST
+  .../api/coffees/quick-create` on the live Railway backend returned `400
+  missing_photo_ids` (route matched) rather than 404, even though
+  `origin/main`'s `backend/src/routes/coffees.js` has no such route. Someone
+  deployed straight from a local checkout of the stray branch (`railway up`
+  bypassing `railway-deploy.yml`'s push-to-`main` trigger). The next
+  `main`-triggered backend push will silently remove this route from
+  production — a live regression waiting to happen, not just a bookkeeping gap.
+
+  **Did not attempt to merge it** — ~30 commits across backend/data/ops is well
+  outside an ios-shell session's remit and needs real review (migrations, ops
+  scripts I have no context on). Instead: corrected `#118`/`#130`/`#131` back to
+  `blocked` in `BACKLOG.md` with the finding inline, un-claimed #130, and
+  flagged this to Radu directly. **This needs a human or the backend lane to
+  deliberately merge (or cherry-pick) `origin/claude/adoring-ride-2q9qas` onto
+  `main` before #130/#131 can safely proceed**, and to verify the next backend
+  deploy doesn't regress `quick-create` out of production in the meantime.
+
+- **#109/#112 done this session** — see `BACKLOG.md`'s own DONE notes for the
+  implementation summary (value-meter rework + the row-render perf fix).
+  Session notes below are for #112's predecessor, #95:
 
 - **2026-08-28 — #95 value meter is now quality-for-money (`UPDATE_BRIEF.md` §B).**
   `CoffeeIndex.valueBand(for:)` scored **price alone** — the coffee's
