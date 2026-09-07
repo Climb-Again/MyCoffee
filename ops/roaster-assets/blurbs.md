@@ -316,3 +316,24 @@ Core philosophies & roasting style:
 - **Global design aesthetic** — a cult following for its minimalist crocodile-emblem
   identity and editorial product design, with collaborations spanning brands like
   Nudie Jeans and Artek.
+
+## origo
+
+Origo Coffee is a foundational pioneer of the Romanian third-wave coffee movement.
+Opened in 2013, it was the first specialty coffee shop and roastery in Bucharest to
+brew and roast high-grade micro-lots, redefining local coffee culture and setting
+standards for sourcing, brewing precision, and barista education that helped make
+the capital one of Europe's notable specialty-coffee cities.
+
+Brand concept & roasting style:
+
+- **Dual identity (café & cocktail bar)** — Origo transforms through the day: a
+  minimalist espresso and filter haven from morning to late afternoon, then at
+  5 PM the lighting shifts, the ceramic cups above the bar glow, and it becomes an
+  artisan cocktail bar serving signature drinks.
+- **Terroir-driven roasting** — fully traceable, seasonal micro-lots from around
+  the world, rotating with the harvests and showcasing crisp, clean fruit
+  sweetness and regional acidity.
+- **Roastery & academy** — beyond retail, Origo runs its own production hub and
+  hosts certified barista training and public cupping classes to nurture the
+  community.
