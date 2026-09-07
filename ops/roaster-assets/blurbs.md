@@ -466,3 +466,25 @@ Story & concept:
   dried coffee leaves.
 - **Goriffee Lab** — a dedicated innovation and exchange platform where farmers
   collaborate directly on post-harvest development and experimental processing.
+
+## frukt
+
+Frukt Coffee Roasters is a progressive, contemporary specialty roastery based in
+Turku, Finland. Founded in 2018 by Samuli Pääkkönen — who honed his craft at
+Finland's Turun Kahvipaahtimo and Denmark's Coffee Collective — alongside
+co-founder Kyle Papai, Frukt has built an international following for its
+commitment to micro-lots, traceability, and a "less but better" philosophy.
+
+Core philosophies & roasting style:
+
+- **Loring convection precision** — roasts seasonal small batches on a Loring S7
+  Nighthawk, using recirculated superheated air to eliminate drum smoke defects and
+  amplify native sweetness and crisp fruit clarity.
+- **The omni-roast principle** — every coffee is developed as an omni-roast,
+  highlighting authentic terroir and natural fruit sugars so it works across brew
+  methods rather than forcing separate espresso/filter profiles.
+- **The "resting" requirement** — because the roasts are so clean and light, Frukt
+  recommends resting beans two to four weeks from roast date before brewing so the
+  profiles open up fully.
+- **Prestigious culinary footprint** — the exclusive coffee partner of Turku's
+  Michelin-starred restaurant Kaskis since 2020.

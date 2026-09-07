@@ -48,7 +48,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Dos Mundos | `dos-mundos` | Czech Republic | 1 |
 | ☐ | ☐ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 |
 | ☐ | ☐ | Felix Kaffee | `felix-kaffee` | Germany | 1 |
-| ☐ | ☐ | FRUKT | `frukt` | Finland | 1 |
+| ☐ | ✅ | FRUKT | `frukt` | Finland | 1 |
 | ☐ | ☐ | Guido | `guido` | Romania | 1 |
 | ☐ | ☐ | HAYB Speciality Coffee | `hayb-speciality-coffee` | Poland | 1 |
 | ☐ | ☐ | Jonas Reindl | `jonas-reindl` | Austria | 1 |
