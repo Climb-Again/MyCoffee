@@ -1032,3 +1032,27 @@ What it was known for:
   aimed at memory and focus.
 - **Education & events** — cooking classes with international guest chefs, holistic
   healing and spirituality workshops, and expeditions to their farm in Kintamani.
+
+## mission-coffee-works
+
+Mission Coffee Works is an independent, progressive force in British specialty
+coffee. Founded in London in 2012 as a single mobile espresso van on the streets of
+Peckham, it has grown into one of East London's most respected independent
+roasteries, working from its roasting hub in Hackney Wick. Its guiding philosophy is
+extreme accessibility — proving high-end coffee can be fun, supportive, and
+approachable rather than elitist — and it took multiple accolades at the Great Taste
+Awards 2026.
+
+Core philosophies & roasting style:
+
+- **Award-winning blends & rotations** — everyday consistency paired with
+  experimental micro-lots; signature staples the Bells House Blend and Pivot Single
+  Origin both earned top honours at the Great Taste Awards 2026.
+- **Seasonal sourcing & espresso versatility** — under Head of Coffee Edgaras, three
+  to four single origins run at a time, rotating quarterly with regional harvests
+  and crafted to shine equally as espresso and filter.
+- **Ethical supply & ecosystem care** — fair, transparent pricing with direct-trade
+  loops in Central America and East Africa, plus sustainability commitments and tree
+  planting via the Eden Reforestation Project.
+- **Storytelling & accessible packaging** — bold, illustrated bags that mirror the
+  emotional feeling of each brew, fully eco-friendly and 100% recyclable.

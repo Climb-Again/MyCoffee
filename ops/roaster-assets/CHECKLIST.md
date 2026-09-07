@@ -13,7 +13,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
 | ☐ | ✅ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
-| ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
+| ☐ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ☐ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ☐ | ☐ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
 | ☐ | ☐ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
