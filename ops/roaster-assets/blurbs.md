@@ -208,3 +208,21 @@ Core philosophies & roasting style:
   Crush, Poppy Soda, and Melon Spritz.
 - **Aesthetic pastel packaging** — instantly recognisable worldwide by its sleek,
   clean, pastel round-box tubes and minimalist bags.
+
+## concept-coffee-roasters
+
+Concept Coffee Roasters is one of Slovakia's most respected names in specialty
+coffee. Founded in 2014 by co-owner and head roaster Peter Dvorský, the brand is
+driven by a mission to keep raising the quality of its roasting with every batch,
+and is highly regarded across Central Europe for sourcing exceptional, high-scoring
+micro-lots.
+
+Core philosophies & roasting style:
+
+- **Strictly single-origin** — focuses almost entirely on single-origin, specialty
+  grade coffees, purposefully avoiding commercial-grade blending.
+- **Vibrant, clear profiles** — Peter Dvorský builds precise, scientific roast
+  profiles that unlock the clean, vibrant natural sugars of the bean, with
+  descriptive titles like Strawberry Ice Cream, Tropical Blend, and Berry Blast.
+- **Constantly rotating menus** — to keep freshness and chase seasonal harvests,
+  the green-coffee offering is rotated and fully refreshed every 2–3 months.
