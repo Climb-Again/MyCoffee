@@ -6,13 +6,37 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-07 11:10 UTC] #120 wizard rating: 0.0 vs UNRATED — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-07 — #120 wizard rating: 0.0 vs UNRATED — already fixed by #131,
+  no new commit needed.** Traced the root cause the row names ("the rating
+  control likely defaults to 0 and is included in the save") to the wizard's
+  old confirm step: `fieldOrder` included `"rating"`, so if the backend's
+  light-extraction draft ever returned a `rating` field, `editedValues` seeded
+  it from `field.value` and `save()` sent it unconditionally in `edits` — no
+  `hasRating`-style gate existed there (unlike `CoffeeEditSheet`, which
+  already guards correctly, `hasRating` at line 360). #131 (`de0e4a6`, same
+  session) deleted that entire confirm step: the quick-create flow now sends
+  **zero** fields, only `photoIds`, so there is no longer any code path in the
+  wizard that can send a spurious `rating`. Verified the two rendering asks
+  too: `CoffeeDetailView.ratingHeader` already shows "Unrated" for `rating ==
+  nil` and `CoffeeRowView.rightColumn` already omits the rating line entirely
+  via `if let rating = coffee.rating` — both pre-existing, both correct.
+  **Not fixed by this: the specific DAK/Gasharu bag already has `rating: 0.0`
+  stored server-side** (a real zero, not NULL) — that pre-existing bad record
+  needs a backend/data-lane correction. `CoffeeEditSheet`'s "Rating known"
+  toggle only controls whether a *new* rating edit is sent, not an explicit
+  clear-to-null instruction, so the app has no UI path to unset an already-set
+  rating either. No lane action queued for the stored bad record since the
+  row's fix section was about preventing new imports, not repairing old data
+  — flagging here in case Radu wants a follow-up row for either the one-off
+  correction or a general "clear rating" affordance.
 
 - **2026-09-07 — #131 Add Coffee wizard: submit-and-return, "extracting…"
   indicator.** `AddCoffeeWizardView` dropped the extract → confirm step
