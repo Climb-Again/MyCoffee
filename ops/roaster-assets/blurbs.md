@@ -185,3 +185,26 @@ Core philosophies & roasting style:
 - **Cultural cachet** — beyond the specialty scene, THE BARN is culturally
   prominent, with creative crossovers including high-profile design collaborations
   with filmmaker Wes Anderson.
+
+## dak-coffee-roasters
+
+DAK Coffee Roasters is a visually vibrant, highly celebrated specialty coffee
+roastery based in Amsterdam, Netherlands. Founded in 2019 by Louis-Philippe and
+Véronique — two Canadians originally from Montreal — the brand has rapidly become a
+cult favourite in Europe's third-wave community, renowned for making specialty
+coffee fun, accessible, and intensely flavourful.
+
+Core philosophies & roasting style:
+
+- **Convection roasting precision** — DAK uses an advanced IMF convection roaster
+  that roasts with uniform currents of hot air rather than a traditional drum,
+  minimising smoky bitterness and emphasising intense natural sweetness and cup
+  clarity.
+- **Classic meets funky** — the catalogue balances clean, classic single origins
+  with heavily experimental "funky" processing such as multi-stage anaerobic
+  fermentations and yeast inoculations.
+- **Expressive flavour titles** — DAK names its coffees after their dominant
+  tasting notes rather than the farm, with playful titles like Juice Box, Candy
+  Crush, Poppy Soda, and Melon Spritz.
+- **Aesthetic pastel packaging** — instantly recognisable worldwide by its sleek,
+  clean, pastel round-box tubes and minimalist bags.
