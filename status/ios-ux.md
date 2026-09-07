@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-07 10:47 UTC] #131 Add Coffee wizard: submit dismisses immediately, "extracting…" indicator — branch `ios-staging`
 
 ## Abandoned
 
