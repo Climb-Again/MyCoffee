@@ -990,3 +990,26 @@ Core experience & style:
   and abundant natural light.
 - **Early-bird haven** — a rare early opener in a city where specialty shops open
   late, welcoming guests from 7:00 AM on weekdays.
+
+## drop-coffee-roaster
+
+Drop Coffee Roasters is a pioneering force in the third-wave coffee movement.
+Founded in Stockholm, Sweden in 2009 as a small coffee bar by Mariatorget, it has
+grown into one of Europe's most decorated independent micro-roasteries. Under
+co-owner and managing director Joanna Alm — a three-time Swedish Coffee Roasting
+Champion and silver medallist at the World Coffee Roasting Championship — it was
+named "Sweden's Roastery of the Year 2026".
+
+Core philosophies & roasting style:
+
+- **The "zero-blends" manifesto** — a strict purist stance on integrity: they
+  stopped roasting blends in 2010, and the entire catalogue is 100% traceable,
+  single-origin coffees scoring 87+ on the SCA scale.
+- **Nordic light roasting** — on a 25 kg Diedrich drum roaster, roasting three
+  times a week for a bright, sweet, highly acidic cup that strips away smoky roast
+  defects and lets the terroir shine.
+- **Certified organic & direct trade** — sourced directly from tight-knit producer
+  networks in Central/South America and East Africa, roasted at a fully certified
+  organic facility in Rosersberg, north of Stockholm.
+- **A new packaging era** — long known for signature minimalist cardboard boxes,
+  the brand has since debuted a vibrant, colourful new bag line.
