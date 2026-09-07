@@ -249,3 +249,26 @@ Core philosophies & roasting style:
   its own processing nomenclatures (like the signature "Wave NX" anaerobic
   fermentations) and working hand-in-hand with elite growers in Kenya, Ecuador, and
   Panama to orchestrate micro-lots from the ground up.
+
+## friedhats
+
+Friedhats Coffee Roasters is an iconoclastic, ultra-premium specialty coffee
+roastery based in Amsterdam, Netherlands. Founded by Lex Wenneker (a multi-time
+Dutch Barista Champion and 2018 World Barista Championship runner-up) and Dylan
+Sedgwick, the brand pairs dead-serious, world-class roasting with a playful,
+anti-pretentious attitude.
+
+Core philosophies & roasting style:
+
+- **Barista-champion pedigree** — Lex Wenneker's world-level competition background
+  shapes hyper-precise roast profiles, developed on a Loring convection roaster to
+  maximise sweetness, preserve crisp acidity, and ensure batch-to-batch
+  consistency.
+- **Iconic reusable bottles** — moving away from multilayered bags, Friedhats
+  packages beans in distinctive amber-tinted round "medicine" bottles with
+  psychedelic, cartoon-style labels; airtight, food-safe, reusable and recyclable,
+  challenging what specialty packaging "should" look like.
+- **Direct & sustainable sourcing** — long-term, direct relationships with
+  progressive producers, and a rotating selection of transparently traded
+  micro-lots, clean naturals, and lively washed coffees that emphasise pure terroir
+  over funky artificial fermentations.
