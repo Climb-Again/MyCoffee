@@ -759,3 +759,24 @@ Core philosophies & roasting style:
 - **Socially conscious supply chains** — direct-trade partnerships with boutique
   importers like 1000 Hills in Rwanda, plus seasonal roasts dedicated to charity
   causes.
+
+## the-naughty-dog
+
+The Naughty Dog is a playful, top-tier specialty roastery based in Jílové u Prahy
+(about 40 minutes from Prague), Czech Republic. Founded in October 2018, it's owned
+by an elite third-wave couple: Gwilym Davies (2009 World Barista Champion and
+co-founder of London's Prufrock Cafe) and Petra Davies Veselá (a multiple national
+champion, SCA trainer, and author of *The Big Book of Coffee*). The name is
+inspired by their two sausage dogs, Jenny and Mája.
+
+Sourcing & roasting philosophies:
+
+- **Convection roasting consistency** — small batches on an Italian IMF convection
+  machine whose hybrid hot-air-and-drum tech gives exceptional heat stability,
+  eliminating smoky defects for clean, sweet, bright profiles.
+- **Playful & transparent sourcing** — Petra selects traceable micro-lots from
+  Africa and Central/South America (especially Ethiopia, Colombia, Costa Rica),
+  with seasonal picks descriptively colour-coded by dog illustrations.
+- **Creative barrel-aging & blends** — famous for quirky concepts like whiskey- and
+  rum-barrel-aged coffees (Jenny's Barrel Coffee) and versatile espresso blends
+  like the Pawffice Blend (dark chocolate and pralines).
