@@ -73,7 +73,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Taf | `taf` | Greece | 1 |
 | ☐ | ☐ | Tanat Coffee | `tanat-coffee` | France | 1 |
 | ☐ | ☐ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 |
-| ☐ | ☐ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 |
+| ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 |
 
 ## Seeded but unused — 0 coffees (46) — low priority / test fixtures
 

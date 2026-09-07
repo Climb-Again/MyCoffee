@@ -534,3 +534,24 @@ Brand DNA & roasting style:
 - **The "Brewtiful" community ethos** — under the catchphrase "Brewtiful People —
   let's unite, not divide," Spojka prioritises building a diverse community around
   approachable yet technically executed coffee.
+
+## three-marks-coffee
+
+Three Marks Coffee is a popular, design-minded specialty roastery and café in
+Barcelona, Spain. Founded in 2018 in the Fort Pienc neighbourhood, its clever name
+comes from three co-founders who all share variations of the same first name: Marc
+Aguyé (shop management), Marco Paccagnella (brand marketing), and Marco De Rebotti
+(roasting and sourcing). It's now recognised as one of Spain's top specialty
+roasteries.
+
+Core philosophies & roasting style:
+
+- **The Nømad heritage** — before launching Three Marks, Marc Aguyé and Marco De
+  Rebotti honed their craft for years at Nømad Coffee, one of Barcelona's
+  foundational third-wave pioneers.
+- **Juicy & clean Loring roast** — the team roasts on a Loring convection machine,
+  favouring its hot-air style to capture extreme sweetness and highlight juicy
+  fruit sugars and crisp acidity while eliminating sharp, smoky defects.
+- **Producer-first sourcing** — a highly seasonal, transparent sourcing program
+  working closely with independent family farms in regions like Colombia,
+  Ethiopia, and Kenya.
