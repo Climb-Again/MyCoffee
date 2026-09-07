@@ -358,3 +358,26 @@ Brand DNA & sourcing:
 - **Direct & fair trade** — short supply chains and premium direct-trade prices to
   elite producers (such as Finca Las Flores in Colombia) to help sustain farming
   ecosystems.
+
+## father-s-coffee-roastery
+
+Father's Coffee Roastery is a cherished, family-run specialty roastery based in
+Ostrava, Czech Republic. Founded in 2018 by husband-and-wife duo Petr Kvasnička
+and Marie Kvasničková, it lives by the motto "Dad honestly roasts, mom passionately
+tastes, and the children enthusiastically watch," and has earned a strong Central
+European reputation for clean, origin-driven roasting, sustainability, and
+producer-first transparency.
+
+Core philosophies & roasting style:
+
+- **From Berlin baristas to roasters** — Petr and Marie trained and ran a coffee
+  bar at Berlin's legendary Five Elephant before bringing that foundation home to
+  launch their own roastery.
+- **Clean & balanced profile** — on a fine-tuned Diedrich IR-5, Petr builds
+  profiles that highlight native terroir, crisp acidity, and natural sweetness
+  while avoiding over-roast defects; each batch is Q-grader scored.
+- **The Mother's Blend** — alongside rotating single origins, their signature
+  Mother's Espresso Blend (the "Mothership") is a fan favourite: creamy body, milk
+  chocolate, subtle floral notes.
+- **Eco-conscious operations** — a strong focus on low-waste packaging and
+  eco-minded business decisions.
