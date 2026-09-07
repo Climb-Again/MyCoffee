@@ -224,6 +224,23 @@ actor SyncEngine {
         return try await loadDetail(coffeeId: created.id, using: client)
     }
 
+    /// Add Coffee: create instantly, extract in the background (#118/#130) —
+    /// unlike `createCoffee` above, does **not** call `loadDetail`/wait on
+    /// anything: the whole point is returning before extraction runs. Builds
+    /// a placeholder `Coffee` straight from the `{id, reviewState}` response
+    /// and merges it into `coffees` directly, so it's visible in the listing
+    /// immediately; the backend's background pass fills in every other field
+    /// via the next normal delta sync, same as any other worker-processed
+    /// photo (no new client-sync logic needed).
+    func quickCreateCoffee(photoIds: [String], client: APIClient?) async throws -> Coffee {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        let response = try await client.quickCreateCoffee(photoIds: photoIds)
+        let placeholder = Coffee.pendingPlaceholder(id: response.id, reviewState: response.reviewState)
+        coffees[response.id] = placeholder
+        persist()
+        return placeholder
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,

@@ -319,6 +319,23 @@ struct APIClient: Sendable {
             throw APIError.decoding(error)
         }
     }
+
+    // POST /api/coffees/quick-create — Add Coffee: create instantly, extract
+    // in the background (#118/#130). Unlike `createCoffee` above, this does
+    // NOT wait on the extraction ensemble: the coffee is upserted from the
+    // photo alone and the response comes back almost immediately with
+    // `reviewState: 'unextracted'`; the real fields land via the next normal
+    // delta sync once the backend's background pass finishes.
+    func quickCreateCoffee(photoIds: [String]) async throws -> QuickCreateResponseDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["photoIds": photoIds])
+        let req = try makeRequest(path: "/api/coffees/quick-create", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(QuickCreateResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
 }
 
 /// One request entry for `uploadPhotoManifest` (PLAN.md §6.8, #75/#76).

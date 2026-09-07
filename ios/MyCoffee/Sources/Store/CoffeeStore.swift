@@ -232,6 +232,21 @@ final class CoffeeStore: ObservableObject {
         return created
     }
 
+    /// Add Coffee: create instantly, extract in the background (#118/#130).
+    /// Unlike `createWizardCoffee`, deliberately does **not** call `refresh()`
+    /// first — the whole point is that this returns before the backend has
+    /// extracted anything, so there is nothing new on the server to sync yet.
+    /// Folds the pending placeholder straight into `index` (`replacingCoffee`
+    /// inserts when the id isn't there yet) so it's visible in the listing
+    /// immediately with `reviewState == "unextracted"`; the next normal delta
+    /// sync (`refresh()`/`load()`) fills it in once the background pass lands.
+    @discardableResult
+    func quickCreateCoffee(photoIds: [String]) async throws -> Coffee {
+        let created = try await repository.quickCreateCoffee(photoIds: photoIds)
+        index = index.replacingCoffee(created)
+        return created
+    }
+
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
     /// Insights screen. A once-a-day read, not part of the coffee snapshot —
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.

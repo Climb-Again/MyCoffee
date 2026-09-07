@@ -147,13 +147,17 @@ struct CoffeeIndex: Sendable {
         byID[id].map { coffees[$0] }
     }
 
-    /// A full rebuild with one row swapped in — used after a detail fetch
-    /// enriches a single coffee (PLAN.md §4). Cheap enough to do on every
-    /// such fetch at ~900 rows (PLAN.md §5), same as every other mutation
-    /// here; no partial-postings-update path exists on purpose.
+    /// A full rebuild with one row swapped in (or added, if `updated.id` isn't
+    /// in the index yet — #130's quick-create placeholder is the one caller
+    /// that inserts rather than replaces) — used after a detail fetch enriches
+    /// a single coffee (PLAN.md §4). Cheap enough to do on every such fetch at
+    /// ~900 rows (PLAN.md §5), same as every other mutation here; no partial-
+    /// postings-update path exists on purpose.
     func replacingCoffee(_ updated: Coffee) -> CoffeeIndex {
-        guard byID[updated.id] != nil else { return self }
-        let replaced = coffees.map { $0.id == updated.id ? updated : $0 }
+        var replaced = coffees.map { $0.id == updated.id ? updated : $0 }
+        if byID[updated.id] == nil {
+            replaced.append(updated)
+        }
         return CoffeeIndex(coffees: replaced, vocabulary: vocabulary, searchTexts: searchTexts)
     }
 

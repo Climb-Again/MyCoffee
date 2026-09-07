@@ -25,6 +25,14 @@ struct PlainDate: Hashable, Sendable, Comparable {
         self.day = day
     }
 
+    /// Today's calendar date in UTC (`Calendar.utc`, the same calendar every
+    /// other date computation in the app uses) — for a client-synthesized
+    /// placeholder that has no server-assigned date yet (`Coffee.pendingPlaceholder`).
+    init(utcToday date: Date = Date()) {
+        let components = Calendar.utc.dateComponents([.year, .month, .day], from: date)
+        self.init(year: components.year!, month: components.month!, day: components.day!)
+    }
+
     init?(string: String) {
         let parts = string.prefix(10).split(separator: "-")
         guard parts.count == 3,

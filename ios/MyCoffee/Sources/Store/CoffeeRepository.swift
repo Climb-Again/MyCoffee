@@ -68,4 +68,11 @@ protocol CoffeeRepository: Sendable {
     /// human-decided on every field (#75), and merges it into the index.
     /// Returns the newly created coffee.
     func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee
+
+    /// Add Coffee: create instantly, extract in the background (#118/#130) —
+    /// unlike `createCoffee`, does not wait on the extraction ensemble. Returns
+    /// a pending placeholder coffee (`reviewState == "unextracted"`) already
+    /// merged into the index; the real fields land via the next normal delta
+    /// sync once the backend's background pass finishes.
+    func quickCreateCoffee(photoIds: [String]) async throws -> Coffee
 }

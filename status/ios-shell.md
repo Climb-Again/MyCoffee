@@ -32,8 +32,13 @@ _none_
   merge. Lesson for next time: fetch every ref you're about to diff against,
   not just the one you're checking out.
 
-- **#109/#112 done this session** — see `BACKLOG.md`'s own DONE notes for the
-  implementation summary (value-meter rework + the row-render perf fix).
+- **#109/#112/#130 done this session** — see `BACKLOG.md`'s own DONE notes for
+  implementation summaries (value-meter rework, the row-render perf fix, and
+  the quick-create client wiring). #113 (value band in filters/sort/tiebreaker)
+  is now `ready`, unblocked by #109+#112; left for a future session — it's a
+  bigger architectural change (postings + `SortOption` need `CoffeeIndex`
+  access they don't have today) that deserves its own claim rather than being
+  squeezed in after this session's detour. #131 (ios-ux) is unblocked by #130.
   Session notes below are for #112's predecessor, #95:
 
 - **2026-08-28 — #95 value meter is now quality-for-money (`UPDATE_BRIEF.md` §B).**

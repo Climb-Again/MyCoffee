@@ -54,3 +54,13 @@ struct CreateCoffeeFieldResultDTO: Decodable {
     let field: String
     let value: String
 }
+
+/// `POST /api/coffees/quick-create` response (#118/#130) — just the new
+/// coffee's id and its starting `reviewState` (always `"unextracted"` today,
+/// but decoded rather than assumed since the backend column default is what
+/// actually governs it). Unlike `CreateCoffeeResponseDTO`, there is no fields
+/// echo: nothing has been extracted yet by the time this returns.
+struct QuickCreateResponseDTO: Decodable {
+    let id: String
+    let reviewState: String
+}

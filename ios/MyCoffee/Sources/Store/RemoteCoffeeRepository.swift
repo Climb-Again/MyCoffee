@@ -70,4 +70,9 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         let client = try await APIClient(config: AppConfig.shared)
         return try await engine.createCoffee(photoIds: photoIds, fields: fields, client: client)
     }
+
+    func quickCreateCoffee(photoIds: [String]) async throws -> Coffee {
+        let client = try await APIClient(config: AppConfig.shared)
+        return try await engine.quickCreateCoffee(photoIds: photoIds, client: client)
+    }
 }

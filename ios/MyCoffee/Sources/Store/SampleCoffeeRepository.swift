@@ -67,4 +67,9 @@ actor SampleCoffeeRepository: CoffeeRepository {
     func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee {
         throw APIClient.APIError.notConfigured
     }
+
+    // Same reasoning: no live backend to quick-create against in previews.
+    func quickCreateCoffee(photoIds: [String]) async throws -> Coffee {
+        throw APIClient.APIError.notConfigured
+    }
 }

@@ -110,6 +110,30 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
 
     var hasOpenReview: Bool { reviewState != "clean" }
 
+    /// A client-synthesized stand-in for a coffee the backend has just
+    /// created but not yet extracted (#118/#130's `quick-create` flow) —
+    /// every field but `id`/`reviewState`/`purchasedOn` is empty/nil, since
+    /// nothing else is known yet. `purchasedOn` is today: the backend sets
+    /// `purchased_on` from the primary photo's `captured_at`, which the
+    /// wizard's own upload step also stamps as "now" (`SyncEngine.uploadPhotos`),
+    /// so this matches what the server actually recorded. Superseded field by
+    /// field by the next normal delta sync once the backend's background
+    /// extraction pass finishes and flips `reviewState` off `"unextracted"`.
+    static func pendingPlaceholder(id: String, reviewState: String) -> Coffee {
+        Coffee(
+            id: id, purchasedOn: PlainDate(utcToday: Date()), roasterId: nil, roasterCountryId: nil,
+            originCountryIds: [], originCountryId: nil, isBlend: false,
+            originFarmId: nil, altitudeMinM: nil, altitudeMaxM: nil,
+            profile: nil, profileDetail: nil, isDecaf: false, roastedOn: nil,
+            priceOriginalAmount: nil, priceOriginalCurrency: nil, priceEur: nil, fxRate: nil, fxRatePeriod: nil,
+            weightG: nil, rating: nil, isFavorite: false, favoriteSetBy: nil,
+            farmLotNote: nil, brewGuideNote: nil, roasterCopyNote: nil, flavorNotes: nil,
+            rawTitle: nil, rawCaption: nil, rawDescription: nil,
+            reviewState: reviewState, minFieldConfidence: nil,
+            rotationQuarterTurns: nil, images: nil
+        )
+    }
+
     /// A copy with `isFavorite` flipped — `Coffee` stays a fully immutable
     /// value type (every field `let`) so it's trivially `Sendable` across the
     /// actor boundaries the sync engine and outbox cross; this is how
