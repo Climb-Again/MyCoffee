@@ -240,20 +240,51 @@ test('parseProfile: maps aliases onto exactly the six profiles, never defaults t
   }
 });
 
-test('parseProfile: honey variants fold into Experimental, literal term preserved', () => {
-  const yellow = parseProfile('Yellow Honey process');
-  assert.equal(yellow.profileId, 'experimental');
-  assert.equal(yellow.detail, 'Yellow Honey');
+test('parseProfile: honey-only variants fold into Washed, literal term preserved', () => {
+  // Radu, 2026-08-29: "if it's just honey I want to normalize all as Washed" —
+  // a permanent rule, not a one-off backfill. Colour qualifiers are honey
+  // variants, not a second method, so they map the same way as bare Honey.
+  const cases = [
+    ['Honey process', 'Honey'],
+    ['Yellow Honey process', 'Yellow Honey'],
+    ['Black Honey process', 'Black Honey'],
+    ['Honey', 'Honey'],
+    ['honey', 'honey'],
+    ['Black Honey', 'Black Honey'],
+    ['Yellow Honey', 'Yellow Honey'],
+    ['White Honey', 'White Honey'],
+    ['Red Honey', 'Red Honey'],
+  ];
+  for (const [text, detail] of cases) {
+    const r = parseProfile(text);
+    assert.equal(r.profileId, 'washed', `parseProfile(${text}).profileId`);
+    assert.equal(r.detail, detail, `parseProfile(${text}).detail`);
+  }
 
-  const black = parseProfile('Black Honey process');
-  assert.equal(black.detail, 'Black Honey');
-
+  // "Pulped natural" is a honey process, not a natural one — the fragment
+  // exclusion below keeps the structured "natural" alias from hijacking it,
+  // so it still lands in the honey-only bucket.
   const pulped = parseProfile('pulped natural');
-  assert.equal(pulped.profileId, 'experimental');
+  assert.equal(pulped.profileId, 'washed');
   assert.equal(pulped.detail, 'pulped natural');
+});
 
-  const plain = parseProfile('Honey process');
-  assert.equal(plain.detail, 'Honey');
+test('parseProfile: honey plus a genuinely different method is a hybrid -> Experimental', () => {
+  const anaerobic = parseProfile('Anaerobic Honey');
+  assert.equal(anaerobic.profileId, 'experimental');
+  assert.equal(anaerobic.detail, 'Honey');
+
+  const coFermented = parseProfile('Honey Co-fermented');
+  assert.equal(coFermented.profileId, 'experimental');
+  assert.equal(coFermented.detail, 'Honey');
+});
+
+test('parseProfile: a caption merely mentioning honey as a tasting note does not touch the profile', () => {
+  // #80's flavour-notes backfill means stored text is full of "honey" as a
+  // cupping descriptor — that must never be read as a process signal.
+  const r = parseProfile('wild honey, floral');
+  assert.equal(r.profileId, null);
+  assert.equal(r.detail, null);
 });
 
 test('parseProfile: decaf is orthogonal to process — a decaf can be washed', () => {
@@ -298,10 +329,12 @@ test('resolveCityCountry: resolves an unambiguous city, refuses an ambiguous one
 
 // --- Profile/decaf rules derived from the real 5-photo sample (#26) ---
 // Radu's rule: if at least one profile can be structured, allocate to that;
-// otherwise file it under Experimental.
-test('parseProfile: a structured process wins over Honey, keeping Honey as detail', () => {
+// otherwise file it under Experimental. Honey is the one exception (#110,
+// 2026-08-29): honey plus a distinct structured method is a hybrid, so it
+// files under Experimental rather than the other structured process.
+test('parseProfile: honey plus a structured process is a hybrid -> Experimental, keeping Honey as detail', () => {
   const r = parseProfile('Procesare: Co-Fermentata cu fructe, Honey');
-  assert.equal(r.profileId, 'co_fermented');
+  assert.equal(r.profileId, 'experimental');
   assert.equal(r.detail, 'Honey');
 });
 

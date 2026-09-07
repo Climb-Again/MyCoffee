@@ -375,8 +375,10 @@ const FERMENT_RE = /\bfermenta/i;
 
 // Checked in order, most specific phrase first, so the literal preserved in
 // profile_detail is the fullest term actually present ("Yellow Honey", not
-// just "Honey").
-const HONEY_TERMS = ['yellow honey', 'black honey', 'pulped natural', 'honey'];
+// just "Honey"). Colour qualifiers (Yellow/Black/White/Red) are honey
+// variants, not a second method (Radu, 2026-08-29) -> they all fold the same
+// way as bare "Honey".
+const HONEY_TERMS = ['yellow honey', 'black honey', 'white honey', 'red honey', 'pulped natural', 'honey'];
 
 // 'decaf' substring-matches 'decaffeinated'/'decafeinizata' too, which is how
 // the corpus usually spells it. NOT a bare 'ea': the captions are Romanian,
@@ -400,6 +402,21 @@ function findLiteral(text, term) {
   return m ? m[0] : term;
 }
 
+// "Honey" is both a legitimate process name AND one of the most common
+// tasting-note words ("wild honey, floral") — #80's flavour-notes backfill
+// means a coffee's stored text is full of it as a flavour descriptor, not a
+// process. Require real process-context evidence before trusting a bare honey
+// mention: the text IS (near enough) just the honey phrase itself (a scoped
+// field value like "Honey" or "Yellow Honey process"), or there's an actual
+// process label/fermentation word, or honey co-occurs with a recognised
+// structured process term (e.g. "Anaerobic Honey").
+function honeyMentionIsProcess(text, norm, term, hasStructuredHit) {
+  const trimmed = norm.trim();
+  if (trimmed === term || trimmed === `${term} process` || trimmed === `${term} processing`) return true;
+  if (PROCESS_LABEL_RE.test(text) || FERMENT_RE.test(norm)) return true;
+  return hasStructuredHit;
+}
+
 export function parseProfile(text) {
   if (!text) return { profileId: null, isDecaf: false, detail: null };
   const norm = foldDiacritics(String(text)).toLowerCase();
@@ -412,7 +429,7 @@ export function parseProfile(text) {
     }
   }
 
-  const honeyTerm = HONEY_TERMS.find((h) => includesTerm(norm, h));
+  const honeyCandidate = HONEY_TERMS.find((h) => includesTerm(norm, h));
   let structured = null;
   for (const [profileId, terms] of PROFILE_ALIASES) {
     const hit = terms.find((t) => includesTerm(norm, t));
@@ -422,19 +439,31 @@ export function parseProfile(text) {
     }
   }
 
+  const honeyTerm =
+    honeyCandidate && honeyMentionIsProcess(text, norm, honeyCandidate, structured != null) ? honeyCandidate : null;
+
   // A structured profile wins over Honey ("Co-Fermentata cu fructe, Honey" is
-  // co-fermented, with Honey kept in `detail`) — *unless* the structured term is
-  // merely a fragment of the honey phrase itself. "Pulped natural" is a honey
-  // process, not a natural one, and the word "natural" inside it must not
-  // hijack the classification.
-  if (structured && !(honeyTerm && honeyTerm.includes(structured.term))) {
+  // a hybrid, see below) — *unless* the structured term is merely a fragment
+  // of the honey phrase itself. "Pulped natural" is a honey process, not a
+  // natural one, and the word "natural" inside it must not hijack the
+  // classification.
+  const structuredIsHoneyFragment = honeyTerm && structured && honeyTerm.includes(structured.term);
+  if (structured && !structuredIsHoneyFragment) {
+    // Honey combined with any other genuinely distinct method ("Anaerobic
+    // Honey", "Honey Co-fermented") is a hybrid process -> Experimental
+    // (Radu, 2026-08-29) — unless that other method IS the washed family
+    // honey already belongs to, in which case it's still just Washed.
+    if (honeyTerm && structured.profileId !== 'washed') {
+      return { profileId: 'experimental', isDecaf, detail: findLiteral(text, honeyTerm) };
+    }
     return { profileId: structured.profileId, isDecaf, detail: honeyTerm ? findLiteral(text, honeyTerm) : null };
   }
 
-  // Honey has no class of its own, so it files under Experimental, keeping the
-  // fullest literal ("Yellow Honey", not just "Honey") in profile_detail.
+  // Honey alone (no other method) is depulped, so it belongs to the washed
+  // family (Radu, 2026-08-29 — a permanent rule, not a one-off backfill).
+  // Keep the fullest literal ("Yellow Honey", not just "Honey") in detail.
   if (honeyTerm) {
-    return { profileId: 'experimental', isDecaf, detail: findLiteral(text, honeyTerm) };
+    return { profileId: 'washed', isDecaf, detail: findLiteral(text, honeyTerm) };
   }
 
   // Processing is described but under a name we don't model -> Experimental,
