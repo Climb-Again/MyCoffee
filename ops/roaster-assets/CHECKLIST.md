@@ -16,7 +16,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |
 | ☐ | ✅ | Tanat Coffee | `tanat-coffee` | France | 1 | 4.5 |
 | ☐ | ✅ | HAYB Speciality Coffee | `hayb-speciality-coffee` | Poland | 1 | 4.5 |
-| ☐ | ☐ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 | 4.2 |
+| ☐ | ✅ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 | 4.2 |
 | ☐ | ✅ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 | 4.2 |
 | ☐ | ✅ | Nowhere | `nowhere` | Italy | 1 | 4.2 |
 | ☐ | ✅ | Jonas Reindl | `jonas-reindl` | Austria | 1 | 4.2 |

@@ -866,3 +866,25 @@ Core philosophies & roasting style:
 - **Exploratory sourcing** — beyond classic Arabica terroirs, they're known for
   hunting unusual botanicals, including complex fruit-forward Liberica from
   Southeast Asia.
+
+## kofi-microroastery
+
+Kofi Microroastery is an acclaimed independent specialty roastery and café concept
+in Ioannina, Greece. Launched in the late 2010s, it's well regarded in the Greek
+third-wave community for its hyper-focused "laboratory" approach — artisanal
+in-house roasting paired with a striking mid-century architectural identity.
+
+Core philosophies & roasting style:
+
+- **The "in situ" lab concept** — designed by vp architectural studio, the space
+  works as a visual production lab: roasting happens in the heart of the café so
+  guests watch small-batch transformations up close.
+- **Traceable, innovative micro-lots** — a green program targeting exceptional
+  seasonal harvests (honey-processed Colombian Geishas, vibrant Kenyans), focused
+  on fruit ripeness and clean, controlled fermentations.
+- **Small-batch conformance** — roasting only in small batches keeps hyper-precise
+  attention to detail, highlighting each crop's sweetness and terroir without smoky
+  defects.
+- **Mindful community framework** — an environmentally and socially conscious
+  mindset, paying premiums to independent farms and connecting the local community
+  to each cup's agricultural backstory.
