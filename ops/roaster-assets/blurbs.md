@@ -1013,3 +1013,22 @@ Core philosophies & roasting style:
   organic facility in Rosersberg, north of Stockholm.
 - **A new packaging era** — long known for signature minimalist cardboard boxes,
   the brand has since debuted a vibrant, colourful new bag line.
+
+## livingfoodlab
+
+Living Food Lab was a popular vegan café, co-working space, and culinary education
+laboratory based in Bali, Indonesia. Founded by raw-food chef Avara Yaron, it built
+a community around conscious eating and holistic living. Its physical spaces — the
+flagship locations in Canggu and Ubud — have since permanently closed, though the
+brand stays active online with global classes, workshops, and vegan catering.
+
+What it was known for:
+
+- **The menu** — 100% plant-based and mostly raw gourmet food: custom granola bars,
+  raw pizzas, green smoothies, avocado wraps, and vegan blueberry cheesecakes, plus
+  a superfood-loaded "cosmic coffee".
+- **A multi-concept space** — more than a restaurant: an air-conditioned co-working
+  hub with free Wi-Fi for digital nomads, a teaching kitchen, and an "elixir bar"
+  aimed at memory and focus.
+- **Education & events** — cooking classes with international guest chefs, holistic
+  healing and spirituality workshops, and expeditions to their farm in Kintamani.
