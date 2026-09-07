@@ -601,3 +601,26 @@ Core philosophies & roasting style:
 - **Scientific quality control** — a state-of-the-art lab and certified SCA Premier
   Training Campus in Attica test and profile every incoming crop to showcase native
   fruit sugars, sweetness, and floral aromas.
+
+## la-cabra
+
+La Cabra Coffee Roasters is one of the most recognisable and influential icons of
+modern specialty coffee. Founded in Aarhus, Denmark in 2012, it has grown from an
+ambitious out-of-the-way coffee shop into a global powerhouse — exporting to over
+60 countries and running celebrated flagship cafés and bakeries from Copenhagen to
+New York and Bangkok. La Cabra is revered for its "white-bag minimalism" and an
+uncompromisingly clean approach to coffee.
+
+Core philosophies & roasting style:
+
+- **The single-roast philosophy** — rather than separate roast depths for espresso
+  and filter, La Cabra roasts each coffee to one optimal expression, highlighting
+  brightness, clarity, and natural fruit sweetness while staying versatile for any
+  method.
+- **Translucent & terroir-driven** — their Scandinavian style yields cups so light
+  and precise they read as translucent, treating roasting as a lens to reveal what
+  the soil and processing already hold rather than a tool to add flavour.
+- **Elite sourcing strategy** — a short, hyper-seasonal rotation favouring washed
+  Ethiopians, high-altitude Kenyan peaberries, and clean experimental
+  fermentations, with direct partnerships with world-class producers like Juan Peña
+  of Hacienda La Papaya in Ecuador.
