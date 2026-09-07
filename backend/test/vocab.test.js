@@ -217,11 +217,27 @@ test('loadCountryVocab shapes two queries into { candidates, aliasIndex }', asyn
 
 test('loadRoasterVocab shapes two queries into { candidates, aliasIndex }', async () => {
   const queryFn = fakeQuery([
-    { rows: [{ id: 1, name: 'DAK Coffee Roasters', slug: 'dak-coffee-roasters', country_id: 10 }] },
+    {
+      rows: [
+        {
+          id: 1,
+          name: 'DAK Coffee Roasters',
+          slug: 'dak-coffee-roasters',
+          country_id: 10,
+          blurb: 'A vibrant Amsterdam roastery.',
+          logoUrl: 'https://raw.githubusercontent.com/Climb-Again/MyCoffee/main/ops/roaster-assets/logos/dak-coffee-roasters.webp',
+        },
+      ],
+    },
     { rows: [{ id: 1, alias: 'DAK', alias_norm: 'dak' }] },
   ]);
   const vocab = await loadRoasterVocab(queryFn);
   assert.equal(vocab.candidates[0].name, 'DAK Coffee Roasters');
+  // #132: blurb + logoUrl flow through to the snapshot's vocab.roasters; the
+  // country_id key stays snake_case because worker.js reads candidate.country_id.
+  assert.equal(vocab.candidates[0].country_id, 10);
+  assert.equal(vocab.candidates[0].blurb, 'A vibrant Amsterdam roastery.');
+  assert.match(vocab.candidates[0].logoUrl, /dak-coffee-roasters\.webp$/);
   assert.equal(vocab.aliasIndex.get('dak').id, 1);
 });
 
