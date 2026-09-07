@@ -28,8 +28,8 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
 | ✅ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 |
 | ✅ | ✅ | ONYX | `onyx` | United States | 3 |
-| ☐ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 |
-| ☐ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
+| ✅ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 |
+| ✅ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
 | ☐ | ☐ | Cupping Room | `cupping-room` | Hong Kong | 2 |
 | ☐ | ☐ | Elbgold | `elbgold` | Germany | 2 |
 | ☐ | ☐ | Goriffee | `goriffee` | Slovakia | 2 |
