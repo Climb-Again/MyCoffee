@@ -4,15 +4,18 @@ import Foundation
 /// compiler can't check, and with no local Xcode a typo renders as a silent
 /// blank rather than a build error (PLAN.md §6.6).
 enum Symbols {
-    // Tabs
-    static let tabCoffees = "cup.and.saucer.fill"
-    static let tabInsights = "chart.bar.fill"
+    // Tabs (Redesign v3 §3 — the `+` is a middle tab item, not a floating
+    // circle; §11 later swaps these for Lucide outlines).
+    static let tabCoffees = "cup.and.saucer"
+    static let tabInsights = "chart.bar"
+    static let tabAdd = "plus.circle.fill"
     static let tabReview = "checklist"
 
     // Listing
     static let filter = "line.3.horizontal.decrease.circle"
     static let filterFilled = "line.3.horizontal.decrease.circle.fill"
-    static let sort = "arrow.up.arrow.down.circle"
+    // Redesign v3 §1: the nav-bar sort control is `sliders-horizontal`.
+    static let sort = "slider.horizontal.3"
     static let search = "magnifyingglass"
     static let heart = "heart"
     static let heartFill = "heart.fill"

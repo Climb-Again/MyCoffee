@@ -72,10 +72,20 @@ struct InsightsView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
-                            headerSection
+                            // §1/§9: the RATED stats line is the first scrolling
+                            // row, not nav-bar chrome; the native large title
+                            // above it is the only bar.
+                            Text(headerStats)
+                                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                                .tracking(1.4)
+                                .foregroundStyle(Theme.Colors.accent)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 22)
+                                .padding(.top, 4)
+                                .padding(.bottom, 8)
                             sectionControl
                                 .padding(.horizontal, 22)
-                                .padding(.top, 16)
+                                .padding(.top, 8)
                                 .padding(.bottom, 20)
                             Group {
                                 switch section {
@@ -91,11 +101,9 @@ struct InsightsView: View {
                 }
             }
             .background(Theme.Colors.surface)
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.Colors.accent, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            // §9: native large title, one bar, no blue band, no dead space.
+            .navigationTitle("Insights")
+            .navigationBarTitleDisplayMode(.large)
             .task { brief = await store.loadBrief() }
         }
     }
@@ -106,24 +114,6 @@ struct InsightsView: View {
     private var headerStats: String {
         let rated = coffees.filter { $0.rating != nil }.count
         return "\(rated) OF \(coffees.count) RATED"
-    }
-
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(headerStats)
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(1.4)
-                .foregroundStyle(Theme.Colors.accent200)
-            Text("Insights")
-                .font(.system(size: 36, weight: Theme.Weight.heavy))
-                .tracking(-1.08)
-                .foregroundStyle(Theme.Colors.onAccent)
-        }
-        .padding(.horizontal, 22)
-        .padding(.top, 8)
-        .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.Colors.accent)
     }
 
     // MARK: - Section control (replaces the segmented Picker)
@@ -144,7 +134,8 @@ struct InsightsView: View {
     private func equalPill(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: Theme.Weight.semibold))
+                // §9: 44pt tall, 13pt semibold (was rendering ~56pt/15pt).
+                .font(.system(size: 13, weight: Theme.Weight.semibold))
                 .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
                 .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
                 .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
@@ -422,6 +413,9 @@ struct InsightsView: View {
                     }
                 }
             }
+            // §9: trailing inset so the last chip ("Roaster country") scrolls
+            // fully into view instead of being clipped mid-word at the edge.
+            .padding(.trailing, 22)
         }
     }
 
