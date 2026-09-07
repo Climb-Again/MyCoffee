@@ -648,3 +648,25 @@ Core philosophies & roasting style:
 - **Signature espresso** — beyond seasonal micro-lots, they're famous for core
   espresso concepts like One Finger Snap, celebrated for thick molasses sweetness
   and juicy berry notes.
+
+## public-coffee-roasters
+
+Public Coffee Roasters is a popular, modern specialty roastery based in the
+maritime city of Hamburg, Germany. Working from the belief that coffee is a
+multifaceted culinary art form, the brand has carved out a distinct northern-German
+identity built on direct sourcing, strict transparency, and local community
+outreach.
+
+Sourcing & roasting philosophies:
+
+- **Hanseatic houseboat heritage** — Public originally rose to prominence
+  hand-roasting small batches inside a converted floating houseboat anchored on
+  Hamburg's Elbe River.
+- **The "Public" promise** — the name stands for generating public interest in
+  specialty coffee's flavour diversity and maintaining complete public transparency
+  on supply chains, grower premiums, and environmental benchmarks.
+- **Clean drum-roasting precision** — partnering directly with progressive estates
+  and boutique importers, they tailor small-batch profiles to maximise natural
+  fruit sweetness and crisp cleanliness, avoiding heavy dark-roast defects.
+- **Eco-conscious formats** — they engineered their own line of 100% compostable
+  coffee capsules made entirely from wood fibres.

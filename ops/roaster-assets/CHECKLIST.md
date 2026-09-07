@@ -23,7 +23,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Coffea Circulor | `coffea-circulor` | Norway | 6 |
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 |
 | ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
-| ☐ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 |
+| ✅ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 |
 | ✅ | ✅ | Origo | `origo` | Romania | 4 |
 | ✅ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |
 | ✅ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 |
@@ -31,12 +31,12 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 |
 | ✅ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 |
 | ☐ | ☐ | Cupping Room | `cupping-room` | Hong Kong | 2 |
-| ☐ | ✅ | Elbgold | `elbgold` | Germany | 2 |
-| ☐ | ✅ | Goriffee | `goriffee` | Slovakia | 2 |
+| ✅ | ✅ | Elbgold | `elbgold` | Germany | 2 |
+| ✅ | ✅ | Goriffee | `goriffee` | Slovakia | 2 |
 | ☐ | ☐ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 |
 | ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 |
 | ☐ | ☐ | Manufaktura | `manufaktura` | Romania | 2 |
-| ☐ | ☐ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 |
+| ☐ | ✅ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 |
 | ☐ | ☐ | Right Side | `right-side` | Spain | 2 |
 | ☐ | ☐ | Rumbaba | `rumbaba` | Netherlands | 2 |
 | ☐ | ☐ | Uncommon | `uncommon` | Netherlands | 2 |
@@ -56,9 +56,9 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Kawa | `kawa` | France | 1 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 |
 | ☐ | ☐ | Koff & Bun | `koff-bun` | Thailand | 1 |
-| ☐ | ✅ | Koppi | `koppi` | Sweden | 1 |
-| ☐ | ✅ | La Cabra | `la-cabra` | Denmark | 1 |
-| ☐ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 |
+| ✅ | ✅ | Koppi | `koppi` | Sweden | 1 |
+| ✅ | ✅ | La Cabra | `la-cabra` | Denmark | 1 |
+| ✅ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 |
 | ☐ | ☐ | Maggma Beans | `maggma-beans` | Sweden | 1 |
 | ☐ | ☐ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 |
@@ -68,9 +68,9 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Root & Branch | `root-branch` | Ireland | 1 |
 | ☐ | ☐ | Sentido | `sentido` | Japan | 1 |
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 |
-| ☐ | ✅ | Spojka | `spojka` | Slovakia | 1 |
-| ☐ | ✅ | Sprout Coffee Roasters | `sprout-coffee-roasters` | Netherlands | 1 |
-| ☐ | ✅ | Taf | `taf` | Greece | 1 |
+| ✅ | ✅ | Spojka | `spojka` | Slovakia | 1 |
+| ✅ | ✅ | Sprout Coffee Roasters | `sprout-coffee-roasters` | Netherlands | 1 |
+| ✅ | ✅ | Taf | `taf` | Greece | 1 |
 | ☐ | ☐ | Tanat Coffee | `tanat-coffee` | France | 1 |
 | ☐ | ☐ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 |
 | ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 |
