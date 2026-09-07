@@ -8,28 +8,15 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
-## In your library (64 roasters — 28 complete, 36 still need content)
+## In your library (64 roasters — 41 complete, 23 still need content)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ✅ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
-| ☐ | ✅ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |
-| ☐ | ✅ | Tanat Coffee | `tanat-coffee` | France | 1 | 4.5 |
-| ☐ | ✅ | HAYB Speciality Coffee | `hayb-speciality-coffee` | Poland | 1 | 4.5 |
-| ☐ | ✅ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 | 4.2 |
-| ☐ | ✅ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 | 4.2 |
-| ☐ | ✅ | Nowhere | `nowhere` | Italy | 1 | 4.2 |
-| ☐ | ✅ | Jonas Reindl | `jonas-reindl` | Austria | 1 | 4.2 |
 | ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
-| ☐ | ✅ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 | 4.0 |
 | ☐ | ☐ | Sentido | `sentido` | Japan | 1 | 4.0 |
-| ☐ | ✅ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
 | ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 | 4.0 |
 | ☐ | ✅ | FRUKT | `frukt` | Finland | 1 | 4.0 |
 | ☐ | ☐ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
-| ☐ | ✅ | D-Origen | `d-origen` | Spain | 1 | 4.0 |
-| ☐ | ✅ | Right Side | `right-side` | Spain | 2 | 4.0 |
-| ☐ | ✅ | Kawa | `kawa` | France | 1 | 3.9 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ☐ | ☐ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ☐ | ✅ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 | 3.8 |
@@ -48,10 +35,18 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Monmouth | `monmouth` | United Kingdom | 1 | 3.3 |
 | ☐ | ☐ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
 | ☐ | ☐ | 17g Coffee | `17g-coffee` | Switzerland | 1 | — |
+| ✅ | ✅ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
+| ✅ | ✅ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |
+| ✅ | ✅ | Tanat Coffee | `tanat-coffee` | France | 1 | 4.5 |
+| ✅ | ✅ | HAYB Speciality Coffee | `hayb-speciality-coffee` | Poland | 1 | 4.5 |
 | ✅ | ✅ | People Possession | `people-possession` | France | 11 | 4.3 |
 | ✅ | ✅ | Brewing Dealers | `brewing-dealers` | Spain | 13 | 4.3 |
 | ✅ | ✅ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 | 4.3 |
+| ✅ | ✅ | Kofi Microroastery | `kofi-microroastery` | Greece | 2 | 4.2 |
 | ✅ | ✅ | BOO Modern Coffee | `boo-modern-coffee` | Belgium | 2 | 4.2 |
+| ✅ | ✅ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 | 4.2 |
+| ✅ | ✅ | Nowhere | `nowhere` | Italy | 1 | 4.2 |
+| ✅ | ✅ | Jonas Reindl | `jonas-reindl` | Austria | 1 | 4.2 |
 | ✅ | ✅ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 | 4.2 |
 | ✅ | ✅ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 | 4.2 |
 | ✅ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 | 4.2 |
@@ -63,12 +58,17 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 | 4.1 |
 | ✅ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 | 4.0 |
 | ✅ | ✅ | Mabo | `mabo` | Romania | 50 | 4.0 |
+| ✅ | ✅ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 | 4.0 |
 | ✅ | ✅ | Koppi | `koppi` | Sweden | 1 | 4.0 |
 | ✅ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 | 4.0 |
+| ✅ | ✅ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
+| ✅ | ✅ | D-Origen | `d-origen` | Spain | 1 | 4.0 |
 | ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 | 4.0 |
 | ✅ | ✅ | Goriffee | `goriffee` | Slovakia | 2 | 4.0 |
+| ✅ | ✅ | Right Side | `right-side` | Spain | 2 | 4.0 |
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 | 3.9 |
 | ✅ | ✅ | ONYX | `onyx` | United States | 3 | 3.9 |
+| ✅ | ✅ | Kawa | `kawa` | France | 1 | 3.9 |
 | ✅ | ✅ | The Barn | `the-barn` | Germany | 65 | 3.8 |
 | ✅ | ✅ | April | `april` | Denmark | 14 | 3.6 |
 | ✅ | ✅ | Taf | `taf` | Greece | 1 | 3.5 |
