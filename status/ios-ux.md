@@ -6,13 +6,31 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-07 10:47 UTC] #131 Add Coffee wizard: submit dismisses immediately, "extracting…" indicator — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-07 — #131 Add Coffee wizard: submit-and-return, "extracting…"
+  indicator.** `AddCoffeeWizardView` dropped the extract → confirm step
+  (`extractWizardDraft`/`createWizardCoffee`, still in `CoffeeStore` for now
+  since that's shell-owned) in favour of calling `quickCreateCoffee(photoIds:)`
+  right after photo + text upload, then dismissing straight back to the
+  Coffees tab. `CoffeeRowView`/`CoffeeDetailView` render a subtle
+  `ProgressView` + "Extracting…" badge whenever `reviewState == "unextracted"`
+  — a third state alongside the existing `needs_review`/`clean` branches; on
+  the detail page it replaces the review pill rather than stacking with it,
+  since a just-created coffee has no reviewable fields yet. Landed `de0e4a6`.
+  **Couldn't visually verify the badge against `BundledSampleRepository`** —
+  `SampleData.swift` (shell-owned) has no `reviewState: "unextracted"` row and
+  `SampleCoffeeRepository.quickCreateCoffee` throws `notConfigured` by design
+  (no live backend in previews), so the wizard's save button errors in sample
+  mode same as `createWizardCoffee` always did. Compile-check is the only
+  verification available this session; flagging in case the shell lane wants
+  to add an unextracted sample row for future UX work on this state.
 
 - **2026-08-28 — #100 dark mode made legible (real adaptive palette).** Radu's
   screenshot showed the shipped build rendering the entire listing near-black on
