@@ -294,3 +294,25 @@ Core philosophies & roasting style:
   dessert-like flavours).
 - **Industrial packaging** — minimalist bags in distinctively structured boxes that
   echo the architecture of their modernist factory home.
+
+## man-vs-machine
+
+Man Versus Machine (MVSM) is Munich's flagship specialty coffee brand and one of
+the most influential forces in Germany's third-wave movement. Founded in Munich in
+2014 by Marco and Cornelia Mehrwald, the roastery is 100% independent and
+family-run, free from outside investors. The name symbolises the synergy between
+human agricultural craftsmanship and technical roasting precision.
+
+Core philosophies & roasting style:
+
+- **Quality before growth** — sources nothing but the highest grade 100% Arabica
+  (80+ SCA), prioritising meticulous batch quality over commercial volume.
+- **Data-driven Loring roasting** — from their Maxvorstadt HQ they run a precise,
+  energy-efficient 35 kg Loring Kestrel convection roaster that eliminates smoke
+  defects and delivers a balanced, sweet, clean cup.
+- **The "coffee-dō" approach** — inspired partly by martial-arts (Kendo)
+  philosophy, the team keeps a rigorous daily cupping discipline, adjusting
+  profiles from real-time tasting rather than automation.
+- **Global design aesthetic** — a cult following for its minimalist crocodile-emblem
+  identity and editorial product design, with collaborations spanning brands like
+  Nudie Jeans and Artek.
