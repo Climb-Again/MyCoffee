@@ -624,3 +624,27 @@ Core philosophies & roasting style:
   Ethiopians, high-altitude Kenyan peaberries, and clean experimental
   fermentations, with direct partnerships with world-class producers like Juan Peña
   of Hacienda La Papaya in Ecuador.
+
+## koppi
+
+Koppi Fine Coffee Roasters is a respected pioneer of the Scandinavian third-wave
+movement. Founded in 2007 in Helsingborg, Sweden by Anne Lunell and Charles
+Nystrand, it's internationally revered for precision, long-standing producer
+relationships, and dedication to the Nordic light-roast style. Both founders are
+decorated champions — with multiple Swedish Barista and Brewers Cup titles — and
+that competition background shows in the roasts.
+
+Core philosophies & roasting style:
+
+- **The pure Nordic profile** — roasted exceptionally lightly on Diedrich machines
+  to eliminate smoky defects, so each cup is a crystal-clear reflection of terroir,
+  highlighting elegant fruit sugars, crisp acidity, and natural sweetness.
+- **Long-term direct trade** — an intimate circle of small-scale producers in
+  Costa Rica, Colombia, and Honduras, buying from the same estates year after year
+  to build sustainable, higher-value partnerships.
+- **Evolution into production focus** — what began as a popular Helsingborg coffee
+  bar with an in-store roaster shifted in 2016 to a dedicated industrial HQ,
+  focusing entirely on roasting freshness and wholesale.
+- **Signature espresso** — beyond seasonal micro-lots, they're famous for core
+  espresso concepts like One Finger Snap, celebrated for thick molasses sweetness
+  and juicy berry notes.
