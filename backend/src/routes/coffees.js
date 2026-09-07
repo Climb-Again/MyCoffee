@@ -130,6 +130,42 @@ function toCompactCoffee(row, baseUrl) {
   };
 }
 
+// Builds the Add Coffee wizard's per-field draft payload from one adjudication
+// pass (#75) -- pure over `resolutions`/`candidatesByField`, so #121's "does an
+// unresolved roaster still surface a draft" behaviour is unit-testable without
+// a live voter ensemble or DB.
+//
+// #121 (Radu, 2026-09-03): a brand-new roaster name (not yet in vocab, e.g.
+// "Spojka") canonicalizes to `null` in adjudicate.js's `canonicalize()` --
+// unlike `origin_farm_id`, `roaster_id` carries no raw name through an
+// unresolved match (see adjudicate.js's own comment on why farms and roasters
+// differ there). `adjudicateField` then reports `decision: 'absent', value:
+// null` even though a real raw candidate string exists, and the old loop here
+// dropped the field entirely rather than showing it -- so a genuinely new
+// roaster saved with `roaster_id: NULL` instead of being offered as a
+// confirm-and-create draft. `POST /api/coffees` already get-or-creates an
+// unresolved roaster name on save (`resolveField.js`/`getOrCreateVocabEntry`),
+// so surfacing the raw string here as `decision: 'draft'` just lets the wizard
+// reach that same existing path instead of silently omitting the field.
+export function buildExtractFields(resolutions, candidatesByField) {
+  const fields = {};
+  for (const [dbField, clientField] of Object.entries(EDIT_FIELD_TO_CLIENT)) {
+    const resolution = resolutions[dbField];
+    const rawValue = pickRawExtractedValue(dbField, candidatesByField);
+    const unresolved = !resolution || resolution.value == null;
+    const isUnresolvedRoasterDraft = dbField === 'roaster_id' && unresolved && rawValue != null;
+    if (unresolved && !isUnresolvedRoasterDraft) continue;
+    fields[clientField] = {
+      value: rawValue,
+      confidence: isUnresolvedRoasterDraft ? 0 : resolution.confidence,
+      decision: isUnresolvedRoasterDraft ? 'draft' : resolution.decision,
+      candidates: cleanCandidates(candidatesByField[dbField]),
+      evidence: candidatesByField[dbField]?.find((c) => c.evidence)?.evidence ?? null,
+    };
+  }
+  return fields;
+}
+
 async function loadVocabDictionary() {
   const [countries, roasters, farms, profilesResult] = await Promise.all([
     loadCountryVocab(query),
@@ -488,18 +524,7 @@ export default async function coffeesRoutes(app) {
     // Same client field set the generic edit endpoint (#40) accepts, so the
     // confirm screen can reuse the review-queue field component (#27) and
     // SAVE can feed its edits straight back into POST /api/coffees below.
-    const fields = {};
-    for (const [dbField, clientField] of Object.entries(EDIT_FIELD_TO_CLIENT)) {
-      const resolution = resolutions[dbField];
-      if (!resolution || resolution.value == null) continue;
-      fields[clientField] = {
-        value: pickRawExtractedValue(dbField, candidatesByField),
-        confidence: resolution.confidence,
-        decision: resolution.decision,
-        candidates: cleanCandidates(candidatesByField[dbField]),
-        evidence: candidatesByField[dbField]?.find((c) => c.evidence)?.evidence ?? null,
-      };
-    }
+    const fields = buildExtractFields(resolutions, candidatesByField);
 
     return { fields, spentUsd };
   });
