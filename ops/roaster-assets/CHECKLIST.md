@@ -13,8 +13,8 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
 | ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
-| ☐ | ☐ | Sentido | `sentido` | Japan | 1 | 4.0 |
-| ☐ | ☐ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
+| ☐ | ✅ | Sentido | `sentido` | Japan | 1 | 4.0 |
+| ☐ | ✅ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
 | ☐ | ☐ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ☐ | ☐ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ☐ | ☐ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |

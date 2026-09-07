@@ -949,3 +949,44 @@ Core philosophies & roasting style:
 - **Experimental green partnerships** — direct collaborations with forward-thinking
   producers (e.g. Jamison Savage in Panama and advanced Colombian farms) for
   competition-level lots.
+
+## felix-kaffee
+
+> ⚠️ Country mismatch for #133: the DB row `felix-kaffee` is seeded as **Germany**,
+> but this roastery is in **St. Pölten, Austria**. Correct `roasters.country_id`
+> when populating.
+
+Kaffeelix (historically founded and long known as **Felix Kaffee**) is an elite,
+internationally decorated specialty coffee roastery based in St. Pölten, Austria.
+Founded in 2012 by Felix Teiretzbacher, it won the 2022 World Coffee Roasting
+Championship in Milan — the first Austrian ever to claim the world title.
+
+Core philosophies & roasting style:
+
+- **Terroir-driven purism** — clean, transparent roasting that lets each origin's
+  natural sweetness and character show through.
+- **Exceptional quality floor** — sources and roasts only high-scoring lots
+  (80+ SCA), with no filler in the range.
+- **Precision hybrid setup** — two Coffeetool drum roasters (7.5 kg and 30 kg)
+  alongside a Giesen W1A, giving both sample-scale control and production capacity.
+
+## sentido
+
+Sentido Speciality Coffee is a praised, intimate pioneer of the specialty coffee
+scene in Kyoto, Japan. Tucked down a quiet side street in Nakagyo Ward, it blends
+Australian café culture with precise Japanese hospitality. Founded by owner-barista
+Itsumi Doi — who honed his craft in Australia's coffee scene — Sentido is a relaxed,
+minimalist sanctuary for coffee purists.
+
+Core experience & style:
+
+- **Free tasting station** — a dedicated counter lets guests sample 5–6 coffees for
+  free via french press before ordering, so they can pick the profile that matches
+  their palate.
+- **Clean Loring roasting** — rotating single-origins (e.g. their Costa Rica Farami
+  Geisha Red Honey) are developed on a Loring S7 Nighthawk convection roaster in a
+  sweet, light-roasting style that preserves fruit terroir.
+- **Industrial-minimalist space** — a 16-seat room of smooth concrete, pale pine,
+  and abundant natural light.
+- **Early-bird haven** — a rare early opener in a city where specialty shops open
+  late, welcoming guests from 7:00 AM on weekdays.
