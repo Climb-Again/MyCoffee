@@ -736,3 +736,26 @@ Core philosophies & roasting style:
 - **Social-impact framework** — uses its scale for social projects, e.g. directing
   a portion of sales from its pink-packaged Rwanda bags into breast-cancer
   initiatives.
+
+## hayb-speciality-coffee
+
+HAYB Speciality Coffee is a progressive, internationally celebrated third-wave
+roastery based in Warsaw, Poland. A play on "How Are You Brewing?", it was launched
+by a family-and-friends team led by the father-and-son Borowski duo, and has built
+a cult following by pairing rigorous standards with its motto: "Effortless
+Speciality."
+
+Core philosophies & roasting style:
+
+- **The "effortless" anti-elitist vision** — HAYB rejects intimidating jargon,
+  designing every interaction as a warm invitation to explore flavour rather than a
+  lecture, making premium coffee accessible, understandable, and fun.
+- **Seasonality over house style** — profiles are optimised to bring out each
+  harvest lot's authentic genetic potential rather than forcing a uniform house
+  style, sourcing for peak ripeness and small-farm lots.
+- **Award-winning aesthetic** — tall, colour-blocked packaging with abstract
+  graphics that won The Coffeevine's Best Packaging award; year-round filters are
+  categorised by dominant profile — Kwiat (floral), Tropik (tropical), Owoc (fruit).
+- **Socially conscious supply chains** — direct-trade partnerships with boutique
+  importers like 1000 Hills in Rwanda, plus seasonal roasts dedicated to charity
+  causes.
