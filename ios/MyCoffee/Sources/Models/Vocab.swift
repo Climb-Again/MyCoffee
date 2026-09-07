@@ -62,6 +62,17 @@ struct Roaster: Identifiable, Codable, Hashable, Sendable {
     /// page fetches `logoUrl` directly rather than through `ImageStore`.
     var blurb: String? = nil
     var logoUrl: String? = nil
+
+    /// The snapshot's roaster vocab block is the raw DB row shape, so its
+    /// country key is snake-case `country_id` (unlike `coffees`, which are
+    /// camelCased by `toCompactCoffee`). Without this mapping `countryId`
+    /// silently decoded to nil for *every* roaster, so the country never
+    /// showed on a roaster page. `blurb`/`logoUrl` already match by name
+    /// (aliased `logo_url AS "logoUrl"` server-side).
+    private enum CodingKeys: String, CodingKey {
+        case id, name, blurb, logoUrl
+        case countryId = "country_id"
+    }
 }
 
 struct Farm: Identifiable, Codable, Hashable, Sendable {
