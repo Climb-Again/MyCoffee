@@ -56,3 +56,44 @@ test('POST /api/coffees with a non-empty photoIds list passes validation, into t
   assert.notEqual(res.statusCode, 400);
   await app.close();
 });
+
+test('POST /api/coffees/quick-create rejects an empty/missing photoIds list with 400, no DB needed', async () => {
+  const app = await build();
+  for (const bad of [{}, { photoIds: [] }, { photoIds: 'not-an-array' }]) {
+    const res = await post(app, '/api/coffees/quick-create', bad);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.json().error, 'missing_photo_ids');
+  }
+  await app.close();
+});
+
+test('POST /api/coffees/quick-create with a non-empty photoIds list passes validation, into the DB layer', async () => {
+  const app = await build();
+  const res = await post(app, '/api/coffees/quick-create', { photoIds: ['some-id'] });
+  // No DATABASE_URL here, so a valid shape gets past validation and fails at
+  // the query -- anything but 400 proves it was accepted. The background
+  // extraction it would otherwise kick never gets a photo row to run on.
+  assert.notEqual(res.statusCode, 400);
+  await app.close();
+});
+
+test('POST /api/coffees/evaluate rejects an empty/missing photoIds list with 400, no DB needed', async () => {
+  const app = await build();
+  for (const bad of [{}, { photoIds: [] }, { photoIds: 'not-an-array' }]) {
+    const res = await post(app, '/api/coffees/evaluate', bad);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.json().error, 'missing_photo_ids');
+  }
+  await app.close();
+});
+
+test('POST /api/coffees/evaluate with a non-empty photoIds list passes validation, into the DB layer', async () => {
+  const app = await build();
+  const res = await post(app, '/api/coffees/evaluate', { photoIds: ['some-id'] });
+  // No DATABASE_URL here, so a valid shape gets past validation and fails at
+  // the query -- anything but 400 proves it was accepted (#106's DB-touching
+  // path is verified end-to-end against a real local Postgres separately,
+  // same convention as /extract above).
+  assert.notEqual(res.statusCode, 400);
+  await app.close();
+});

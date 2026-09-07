@@ -139,8 +139,12 @@ export async function loadCountryVocab(queryFn) {
 }
 
 export async function loadRoasterVocab(queryFn) {
+  // `country_id` stays snake_case: worker.js derives `roaster_country_id` from
+  // `candidate.country_id` (worker.js §roaster_id). `blurb`/`logoUrl` are added
+  // for the roaster page (#132) and flow straight into /api/snapshot's
+  // `vocab.roasters`; both are null when unpopulated.
   const [{ rows: candidates }, { rows: aliasRows }] = await Promise.all([
-    queryFn('SELECT id, name, slug, country_id FROM roasters'),
+    queryFn('SELECT id, name, slug, country_id, blurb, logo_url AS "logoUrl" FROM roasters'),
     queryFn('SELECT roaster_id AS id, alias, alias_norm FROM roaster_aliases'),
   ]);
   return { candidates, aliasIndex: buildAliasIndex(aliasRows) };

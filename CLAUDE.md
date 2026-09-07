@@ -240,6 +240,19 @@ free seconds. Batch when it's natural, not out of thrift.
 Publish stays at Thu/Sun 20:00 so two macOS runners never fire simultaneously
 with MyHealthOS's 09:00 run.
 
+### Row numbers are unique — enforced, not remembered
+
+Every lane claims work by grepping `^| <n> |`, so two rows sharing a number
+means a lane can claim the wrong one. On **2026-09-02** three numbers were
+duplicated at once (#108/#109/#110) because two sessions each took "the next
+number" from a stale read; the later rows became #114/#115/#116.
+
+Pick a number with `git pull --rebase` first, then max + 1. Validate with
+**`bash status/check-backlog.sh`** before pushing — it fails on duplicate rows
+and on a `needs` pointing at a row that does not exist.
+`.github/workflows/backlog-check.yml` runs the same script on every push
+touching `status/BACKLOG.md`, so this is a red check rather than a latent trap.
+
 ### `status/BACKLOG.md` has ONE source of truth: `main`
 
 The audit's most expensive structural bug. The iOS lanes work on `ios-staging`

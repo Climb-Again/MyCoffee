@@ -54,3 +54,10 @@ test('POST /api/admin/backfill-ocr-text requires the ingest token', async () => 
   assert.ok([401, 503].includes(res.statusCode));
   await app.close();
 });
+
+test('POST /api/admin/backfill-roast-dates requires the ingest token', async () => {
+  const app = await build();
+  const res = await app.inject({ method: 'POST', url: '/api/admin/backfill-roast-dates', payload: {} });
+  assert.ok([401, 503].includes(res.statusCode));
+  await app.close();
+});

@@ -10,6 +10,8 @@
 //   POST /api/coffees/:publicId/edit     generic per-field edit (PLAN.md §12 #40)
 //   POST /api/coffees/extract     Add Coffee wizard: synchronous light-ensemble draft (PLAN.md §6.8, #75)
 //   POST /api/coffees             Add Coffee wizard: persist the confirmed draft (PLAN.md §6.8, #75)
+//   POST /api/coffees/quick-create Add Coffee: create instantly, extract in the background (#118)
+//   POST /api/coffees/evaluate    "Evaluate this coffee" -- fit score for a bag not yet owned (#106)
 //
 // Reads use requireAnyToken; the favorite/edit writes use requireIngestToken,
 // same as every other write path — the iOS app holds INGEST_TOKEN in the
@@ -31,7 +33,11 @@ import {
   buildRawText,
   runLightExtraction,
   pickRawExtractedValue,
+  defaultVoters,
+  processPhoto,
 } from '../lib/worker.js';
+import { toEur } from '../lib/fx.js';
+import { evaluateCoffee, blendAffinity } from '../lib/scoring.js';
 import { EDIT_FIELD_TO_CLIENT, resolveField } from '../lib/resolveField.js';
 import { cleanCandidates } from './review.js';
 
@@ -57,6 +63,31 @@ const THUMB_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 function baseUrlFor(req) {
   return `${req.protocol}://${req.hostname}`;
+}
+
+// Fires the full-ensemble extraction for one just-created photo without
+// making the request wait on it (#118). Deliberately not `await`ed by the
+// caller -- errors are caught right here, never left to become an unhandled
+// rejection that would crash the whole process out from under an unrelated
+// request. On failure this releases the photo's lease and counts it as a
+// normal extraction failure (same fields `runWorker`'s own per-photo catch
+// updates), so a photo that fails here is retried by the daily batch worker
+// exactly as if the batch had claimed and failed it itself, up to the same
+// `extraction_failures` cutoff (#64).
+function kickBackgroundExtraction(photo, log) {
+  (async () => {
+    const voters = await defaultVoters();
+    const sharedCtx = await loadSharedContext();
+    await processPhoto(photo, voters, sharedCtx, { includeImages: true });
+  })().catch((err) => {
+    log?.error?.(`[quick-create] background extraction failed for photo ${photo.id}: ${err.message}`);
+    return query(
+      `UPDATE photos SET extraction_failures = extraction_failures + 1,
+              extraction_leased_until = NULL, extraction_leased_by = NULL
+       WHERE id = $1`,
+      [photo.id],
+    ).catch(() => {});
+  });
 }
 
 // Compact row for the snapshot: ids only, no resolved names (those live once
@@ -373,7 +404,13 @@ export default async function coffeesRoutes(app) {
         [row.photo_id, dbField, JSON.stringify(outcome.value)],
       );
       resolutions[dbField] = { decision: 'accepted', value: outcome.value };
-      results.push({ field: edits[i].field, value: outcome.value });
+      // Echo the RAW string the client sent, not `outcome.value` (the
+      // denormalized shape). denormalize() returns an OBJECT for price
+      // ({amount,currency}), altitude ({min,max}) and profile — and the iOS
+      // response DTOs decode `value` as a String, so an object there threw
+      // "Decoding failed / not in the correct format" AFTER the write had
+      // already succeeded, making a saved coffee/edit look like a failure.
+      results.push({ field: edits[i].field, value: edits[i].value });
     }
 
     await applyResolutionsToCoffee(row.coffee_id, row.photo_id, resolutions, ctx);
@@ -467,6 +504,221 @@ export default async function coffeesRoutes(app) {
     return { fields, spentUsd };
   });
 
+  // Add Coffee: create instantly, extract in the background (#118). Radu:
+  // "takes a looong time to extract... should happen in the background, not
+  // even sure if i need to keep app on and for how long" -- /extract above
+  // makes the wizard wait on a live LLM ensemble before it can even show a
+  // confirm screen. This route skips that wait entirely: it creates the
+  // coffee from the photo alone (upsertCoffeeBase, no LLM call) and returns
+  // immediately with `reviewState: 'unextracted'` -- the same value a coffee
+  // already carries before any extraction has ever run (008_coffees.sql's
+  // column default), so the client already has everything it needs to render
+  // an "extracting..." state with no new field. The actual extraction runs
+  // after the response is sent, reusing the exact full-ensemble pipeline the
+  // daily batch worker uses for every other photo (`defaultVoters()` +
+  // `processPhoto()`) -- so the result the review queue and snapshot sync see
+  // is indistinguishable from one the batch worker produced. `photoIds[0]` is
+  // the only one the background pass ever extracts from (matches the batch
+  // worker's own one-photo-in, one-coffee-out shape); any other photoIds
+  // (e.g. a back-of-bag shot) attach for display only, same as SAVE below.
+  app.post('/api/coffees/quick-create', { preHandler: requireIngestToken }, async (req, reply) => {
+    const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
+    if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });
+
+    const { rows: photoRows } = await query(`SELECT * FROM photos WHERE public_id = ANY($1)`, [photoIds]);
+    const byPublicId = new Map(photoRows.map((p) => [p.public_id, p]));
+    const missing = photoIds.find((id) => !byPublicId.has(id));
+    if (missing) return reply.code(404).send({ error: 'photo_not_found', photoId: missing });
+
+    const primaryPhoto = byPublicId.get(photoIds[0]);
+    if (!primaryPhoto.has_image) return reply.code(422).send({ error: 'photo_missing_image', photoId: photoIds[0] });
+
+    const photoText = await fetchLatestText(primaryPhoto.id);
+    const coffee = await upsertCoffeeBase(primaryPhoto, photoText);
+
+    // Any photo beyond the primary (e.g. a second, back-of-bag shot) never
+    // reaches a voter here -- the async pipeline is one-photo-in like the
+    // batch worker's own claimBatch. Mark them processed right away so they
+    // can't later be claimed past their `awaiting_text` deadline and spawn a
+    // duplicate coffee row (upsertCoffeeBase keys off photo_id) -- same fix
+    // #75's SAVE route already applies to its own photoIds.
+    const secondaryIds = photoRows.filter((p) => p.id !== primaryPhoto.id).map((p) => p.id);
+    if (secondaryIds.length > 0) {
+      await query(`UPDATE photos SET state = 'processed', updated_at = now() WHERE id = ANY($1)`, [secondaryIds]);
+    }
+
+    // Lease the primary photo before the background pass starts so the daily
+    // batch's `claimBatch` (which only checks `extraction_leased_until IS
+    // NULL`) can't also grab it while this run is in flight -- the same
+    // mutual-exclusion field the batch worker uses for itself.
+    // `processPhoto()` clears this lease itself once it finishes.
+    await query(
+      `UPDATE photos SET extraction_leased_until = now() + interval '10 minutes', extraction_leased_by = 'quick-create'
+       WHERE id = $1`,
+      [primaryPhoto.id],
+    );
+
+    kickBackgroundExtraction(primaryPhoto, req.log);
+
+    return reply.code(201).send({ id: coffee.public_id, reviewState: coffee.review_state });
+  });
+
+  // "Evaluate this coffee" (#106): score a bag Radu doesn't own yet for fit
+  // with what he actually buys. Reuses the exact same photo -> OCR -> light-
+  // extraction path as /extract above -- no new extraction work, just
+  // canonicalized-value lookups against the rated corpus plus
+  // backend/src/lib/scoring.js's blend. Read-only: nothing is written, same
+  // as /extract.
+  //
+  // IMPORTANT, per #106's own pre-design validation (full numbers in
+  // status/backend.md): this is a "fit with what you buy" number, not a
+  // predicted rating. Flavour notes and altitude carry no usable signal
+  // (LOO r=-0.01 / -0.02) and 58% of the corpus is rated exactly 4.0, so this
+  // deliberately does NOT try to predict a rating -- it blends only the four
+  // signals that measurably do (origin/roaster/process/roaster-country) and
+  // suppresses the headline number under `scoring.js`'s confidence gate
+  // rather than inventing one. Building this endpoint is not "shipping" the
+  // feature -- #106 explicitly gates the on-device rollout on Radu reviewing
+  // a sample of real evaluations first.
+  app.post('/api/coffees/evaluate', { preHandler: requireIngestToken }, async (req, reply) => {
+    const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
+    if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });
+
+    const { rows: photoRows } = await query(`SELECT * FROM photos WHERE public_id = ANY($1)`, [photoIds]);
+    const byPublicId = new Map(photoRows.map((p) => [p.public_id, p]));
+    const missing = photoIds.find((id) => !byPublicId.has(id));
+    if (missing) return reply.code(404).send({ error: 'photo_not_found', photoId: missing });
+
+    const orderedPhotos = photoIds.map((id) => byPublicId.get(id));
+    const primaryPhoto = orderedPhotos[0];
+
+    const images = (await Promise.all(orderedPhotos.map((p) => fetchImageBuffer(p)))).filter(Boolean);
+    if (images.length === 0) return reply.code(422).send({ error: 'no_images_uploaded' });
+
+    const photoText = await fetchLatestText(primaryPhoto.id);
+    const rawText = buildRawText(primaryPhoto, photoText);
+
+    const sharedCtx = await loadSharedContext();
+    const vocabShortlist = (sharedCtx.vocab.roasters.candidates ?? []).slice(0, 50).map((r) => r.name);
+
+    const { resolutions, spentUsd } = await runLightExtraction({
+      rawText,
+      images,
+      vocabShortlist,
+      vocab: sharedCtx.vocab,
+      photoDate: primaryPhoto.captured_on,
+    });
+
+    const roasterId = resolutions.roaster_id?.value ?? null;
+    const originCountryIds = resolutions.origin_country_ids?.value ?? [];
+    const originCountryId = originCountryIds[0] ?? null;
+    const profileId = resolutions.profile?.value?.profileId ?? null;
+
+    let roasterCountryId = null;
+    if (roasterId != null) {
+      const { rows } = await query(`SELECT country_id FROM roasters WHERE id = $1`, [roasterId]);
+      roasterCountryId = rows[0]?.country_id ?? null;
+    }
+
+    // FX conversion isn't wired into canonicalize()/adjudicateField() (it only
+    // happens on persist, in applyResolutionsToCoffee) -- a draft that's never
+    // saved has to do it here, the same way worker.js's buildCoffeeColumnUpdates
+    // does for the real save path.
+    let pricePer100gEur = null;
+    const priceValue = resolutions.price?.value;
+    const weightG = resolutions.weight_g?.value ?? null;
+    if (priceValue?.amount != null && priceValue?.currency && weightG > 0) {
+      const conv = toEur(
+        { amount: priceValue.amount, currency: priceValue.currency, date: primaryPhoto.captured_on },
+        sharedCtx.fxRates,
+      );
+      if (conv?.priceEur != null) {
+        pricePer100gEur = Math.round((conv.priceEur / weightG) * 100 * 100) / 100;
+      }
+    }
+
+    const [{ rows: globalRows }, { rows: signalRows }, { rows: pricedRows }] = await Promise.all([
+      query(`SELECT AVG(rating)::float AS mean FROM coffees WHERE rating IS NOT NULL AND deleted_at IS NULL`),
+      query(
+        `SELECT origin_country_id AS "originCountryId", roaster_id AS "roasterId", profile_id AS "profileId",
+                roaster_country_id AS "roasterCountryId", rating::float AS rating
+           FROM coffees WHERE rating IS NOT NULL AND deleted_at IS NULL`,
+      ),
+      query(
+        `SELECT price_per_100g_eur::float AS "pricePer100gEur", rating::float AS rating
+           FROM coffees WHERE rating IS NOT NULL AND price_per_100g_eur IS NOT NULL AND deleted_at IS NULL`,
+      ),
+    ]);
+    const globalMean = globalRows[0]?.mean ?? 4;
+
+    // Per-signal {n, mean} over the rated corpus -- one pass over signalRows,
+    // shared between the draft's own groups and every sample's affinity below.
+    const groupStats = (key) => {
+      const buckets = new Map();
+      for (const row of signalRows) {
+        const v = row[key];
+        if (v == null) continue;
+        const bucket = buckets.get(v) ?? { n: 0, sum: 0 };
+        bucket.n += 1;
+        bucket.sum += row.rating;
+        buckets.set(v, bucket);
+      }
+      const stats = new Map();
+      for (const [v, { n, sum }] of buckets) stats.set(v, { n, mean: sum / n });
+      return stats;
+    };
+    const originStats = groupStats('originCountryId');
+    const roasterStats = groupStats('roasterId');
+    const processStats = groupStats('profileId');
+    const roasterCountryStats = groupStats('roasterCountryId');
+
+    const groupsFor = (row) => ({
+      origin: row.originCountryId != null ? originStats.get(row.originCountryId) : undefined,
+      roaster: row.roasterId != null ? roasterStats.get(row.roasterId) : undefined,
+      process: row.profileId != null ? processStats.get(row.profileId) : undefined,
+      roasterCountry: row.roasterCountryId != null ? roasterCountryStats.get(row.roasterCountryId) : undefined,
+    });
+
+    // Non-LOO on purpose: this ranks the draft against the corpus as it
+    // stands today, it isn't a predictive-accuracy claim (that validation --
+    // LOO r=0.39 -- already happened at design time, see status/backend.md).
+    const affinitySamples = signalRows.map((row) => blendAffinity(groupsFor(row), globalMean)).sort((a, b) => a - b);
+
+    const draftGroups = {
+      origin: originCountryId != null ? originStats.get(originCountryId) : undefined,
+      roaster: roasterId != null ? roasterStats.get(roasterId) : undefined,
+      process: profileId != null ? processStats.get(profileId) : undefined,
+      roasterCountry: roasterCountryId != null ? roasterCountryStats.get(roasterCountryId) : undefined,
+    };
+
+    let hasRoaster = false;
+    let hasOrigin = false;
+    if (roasterId != null) {
+      const { rows } = await query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE roaster_id = $1 AND deleted_at IS NULL) AS exists`, [roasterId]);
+      hasRoaster = Boolean(rows[0]?.exists);
+    }
+    if (originCountryId != null) {
+      const { rows } = await query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE origin_country_id = $1 AND deleted_at IS NULL) AS exists`, [originCountryId]);
+      hasOrigin = Boolean(rows[0]?.exists);
+    }
+
+    const evaluation = evaluateCoffee({
+      groups: draftGroups,
+      globalMean,
+      priced: pricedRows,
+      affinitySamples,
+      pricePer100gEur,
+      isNewRoaster: !hasRoaster,
+      isNewOrigin: !hasOrigin,
+    });
+
+    return {
+      fields: { roasterId, originCountryIds, profileId, roasterCountryId, pricePer100gEur },
+      evaluation,
+      spentUsd,
+    };
+  });
+
   // SAVE (PLAN.md §6.8, #75): persists the coffee the wizard just built. Every
   // field goes through the exact same `resolveField`/`applyResolutionsToCoffee`
   // machinery the generic edit endpoint (#40) uses, so a human-confirmed field
@@ -508,7 +760,13 @@ export default async function coffeesRoutes(app) {
         return reply.code(422).send({ error: outcome.error, field: edits[i].field, value: edits[i].value });
       }
       resolutions[dbField] = { decision: 'accepted', value: outcome.value };
-      results.push({ field: edits[i].field, value: outcome.value });
+      // Echo the RAW string the client sent, not `outcome.value` (the
+      // denormalized shape). denormalize() returns an OBJECT for price
+      // ({amount,currency}), altitude ({min,max}) and profile — and the iOS
+      // response DTOs decode `value` as a String, so an object there threw
+      // "Decoding failed / not in the correct format" AFTER the write had
+      // already succeeded, making a saved coffee/edit look like a failure.
+      results.push({ field: edits[i].field, value: edits[i].value });
     }
 
     await applyResolutionsToCoffee(coffee.id, primaryPhoto.id, resolutions, ctx);

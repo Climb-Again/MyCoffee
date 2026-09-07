@@ -14,6 +14,7 @@ import {
   parseProfile,
   parseFarm,
   resolveCityCountry,
+  stripFarmAffixes,
 } from '../src/lib/normalize.js';
 
 test('normalizeVocabString trims, collapses whitespace, lowercases', () => {
@@ -190,6 +191,26 @@ test('parseDate: day-first, and rejects a roast date after the photo date', () =
   assert.equal(parseDate('not a date'), null);
 });
 
+test('parseDate: spelled-out months, English + Romanian, day-first and month-first', () => {
+  const cases = [
+    ['07 August 2026', 2026, 8, 7], // the screenshot case ("Data de prăjire: 07 August 2026")
+    ['7 iunie 2021', 2021, 6, 7], // Romanian, day-first
+    ['1 Aug. 2026', 2026, 8, 1], // abbreviated month with period
+    ['August 7, 2026', 2026, 8, 7], // English, month-first
+    ['Sept 15 2025', 2025, 9, 15], // abbreviated month-first, no comma
+    ['1 Mai 2021', 2021, 5, 1], // Romanian "mai"
+  ];
+  for (const [text, y, mo, d] of cases) {
+    const r = parseDate(text);
+    assert.ok(r && !r.rejected, `expected a date for ${text}`);
+    assert.equal(r.date.getUTCFullYear(), y, `year for ${text}`);
+    assert.equal(r.date.getUTCMonth() + 1, mo, `month for ${text}`);
+    assert.equal(r.date.getUTCDate(), d, `day for ${text}`);
+  }
+  // An unknown month word is not a date.
+  assert.equal(parseDate('07 Smarch 2026'), null);
+});
+
 // ---- Roast profile + decaf (orthogonal axes) ----
 
 test('parseProfile: maps aliases onto exactly the six profiles, never defaults to Washed', () => {
@@ -219,20 +240,51 @@ test('parseProfile: maps aliases onto exactly the six profiles, never defaults t
   }
 });
 
-test('parseProfile: honey variants fold into Experimental, literal term preserved', () => {
-  const yellow = parseProfile('Yellow Honey process');
-  assert.equal(yellow.profileId, 'experimental');
-  assert.equal(yellow.detail, 'Yellow Honey');
+test('parseProfile: honey-only variants fold into Washed, literal term preserved', () => {
+  // Radu, 2026-08-29: "if it's just honey I want to normalize all as Washed" —
+  // a permanent rule, not a one-off backfill. Colour qualifiers are honey
+  // variants, not a second method, so they map the same way as bare Honey.
+  const cases = [
+    ['Honey process', 'Honey'],
+    ['Yellow Honey process', 'Yellow Honey'],
+    ['Black Honey process', 'Black Honey'],
+    ['Honey', 'Honey'],
+    ['honey', 'honey'],
+    ['Black Honey', 'Black Honey'],
+    ['Yellow Honey', 'Yellow Honey'],
+    ['White Honey', 'White Honey'],
+    ['Red Honey', 'Red Honey'],
+  ];
+  for (const [text, detail] of cases) {
+    const r = parseProfile(text);
+    assert.equal(r.profileId, 'washed', `parseProfile(${text}).profileId`);
+    assert.equal(r.detail, detail, `parseProfile(${text}).detail`);
+  }
 
-  const black = parseProfile('Black Honey process');
-  assert.equal(black.detail, 'Black Honey');
-
+  // "Pulped natural" is a honey process, not a natural one — the fragment
+  // exclusion below keeps the structured "natural" alias from hijacking it,
+  // so it still lands in the honey-only bucket.
   const pulped = parseProfile('pulped natural');
-  assert.equal(pulped.profileId, 'experimental');
+  assert.equal(pulped.profileId, 'washed');
   assert.equal(pulped.detail, 'pulped natural');
+});
 
-  const plain = parseProfile('Honey process');
-  assert.equal(plain.detail, 'Honey');
+test('parseProfile: honey plus a genuinely different method is a hybrid -> Experimental', () => {
+  const anaerobic = parseProfile('Anaerobic Honey');
+  assert.equal(anaerobic.profileId, 'experimental');
+  assert.equal(anaerobic.detail, 'Honey');
+
+  const coFermented = parseProfile('Honey Co-fermented');
+  assert.equal(coFermented.profileId, 'experimental');
+  assert.equal(coFermented.detail, 'Honey');
+});
+
+test('parseProfile: a caption merely mentioning honey as a tasting note does not touch the profile', () => {
+  // #80's flavour-notes backfill means stored text is full of "honey" as a
+  // cupping descriptor — that must never be read as a process signal.
+  const r = parseProfile('wild honey, floral');
+  assert.equal(r.profileId, null);
+  assert.equal(r.detail, null);
 });
 
 test('parseProfile: decaf is orthogonal to process — a decaf can be washed', () => {
@@ -277,10 +329,12 @@ test('resolveCityCountry: resolves an unambiguous city, refuses an ambiguous one
 
 // --- Profile/decaf rules derived from the real 5-photo sample (#26) ---
 // Radu's rule: if at least one profile can be structured, allocate to that;
-// otherwise file it under Experimental.
-test('parseProfile: a structured process wins over Honey, keeping Honey as detail', () => {
+// otherwise file it under Experimental. Honey is the one exception (#110,
+// 2026-08-29): honey plus a distinct structured method is a hybrid, so it
+// files under Experimental rather than the other structured process.
+test('parseProfile: honey plus a structured process is a hybrid -> Experimental, keeping Honey as detail', () => {
   const r = parseProfile('Procesare: Co-Fermentata cu fructe, Honey');
-  assert.equal(r.profileId, 'co_fermented');
+  assert.equal(r.profileId, 'experimental');
   assert.equal(r.detail, 'Honey');
 });
 
@@ -313,4 +367,90 @@ test('parseProfile: an unmodelled process falls back to experimental, silence st
   assert.equal(parseProfile('Procesare: Wet Hulled Giling Basah').profileId, 'experimental');
   // No process mentioned at all -> never guess (and never default to Washed).
   assert.equal(parseProfile('Origine: Brazilia | Varietal: Paraiso').profileId, null);
+});
+
+// ---- #98: farm facility affixes (comparison only, never a rename) ----
+test('stripFarmAffixes collapses facility affixes so duplicates match', () => {
+  const cases = [
+    ['Banko Gotiti Washing Station', 'banko gotiti'],
+    ['Banko Gotiti', 'banko gotiti'],
+    ['Nano Challa Cooperative', 'nano challa'],
+    ['Nano Challa', 'nano challa'],
+    ['BENTI NENKA WASHING STATION', 'benti nenka'],
+    ['Finca El Paraiso', 'el paraiso'],
+    ['el paraiso', 'el paraiso'],
+    ['Elida Estate Farm', 'elida'],
+    ['Chelchele washing and drying station', 'chelchele'],
+    ['Fazenda Um', 'um'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(stripFarmAffixes(input), expected, `stripFarmAffixes(${JSON.stringify(input)})`);
+  }
+});
+
+test('stripFarmAffixes leaves real names that merely contain an affix-like word', () => {
+  // Radu, 2026-08-28: these are correct names and must survive verbatim.
+  // "farm" is word-boundary anchored, so it cannot eat "farmers".
+  for (const name of ['Several small farmers', 'Smallholder farmers', '5 small farmers']) {
+    assert.equal(stripFarmAffixes(name), name.toLowerCase(), name);
+  }
+});
+
+test('stripFarmAffixes never returns empty for an affix-only name', () => {
+  // A name that is ONLY an affix keeps its identity rather than collapsing to
+  // '' and fuzzy-matching everything in the vocabulary.
+  for (const name of ['Estate', 'The Mill', 'Finca']) {
+    assert.notEqual(stripFarmAffixes(name), '');
+  }
+});
+
+test('the two duplicate pairs #91 created now compare equal', () => {
+  assert.equal(stripFarmAffixes('Banko Gotiti Washing Station'), stripFarmAffixes('Banko Gotiti'));
+  assert.equal(stripFarmAffixes('Nano Challa Cooperative'), stripFarmAffixes('Nano Challa'));
+  // ...and a genuinely different farm still does NOT collide with them.
+  assert.notEqual(stripFarmAffixes('BENTI NENKA WASHING STATION'), stripFarmAffixes('Banko Gotiti'));
+});
+
+// ---- #123: every envelope must reject the DEGENERATE end, not just out-of-range ----
+//
+// The bug this locks down: inRatingScale was `>= 0`, so a stray `0` in the text
+// became a real rating. #39 added these envelopes precisely so an implausible
+// number reads as ABSENT; an inclusive floor defeats that. These tests walk the
+// low end of all four so the next envelope added has an obvious pattern to copy.
+test('parseRating rejects 0 — in this app 0 means unrated, not "I hated it"', () => {
+  for (const input of ['0', '0.0', '0/5', '0,0', '⭐️ 0']) {
+    assert.equal(parseRating(input), null, `parseRating(${JSON.stringify(input)}) must be null`);
+  }
+});
+
+test('parseRating still accepts the smallest real ratings', () => {
+  // The live library's lowest genuine rating is 2.0, but nothing should stop a
+  // legitimately low score from parsing — only 0 is reserved for "absent".
+  for (const [input, expected] of [['0.5/5', 0.5], ['1', 1], ['2.0', 2], ['5/5', 5]]) {
+    assert.equal(parseRating(input)?.value, expected, input);
+  }
+});
+
+test('parseRating still rejects above-scale values', () => {
+  for (const input of ['5.1', '6/5', '9']) {
+    assert.equal(parseRating(input), null, input);
+  }
+});
+
+test('parsePrice rejects a zero price — it would read as infinitely cheap', () => {
+  // No upper bound on purpose: an expensive bag is plausible. But 0 makes
+  // price_per_100g 0, which the value bands score as GREAT VALUE.
+  for (const input of ['0', '0.00', '€0', '0 EUR', '€0.00']) {
+    assert.equal(parsePrice(input), null, `parsePrice(${JSON.stringify(input)}) must be null`);
+  }
+  assert.equal(parsePrice('€15.95')?.amount, 15.95);
+});
+
+test('parseAltitude and parseWeight already reject their degenerate ends', () => {
+  // Recorded so a later refactor cannot quietly loosen these to match the old
+  // rating floor: altitude floors at 200m, weight at 1g.
+  assert.equal(parseAltitude('0 m'), null);
+  assert.equal(parseAltitude('0-0 m'), null);
+  assert.equal(parseWeight('0g'), null);
+  assert.equal(parseWeight('250g')?.grams, 250);
 });

@@ -22,6 +22,78 @@ still blocks it on the next fired run, the fallback is a manual "run it" from Ra
 
 _none_
 
+## 2026-09-07 — #110 done (honey -> Washed in `parseProfile`); #137/#138 filed (backend/ios-ux); #115 downgraded to `blocked` on new backend row #139
+
+Picked `#110` (phase 8) over `#115` (also phase 8, ready, needs `—`) per the
+lowest-phase-then-lowest-number rule. No stranded `claude/*` branch already
+did this work (`git branch -r --list 'origin/claude/*'` checked first).
+
+**#110 — honey processing normalises to Washed, hybrids to Experimental
+(`47e3b0a`).** `parseProfile` (`backend/src/lib/normalize.js`) now maps
+honey-only mentions (`Honey`, `honey`, `Black/Yellow/White/Red Honey`,
+`pulped natural`) to `Washed` instead of `Experimental` — honey is depulped,
+so it belongs to the washed family (Radu, 2026-08-29, a permanent rule, not
+a one-off backfill). Honey combined with a genuinely distinct structured
+method (`Anaerobic Honey`, `Honey Co-fermented`) still files under
+`Experimental`, since that's a real hybrid process, not "just honey" —
+this **changes** an existing test's expectation
+(`Procesare: Co-Fermentata cu fructe, Honey` was `co_fermented`, is now
+`experimental`) and the bare `pulped natural` case (was `experimental`, is
+now `washed`, since the existing fragment-exclusion already treats
+"natural" inside "pulped natural" as pure honey, not a second method).
+
+Added `honeyMentionIsProcess(text, norm, term, hasStructuredHit)`: honey is
+both a legitimate process name **and** one of the most common tasting-note
+words, and #80's flavour-notes backfill means stored raw text is full of
+"honey" as a cupping descriptor, not a process. The gate requires real
+process evidence — the text IS (near enough) just the honey phrase itself
+(a scoped field value like `"Honey"` or `"Yellow Honey process"`, which is
+what `adjudicate.js`'s `parseProfile(rawValue)` call is always scoped to), a
+real process label/fermentation word, or honey co-occurring with a
+recognised structured term — before trusting a bare mention. Verified
+`parseProfile('wild honey, floral').profileId === null` (the exact example
+from the row): no structured term present, no label, not an exact honey
+phrase match, so it declines rather than guessing Experimental/Washed —
+without this gate the caller in `deterministic.js`'s `extractProfileField`
+(the rules voter, which scans the **whole** raw text, unlike the LLM
+voter's scoped field value) would have misfired on any caption whose
+flavour notes happen to mention honey.
+
+11 new/updated table-driven cases in `normalize.test.js`; `cd backend && npm
+test` 317/317 green. Checked `GET /api/admin/jobs` before pushing — no job
+`running` (last, #46, is `done`) — so the push's Railway redeploy couldn't
+SIGTERM an in-flight worker.
+
+**Not done in this row, spun off (same split as #48(b) → #51):**
+- **#137 (backend, ready)** — the migration re-bucketing the 25 existing
+  honey coffees. `backend/migrations/**` other than `005_vocab_seed.sql` is
+  backend-owned, so I can fix the normaliser going forward but can't write
+  the backfill migration myself.
+- **#138 (ios-ux, ready)** — restoring the `profileDetail` bracket
+  (`Washed (Honey)`) on `CoffeeDetailView`'s process pill. `profileDetail`
+  is decoded and stored but rendered nowhere today (a regression from the
+  2a redesign, #88) — `ios/**` is out of scope for this lane.
+
+**#115 (Indonesia/Thailand roaster-country flag) — also `ready`/phase 8,
+picked up secondarily since it turned out to have no data-owned actionable
+part at all** (unlike #110, which had a normalizer change to make). The
+row's own text already says the fix is an `UPDATE countries SET
+is_roaster = true WHERE iso2 IN ('ID','TH')` — a new migration file, which
+per §4's ownership table is backend-owned, not data's, even though the row
+was filed under the `data` tag. Rather than leave a `ready` row sitting
+that no data-lane session can actually act on, filed the concrete migration
+as **#139 (backend, ready)** carrying over #115's verified facts (both
+countries already exist, why 021/023/024 don't apply, the
+both-origin-and-roaster edge case and the recommended before/after
+`adjudicate` diff), and set #115 to `blocked` on `139` rather than `done` —
+nothing has actually shipped for it yet, only delegated. Left the
+Romanian-alias part (`Indonezia`, `Tailanda`) for a future data session
+once #139's migration number is known, since seeding order matters (the
+alias table references the migration-created row).
+
+`bash status/check-backlog.sh` green (127 rows, no duplicates, no dangling
+`needs`) before pushing.
+
 ## 2026-08-17 — #29 closed out: all three sub-parts already resolved, no data-owned code change needed; #69 filed (backend) for the one real residual gap; #67's lane tag corrected to `backend`
 
 Picked `#29` (phase 6, needs `26` — done) over `#67` (phase 6, needs `—`) per the

@@ -19,6 +19,8 @@ import {
   runLightExtraction,
   buildFlavorNotesText,
 } from '../src/lib/worker.js';
+import { extractRoastedOnField } from '../src/lib/deterministic.js';
+import { canonicalize } from '../src/lib/adjudicate.js';
 
 test('computeInputSha is deterministic and content-derived, not photo-id-derived', () => {
   const opts = {
@@ -516,4 +518,47 @@ test('runLightExtraction: a genuine cluster split still resolves (applied provis
 
   assert.equal(resolutions.rating.decision, 'split');
   assert.ok(resolutions.rating.value === 4 || resolutions.rating.value === 5);
+});
+
+// #124: backfillRoastDates itself is DB-touching (not unit-tested here, same as
+// every other query-driven worker function), but the pure recovery path it
+// relies on IS testable end to end without a DB: the exact sequence the backfill
+// runs per photo -- extractRoastedOnField(rawText) -> JSON.stringify(value) into
+// field_candidates -> read back -> canonicalize('roasted_on') via the #122 parser.
+// This is the regression that pins the DAK failure (#124) to a green state, and
+// guards against #122's parseDate fix silently regressing under the rules path.
+test('roast-date backfill recovery path: DAK spelled-out RO date resolves to 2026-06-23', () => {
+  // DAK's rawDescription: general (filter) roast date first, espresso date after.
+  const rawText = [
+    'Cafea de specialitate',
+    'Data de prăjire:',
+    '23 Iunie 2026',
+    'Data de prăjire Espresso:',
+    '14 August 2026',
+  ].join('\n');
+
+  // 1. rules voter re-run over current text finds the (first, filter) date.
+  const r = extractRoastedOnField(rawText);
+  assert.ok(r, 'extractRoastedOnField must find the roast date near the keyword');
+  assert.equal(r.value, '23 Iunie 2026');
+
+  // 2. stored as JSON (mirrors storeFieldCandidates), then read back as a string.
+  const roundTripped = JSON.parse(JSON.stringify(r.value));
+  assert.equal(roundTripped, '23 Iunie 2026');
+
+  // 3. adjudication canonicalizes it with the #122-fixed parseDate.
+  const canonical = canonicalize('roasted_on', roundTripped, {});
+  assert.deepEqual(canonical, { date: '2026-06-23', confidenceFactor: 1 });
+});
+
+test('roast-date backfill recovery path: Spojka date still resolves to 2026-08-07 (no regression)', () => {
+  const r = extractRoastedOnField('Data de prăjire: 07 August 2026');
+  assert.ok(r);
+  const canonical = canonicalize('roasted_on', JSON.parse(JSON.stringify(r.value)), {});
+  assert.deepEqual(canonical, { date: '2026-08-07', confidenceFactor: 1 });
+});
+
+test('roast-date backfill recovery path: no roast keyword nearby proposes nothing', () => {
+  // A bare purchase date with no roast keyword must not be mistaken for a roast date.
+  assert.equal(extractRoastedOnField('Cumpărat pe 23 Iunie 2026'), null);
 });

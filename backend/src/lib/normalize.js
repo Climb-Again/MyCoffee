@@ -12,6 +12,51 @@ export function normalizeVocabString(s) {
   return String(s).trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+// Facility affixes that farms are written with inconsistently — the same place
+// appears as "Banko Gotiti" on one bag and "Banko Gotiti Washing Station" on
+// the next, and get-or-create then mints a second vocab row (#98).
+//
+// IMPORTANT: this is for COMPARISON ONLY. It never rewrites a stored farm name.
+// A blanket rename would mangle real names — "Several small farmers",
+// "Smallholder farmers" and "Ninety Plus Candela Estates" are all legitimate
+// names Radu wants kept verbatim, and they must never be rewritten.
+//
+// Matching is word-boundary anchored, so "farm" cannot eat "farmers".
+const FARM_AFFIX_TERMS = [
+  'washing and drying station',
+  'washing station',
+  'processing station',
+  'coffee estate',
+  'cooperative',
+  'co-op',
+  'coop',
+  'estates',
+  'estate',
+  'fincas',
+  'finca',
+  'fazenda',
+  'hacienda',
+  'plantation',
+  'station',
+  'mill',
+  'farm',
+];
+
+/// Strip facility affixes for comparison. Returns the input unchanged when
+/// stripping would leave nothing meaningful behind — a name that is ONLY an
+/// affix ("Estate", "The Mill") keeps its identity rather than collapsing to
+/// the empty string and matching everything.
+export function stripFarmAffixes(s) {
+  if (s == null) return '';
+  let out = normalizeVocabString(s);
+  for (const term of FARM_AFFIX_TERMS) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`\\b${escaped}\\b`, 'g'), ' ');
+  }
+  out = out.replace(/\s+/g, ' ').replace(/^[\s,\-–—]+|[\s,\-–—]+$/g, '').trim();
+  return out === '' ? normalizeVocabString(s) : out;
+}
+
 export function foldDiacritics(s) {
   if (s == null) return '';
   return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
@@ -127,6 +172,18 @@ const CURRENCY_PATTERNS = [
   [/(\d[\d.,]*)\s*chf\b/i, 'CHF'],
 ];
 
+// A price of zero (or below) is never a real bag — and unlike the rating it
+// poisons derived values silently: `price_per_100g_eur` becomes 0, which the
+// value bands (#95/#105) read as infinitely cheap and score GREAT VALUE.
+// `parsePrice` had NO envelope at all, unlike altitude (200-4000m) and weight
+// (1-5000g); found while auditing the degenerate end of every envelope for
+// #123. No zero prices exist in production today, so this is a guard, not a
+// repair. Deliberately no upper bound: a genuinely expensive bag is plausible
+// and an arbitrary ceiling would reject real data.
+function isPlausiblePrice(amount) {
+  return amount != null && amount > 0;
+}
+
 export function parsePrice(text) {
   if (!text) return null;
   const s = String(text);
@@ -134,7 +191,7 @@ export function parsePrice(text) {
     const m = s.match(re);
     if (m) {
       const amount = parseNumber(m[1], { field: 'price' });
-      if (amount == null) continue;
+      if (!isPlausiblePrice(amount)) continue;
       return { amount, currency, confidence: 1.0 };
     }
   }
@@ -142,7 +199,7 @@ export function parsePrice(text) {
   const bare = s.match(/(\d[\d.,]*)/);
   if (!bare) return null;
   const amount = parseNumber(bare[1], { field: 'price' });
-  if (amount == null) return null;
+  if (!isPlausiblePrice(amount)) return null;
   return { amount, currency: null, confidence: 0.5 };
 }
 
@@ -181,8 +238,18 @@ export function parseWeight(text) {
 
 // A rating is always out of 5 — anything outside that scale is a different
 // quantity (an altitude, a count) misfiring this parser, not a real rating.
+//
+// The floor is EXCLUSIVE (#123). It used to be `>= 0`, which let a stray `0`
+// through as a real rating: coffee `4dBosHoqKJ89ABPeZgGVEg` was added on
+// 2026-09-03 reading 0.0, `reviewState: clean`, nothing flagged. In this app a
+// rating of 0 means "not rated yet", never "I hated it" — the real distribution
+// starts at 2.0 with nothing between. Counting it as rated dragged the library
+// mean 4.0285 -> 4.0175 and its roaster 4.274 -> 4.167.
+//
+// #39 added these envelopes so an implausible number reads as ABSENT rather
+// than as a value; an inclusive floor defeats that at the degenerate end.
 function inRatingScale(value) {
-  return value != null && value >= 0 && value <= 5;
+  return value != null && value > 0 && value <= 5;
 }
 
 export function parseRating(text) {
@@ -212,6 +279,28 @@ export function parseRating(text) {
 
 // ---- Dates ----
 
+// Spelled-out month names, English + Romanian, plus common abbreviations.
+// Romanian month names carry no diacritics, but callers fold before lookup so
+// any accented input still resolves. Keys are lowercase/folded.
+export const MONTH_NAMES = {
+  jan: 1, january: 1, ian: 1, ianuarie: 1,
+  feb: 2, february: 2, februarie: 2,
+  mar: 3, march: 3, martie: 3,
+  apr: 4, april: 4, aprilie: 4,
+  may: 5, mai: 5,
+  jun: 6, june: 6, iunie: 6,
+  jul: 7, july: 7, iulie: 7,
+  aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9, septembrie: 9,
+  oct: 10, october: 10, octombrie: 10,
+  nov: 11, november: 11, noiembrie: 11,
+  dec: 12, december: 12, decembrie: 12,
+};
+
+// A spelled-out month can be any of the names above; the class also admits
+// Romanian diacritics so accented input reaches the folded lookup.
+const MONTH_WORD = '[A-Za-zăâîșțĂÂÎȘȚ]+';
+
 export function parseDate(text, { photoDate } = {}) {
   if (!text) return null;
   const s = String(text).trim();
@@ -225,15 +314,23 @@ export function parseDate(text, { photoDate } = {}) {
     year = parseInt(m[3], 10);
     if (year < 100) year += year < 70 ? 2000 : 1900;
     if (month > 12 && day <= 12) [day, month] = [month, day];
-  } else {
-    m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); // ISO
-    if (m) {
-      year = +m[1];
-      month = +m[2];
-      day = +m[3];
-    }
+  } else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) {
+    // ISO
+    year = +m[1];
+    month = +m[2];
+    day = +m[3];
+  } else if ((m = s.match(new RegExp(`^(\\d{1,2})\\.?\\s+(${MONTH_WORD})\\.?,?\\s+(\\d{4})$`)))) {
+    // Day-first spelled-out: "07 August 2026", "7 iunie 2021", "1 Aug. 2026".
+    day = parseInt(m[1], 10);
+    month = MONTH_NAMES[foldDiacritics(m[2]).toLowerCase()];
+    year = parseInt(m[3], 10);
+  } else if ((m = s.match(new RegExp(`^(${MONTH_WORD})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})$`)))) {
+    // Month-first spelled-out: "August 7, 2026", "Aug 7 2026".
+    month = MONTH_NAMES[foldDiacritics(m[1]).toLowerCase()];
+    day = parseInt(m[2], 10);
+    year = parseInt(m[3], 10);
   }
-  if (year == null || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year == null || month == null || month < 1 || month > 12 || day < 1 || day > 31) return null;
 
   const date = new Date(Date.UTC(year, month - 1, day));
   if (Number.isNaN(date.getTime())) return null;
@@ -278,8 +375,10 @@ const FERMENT_RE = /\bfermenta/i;
 
 // Checked in order, most specific phrase first, so the literal preserved in
 // profile_detail is the fullest term actually present ("Yellow Honey", not
-// just "Honey").
-const HONEY_TERMS = ['yellow honey', 'black honey', 'pulped natural', 'honey'];
+// just "Honey"). Colour qualifiers (Yellow/Black/White/Red) are honey
+// variants, not a second method (Radu, 2026-08-29) -> they all fold the same
+// way as bare "Honey".
+const HONEY_TERMS = ['yellow honey', 'black honey', 'white honey', 'red honey', 'pulped natural', 'honey'];
 
 // 'decaf' substring-matches 'decaffeinated'/'decafeinizata' too, which is how
 // the corpus usually spells it. NOT a bare 'ea': the captions are Romanian,
@@ -303,6 +402,21 @@ function findLiteral(text, term) {
   return m ? m[0] : term;
 }
 
+// "Honey" is both a legitimate process name AND one of the most common
+// tasting-note words ("wild honey, floral") — #80's flavour-notes backfill
+// means a coffee's stored text is full of it as a flavour descriptor, not a
+// process. Require real process-context evidence before trusting a bare honey
+// mention: the text IS (near enough) just the honey phrase itself (a scoped
+// field value like "Honey" or "Yellow Honey process"), or there's an actual
+// process label/fermentation word, or honey co-occurs with a recognised
+// structured process term (e.g. "Anaerobic Honey").
+function honeyMentionIsProcess(text, norm, term, hasStructuredHit) {
+  const trimmed = norm.trim();
+  if (trimmed === term || trimmed === `${term} process` || trimmed === `${term} processing`) return true;
+  if (PROCESS_LABEL_RE.test(text) || FERMENT_RE.test(norm)) return true;
+  return hasStructuredHit;
+}
+
 export function parseProfile(text) {
   if (!text) return { profileId: null, isDecaf: false, detail: null };
   const norm = foldDiacritics(String(text)).toLowerCase();
@@ -315,7 +429,7 @@ export function parseProfile(text) {
     }
   }
 
-  const honeyTerm = HONEY_TERMS.find((h) => includesTerm(norm, h));
+  const honeyCandidate = HONEY_TERMS.find((h) => includesTerm(norm, h));
   let structured = null;
   for (const [profileId, terms] of PROFILE_ALIASES) {
     const hit = terms.find((t) => includesTerm(norm, t));
@@ -325,19 +439,31 @@ export function parseProfile(text) {
     }
   }
 
+  const honeyTerm =
+    honeyCandidate && honeyMentionIsProcess(text, norm, honeyCandidate, structured != null) ? honeyCandidate : null;
+
   // A structured profile wins over Honey ("Co-Fermentata cu fructe, Honey" is
-  // co-fermented, with Honey kept in `detail`) — *unless* the structured term is
-  // merely a fragment of the honey phrase itself. "Pulped natural" is a honey
-  // process, not a natural one, and the word "natural" inside it must not
-  // hijack the classification.
-  if (structured && !(honeyTerm && honeyTerm.includes(structured.term))) {
+  // a hybrid, see below) — *unless* the structured term is merely a fragment
+  // of the honey phrase itself. "Pulped natural" is a honey process, not a
+  // natural one, and the word "natural" inside it must not hijack the
+  // classification.
+  const structuredIsHoneyFragment = honeyTerm && structured && honeyTerm.includes(structured.term);
+  if (structured && !structuredIsHoneyFragment) {
+    // Honey combined with any other genuinely distinct method ("Anaerobic
+    // Honey", "Honey Co-fermented") is a hybrid process -> Experimental
+    // (Radu, 2026-08-29) — unless that other method IS the washed family
+    // honey already belongs to, in which case it's still just Washed.
+    if (honeyTerm && structured.profileId !== 'washed') {
+      return { profileId: 'experimental', isDecaf, detail: findLiteral(text, honeyTerm) };
+    }
     return { profileId: structured.profileId, isDecaf, detail: honeyTerm ? findLiteral(text, honeyTerm) : null };
   }
 
-  // Honey has no class of its own, so it files under Experimental, keeping the
-  // fullest literal ("Yellow Honey", not just "Honey") in profile_detail.
+  // Honey alone (no other method) is depulped, so it belongs to the washed
+  // family (Radu, 2026-08-29 — a permanent rule, not a one-off backfill).
+  // Keep the fullest literal ("Yellow Honey", not just "Honey") in detail.
   if (honeyTerm) {
-    return { profileId: 'experimental', isDecaf, detail: findLiteral(text, honeyTerm) };
+    return { profileId: 'washed', isDecaf, detail: findLiteral(text, honeyTerm) };
   }
 
   // Processing is described but under a name we don't model -> Experimental,

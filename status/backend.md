@@ -8,6 +8,333 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-06 07:23 UTC: #118 Add Coffee background extraction (backend half) — DONE, `a73b520`
+
+Radu (2026-09-03): "takes a looong time to extract… should happen in the
+background, not even sure if i need to keep app on and for how long." Today's
+wizard blocks on `POST /api/coffees/extract` — a live rules+flash+reconciler
+ensemble — before the confirm screen can even show.
+
+**No migration.** The fix doesn't need a new "pending" status: `coffees.
+review_state` already defaults to `'unextracted'` (008_coffees.sql) and
+nothing before this row ever left that value visible to the client, because
+the old flow always resolved fields synchronously before the coffee's row
+ever existed. A coffee created by the new endpoint sits at `'unextracted'`
+until the background pass adjudicates it, which is exactly the "still
+extracting" signal the client needs — for free.
+
+**New `POST /api/coffees/quick-create {photoIds}`:** `upsertCoffeeBase`
+(no LLM call, matches `/extract`'s and SAVE's existing photo validation —
+404 `photo_not_found`, 422 `photo_missing_image`), returns `201 {id,
+reviewState}` immediately. Then, **not awaited**, fires the exact
+full-ensemble pipeline the daily batch worker uses per photo —
+`defaultVoters()` + `processPhoto()` from `src/lib/worker.js` — so the result
+that lands in `field_candidates`/`field_resolutions`/`coffees` and shows up
+in the review queue is produced by the *same code path* a batch-worked photo
+goes through, not a parallel one.
+
+Two things I checked deliberately rather than assumed:
+
+1. **Why not `runWorker()`?** It takes the extraction advisory lock and
+   returns `{started:false, reason:'already_running'}` if the daily ingest
+   job (fires 08:13 UTC) happens to be running when Radu adds a coffee — that
+   would silently strand the new coffee at `unextracted` forever with no
+   retry. `processPhoto()` alone takes no such lock, so it runs alongside
+   the daily batch safely as long as the specific photo can't be
+   double-claimed (next point).
+2. **Concurrency with `claimBatch`:** the primary photo is leased
+   (`extraction_leased_until`/`extraction_leased_by='quick-create'`)
+   *synchronously*, before the background pass fires — `claimBatch` excludes
+   anything already leased, so the daily batch can't grab the same photo
+   mid-run. `processPhoto()`'s own completion path clears the lease, same as
+   it does for a batch-claimed photo.
+
+A background failure is caught in the route handler itself (never left as an
+unhandled rejection — that would crash the whole Node process out from under
+unrelated requests) and increments `extraction_failures`/clears the lease,
+the exact fields `runWorker`'s own per-photo `catch` updates — so a failed
+quick-create photo re-enters `claimBatch`'s normal eligibility and gets
+retried by the next daily run, up to the same `extraction_failures` cutoff
+(#64) as any other failure.
+
+A second/back-of-bag `photoId` is marked `state='processed'` immediately
+(the same fix #75's SAVE route already applies), since the async pipeline is
+one-photo-in like the batch worker itself. **Known, unchanged scope gap:**
+that second photo's image is never sent to a voter here — the synchronous
+`/extract`+SAVE path unions every provided photoId's image, this one
+doesn't. Fixing that would mean teaching `processPhoto()` to accept more
+than one image, which is a bigger change than this row asked for; noted for
+whoever picks up multi-photo quality later.
+
+**Additive, not a replacement.** `POST /api/coffees/extract` and `POST
+/api/coffees` are untouched — the current synchronous wizard flow keeps
+working exactly as today. This also sidesteps the original write-up's
+"Product decision for Radu" (dropping confirm-before-save) — the *iOS* half
+gets to decide independently whether to keep a lightweight confirm step
+against the pending coffee, or drop straight to the review queue; nothing
+on the backend forces either choice.
+
+4 new tests (`coffees-extract.test.js`, same no-DB validation convention
+`/extract`/`/evaluate` already use) — **315/315 `npm test` green** (was 311).
+
+Live-verified pre-push: `GET /health` → `{"ok":true,"db":true,"service":
+"mycoffee-api"}`; `GET /api/admin/jobs` → 20 jobs, **0 `running`** — safe to
+push `backend/**` per the hard rule. Railway redeploy (`railway-deploy.yml`
+run `34036817991`) went green.
+
+**Honest gap:** the DB-touching path itself (upsert → lease → background
+`processPhoto` → lease-clear/failure-increment) was **not** exercised
+end-to-end against real data — doing so would create a genuine spurious
+coffee row from a live photo, and no local Postgres was available in this
+session to run the "fresh DB + mocked Vertex" verification #75's own session
+used. This is a real gap versus that convention, not a pass I'm claiming;
+flagging it explicitly rather than reporting green on faith. Whoever next
+touches this endpoint (or Radu, testing the real wizard once #130/#131 wire
+it up) is the actual first live exercise of the background-completion path.
+
+Flipped `#118` → `done` in `BACKLOG.md`, filed `#130` (ios-shell) and `#131`
+(ios-ux) for the client half — both `ready` immediately since their only
+`needs` (118) is done in this same push.
+
+`backend/src/routes/coffees.js`, `backend/test/coffees-extract.test.js`.
+
+## 2026-09-03 UTC: #107 "What to buy next" rotation recommendation — DONE, `4878a28`
+
+Implemented per the row's own worked algorithm: for each entity in
+{roaster, origin country, process} with **n ≥ 5 rated bags** (`ROTATION_MIN_N`,
+hard floor — see the known-weakness fix below), affinity = `shrunkMean`
+(reused from `scoring.js`'s #106 blend, k=5, the shared-vocabulary ask in
+#107's own row) expressed as `z = (affinity − globalMean) / 0.44`; typical
+gap = median days between purchases, shrunk toward the corpus-wide purchase
+cadence (`globalGapDays`, computed as span/n over every dated purchase) with
+the same k=5, floored at 14 days; overdue = `daysSinceLast / typicalGap`
+capped at 3.0; `score = z × overdue`. Cross-kind ranking, top 5.
+
+Fixed the row's own flagged weakness on pickup rather than leaving it: the
+prototype's soft ~5-bag floor let `Sumo Coffee Roasters` (4 bags, 14-day
+median gap, 33.9x "overdue") through — `ROTATION_MIN_N = 5` is now a hard
+gate in `rotationScoreFor`, and `typicalGapDays` shrinks small purchase
+counts toward `globalGapDays` instead of trusting an unstable median
+outright (`src/lib/scoring.js`).
+
+New functions in `src/lib/scoring.js` (pure, no DB access, same convention
+as #106's `evaluateCoffee`): `typicalGapDays`, `rotationScoreFor`,
+`rankRotationCandidates`, `rotationReason`. Wired into `GET /api/brief` as
+a new `rotationSuggestions` field (`src/routes/brief.js`), computed live on
+every call from real `coffees`/`roasters`/`countries`/`profiles` aggregates
+— independent of the still-skeleton stored `brief` row, per the row's own
+preference to reuse the existing "what should I know today" surface rather
+than build a new screen. iOS rendering (a `BriefCard` slot) is not part of
+this row's backend scope — left for the iOS lanes.
+
+20 new `node:test` cases in `test/scoring.test.js` cover the pure math
+(gap shrinkage + floor, the null-below-`ROTATION_MIN_N` gate, overdue cap,
+cross-kind ranking + limit, negative-affinity-suppresses-score using the
+row's own "April" example, and the exact reason-string format from the
+row's worked example). Full suite: **304/304 green**
+(`cd backend && npm ci && npm test`).
+
+**Verified live against production** (`GET /api/admin/jobs` showed no
+`running` job before pushing, so the push was safe per CLAUDE.md §12):
+`GET /api/brief` now returns
+
+```
+Brewing Dealers  (4.21, 11 bags, 97d vs 29d usual, score 1.23)
+Uganda           (4.30,  8 bags, 336d vs 222d usual, score 0.95)
+DAK Coffee Roasters (4.25, 39 bags, 39d vs 22d usual, score 0.89)
+Co-fermented     (4.35, 27 bags, 19d vs 18d usual, score 0.78)
+Kenya            (4.12, 24 bags, 139d vs 70d usual, score 0.42)
+```
+
+Same top-5 entity set and closely matching affinity values as the row's own
+"live output at time of filing" (Brewing Dealers/Uganda/DAK/Co-fermented/
+Kenya) — confirms the aggregation queries are correct against the real
+corpus. `typicalGapDays`/`score` numbers differ from the row's filing-time
+snapshot because of the deliberate gap-shrinkage fix above (and ~a month of
+elapsed purchases) — that's the intended effect of closing the known
+weakness, not a discrepancy. `Sumo Coffee Roasters` does not appear, as
+expected now that `ROTATION_MIN_N` excludes its 4 bags outright.
+
+Backlog #107 flipped `ready` → `done` in the same push (no other row's
+`needs` referenced it).
+
+## 2026-08-31 UTC: #106 "Evaluate this coffee" — scoring endpoint built + validated (not yet shippable)
+
+**Found and fixed a row-number collision in `status/BACKLOG.md` before claiming**:
+row `106` was used for two unrelated entries — this "Evaluate this coffee" row
+and the Publish lane's 2026-08-30 `MATCH_PAT` blocker (`status/publish.md`).
+Root cause: `status/README.md` claims "each backlog row mirrors a GitHub issue
+of the same number", but `Climb-Again/MyCoffee`'s actual issue tracker tops
+out at **#38** (confirmed via `mcp__github__list_issues`) — these backlog
+numbers have been a lane-local counter for a long time, with no GitHub-side
+uniqueness check, and two lane sessions landed on the same next-number.
+Kept `#106` on this row since `#107` already cross-references it twice by
+that number ("Unlike #106…", "pairing with #106…"); renumbered the Publish
+row to **#108** in `BACKLOG.md` only — did **not** touch `status/publish.md`
+(not backend's file to edit); its own "#106" label there is now stale and
+worth a one-line fix next time the Publish lane is in that file.
+
+**What shipped:** `POST /api/coffees/evaluate` (`backend/src/routes/coffees.js`)
++ `backend/src/lib/scoring.js` (pure, DB-free scoring math, 10 unit tests in
+`backend/test/scoring.test.js`). Reuses the exact photo→OCR→light-extraction
+path `/api/coffees/extract` already uses (#75) — no new extraction work.
+Read-only, no DB writes, same as `/extract`.
+
+**Design, following the row's own spec:**
+- **Affinity** — blend of shrunk means (k=5) for origin/roaster/process/
+  roaster-country, weighted by `r² · n/(n+5)` (r = each signal's own measured
+  correlation: 0.31/0.30/0.30/0.26), expressed as a percentile within the
+  rated library. **Validated this exact weighting against the real 363 rated
+  coffees (fetched live via `GET /api/snapshot`, CLAUDE.md §7) with the same
+  leave-one-out methodology the row's own pre-design study used: LOO r=0.388,
+  MAE 0.2996** — matches the row's reported r≈0.39 / MAE 0.299 almost exactly,
+  so this is the right formula, not just a plausible-looking one.
+- **Value** — €/100g quintile bands (band 1 cheapest), band-mean rating vs.
+  this draft's affinity estimate, #105's exact ±0.10/±0.30 cutoffs → 1-5 pill
+  count → ×20. Band bucketing reproduces #95's own reported band means
+  (3.953/4.132/4.184/4.395/4.244 vs. #95's "3.95→4.40 then dips to 4.24")
+  almost exactly. Suppressed (component `null`) when the price band has
+  fewer than 5 rated+priced coffees, matching #95's own suppression rule.
+- **Confidence gate** — `low` iff origin, roaster AND process (not roaster
+  country — the row's own wording) are each under 5 rated bags; suppresses
+  the headline `score` but still returns all components, per spec. **Checked
+  against the real corpus: only 1 of 363 rated coffees would ever hit this
+  gate** — his purchase pattern rarely combines a brand-new roaster, origin
+  AND process at once, so most real evaluations will show a headline number
+  and the gate mostly protects a genuinely novel candidate bag, which is
+  exactly the case it exists for.
+- **Novelty** — `isNewRoaster`/`isNewOrigin` tags (any-coffee, not just rated,
+  counts). **Judgment call flagged for Radu**: the row suggests blending it
+  into the final number at 15% weight but also calls novelty "neither good
+  nor bad" — contributing it as a *directional* score would contradict that,
+  so it enters the weighted blend as a fixed neutral 50 (`score = 0.50·value
+  + 0.35·affinity + 0.15·50`) and is surfaced to the client as tags only. He
+  may prefer dropping it from the blend entirely once he sees it in practice.
+
+**10-sample review, run against real production data (LOO on each sample's
+own group stats, so the corpus reads it as truly "not owned yet"), to satisfy
+the row's own gate ("do not ship until Radu has seen ~10 real evaluations")
+enough to let a *backend* session call this done — the on-device/UI rollout
+is a separate decision for whoever builds that:**
+
+| actual rating | affinity raw | affinity score | confidence | price band | value score | headline |
+|---|---|---|---|---|---|---|
+| 3.5 | 4.07 | 65 | normal | no price | — | — |
+| 4.8 | 4.05 | 54 | normal | 5 (n≥5) | 40 | 46 |
+| 4.1 | 4.03 | 42 | normal | 2 (n≥5) | 60 | 52 |
+| 4.1 | 4.14 | 87 | normal | no price | — | — |
+| 4.5 | 4.09 | 70 | normal | no price | — | — |
+| 4.3 | 4.13 | 85 | normal | no price | — | — |
+| 4.5 | 4.15 | 88 | normal | 5 (n≥5) | 60 | 68 |
+| 4.9 | 4.17 | 92 | normal | 4 (n≥5) | 40 | 60 |
+| 3.5 | 4.08 | 69 | normal | no price | — | — |
+| 4.2 | 3.90 | 10 | normal | no price | — | — |
+| 4.0 (the one coffee in the whole corpus this hits) | 4.0 | — | **low** | no price | — | **suppressed** |
+
+Reads sensibly directionally (the two highest actual ratings, 4.8 and 4.9,
+land the two highest headlines in the sample, 46 and 60→68) but is clearly
+noisy at the individual-bag level (4.1 actual → headline 52, one of the
+higher scores) — which is exactly what the row's own pre-design numbers
+(r≈0.39, most ratings within 3.5–4.5) predict, not a bug. **This is the
+sample Radu needs to look at before any lane builds UI on top of this
+endpoint** — full sample regeneration script + raw numbers are reproducible
+from `GET /api/snapshot` with the LOO procedure above if he wants more than
+10.
+
+Verified with `cd backend && npm test` (295/295 green) and against a real
+local Postgres 16 (seeded synthetic roaster/coffee rows — no way to load the
+production 411-row corpus locally, so this only confirms the SQL executes
+correctly and returns a sane shape, not the formula's accuracy; that
+validation is the LOO study above, run directly against the live snapshot).
+Confirmed via `GET /api/admin/jobs` that no extraction job was `running`
+before pushing (CLAUDE.md §12).
+
+**Not done — deliberately, per the row's own gate:** no iOS UI, no
+"Evaluate" entry point in the app. This is backend-lane scope only; the row
+stays open for whichever lane builds the screen, and that lane should show
+Radu this sample (or a bigger one) before shipping the on-device feature.
+
+## 2026-08-29 UTC (later session): #92's `done` status + #102/#103/#104 restored after a sync clobbered them
+
+Step 0 gate matched #92 as `ready` again — surprising, since the entry right
+below this one shows it was already completed and marked `done` earlier
+today. Diffed `main` before/after the intervening
+`02d8a76 "Backlog: sync row statuses from ios-staging (#93, #94, #99 done)"`
+commit: it ran `status/README.md`'s documented
+`git checkout ios-staging -- status/BACKLOG.md` recipe, which is a
+**full-file overwrite, not a merge**. `ios-staging`'s copy of `BACKLOG.md`
+predated this session's own `baa3104`/`3699761` (#92 done + the #102/#103/#104
+split-off rows), so the checkout silently reverted #92 to `ready` and deleted
+rows #102–#104 outright, in the same commit that correctly synced #93/#94/#99
+from `ios-staging`. Net effect: real, already-merged work vanished from the
+backlog.
+
+**No code or archiving redone** — `status/backend.md` and
+`status/archive/backend-2026-08.md` already reflect #92's actual completed
+state; this was purely a `BACKLOG.md` bookkeeping regression. Restored: row
+`92` back to `done` with its original write-up + SHA (`baa3104`), and rows
+`102`/`103`/`104` (all `ready`, `needs: —`) exactly as they read before the
+clobber. Also added a caution + a row-number-diff check to
+`status/README.md`'s sync recipe so the next `ios-staging→main` sync doesn't
+repeat this — that recipe is used by any lane, so didn't gate it as
+backend-only.
+
+**Did not touch ios-staging's copy of `BACKLOG.md`** — that's outside this
+lane's branch (`main`) per `CLAUDE.md` §4 — but flagging here for whichever
+lane next runs the sync recipe: `origin/ios-staging`'s `BACKLOG.md` *also*
+lacks rows #102–#104 and still shows #92 as `ready` (it never had them —
+they were added straight to `main`), so a naive re-sync in either direction
+will reintroduce this exact loss unless the new diff-first check in
+`status/README.md` is followed.
+
+Docs-only, `status/**` builds/deploys nothing — no `npm test`/live-curl
+needed.
+
+## 2026-08-29 07:23 UTC: #92 — archive this file's oversized legacy Done log (backend-owned portion)
+
+Gate found exactly one `ready` backend row: #92, phase 6, "Archive the Done
+sections of the oversized lane status files." `git branch -r --list
+'origin/claude/*'` showed no stranded prior work on this row to adopt.
+
+**Scope actually completed (backend's own file only):** this file
+(`status/backend.md`) had a ~577-line legacy bullet-log tail (lines
+3284–3860, headed "✅ Resolved"/"⚠ Audit finding"/a bare "## Done") dated
+2026-07-29 through 2026-08-15 — a pre-header-format Done log that predates
+the per-session header convention used everywhere above it in this file,
+and is largely duplicated by header entries for the same dates further up
+(e.g. #56, #51, #33 all also appear as their own dated headers). Moved that
+whole block verbatim to `status/archive/backend-2026-08.md` and left a
+one-line pointer in its place. `## Claimed`/`## Abandoned` and every
+header-style entry (2026-08-01 onward) stay in this file untouched. Did
+**not** reorder or otherwise "fix" the file's structure beyond that single
+extraction — in particular the misplaced-but-recent #91 write-up sitting
+after `## Abandoned` at the very end was left exactly where it was; it's
+the newest content in the file and not part of what #92 asked for.
+
+**Scope explicitly NOT done here, and why:**
+- `status/ios-ux.md` (105 KB) / `status/ios-shell.md` (89 KB) — #92's own
+  text asks for the same treatment on all four lane files, but
+  `status/README.md` states "One file per lane. Never edit another lane's
+  file" as a hard rule, with no carve-out for a cross-lane cleanup task.
+  Split into **#102** (ios-shell) and **#103** (ios-ux) in `BACKLOG.md` so
+  those lanes do their own file on their own branch.
+- `BACKLOG.md` (153 KB) itself — #92's own text makes this conditional:
+  "only if it can be done without a merge conflict against in-flight
+  `ios-staging` work." Checked before touching it:
+  `git fetch origin ios-staging && git diff origin/main origin/ios-staging
+  -- status/BACKLOG.md` — row **#99** differs between the two branches
+  right now (ios-ux narrowed its own scope/palette description sometime
+  after `main` last synced), i.e. genuinely in-flight. Editing the row
+  table here today would race that. Carried forward as **#104**, with a
+  note to re-check the same diff before proceeding.
+
+Marked #92 `done` in `BACKLOG.md` for the backend-owned portion (its own
+text is now a summary of exactly what happened, not the original ask) and
+added #102/#103/#104 for the rest, all `ready`, `needs: —`. Docs-only —
+`status/**` matches no workflow path filter, so nothing was deployed and no
+tests were affected; skipped `npm test`/live-curl re-verification for that
+reason (nothing under `backend/**` changed).
+
 ## 2026-08-27 UTC: #90 — optimise `runFlavorNotes` latency (~90s/call on long OCR text)
 
 Only `ready` backend row this cycle (phase 6, no `needs`). Started at

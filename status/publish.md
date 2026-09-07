@@ -53,6 +53,139 @@ _none_
 
 ## Done
 
+### 2026-09-06 UTC (Sun cron): nothing to ship — but found and fixed why the iOS lanes went quiet
+
+**Step 0 — no dispatch.** `origin/main..origin/ios-staging` = **0** commits, and
+the diff in app-relevant paths (`ios/**`, `.github/workflows/ios-testflight.yml`)
+between the last shipped SHA `680ab2a` (run #88, green 2026-09-02) and current
+`origin/main` `c12ef99` is **empty**. Everything that landed on `main` since #88
+is backend/ops/backlog work plus one unrelated workflow (`backlog-check.yml`).
+The binary at HEAD would be byte-identical to what #88 already uploaded, so a
+dispatch would burn a build slot for zero user-visible change. Followed the
+previous session's own advice and used the `ios/**`-diff signal rather than the
+`ios-staging` gap alone.
+
+Also checked the stranded-lane-branch trap (CLAUDE.md §12) before concluding:
+the two recent `origin/claude/*` branches (`determined-dirac-wjd3sp`,
+`coffee-ocr-origin-extraction-bx49z9`) carry ops and backlog commits only —
+`git diff origin/main...<branch> -- ios/` is empty for both. No orphaned iOS work.
+
+**The real finding: both iOS lanes had been silently stalled for a week.**
+`ios-staging` had not moved since 2026-08-30, and `status/ios-shell.md` /
+`status/ios-ux.md` had not been written since 2026-08-29 — six scheduled iOS
+firings (Mon/Wed/Fri, 08-31 → 09-04) with no commit, no claim, no status write.
+Root cause: **`status/BACKLOG.md` on `ios-staging` topped out at row #105.**
+Every iOS-owned row filed since — #109, #111, #112, #114, #116, #117, #120,
+#125, #130, #131, #134, #135 — existed only on `main`. The gate-first lane
+prompts (audit change 5) grep the backlog on their own working branch, matched
+no `ready` row, and stopped silently exactly as designed. The lanes were not
+broken; they were reading a backlog that did not contain their work.
+
+This is the 2026-08-27 audit's single-source-of-truth rule running in one
+direction only. That rule tells a lane flipping a row on `ios-staging` to land
+the same change on `main`. Nothing carries **new rows filed on `main`** back down
+to `ios-staging`, and the backend/data lanes have filed 30 rows there since.
+
+**Fix applied** (`ios-staging` `5d01de4`): took `main`'s `status/BACKLOG.md`
+wholesale onto `ios-staging`, after verifying it is lossless — on the 105 rows
+both branches share, every status agrees exactly, and `ios-staging` holds no row
+`main` lacks, so `main` is a strict superset and none of the iOS lanes' own truth
+was overwritten. Also brought across `status/check-backlog.sh` and
+`.github/workflows/backlog-check.yml`: that workflow already lists `ios-staging`
+in its push branches but had never existed on that branch, so row-uniqueness has
+been enforced on `main` only. `bash status/check-backlog.sh` passes on the merged
+file (123 rows, no duplicates, no dangling needs). `status/**` matches no build or
+deploy path filter, so this shipped nothing.
+
+Expect the iOS lanes to claim work again at their next firing (Mon 2026-09-07).
+Filed **#136** for the durable two-way fix — this manual sync unblocks today, it
+does not stop the copies drifting again.
+
+### 2026-09-03 UTC (Thu cron): nothing to ship — no dispatch this session
+
+Step 0: `origin/main..origin/ios-staging` = **0** commits (`ios-staging` tip
+`ea8c3b3` is exactly the merge-base with `main` — no unmerged iOS work).
+`status/publish.md`'s own last entry was stale (still showed run #86 BLOCKED
+on `MATCH_PAT`), so before trusting the "nothing new" shortcut I checked the
+Actions API directly: **run #88** (`workflow_dispatch`, `publish=true`,
+`680ab2a`) completed **success** 2026-09-02T10:27–10:29 UTC — `680ab2a`'s
+`Build & upload to TestFlight` step ran for real, not skipped. This matches
+`status/BACKLOG.md` #108, which another session/human had already marked
+"RESOLVED 2026-09-02" after Radu rotated `MATCH_PAT`, but no one had backfilled
+this file — logging it now so the next session doesn't re-diagnose the same
+gap.
+
+Diffed `ios/**` and `.github/workflows/**` between the shipped SHA (`680ab2a`)
+and current `origin/main` (`0bf798a`): the only change is a new
+`.github/workflows/backlog-check.yml` (row-uniqueness CI, doesn't touch the
+iOS pipeline). Everything else landed on `main` since #88 (#106, #107,
+#109–#124) is backend-only (`backend/**`, migrations, `status/BACKLOG.md`) —
+deployed continuously by Railway, not the iOS TestFlight pipeline. So the app
+binary at the current `main` HEAD would be byte-identical to what #88 already
+uploaded. No dispatch — a re-ship would just burn a build slot for zero user-
+visible change. Next publish session: same check, but note the real signal is
+"any `ios/**` / `.github/workflows/ios-testflight.yml` / `Fastfile` diff since
+`680ab2a`", not just the `ios-staging` gap, since backend work keeps moving
+`main`'s SHA without touching the app.
+
+### 2026-08-30 UTC: BLOCKED — `MATCH_PAT` rejected by GitHub, filed as BACKLOG #106 (human)
+
+Step 0: `origin/main..origin/ios-staging` was **10** commits — real UX work
+(#100–#105: real dark palette, one-flag-per-origin-country, redesign v2 chrome/
+bottom bar/pie charts, coffee-link navigation fix, quality-for-money value meter,
+process oval + camera in Add Coffee). Not a no-op.
+
+Step 1 (dispatch token): `GH_ACTIONS_PAT` is set in-env and unused directly —
+went straight to the GitHub MCP connector (`mcp__github__actions_run_trigger`,
+`run_workflow`) per the standing note above that it's the one credential proven
+to carry `actions:write`; no need to burn a probe dispatch against the untested
+env PATs given that note already established they lack the permission.
+
+Step 2 (merge): `ios-staging` tip `ea8c3b3` was compile-green (run **#84**,
+`33307620480`, success). Merged `origin/ios-staging` into `main` — one conflict,
+`status/backend.md`: `main`'s copy still carried the full 2026-08-05→08-14
+session-log block that ios-staging's #92 archival had already moved verbatim
+into `status/archive/backend-history.md` (confirmed by grepping matching
+section headers in the archive file before resolving) — took ios-staging's side
+(the block, already duplicated in the archive) and kept `main`'s newer prose
+above/below it. `status/BACKLOG.md` had **zero** diff between the two branches
+pre-merge — already in sync, no reconciliation needed this cycle. Pushed as
+`b49becc`. That push's own compile-check (run **#85**, `33332555714`) went
+green.
+
+Step 3 (dispatch): No `ios-testflight` run was in-progress; dispatched
+`publish=true` on `main` (run **#86**, `33332564889`) — it correctly queued
+behind #85 (serial concurrency) then ran. **Failed in 3 s** at the `match` step:
+
+```
+Cloning into '.../d20260830-2838-6rxohn'...
+remote: Invalid username or token. Password authentication is not supported for Git operations.
+fatal: Authentication failed for 'https://github.com/Climb-Again/mycoffee-private.git/'
+[!] Error cloning certificates git repo, please make sure you have access to the repository
+```
+
+Root cause is the `MATCH_PAT` secret itself, not code: `ios-testflight.yml`
+builds `MATCH_GIT_URL` as `https://x-access-token:${{ secrets.MATCH_PAT }}@github.com/...`
+(the correct fine-grained-PAT format), and nothing in `Fastfile`/the workflow
+changed since run #77's green ship — so the token GitHub is rejecting is the
+same one that worked then. This is a repeat of run #5's exact failure (see
+"How the ship was unblocked" above), which was fixed back then by installing an
+org-scoped `MATCH_PAT`; the most likely explanation is the fine-grained PAT
+expired (they carry a mandatory expiry) or was revoked/rotated outside this
+session's visibility. **Not fixable by a lane** — no session has the access to
+mint or rotate a PAT for `Climb-Again/mycoffee-private` on Radu's behalf.
+Filed as `status/BACKLOG.md` **#106**, tagged `human`, with the exact secret
+path Radu needs to update. Stopping here per the "6 iterations, full diagnosis"
+rule — but this isn't a flake to retry; every retry would fail identically and
+instantly until the secret is replaced.
+
+**State:** `main` is merged and compile-green (`b49becc`, includes #100–#105).
+TestFlight upload is the only blocked step. Once Radu updates `MATCH_PAT`,
+re-dispatching `publish=true` on `main` at this same SHA should go green with
+no further code changes.
+
+## Done (earlier)
+
 - First `publish=true` TestFlight ship green (run #14). Fixes: MCP-app dispatch,
   team-from-profile (`635a822`), `CFBundleExecutable` (`d601a2c`); retained
   legacy-dir profile mirror (`526d34e`).

@@ -80,10 +80,18 @@ export function matchVocab(input, candidates, opts = {}) {
     return { accepted: false, match: null, reason: 'no candidates' };
   }
 
+  // `opts.compareAs` lets a caller score on a normalised form of both sides
+  // without changing what gets stored or returned — farms use it to compare
+  // with facility affixes stripped, so "Banko Gotiti Washing Station" scores
+  // against "Banko Gotiti" as the same place (#98).
+  const prepare = typeof opts.compareAs === 'function' ? opts.compareAs : (v) => v;
+  const preparedInput = prepare(input);
+
   const scored = candidates.map((c) => {
     const name = typeof c === 'string' ? c : c.name;
-    const lev = normalizedLevenshteinSimilarity(input, name);
-    const trigram = trigramSimilarity(input, name);
+    const preparedName = prepare(name);
+    const lev = normalizedLevenshteinSimilarity(preparedInput, preparedName);
+    const trigram = trigramSimilarity(preparedInput, preparedName);
     return {
       candidate: c,
       lev,

@@ -22,7 +22,7 @@
 //     the whole raw value — it does not scan a paragraph for a substring. So
 //     this module has to find the matching substring itself and propose just
 //     that (see `findAliasMentions`).
-import { parseAltitude, parsePrice, parseWeight, parseRating, parseProfile, parseFarm, foldDiacritics, normalizeVocabString } from './normalize.js';
+import { parseAltitude, parsePrice, parseWeight, parseRating, parseProfile, parseFarm, foldDiacritics, normalizeVocabString, MONTH_NAMES } from './normalize.js';
 import { loadRoasterVocab, loadCountryVocab } from './vocab.js';
 import { query } from '../db.js';
 
@@ -129,8 +129,27 @@ export function extractFarmField(rawText) {
 // very relevant", threshold 0.70) and the riskiest one for rules to guess —
 // a caption can carry more than one date. Only propose when a date sits near
 // an explicit roast keyword, so a purchase date never gets mistaken for one.
-const DATE_RE = /\b((?:0?[1-9]|[12]\d|3[01])[./-](?:0?[1-9]|1[0-2])[./-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/;
-const ROAST_KEYWORD_RE = /\b(roast(?:ed)?|prajit|praj)\b/i;
+// Month-name alternation shared with parseDate's lookup, longest-first so
+// "sept" wins over "sep" and "january" over "jan" in the ordered alternation.
+const MONTH_WORDS = Object.keys(MONTH_NAMES)
+  .sort((a, b) => b.length - a.length)
+  .join('|');
+const DAY = '(?:0?[1-9]|[12]\\d|3[01])';
+// Numeric d/m/y, ISO, and spelled-out months (day-first "07 August 2026" and
+// month-first "August 7, 2026") — Gemini-free deterministic path must find the
+// same shapes parseDate can canonicalize, or the roast date never reaches it.
+const DATE_RE = new RegExp(
+  '\\b(' +
+    DAY + '[./-](?:0?[1-9]|1[0-2])[./-]\\d{2,4}' +
+    '|\\d{4}-\\d{2}-\\d{2}' +
+    '|' + DAY + '\\.?\\s+(?:' + MONTH_WORDS + ')\\.?,?\\s+\\d{4}' +
+    '|(?:' + MONTH_WORDS + ')\\.?\\s+' + DAY + '(?:st|nd|rd|th)?,?\\s+\\d{4}' +
+    ')\\b',
+  'i'
+);
+// "praj" is a prefix, not a whole word: it must catch prăjit / prăjire /
+// prăjită (all folded to praj*), so no trailing boundary.
+const ROAST_KEYWORD_RE = /\b(roast(?:ed)?|praj)/i;
 const ROAST_KEYWORD_WINDOW = 25;
 
 export function extractRoastedOnField(rawText) {
@@ -138,7 +157,8 @@ export function extractRoastedOnField(rawText) {
   const s = String(rawText);
   const m = s.match(DATE_RE);
   if (!m) return null;
-  const before = s.slice(Math.max(0, m.index - ROAST_KEYWORD_WINDOW), m.index);
+  // Fold the window so "Data de prăjire" reaches the diacritic-free keyword.
+  const before = foldDiacritics(s.slice(Math.max(0, m.index - ROAST_KEYWORD_WINDOW), m.index));
   if (!ROAST_KEYWORD_RE.test(before)) return null;
   return { value: m[1], confidence: 1.0, evidence: m[0] };
 }

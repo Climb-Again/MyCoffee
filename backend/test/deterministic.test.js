@@ -207,6 +207,20 @@ test('extractRoastedOnField: no date at all proposes nothing', () => {
   assert.equal(extractRoastedOnField('Roasted recently, no date on the bag'), null);
 });
 
+test('extractRoastedOnField: Romanian "Data de prăjire" + spelled-out month is found (the screenshot case)', () => {
+  const result = extractRoastedOnField('Origine: Rwanda. Data de prăjire: 07 August 2026. 250g.');
+  assert.equal(result.value, '07 August 2026');
+});
+
+test('extractRoastedOnField: a spelled-out month near an English roast keyword is proposed', () => {
+  const result = extractRoastedOnField('Roasted August 7, 2026, single origin.');
+  assert.equal(result.value, 'August 7, 2026');
+});
+
+test('extractRoastedOnField: a spelled-out date with no roast keyword nearby is never guessed', () => {
+  assert.equal(extractRoastedOnField('Best before 07 August 2026, store cool'), null);
+});
+
 // ---- extractProfileField (delegates re-parsing to canonicalize(), so this only gates presence) ----
 
 test('extractProfileField: a recognised profile term is passed through for re-parsing', () => {
