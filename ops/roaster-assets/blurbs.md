@@ -824,3 +824,23 @@ Core philosophies & roasting style:
 - **The ROWAC aesthetic** — photogenic, minimalist vintage-industrial cafés
   furnished with genuine 100-year-old ROWAC steel stools, the same brand Gropius
   used in the original Bauhaus workshops.
+
+## beberry-coffee
+
+BeBerry Coffee is a progressive, precision-focused specialty roastery based in
+Prague, Czech Republic. Founded in 2021 by certified Q-Grader Tomáš Laca and his
+partner Karin (a two-time Slovak Cup Tasting Champion), it lives by a simple core
+message — "Coffee is a fruit" — and is respected across Central Europe for lively,
+intensely sweet, fruit-forward profiles.
+
+Core philosophies & roasting style:
+
+- **The "golden mean" roast** — positioned between hyper-light Scandinavian styles
+  and traditional darker roasts, each profile is tailored to highlight natural
+  sugars, terroir, and processing notes while keeping low bitterness and pleasant
+  acidity.
+- **A focus on the fruit** — mirroring the name and berry-shaped logo, they select
+  lots that showcase juicy, fruity character: vibrant washes alongside complex
+  anaerobic naturals and anaerobic honeys.
+- **Versatile omni-roasts** — many lower-acidity single origins are developed as
+  omni-roasts, versatile for both high-clarity V60 and vibrant modern espresso.
