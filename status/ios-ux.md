@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-07 11:10 UTC] #120 wizard rating: 0.0 vs UNRATED — branch `ios-staging`
 
 ## Abandoned
 
