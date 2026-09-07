@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-07 11:20 UTC] #135 roaster-country pie: count unique roasters, not coffees — branch `ios-staging`
 
 ## Abandoned
 
