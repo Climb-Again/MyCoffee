@@ -578,3 +578,26 @@ Core philosophies & roasting style:
 - **Community-led events** — at home base they treat coffee as a lifestyle, hosting
   energetic "Latte Night Live" throwdowns with local DJs, street food, and
   late-night latte-art competitions.
+
+## taf
+
+Taf Coffee is a titan of the Mediterranean and European third-wave coffee movement.
+Founded as a family business in Athens, Greece in the 1990s by Yiannis Taloumis
+(an SCAE Lifetime Achievement Award recipient), Taf transitioned in the late 2000s
+into a globally revered specialty roastery and educator, widely credited with
+pioneering the modern specialty wave across Greece.
+
+Core philosophies & roasting style:
+
+- **The "hand-crafted" ethos** — Taf prefers "hand-crafted" to "specialty,"
+  highlighting a trilogy of care: sourcing extreme-quality beans, meticulous
+  roasting craftsmanship, and brewing that explicitly educates the customer.
+- **Direct relationship program** — decades of short, transparent supply chains;
+  Yiannis travels to origins annually to buy sustainable, high-scoring
+  single-estate micro-lots traceable to the exact field plot.
+- **Competition dominance** — Taf's training and green coffees fuelled famous
+  competitors like Stefanos Domatiotis (2014 World Brewers Cup Champion) and Chris
+  Loukakis (WBC finalist).
+- **Scientific quality control** — a state-of-the-art lab and certified SCA Premier
+  Training Campus in Attica test and profile every incoming crop to showcase native
+  fruit sugars, sweetness, and floral aromas.

@@ -70,7 +70,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 |
 | ☐ | ✅ | Spojka | `spojka` | Slovakia | 1 |
 | ☐ | ✅ | Sprout Coffee Roasters | `sprout-coffee-roasters` | Netherlands | 1 |
-| ☐ | ☐ | Taf | `taf` | Greece | 1 |
+| ☐ | ✅ | Taf | `taf` | Greece | 1 |
 | ☐ | ☐ | Tanat Coffee | `tanat-coffee` | France | 1 |
 | ☐ | ☐ | The naughty dog | `the-naughty-dog` | Czech Republic | 1 |
 | ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 |
