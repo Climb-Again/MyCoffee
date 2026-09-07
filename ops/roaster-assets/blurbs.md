@@ -799,3 +799,28 @@ Brand DNA & roasting style:
   experience the natural sugars, fruit notes, and clarity of the coffee itself.
 - **Nordic-style bakery & food** — a praised in-house culinary program, locally
   famous for cardamom buns, cinnamon rolls, and Scandinavian-inspired baked goods.
+
+## jonas-reindl
+
+Jonas Reindl Coffee Roasters is a defining anchor of Vienna's modern specialty
+coffee scene. Founded in 2014 by Philip Feyer, it was part of Vienna's "second
+wave," challenging the city's historic but often bitter coffee-house culture with
+ultra-transparent, lighter-style roasting. The name is Viennese insider lore: the
+nearby Schottentor transport hub — built under 1961 mayor Franz Jonas — has a
+circular layout resembling a cooking pan (a "Reindl"), so locals dubbed it "Jonas'
+Pan."
+
+Core philosophies & roasting style:
+
+- **Barista-to-roaster progression** — after running multi-roaster spaces, Philip
+  moved into self-taught roasting in 2018, mapping custom batches with Cropster
+  analytics for tight profile consistency.
+- **Dedicated direct trade** — a core relationship with Finca Las Alpujarras in
+  Nicaragua yields over 70% of the sweet, chocolatey base for their main seasonal
+  espresso offerings.
+- **Viennese heritage meets third-wave tech** — a modern light-to-medium roastery
+  whose cafés still serve classic Austrian styles like the Melange alongside
+  single-origin pour-overs.
+- **The ROWAC aesthetic** — photogenic, minimalist vintage-industrial cafés
+  furnished with genuine 100-year-old ROWAC steel stools, the same brand Gropius
+  used in the original Bauhaus workshops.
