@@ -555,3 +555,26 @@ Core philosophies & roasting style:
 - **Producer-first sourcing** — a highly seasonal, transparent sourcing program
   working closely with independent family farms in regions like Colombia,
   Ethiopia, and Kenya.
+
+## sprout-coffee-roasters
+
+Sprout Coffee Roasters is a modern, fun-loving specialty roastery and café in
+Eindhoven, Netherlands. Founded in 2019 by brothers Daniell and Ruben — born in
+Eindhoven but raised in Perth, Australia — the brand bridges vibrant Australian
+café culture with European roasting precision, earning a passionate following for
+its playful persona, sustainability focus, and flavour-forward coffees.
+
+Core philosophies & roasting style:
+
+- **Playful, animal-themed identity** — each label features a unique animal
+  illustration and colour scheme chosen to symbolise the environment, country, and
+  culture where the coffee was grown.
+- **Bold, descriptive flavour naming** — much like DAK, Sprout ditches elitist
+  jargon for hyper-descriptive names: Superpunch, Cool Cat, Mellow Fellow, Bloody
+  Boozy Orange, Lasso Lassi.
+- **Experimental post-harvest sourcing** — partnering with cutting-edge producers
+  (notably Nestor Lasso of Finca El Diviso, Huila, Colombia) for ultra-complex,
+  co-fermented, yeast-inoculated micro-lots with intense candy and fruit profiles.
+- **Community-led events** — at home base they treat coffee as a lifestyle, hosting
+  energetic "Latte Night Live" throwdowns with local DJs, street food, and
+  late-night latte-art competitions.
