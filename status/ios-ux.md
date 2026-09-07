@@ -6,13 +6,47 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-07 11:20 UTC] #135 roaster-country pie: count unique roasters, not coffees — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-07 — #125 "Evaluate this coffee" — picked up, then re-blocked on
+  a new row (#136) — no UX code written.** Read the row and the live backend
+  (`backend/src/routes/coffees.js:583`, `backend/src/lib/scoring.js`'s
+  `evaluateCoffee`) to confirm the exact response shape before touching
+  anything. Unlike #135 in this same session, this one genuinely can't be
+  built UX-only: `POST /api/coffees/evaluate` is a brand-new endpoint with no
+  existing client plumbing at all (nothing like `CoffeeIndex.coffees` to read
+  off of), so it needs a new `APIClient`/`SyncEngine`/`CoffeeRepository`/
+  `CoffeeStore` method — all shell-owned files this lane must not touch.
+  Filed **#136** (`ios-shell`, `ready`, phase 9) with the exact request/response
+  contract and a pointer to mirror `extractWizardDraft`'s existing ephemeral-
+  draft pattern rather than `quickCreateCoffee`'s persisted one. Set #125 to
+  `blocked` on `106, 136` rather than leaving it `ready` — `ios-shell`'s own
+  Step-0 gate only greps `ios-shell` rows, so without a shell-lane row this
+  would sit forever the way #12/#13/#34 did before "Integrate before you
+  start" existed (`status/README.md`). Once #136 lands, #125 comes back
+  `ready` for this lane.
+
+- **2026-09-07 — #135 roaster-country pie: unique roasters, not coffees —
+  built without the shell-side helper the row proposed.** The row suggested
+  splitting this across both iOS lanes (a `CoffeeIndex` helper on the shell
+  side, consumed by a UX-side change), same shape as #27/#28's flagged
+  shell-surface gaps. Checked first: `Coffee.roasterId`/`roasterCountryId`
+  are already synced fields on every row, and `CoffeeIndex.coffees`/
+  `.clearing(_:)` are already internal (module-visible, already used by UX
+  code building throwaway `CoffeeIndex`es elsewhere in this same file), so
+  the whole grouping — bucket `windowedCoffees` by `roasterCountryId`, count
+  distinct `roasterId`s per bucket — is doable entirely inside
+  `InsightsView` by *reading* the existing shell surface, not editing it.
+  No `Store/Query` file touched, no cross-lane claim needed. Landed
+  `8929e97`. Left open per the row: whether the legend's ★ average should
+  become an average-over-roasters instead of staying coffee-weighted —
+  Radu's call, not made here.
 
 - **2026-09-07 — #120 wizard rating: 0.0 vs UNRATED — already fixed by #131,
   no new commit needed.** Traced the root cause the row names ("the rating
