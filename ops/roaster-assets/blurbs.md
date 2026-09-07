@@ -71,3 +71,25 @@ Brand DNA & roasting style:
 - **Onyx partnership** — maintains a major European fulfilment partnership with
   US powerhouse Onyx Coffee Lab, sharing a dedicated green-sourcing and packaging
   space in its Rotterdam facility.
+
+## brewing-dealers
+
+Brewing Dealers is a highly aesthetic micro-roastery based in Málaga, Spain,
+founded by Leo and Vedrana. Known for an adventurous spirit and a zero-compromise
+approach to quality, the brand positions itself as a curator of "not your usual
+coffee" — focusing entirely on competition-level lots, rare varieties, and complex
+experimental fermentations.
+
+Brand identity & sourcing:
+
+- **Micro-batches & rare profiles** — rather than large uniform blends, Brewing
+  Dealers hunts down limited green lots: rare, ultra-premium single origins sourced
+  globally, from the highest-altitude Ethiopian lots to complex, fruit-forward
+  Colombian profiles.
+- **Boundary-pushing innovation** — a heavy focus on cutting-edge processing,
+  frequently partnering with advanced facilities like the Lost Origin Coffee Lab,
+  which uses sterile bioreactors and precise microbiology to yield deeply
+  saturated, clean, intense tasting notes.
+- **Award-winning design** — recognised for striking visual presentation, earning
+  design accolades including a Pentawards global design nomination for its
+  beautifully designed premium glass bottle and custom container packaging.

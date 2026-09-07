@@ -1,6 +1,6 @@
 # Roaster content checklist — logos + blurbs
 
-_Generated 2026-09-06 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
+_Generated 2026-09-07 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
 
 Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file by roaster; the `slug` below is the key I map it to). Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug.
 
@@ -16,7 +16,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ☐ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 |
 | ☐ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |
 | ☐ | ☐ | April | `april` | Denmark | 14 |
-| ☐ | ☐ | Brewing Dealers | `brewing-dealers` | Spain | 13 |
+| ☐ | ✅ | Brewing Dealers | `brewing-dealers` | Spain | 13 |
 | ☐ | ☐ | People Possession | `people-possession` | France | 11 |
 | ☐ | ☐ | Tim Wendelboe | `tim-wendelboe` | Norway | 8 |
 | ☐ | ☐ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 |
