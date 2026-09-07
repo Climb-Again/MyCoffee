@@ -114,11 +114,14 @@ struct CoffeeRowView: View {
                     .lineLimit(1)
             }
 
+            // §6.3: one line, truncated. A two-line wrapped title with an
+            // ellipsis is what made rows ragged and the list read heavy.
             Text(coffee.displayTitle(vocabulary: vocabulary))
                 .font(.system(size: 17, weight: Theme.Weight.heavy))
                 .tracking(-0.34)
                 .foregroundStyle(Theme.Colors.text)
-                .lineLimit(2)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
             if let originLine {
                 HStack(spacing: 4) {
@@ -129,26 +132,26 @@ struct CoffeeRowView: View {
                     // for the other 395 of 411.
                     FlagsView(isoCodes: coffee.allOriginCountries(vocabulary: vocabulary).map(\.isoCode))
                         .font(.system(size: 13))
+                    // §6.4: one line, truncated. A three-line farm name must
+                    // become one line so every row is the same height.
                     Text(originLine)
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.Colors.neutral700)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
 
-            // #104: the tinted oval is back. The 2a handoff §Row called for
-            // "11pt plain text, no tinted capsule"; Radu wants the capsule.
-            // `ProcessTag` was never deleted — it still carries its own
-            // light/dark hex pair per process (so it needs none of #100's
-            // treatment) and the two layout guards paid for earlier: an
-            // explicit HStack rather than a `Label`, which collapsed to
-            // icon-only under `fixedSize`, plus lineLimit(1) + fixedSize
-            // against the character-per-line wrap.
-            //
-            // Still gated on a non-nil profile: an unknown process omits the
-            // row entirely rather than showing ProcessTag's "Unknown" pill,
-            // per "missing fields omit their row".
-            if coffee.profile != nil {
-                ProcessTag(profile: coffee.profile)
+            // §6.1 (Redesign v3): process is **plain text**, not a tinted
+            // capsule — the red "Natural"/purple "Anaerobic" pills were the
+            // loudest thing on screen and are not in the design. This reverts
+            // #104. `ProcessTag` still lives on the detail page. Gated on a
+            // non-nil profile so an unknown process omits the line entirely.
+            if let profile = coffee.profile {
+                Text(profile.displayName)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.Colors.neutral700)
+                    .lineLimit(1)
             }
         }
     }
@@ -157,19 +160,24 @@ struct CoffeeRowView: View {
 
     private var rightColumn: some View {
         VStack(alignment: .trailing, spacing: 2) {
+            // §7: monospaced digits so the right column's numbers align on a
+            // single right edge and don't jitter while scrolling.
             if let rating = coffee.rating {
                 Text(String(format: "%.1f", rating))
                     .font(.system(size: 26, weight: Theme.Weight.heavy))
+                    .monospacedDigit()
                     .foregroundStyle(rating >= 4.5 ? Theme.Colors.accent : Theme.Colors.text)
             }
             if let priceLabel = coffee.priceLabel {
                 Text(priceLabel)
                     .font(.system(size: 13, weight: Theme.Weight.semibold))
+                    .monospacedDigit()
                     .foregroundStyle(Theme.Colors.text)
             }
             if let pricePer100gEur = coffee.pricePer100gEur {
                 Text(pricePer100gEur.formatted(.currency(code: "EUR")) + "/100g")
                     .font(.system(size: 10))
+                    .monospacedDigit()
                     .foregroundStyle(Theme.Colors.neutral700)
             }
             if let valueRating = store.index.valueBand(for: coffee) {

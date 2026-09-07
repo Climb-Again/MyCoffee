@@ -16,7 +16,9 @@ struct CoffeeDetailView: View {
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
     @State private var showReview = false
     @State private var showEdit = false
-    @State private var fullTextExpanded = true
+    // §8.2: Full text is collapsed on open — it dumps raw scraped copy that
+    // overflows mid-sentence, so it must not wall off the rails by default.
+    @State private var fullTextExpanded = false
     @State private var showFullPhoto = false
 
     init(coffee: Coffee) {
@@ -58,7 +60,9 @@ struct CoffeeDetailView: View {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
                     Image(systemName: Symbols.share)
                         .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.92), in: Circle())
+                        // §8.1: neutral system material, no warm tint — a white
+                        // fill read cream/peach over the warm hero photo.
+                        .background(.regularMaterial, in: Circle())
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -67,7 +71,9 @@ struct CoffeeDetailView: View {
                 } label: {
                     Image(systemName: Symbols.edit)
                         .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.92), in: Circle())
+                        // §8.1: neutral system material, no warm tint — a white
+                        // fill read cream/peach over the warm hero photo.
+                        .background(.regularMaterial, in: Circle())
                 }
             }
         }

@@ -14,6 +14,28 @@ _none_
 
 ## Session notes
 
+- **2026-09-07 — RETRACTED: a "stranded branch" finding earlier this session
+  was my own git mistake, not a real problem.** Mid-session I flipped
+  `#118`/`#130`/`#131` to `blocked` and un-claimed `#130`, believing
+  `a73b520` (#118's backend route) existed only on `origin/claude/adoring-ride-2q9qas`
+  and not on `main` — based on `git merge-base --is-ancestor a73b520 origin/main`
+  failing. That check ran against a **stale local `origin/main`**: this session's
+  container never ran `git fetch origin main` before the check (only
+  `git fetch origin ios-staging`, earlier), so the local `origin/main` ref was
+  whatever the container started with, not current. A later `git fetch origin main`
+  showed `a73b520` (and the whole ~30-commit range I'd flagged) **is** an
+  ancestor of the real `origin/main` — #118 was correctly `done` all along, and
+  the "production running an out-of-band deploy" alarm was wrong too (the
+  `quick-create` 400 response was just main's own deployed route). Reverted
+  `#118`/`#130`/`#131` to their original status in `BACKLOG.md`. Sorry for the
+  noise — flagging the mistake here so nobody wastes time chasing a phantom
+  merge. Lesson for next time: fetch every ref you're about to diff against,
+  not just the one you're checking out.
+
+- **#109/#112 done this session** — see `BACKLOG.md`'s own DONE notes for the
+  implementation summary (value-meter rework + the row-render perf fix).
+  Session notes below are for #112's predecessor, #95:
+
 - **2026-08-28 — #95 value meter is now quality-for-money (`UPDATE_BRIEF.md` §B).**
   `CoffeeIndex.valueBand(for:)` scored **price alone** — the coffee's
   `pricePer100gEur` quintile, inverted — so a cheap bag rated 3.2 read

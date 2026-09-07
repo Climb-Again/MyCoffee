@@ -21,6 +21,10 @@ enum RootTab: Hashable {
     case coffees
     case insights
     case review
+    /// Redesign v3 §3: the `+` is a middle tab item, not a floating circle.
+    /// Selecting it presents the Add Coffee wizard as a sheet and immediately
+    /// restores the previous tab — `RootTabView` never lets it stay selected.
+    case add
 }
 
 @MainActor
