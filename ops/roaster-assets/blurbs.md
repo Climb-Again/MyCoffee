@@ -670,3 +670,26 @@ Sourcing & roasting philosophies:
   fruit sweetness and crisp cleanliness, avoiding heavy dark-roast defects.
 - **Eco-conscious formats** — they engineered their own line of 100% compostable
   coffee capsules made entirely from wood fibres.
+
+## cupping-room
+
+Cupping Room Coffee Roasters is an acclaimed, multi-award-winning specialty
+roastery and café chain based in Hong Kong. Founded in 2011 by Kapo Chiu, it's
+widely credited with sparking Hong Kong's modern third-wave movement, and stands
+out for bridging champion-level competition standards with accessible, beautifully
+curated retail.
+
+Core philosophies & roasting style:
+
+- **The pursuit of the "clean cup"** — a strict light-roasting philosophy that
+  avoids deep, smoky roasts to maximise aroma, natural sweetness, and cup clarity,
+  letting the authentic fruit, floral notes, and regional acidity come through.
+- **Competition-pedigree roots** — founder Kapo Chiu is a three-time Hong Kong
+  Barista Champion and a twice top-three finisher at the World Barista Championship;
+  that analytical rigour is embedded in the roastery.
+- **Prestigious micro-lots** — a rotating seasonal menu of rare, world-renowned
+  single origins, including lots from Gesha Village (Ethiopia) and Granja La
+  Esperanza (Colombia).
+- **Innovative product formats** — early specialty adopters of high-end coffee
+  capsules and nitrogen-sealed drip bags using the same premium micro-lots poured
+  on their bars.

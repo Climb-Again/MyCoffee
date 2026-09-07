@@ -12,7 +12,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ☐ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
+| ☐ | ✅ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
 | ☐ | ☐ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |
 | ☐ | ☐ | Tanat Coffee | `tanat-coffee` | France | 1 | 4.5 |
 | ☐ | ☐ | HAYB Speciality Coffee | `hayb-speciality-coffee` | Poland | 1 | 4.5 |
