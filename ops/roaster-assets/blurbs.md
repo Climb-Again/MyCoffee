@@ -907,3 +907,22 @@ Core philosophies & vertical sourcing:
 - **Meticulous packaging tiers** — the catalogue is segmented into curated Packs,
   balanced Blends engineered for vibrant sweetness, and ultra-premium Rare Editions
   showcasing experimental micro-lots and unusual botanical varietals.
+
+## right-side
+
+Right Side Coffee Roasters is an award-winning pioneer specialty roastery based in
+Barcelona, Spain. Founded in 2012 by Joaquín Parra, it has spent over a decade as a
+benchmark for direct-trade sourcing, roasting mastery, and transparent
+partnerships, earning the local moniker "Spanish Roaster Champ" among purists.
+
+Core philosophies & roasting style:
+
+- **"Chefs with one ingredient"** — the team treats roasting through a culinary
+  lens, seeing themselves as chefs dedicated to mastering one raw agricultural
+  material: coffee.
+- **100% vertical direct trade** — they handle all their own green imports,
+  travelling to origins each season to build long-term, ethical relationships with
+  small-scale farmers at premium farm-gate prices.
+- **Vintage restorations & convection precision** — from their Castelldefels
+  facility they restore and fine-tune classic roasting machinery, focusing on
+  flavour clarity, clean extractions, and terroir over smoky defects.
