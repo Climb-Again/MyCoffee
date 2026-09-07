@@ -11,7 +11,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | Logo | Blurb | Roaster | slug | Country | Coffees |
 |---|---|---|---|---|---|
 | ✅ | ✅ | Gardelli | `gardelli` | Italy | 91 |
-| ☐ | ✅ | The Barn | `the-barn` | Germany | 65 |
+| ✅ | ✅ | The Barn | `the-barn` | Germany | 65 |
 | ✅ | ✅ | Mabo | `mabo` | Romania | 50 |
 | ✅ | ✅ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 |
 | ✅ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |
@@ -19,9 +19,9 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Brewing Dealers | `brewing-dealers` | Spain | 13 |
 | ✅ | ✅ | People Possession | `people-possession` | France | 11 |
 | ✅ | ✅ | Tim Wendelboe | `tim-wendelboe` | Norway | 8 |
-| ☐ | ✅ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 |
-| ☐ | ✅ | Coffea Circulor | `coffea-circulor` | Norway | 6 |
-| ☐ | ✅ | Friedhats | `friedhats` | Netherlands | 6 |
+| ✅ | ✅ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 |
+| ✅ | ✅ | Coffea Circulor | `coffea-circulor` | Norway | 6 |
+| ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 |
 | ☐ | ☐ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
 | ☐ | ☐ | Man vs Machine | `man-vs-machine` | Germany | 4 |
 | ☐ | ☐ | Origo | `origo` | Romania | 4 |
