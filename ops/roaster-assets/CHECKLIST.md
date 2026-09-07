@@ -22,7 +22,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 |
 | ✅ | ✅ | Coffea Circulor | `coffea-circulor` | Norway | 6 |
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 |
-| ☐ | ☐ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
+| ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 |
 | ☐ | ☐ | Man vs Machine | `man-vs-machine` | Germany | 4 |
 | ☐ | ☐ | Origo | `origo` | Romania | 4 |
 | ☐ | ☐ | Sumo Coffee Roasters | `sumo-coffee-roasters` | Ireland | 4 |

@@ -273,12 +273,7 @@ Core philosophies & roasting style:
   micro-lots, clean naturals, and lively washed coffees that emphasise pure terroir
   over funky artificial fermentations.
 
-## a-matter-of-concrete
-
-> ⚠️ Not currently a roaster in the app — no seeded row and 0 coffees in the live
-> vocab as of 2026-09-07. Staged so the content isn't lost; #133 must seed the
-> roaster (or it attaches once a coffee from them is ingested) before this blurb
-> can surface. Slug is provisional.
+## a-m-o-c
 
 A Matter of Concrete (A.M.O.C.) is an innovative, design-forward specialty coffee
 roastery based in Rotterdam, Netherlands. Founded in 2021 by former Coffee Masters
