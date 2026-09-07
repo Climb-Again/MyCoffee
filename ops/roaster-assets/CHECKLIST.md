@@ -8,16 +8,11 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
-## In your library (64 roasters — 46 complete, 18 still need content)
+## In your library (64 roasters — 51 complete, 13 still need content)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ✅ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
-| ☐ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ☐ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
-| ☐ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
-| ☐ | ✅ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
-| ☐ | ✅ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 | 3.8 |
 | ☐ | ☐ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 | 3.8 |
@@ -53,6 +48,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 | 4.1 |
 | ✅ | ✅ | Man vs Machine | `man-vs-machine` | Germany | 4 | 4.0 |
 | ✅ | ✅ | Mabo | `mabo` | Romania | 50 | 4.0 |
+| ✅ | ✅ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
 | ✅ | ✅ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 | 4.0 |
 | ✅ | ✅ | Koppi | `koppi` | Sweden | 1 | 4.0 |
 | ✅ | ✅ | Sentido | `sentido` | Japan | 1 | 4.0 |
@@ -68,8 +64,12 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 | 3.9 |
 | ✅ | ✅ | ONYX | `onyx` | United States | 3 | 3.9 |
 | ✅ | ✅ | Kawa | `kawa` | France | 1 | 3.9 |
+| ✅ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ✅ | ✅ | The Barn | `the-barn` | Germany | 65 | 3.8 |
 | ✅ | ✅ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 | 3.8 |
+| ✅ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
+| ✅ | ✅ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
+| ✅ | ✅ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 | 3.8 |
 | ✅ | ✅ | April | `april` | Denmark | 14 | 3.6 |
 | ✅ | ✅ | Taf | `taf` | Greece | 1 | 3.5 |
 | ✅ | ✅ | Elbgold | `elbgold` | Germany | 2 | 3.1 |
