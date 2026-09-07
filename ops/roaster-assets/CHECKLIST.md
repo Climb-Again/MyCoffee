@@ -8,11 +8,10 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
-## In your library (64 roasters — 51 complete, 13 still need content)
+## In your library (64 roasters — 52 complete, 12 still need content)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ☐ | ☐ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 | 3.8 |
@@ -65,6 +64,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | ONYX | `onyx` | United States | 3 | 3.9 |
 | ✅ | ✅ | Kawa | `kawa` | France | 1 | 3.9 |
 | ✅ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
+| ✅ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
 | ✅ | ✅ | The Barn | `the-barn` | Germany | 65 | 3.8 |
 | ✅ | ✅ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 | 3.8 |
 | ✅ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
