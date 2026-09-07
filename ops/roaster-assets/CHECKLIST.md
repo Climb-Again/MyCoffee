@@ -11,7 +11,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | Logo | Blurb | Roaster | slug | Country | Coffees |
 |---|---|---|---|---|---|
 | ✅ | ✅ | Gardelli | `gardelli` | Italy | 91 |
-| ☐ | ☐ | The Barn | `the-barn` | Germany | 65 |
+| ☐ | ✅ | The Barn | `the-barn` | Germany | 65 |
 | ☐ | ✅ | Mabo | `mabo` | Romania | 50 |
 | ✅ | ☐ | DAK Coffee Roasters | `dak-coffee-roasters` | Netherlands | 42 |
 | ☐ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 |

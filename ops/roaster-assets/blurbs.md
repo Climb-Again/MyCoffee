@@ -161,3 +161,27 @@ Core philosophies & roasting style:
   host multi-course coffee tasting menus, pairing rare auction lots (like high-end
   Panamanian Geishas) with specialised water formulations, treating coffee with the
   reverence of fine wine.
+
+## the-barn
+
+THE BARN Coffee Roasters is one of the most recognised icons of Europe's
+third-wave coffee movement. Founded in Berlin, Germany in 2010 by Ralf Rüller, the
+brand has scaled into a global powerhouse — exporting to over 80 countries and
+earning accolades including Best Specialty Coffee Roaster in Europe and Roaster of
+the Year 2025. THE BARN is revered for its minimalist, quality-obsessed, purist
+approach to coffee.
+
+Core philosophies & roasting style:
+
+- **Uncompromising single-origin focus** — as a matter of principle THE BARN does
+  not blend, focusing entirely on fully traceable single-estate micro-lots that
+  score a minimum of 86+ points on the SCA scale.
+- **The "clean & light" Nordic roast** — using custom Probat drum roasters, the
+  team develops beans in a light-to-medium clean style that eliminates heavy, smoky
+  defects so the terroir, clarity, and natural fruit sugars come through.
+- **True value & direct trade** — disconnecting from commodity market pricing, THE
+  BARN pays premium farm-gate prices under a direct-trade model that lets
+  small-scale growers run fully sustainable operations.
+- **Cultural cachet** — beyond the specialty scene, THE BARN is culturally
+  prominent, with creative crossovers including high-profile design collaborations
+  with filmmaker Wes Anderson.
