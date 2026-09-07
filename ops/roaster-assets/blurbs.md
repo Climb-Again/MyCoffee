@@ -272,3 +272,30 @@ Core philosophies & roasting style:
   progressive producers, and a rotating selection of transparently traded
   micro-lots, clean naturals, and lively washed coffees that emphasise pure terroir
   over funky artificial fermentations.
+
+## a-matter-of-concrete
+
+> ⚠️ Not currently a roaster in the app — no seeded row and 0 coffees in the live
+> vocab as of 2026-09-07. Staged so the content isn't lost; #133 must seed the
+> roaster (or it attaches once a coffee from them is ingested) before this blurb
+> can surface. Slug is provisional.
+
+A Matter of Concrete (A.M.O.C.) is an innovative, design-forward specialty coffee
+roastery based in Rotterdam, Netherlands. Founded in 2021 by former Coffee Masters
+Champion Rob Clarijs, it operates out of a historic warehouse inside the legendary
+Van Nelle Factory — a modernist glass-and-concrete UNESCO World Heritage site that
+inspires both the roastery's name and its striking aesthetic.
+
+Core philosophies & roasting style:
+
+- **Data-driven convection roasting** — a Loring S35 Kestrel convection roaster
+  paired with a Sovda colour sorter eliminates smoke defects and delivers extreme
+  uniformity, clean cup clarity, and batch-to-batch consistency.
+- **Strict blind cupping** — the green-sourcing team evaluates every incoming
+  coffee via blind cupping, so farm fame or marketing never influences selection.
+- **Three-tiered menu** — *Classic/Uncommon* (comforting and underrepresented
+  origins), *MONO/RARE* (single-variety micro-lots), and *APAX* (the peak
+  experimental tier: co-fermentations, thermal shocks, yeast inoculations, wild
+  dessert-like flavours).
+- **Industrial packaging** — minimalist bags in distinctively structured boxes that
+  echo the architecture of their modernist factory home.
