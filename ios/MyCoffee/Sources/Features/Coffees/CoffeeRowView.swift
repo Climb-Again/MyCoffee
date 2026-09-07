@@ -122,6 +122,13 @@ struct CoffeeRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
 
+            // #131: a just-quick-created coffee has no fields yet — the
+            // background extraction pass hasn't landed — so this is the only
+            // thing distinguishing it from a genuinely-empty row.
+            if coffee.reviewState == "unextracted" {
+                extractingBadge
+            }
+
             if let originLine {
                 HStack(spacing: 4) {
                     // One flag per origin: a blend used to force `nil` here and
@@ -153,6 +160,19 @@ struct CoffeeRowView: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    /// Subtle, non-interactive — unlike the review pill on the detail page,
+    /// there's nothing to tap yet: the fields this coffee will get haven't
+    /// been extracted at all.
+    private var extractingBadge: some View {
+        HStack(spacing: 4) {
+            ProgressView()
+                .controlSize(.mini)
+            Text("Extracting…")
+                .font(.system(size: 12, weight: Theme.Weight.semibold))
+        }
+        .foregroundStyle(Theme.Colors.neutral700)
     }
 
     // MARK: - Right column

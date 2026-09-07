@@ -213,7 +213,12 @@ struct CoffeeDetailView: View {
                     .foregroundStyle(Theme.Colors.neutral700)
             }
             Spacer()
-            if coffee.hasOpenReview && reviewCache.hasReviewableTasks(for: coffee.id) {
+            if coffee.reviewState == "unextracted" {
+                // #131: nothing to review yet — the coffee was quick-created
+                // and the background extraction pass hasn't landed, so this
+                // replaces (never combines with) the review pill below.
+                extractingPill
+            } else if coffee.hasOpenReview && reviewCache.hasReviewableTasks(for: coffee.id) {
                 // Tappable: the pill isn't just a status, it launches the
                 // review for this coffee's open fields (PLAN.md §6.5).
                 // Gated on the real feed, not just the coarse `reviewState`
@@ -244,6 +249,21 @@ struct CoffeeDetailView: View {
         let count = reviewCache.reviewableFieldCount(for: coffee.id)
         guard count > 0 else { return "Needs review" }
         return "\(count) field\(count == 1 ? "" : "s") to review"
+    }
+
+    /// Non-interactive — unlike `reviewPillText`'s button, there's nothing to
+    /// review yet, just a wait.
+    private var extractingPill: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.mini)
+            Text("Extracting…")
+                .font(.system(size: 11, weight: Theme.Weight.semibold))
+        }
+        .foregroundStyle(Theme.Colors.neutral700)
+        .padding(.horizontal, 14)
+        .frame(minHeight: Theme.minHitTarget)
+        .background(Theme.Colors.neutral100, in: Capsule())
     }
 
     private func starRow(for rating: Double) -> some View {
