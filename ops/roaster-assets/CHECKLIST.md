@@ -23,7 +23,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ☐ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
 | ☐ | ✅ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 | 4.0 |
 | ☐ | ☐ | Sentido | `sentido` | Japan | 1 | 4.0 |
-| ☐ | ☐ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
+| ☐ | ✅ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
 | ☐ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 | 4.0 |
 | ☐ | ✅ | FRUKT | `frukt` | Finland | 1 | 4.0 |
 | ☐ | ☐ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |

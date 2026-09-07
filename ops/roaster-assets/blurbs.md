@@ -844,3 +844,25 @@ Core philosophies & roasting style:
   anaerobic naturals and anaerobic honeys.
 - **Versatile omni-roasts** — many lower-acidity single origins are developed as
   omni-roasts, versatile for both high-clarity V60 and vibrant modern espresso.
+
+## coffeein
+
+Coffeein is a prominent direct-trade specialty roastery from Slovakia. Established
+in 2011 by Peter Szabó as an online store for Italian coffee, it pivoted fully to
+third-wave coffee and opened its own roasting HQ in Šahy in 2015. It's now a
+regional favourite, known for its educational focus, crop freshness, and extensive
+direct-trade farm relationships.
+
+Core philosophies & roasting style:
+
+- **The direct-trade journey** — the team travels to origins annually to visit
+  family micro-farms in Brazil, Colombia, and Honduras, skipping commodity pricing
+  for farm-level sustainability.
+- **Massive rotating catalog** — sourcing from the top tier of global production,
+  they roast 40+ single origins and micro-lots a year, every bag carrying harvest
+  year, variety, and processing data.
+- **The "Zrnko" subscription** — a popular Central European subscription that
+  matches freshly roasted single origins to each drinker's brewing habits.
+- **Exploratory sourcing** — beyond classic Arabica terroirs, they're known for
+  hunting unusual botanicals, including complex fruit-forward Liberica from
+  Southeast Asia.
