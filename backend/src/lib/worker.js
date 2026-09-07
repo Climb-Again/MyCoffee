@@ -25,7 +25,7 @@ import { config } from '../config.js';
 import { derivativeAbsPath } from '../media.js';
 import { adjudicateRecord } from './adjudicate.js';
 import { getOrCreateVocabEntry } from './resolveField.js';
-import { extractRoasterCountryOverride } from './deterministic.js';
+import { extractRoasterCountryOverride, extractRoastedOnField } from './deterministic.js';
 import { foldDiacritics } from './normalize.js';
 import {
   loadCountryVocab,
@@ -1103,4 +1103,78 @@ export async function readjudicateAll({ photoId } = {}) {
     count += 1;
   }
   return { photosReadjudicated: count };
+}
+
+// #124: #122 fixed `parseDate` to read spelled-out months ("23 Iunie 2026"),
+// and `POST /api/admin/adjudicate` recovered every bag whose roast date an LLM
+// voter had *already* captured as a `roasted_on` candidate -- re-canonicalizing
+// the stored string with the fixed parser. But a bag whose date is found ONLY by
+// the deterministic rules voter (`extractRoastedOnField`) stays null: rules
+// candidates are frozen at extraction time under the OLD parser (which dropped
+// the spelled-out form, so no `roasted_on` candidate was ever stored), and
+// `readjudicateAll` re-canonicalizes stored candidates without re-running any
+// voter. This backfill closes that gap -- $0 and LLM-free: per photo it re-runs
+// ONLY `extractRoastedOnField` (pure JS, no network) over the current rawText,
+// upserts a fresh `rules` roasted_on candidate onto the photo's existing rules
+// extraction row, then re-adjudicates via `adjudicateAndApply` -- which
+// canonicalizes it with the fixed parseDate and applies it, still respecting
+// locked human edits (`storeResolutions` guards `WHERE locked = false`, and
+// `adjudicateRecord` skips locked fields). Idempotent: a second run upserts the
+// same value (ON CONFLICT DO UPDATE) and re-adjudicates to the same result.
+export async function backfillRoastDates({ limit = 1000 } = {}) {
+  const cap = Math.max(1, Math.min(5000, Number(limit) || 1000));
+  const sharedCtx = await loadSharedContext();
+  // Same population `readjudicateAll` iterates: every photo that has been through
+  // the worker at least once (i.e. has any stored field_candidates).
+  const { rows: photos } = await query(
+    `SELECT DISTINCT p.* FROM photos p JOIN field_candidates fc ON fc.photo_id = p.id
+     ORDER BY p.id LIMIT $1`,
+    [cap],
+  );
+
+  let photosScanned = 0;
+  let roastDatesFound = 0;
+  let applied = 0;
+  let skippedNoRulesExtraction = 0;
+
+  for (const photo of photos) {
+    photosScanned += 1;
+    const photoText = await fetchLatestText(photo.id);
+    const rawText = buildRawText(photo, photoText);
+    const r = extractRoastedOnField(rawText);
+    if (!r) continue; // no roast date near a roast keyword -- nothing to add
+    roastDatesFound += 1;
+
+    // `extractions` carries no photo_id -- a row is shared across photos by
+    // input_sha (010's comment) -- so the photo's own rules extraction is found
+    // through its rules `field_candidates`, which carry both photo_id and
+    // extraction_id. A photo with no rules candidate at all predates the rules
+    // voter: skip it (and count it) rather than fabricate an extraction row.
+    const { rows: ext } = await query(
+      `SELECT extraction_id FROM field_candidates
+       WHERE photo_id = $1 AND agent = 'rules'
+       ORDER BY extraction_id DESC LIMIT 1`,
+      [photo.id],
+    );
+    if (!ext[0]) {
+      skippedNoRulesExtraction += 1;
+      continue;
+    }
+    const extractionId = ext[0].extraction_id;
+
+    // Store as JSON, mirroring `storeFieldCandidates` -- fetchFieldData reads it
+    // back as the raw string and `canonicalize('roasted_on', ...)` runs parseDate.
+    await query(
+      `INSERT INTO field_candidates (photo_id, extraction_id, agent, field, value, confidence, evidence)
+       VALUES ($1, $2, 'rules', 'roasted_on', $3, $4, $5)
+       ON CONFLICT (photo_id, extraction_id, field)
+       DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence, evidence = EXCLUDED.evidence`,
+      [photo.id, extractionId, JSON.stringify(r.value), r.confidence ?? 1.0, r.evidence ?? null],
+    );
+
+    await adjudicateAndApply(photo, photoText, sharedCtx);
+    applied += 1;
+  }
+
+  return { photosScanned, roastDatesFound, applied, skippedNoRulesExtraction };
 }

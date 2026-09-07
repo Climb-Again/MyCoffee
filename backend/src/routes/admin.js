@@ -34,7 +34,7 @@ import path from 'node:path';
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText, backfillFlavorNotes } from '../lib/worker.js';
+import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText, backfillFlavorNotes, backfillRoastDates } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 import { EXTRACT_RESPONSE_SCHEMA } from '../lib/agents.js';
@@ -200,6 +200,19 @@ export default async function adminRoutes(app) {
     const spendCapUsd = req.body?.spendCapUsd != null ? Number(req.body.spendCapUsd) : null;
     const force = req.body?.force === true;
     return backfillFlavorNotes({ limit, spendCapUsd, force });
+  });
+
+  // #124: roast-date recovery the `/adjudicate` pass can't reach. #122 fixed
+  // parseDate for spelled-out months, but re-adjudication only re-canonicalizes
+  // ALREADY-STORED candidates -- so a bag whose date only the deterministic rules
+  // voter (`extractRoastedOnField`) finds stays null, because that voter's
+  // candidates are frozen at extraction time under the old (dateless) parser.
+  // This re-runs ONLY the rules roast-date extractor (pure JS, $0, no network)
+  // over each photo's current text, upserts a fresh `rules` roasted_on candidate,
+  // then re-adjudicates -- respecting locked human edits. Idempotent.
+  app.post('/api/admin/backfill-roast-dates', { preHandler: requireIngestToken }, async (req) => {
+    const limit = req.body?.limit != null ? Math.max(1, Math.min(5000, Number(req.body.limit))) : 1000;
+    return backfillRoastDates({ limit });
   });
 
   // Re-derives `display`/`thumb` (never `ocr` -- it's the source, and it's
