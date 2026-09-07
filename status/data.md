@@ -20,7 +20,7 @@ still blocks it on the next fired run, the fallback is a manual "run it" from Ra
 
 ## Claimed
 
-_none_
+- [2026-09-07 01:37 UTC] #110 honey processing -> Washed in `parseProfile` (normalize.js) — branch `main`
 
 ## 2026-08-17 — #29 closed out: all three sub-parts already resolved, no data-owned code change needed; #69 filed (backend) for the one real residual gap; #67's lane tag corrected to `backend`
 
