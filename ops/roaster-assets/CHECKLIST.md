@@ -12,7 +12,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ☐ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
+| ☐ | ✅ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ☐ | ☐ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
 | ☐ | ☐ | Sloane | `sloane` | Romania | 1 | 3.8 |
 | ☐ | ☐ | Guido | `guido` | Romania | 1 | 3.8 |

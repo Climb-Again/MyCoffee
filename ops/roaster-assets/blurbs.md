@@ -1132,3 +1132,28 @@ Core philosophies & roasting style:
 - **Digital-first wholesale supply** — no traditional retail café storefront;
   foil-lined 250 g and 1 kg bags aimed at breakrooms, distribution partnerships, and
   direct-to-door retail.
+
+## birdsong-coffee
+
+BirdSong Coffee is an independent, sustainability-driven roastery in Prague, Czech
+Republic. Grown from an ecological initiative into one of the country's most
+respected independent micro-roasteries, its ethos of environmental stewardship traces
+to a formative origin trip to Ethiopia. It works from its roastery and cosy espresso
+bar on Radlická 47 in Prague 5.
+
+Core philosophies & roasting style:
+
+- **The forest-grown manifesto** — a purist stance on biodiversity: no monoculture
+  clear-cut sun plantations, only 100% shade-grown Arabica under natural forest
+  canopy, preserving avian habitats, preventing soil erosion, and supporting organic
+  smallholder livelihoods.
+- **Smithsonian Bird Friendly® certified** — multiple coffees carry the Bird
+  Friendly® certification, the strictest biodiversity gold standard in coffee; most
+  of the rest is fully organic, with complex lots from hand-selected origins like
+  Uganda and Bolivia.
+- **Precision in-house craftsmanship** — fully vertical control on their own Diedrich
+  IR-12 drum roaster, with clean, balanced medium-light to medium profiles that
+  maximise the natural sweetness, clarity, and fruit of forest-grown terroirs.
+- **The calm espresso bar** — a quiet, minimalist Prague pocket bar and educational
+  sanctuary offering precision batch brews, plant-based alternatives at no surcharge,
+  and freshly roasted whole-bean bags.
