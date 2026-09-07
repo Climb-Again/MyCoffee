@@ -22,7 +22,8 @@ struct RootTabView: View {
         TabView(selection: $store.selectedTab) {
             CoffeesListView()
                 .tabItem {
-                    Label("Coffees", systemImage: Symbols.tabCoffees)
+                    // §11: Lucide outline glyphs, not SF fills.
+                    Label("Coffees", image: Lucide.coffee)
                 }
                 .tag(RootTab.coffees)
 
@@ -31,13 +32,13 @@ struct RootTabView: View {
             // so a light placeholder is enough.
             Color.clear
                 .tabItem {
-                    Label("Add", systemImage: Symbols.tabAdd)
+                    Label("Add", image: Lucide.circlePlus)
                 }
                 .tag(RootTab.add)
 
             InsightsView()
                 .tabItem {
-                    Label("Insights", systemImage: Symbols.tabInsights)
+                    Label("Insights", image: Lucide.barChart3)
                 }
                 .tag(RootTab.insights)
         }

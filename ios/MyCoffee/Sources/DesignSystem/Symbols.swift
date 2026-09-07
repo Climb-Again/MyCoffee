@@ -1,4 +1,42 @@
-import Foundation
+import SwiftUI
+
+/// Redesign v3 §11 (#111): the app's chrome icons are **Lucide** outlines
+/// (1.7pt stroke, round caps), vendored as template SVG imagesets in
+/// `Resources/Assets.xcassets/lucide-*.imageset` from Radu's supplied files.
+/// These are asset names, not SF Symbol names — render them with `AppIcon`,
+/// which tints them via the current `foregroundStyle`/tab tint. Only the
+/// active-favourite heart is filled; everything else is an outline.
+enum Lucide {
+    static let coffee = "lucide-coffee"
+    static let circlePlus = "lucide-circle-plus"
+    static let barChart3 = "lucide-bar-chart-3"
+    static let slidersHorizontal = "lucide-sliders-horizontal"
+    static let settings = "lucide-settings"
+    static let heart = "lucide-heart"
+    static let heartFill = "lucide-heart-fill"
+    static let chevronRight = "lucide-chevron-right"
+    static let chevronLeft = "lucide-chevron-left"
+    static let share = "lucide-share"
+    static let pencil = "lucide-pencil"
+    static let search = "lucide-search"
+}
+
+/// A Lucide (or any template) asset image sized explicitly — asset images
+/// don't scale with `.font()` the way SF Symbols do, so callers pass the size
+/// (§11: 22pt nav, 25pt tab, 14–19pt inline). Colour comes from the ambient
+/// `foregroundStyle`/tint, same as an SF Symbol.
+struct AppIcon: View {
+    let name: String
+    var size: CGFloat = 22
+
+    var body: some View {
+        Image(name)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+    }
+}
 
 /// Every SF Symbol name used by the app lives here. They're strings the
 /// compiler can't check, and with no local Xcode a typo renders as a silent

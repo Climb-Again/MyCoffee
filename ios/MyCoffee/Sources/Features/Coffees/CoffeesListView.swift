@@ -87,11 +87,15 @@ struct CoffeesListView: View {
                     Button {
                         showFilterSheet = true
                     } label: {
-                        Image(systemName: store.filter.isEmpty ? Symbols.filter : Symbols.filterFilled)
+                        // No Lucide funnel was supplied, so this stays an
+                        // outline SF glyph (never the `.fill` variant), tinted
+                        // when a filter is active.
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .foregroundStyle(store.filter.isEmpty ? Color.accentColor : Theme.Colors.accent)
                     }
                     .accessibilityLabel("Filter")
                 }
-                // §1: Sort — opens the sort menu, checkmark on the active option.
+                // §1/§11: Sort — Lucide sliders-horizontal, opens the sort menu.
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Picker("Sort", selection: $store.sort) {
@@ -100,16 +104,16 @@ struct CoffeesListView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: Symbols.sort)
+                        AppIcon(name: Lucide.slidersHorizontal, size: 22)
                     }
                     .accessibilityLabel("Sort")
                 }
-                // §1: a visible Settings gear — never buried in the sort menu.
+                // §1/§11: a visible Settings gear (Lucide) — never buried in the sort menu.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
                     } label: {
-                        Image(systemName: Symbols.settings)
+                        AppIcon(name: Lucide.settings, size: 22)
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -184,8 +188,7 @@ struct CoffeesListView: View {
             HStack(spacing: 6) {
                 Text("\(store.reviewQueueCount) bag\(store.reviewQueueCount == 1 ? "" : "s") need review")
                     .font(.system(size: 12, weight: Theme.Weight.semibold))
-                Image(systemName: Symbols.chevronRight)
-                    .font(.system(size: 11, weight: .semibold))
+                AppIcon(name: Lucide.chevronRight, size: 12)
             }
             .foregroundStyle(Theme.Colors.accent700)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

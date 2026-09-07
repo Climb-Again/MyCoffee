@@ -90,8 +90,7 @@ struct CoffeeRowView: View {
                 if !coffee.isFavorite {
                     Circle().strokeBorder(Theme.Colors.neutral300, lineWidth: 1)
                 }
-                Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
-                    .font(.system(size: 13))
+                AppIcon(name: coffee.isFavorite ? Lucide.heartFill : Lucide.heart, size: 14)
                     .foregroundStyle(coffee.isFavorite ? Theme.Colors.onAccent : Theme.Colors.neutral700)
             }
             .frame(width: 28, height: 28)

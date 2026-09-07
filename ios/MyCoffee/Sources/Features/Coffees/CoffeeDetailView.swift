@@ -58,7 +58,7 @@ struct CoffeeDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
-                    Image(systemName: Symbols.share)
+                    AppIcon(name: Lucide.share, size: 18)
                         .frame(width: 44, height: 44)
                         // §8.1: neutral system material, no warm tint — a white
                         // fill read cream/peach over the warm hero photo.
@@ -69,7 +69,7 @@ struct CoffeeDetailView: View {
                 Button {
                     showEdit = true
                 } label: {
-                    Image(systemName: Symbols.edit)
+                    AppIcon(name: Lucide.pencil, size: 18)
                         .frame(width: 44, height: 44)
                         // §8.1: neutral system material, no warm tint — a white
                         // fill read cream/peach over the warm hero photo.
@@ -111,7 +111,7 @@ struct CoffeeDetailView: View {
         Button {
             store.toggleFavorite(coffee)
         } label: {
-            Image(systemName: coffee.isFavorite ? Symbols.heartFill : Symbols.heart)
+            AppIcon(name: coffee.isFavorite ? Lucide.heartFill : Lucide.heart, size: 18)
                 .foregroundStyle(Theme.Colors.onAccent)
                 .frame(width: 44, height: 44)
                 .background(Theme.Colors.accent, in: Circle())
@@ -290,8 +290,7 @@ struct CoffeeDetailView: View {
 
                     Spacer()
                     if FeatureFlags.tapNavigatesToEntityPages {
-                        Image(systemName: Symbols.chevronRight)
-                            .font(.caption)
+                        AppIcon(name: Lucide.chevronRight, size: 13)
                             .foregroundStyle(Theme.Colors.neutral700)
                     }
                 }
