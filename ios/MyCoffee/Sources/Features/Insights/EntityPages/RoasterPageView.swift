@@ -30,7 +30,7 @@ struct RoasterPageView: View {
         List {
             Section {
                 HStack(spacing: 16) {
-                    MonogramAvatar(name: roaster?.name ?? "?")
+                    roasterLogo
                     VStack(alignment: .leading, spacing: 4) {
                         Text(roaster?.name ?? "Unknown roaster")
                             .font(.title3.weight(.bold))
@@ -58,6 +58,18 @@ struct RoasterPageView: View {
             }
             .listRowSeparator(.hidden)
 
+            // #134: the roaster blurb, shown only when there is one (an empty
+            // box is worse than nothing — the original omitted this section).
+            if let blurb = roaster?.blurb?.trimmingCharacters(in: .whitespacesAndNewlines), !blurb.isEmpty {
+                Section {
+                    Text(blurb)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .listRowSeparator(.hidden)
+                }
+            }
+
             Section {
                 ForEach(coffees) { coffee in
                     CoffeeLink(coffee: coffee) {
@@ -71,5 +83,26 @@ struct RoasterPageView: View {
         .listStyle(.plain)
         .navigationTitle(roaster?.name ?? "Roaster")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// #134: the roaster's logo, fetched **web-only** (`AsyncImage`, not the
+    /// 30 MB `ImageStore` cache — Radu, 2026-09-07 "do not cache logos"). Falls
+    /// back to the `MonogramAvatar` while loading, on failure, or when the
+    /// roaster has no `logoUrl`.
+    @ViewBuilder private var roasterLogo: some View {
+        let fallback = MonogramAvatar(name: roaster?.name ?? "?")
+        if let urlString = roaster?.logoUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    fallback
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipShape(Circle())
+        } else {
+            fallback
+        }
     }
 }

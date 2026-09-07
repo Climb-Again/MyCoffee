@@ -55,6 +55,13 @@ struct Roaster: Identifiable, Codable, Hashable, Sendable {
     let id: Int
     let name: String
     let countryId: Int?
+    /// #134: roaster-page content, carried from the snapshot vocab block once
+    /// #132 populates them. Optional — most roasters have neither yet, and a
+    /// nil logo falls back to `MonogramAvatar`, a nil/empty blurb omits the
+    /// section. Logos are **web-only, not cached** (Radu, 2026-09-07), so the
+    /// page fetches `logoUrl` directly rather than through `ImageStore`.
+    var blurb: String? = nil
+    var logoUrl: String? = nil
 }
 
 struct Farm: Identifiable, Codable, Hashable, Sendable {
