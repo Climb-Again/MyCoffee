@@ -780,3 +780,22 @@ Sourcing & roasting philosophies:
 - **Creative barrel-aging & blends** — famous for quirky concepts like whiskey- and
   rum-barrel-aged coffees (Jenny's Barrel Coffee) and versatile espresso blends
   like the Pawffice Blend (dark chocolate and pralines).
+
+## nowhere
+
+Nowhere Future Coffee Roasters is a hip, avant-garde specialty micro-roastery and
+café concept in Milan, Italy. Founded in 2021, it quickly became one of Milan's
+definitive specialty destinations, defying Italy's deep-rooted traditional espresso
+culture with a hyper-modern approach to light roasting.
+
+Brand DNA & roasting style:
+
+- **The "millennial pink" aesthetic** — an iconic flagship instantly recognisable
+  for its clean, minimalist industrial-chic layout inspired by Australian café
+  culture.
+- **Strict single-origin manifesto** — zero commercial blending; only high-scoring
+  seasonal single origins, roasted to preserve and amplify each farm and terroir.
+- **The "no sugar" policy** — the bar enforces a no-sugar rule to push drinkers to
+  experience the natural sugars, fruit notes, and clarity of the coffee itself.
+- **Nordic-style bakery & food** — a praised in-house culinary program, locally
+  famous for cardamom buns, cinnamon rolls, and Scandinavian-inspired baked goods.
