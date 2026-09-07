@@ -18,6 +18,7 @@ import SwiftUI
 struct CoffeesListView: View {
     @EnvironmentObject private var store: CoffeeStore
 
+    @State private var showFilterSheet = false
     @State private var showSettings = false
     @State private var showReviewQueue = false
 
@@ -79,6 +80,17 @@ struct CoffeesListView: View {
                 prompt: "Search coffees, roasters, farms"
             )
             .toolbar {
+                // Advanced facet filter (Radu, 2026-09-07: "I want the filter
+                // sheet back in the toolbar") — leading, so it doesn't crowd the
+                // Sort/Settings pair. Glyph reflects whether a filter is active.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showFilterSheet = true
+                    } label: {
+                        Image(systemName: store.filter.isEmpty ? Symbols.filter : Symbols.filterFilled)
+                    }
+                    .accessibilityLabel("Filter")
+                }
                 // §1: Sort — opens the sort menu, checkmark on the active option.
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -104,6 +116,9 @@ struct CoffeesListView: View {
             }
             .refreshable {
                 await store.refresh()
+            }
+            .sheet(isPresented: $showFilterSheet) {
+                FilterSheetView(store: store)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsSheet()
