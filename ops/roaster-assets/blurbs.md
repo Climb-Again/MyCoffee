@@ -381,3 +381,28 @@ Core philosophies & roasting style:
   chocolate, subtle floral notes.
 - **Eco-conscious operations** — a strong focus on low-waste packaging and
   eco-minded business decisions.
+
+## onyx
+
+Onyx Coffee Lab is a titan of the global specialty coffee movement. Founded in 2012
+by Jon and Andrea Allen in Northwest Arkansas, USA, Onyx has grown from a single
+neighbourhood café into one of the most celebrated and awarded craft coffee brands
+in the world. Under the motto "Join us in the pilgrimage to find the truth in
+coffee," it treats coffee with scientific precision, radical financial
+transparency, and exceptional design standards.
+
+Core philosophies & roasting style:
+
+- **Competition-grade excellence** — the Onyx team has dominated US and
+  international competitions for over a decade; co-founder Andrea Allen took 2nd at
+  the 2021 World Barista Championship, and figures like Lance Hedrick honed their
+  craft within the Onyx framework.
+- **Radical transparency pricing** — every bag publishes a full financial
+  breakdown: the exact price paid to the farmer (often far above Fair Trade
+  minimums), green-coffee scores, and operational logistics.
+- **Solar-powered innovation** — their 30,000 sq ft flagship HQ, a converted 1907
+  building in downtown Rogers, Arkansas, runs its roasting operation on a large
+  custom solar array.
+- **International roasting collective** — to serve Europe with fresh coffee and
+  lower freight impact, Onyx roasts in Rotterdam, sharing facilities with Manhattan
+  Coffee Roasters.
