@@ -6,7 +6,9 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-07 04:19 UTC] #109 cheap-for-quality value meter rework — branch `ios-staging`
+- [2026-09-07 04:19 UTC] #112 cache derived values for 60fps scroll — branch `ios-staging`
+- [2026-09-07 04:19 UTC] #130 Add Coffee submit-and-return, pending coffee in store — branch `ios-staging`
 
 ## Abandoned
 
