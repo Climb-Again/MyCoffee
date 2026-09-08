@@ -1422,3 +1422,29 @@ Core philosophies & roasting style:
 - **Culinary synergy & education** — daily filter (custom V60s, batch brew) served
   with natural wines, brunches, and homemade Czech cakes including sought-after vegan
   pastries, plus a dedicated barista training school for the public.
+
+## 17g-coffee
+
+17g Coffee is an independent, social-impact-driven roastery in Switzerland's specialty
+coffee scene. Founded in 2020 as an educational project at Collège Alpin Beau Soleil
+in Villars-sur-Ollon, it grew from an experimental school café into a professional,
+internationally recognised, fully student-led non-profit micro-roastery. Its name
+comes from the traditional 17-gram dose for a double espresso; SCA-certified, its young
+team recently showcased at World of Coffee Geneva.
+
+Core philosophies & roasting style:
+
+- **The not-for-profit manifesto** — a 100% non-profit structure channelling all net
+  proceeds back into origin-level development, improving living standards,
+  infrastructure, and tools for smallholder communities, with a focus on direct-trade
+  networks in Kenya.
+- **Student-led precision roasting** — a trained team of high-school students controls
+  everything from quality analysis to production logistics, roasting small precise
+  batches in the Swiss Alps toward a clean profile that maximises sweetness and
+  varietal character across filter and espresso.
+- **Traceable micro-lot selection** — sourced on transparency, seasonality, and
+  sustainability: high-scoring single origins and select blends that tell a clear
+  geographic story, prioritising clean, defect-free lots.
+- **The "learning by doing" ecosystem** — a production facility and espresso hub where
+  certified student baristas serve the campus community, with fully recyclable retail
+  packaging and an eco-conscious direct-to-consumer shop alongside wholesale supply.
