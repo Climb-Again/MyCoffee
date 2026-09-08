@@ -1288,3 +1288,32 @@ Core philosophies & roasting style:
 - **The historic Song Wat expansion** — a flagship in a converted old shophouse in
   Bangkok's Chinatown, pairing warm minimalism with exposed brick and loft accents
   where old-world trading heritage meets contemporary extraction.
+
+## kaffa
+
+> Note: this is the **Slovakian** KAFFA (Považská Bystrica) — the roaster in the
+> library. Not to be confused with Finland's Kaffa Roastery (Helsinki), which isn't
+> in the catalogue.
+
+KAFFA Specialty Coffee is an independent, progressive roastery in Slovakia's modern
+specialty scene. Founded in 2018 in Považská Bystrica, in the country's northwest, it
+set out to explore and showcase the highest-tier flavours raw coffee can offer, and
+has become a prominent fixture in Central European specialty networks — known for
+merging advanced barista training with meticulous micro-lot roasting.
+
+Core philosophies & roasting style:
+
+- **The farmer-centric manifesto** — named after the ancient Ethiopian word and
+  historic birthplace of coffee, KAFFA bypasses generic commercial imports for green
+  coffees whose distinct profiles reflect the region, variety, and the individual
+  farmer's production philosophy.
+- **Flavour-driven roasting** — an expressive catalogue steering clear of smoky
+  defects for clean, sweet, complex batches that preserve terroir across both espresso
+  and filter.
+- **The synesthetic packaging system** — coffee-bean-shaped labels whose colour
+  combinations forecast the flavour profile (bright reds, oranges, greens for fruit
+  tones), paired with "scattered" typography symbolising rising aromas — making the
+  high-end market approachable at a glance.
+- **The professional barista ecosystem** — more than an e-commerce supplier: a fully
+  equipped barista training centre and sensory school (partnering with names like
+  Faema) that elevates regional brewing standards and supports café partners.
