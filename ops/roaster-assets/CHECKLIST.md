@@ -18,7 +18,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
 | ☐ | ✅ | Koff & Bun | `koff-bun` | Thailand | 1 | 3.8 |
 | ☐ | ✅ | Kaffa | `kaffa` | Slovakia | 1 | 3.5 |
-| ☐ | ☐ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
+| ☐ | ✅ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
 | ☐ | ☐ | Root & Branch | `root-branch` | Ireland | 1 | 3.3 |
 | ☐ | ☐ | Monmouth | `monmouth` | United Kingdom | 1 | 3.3 |
 | ☐ | ☐ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |

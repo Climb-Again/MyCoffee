@@ -1317,3 +1317,27 @@ Core philosophies & roasting style:
 - **The professional barista ecosystem** — more than an e-commerce supplier: a fully
   equipped barista training centre and sensory school (partnering with names like
   Faema) that elevates regional brewing standards and supports café partners.
+
+## manufaktura
+
+Manufaktura – The Coffee Shop Restaurant is an independent, multi-concept force in
+Romania's premium coffee and dining scene. Founded in Bucharest (roots back to 2014),
+it has become one of the country's most celebrated hybrid establishments, built on a
+"coffee shop restaurant" blueprint that treats artisan brewing and gourmet bistro
+cuisine with equal weight. It operates across high-profile hubs including Promenada
+Mall, Mega Mall, and Aviatorilor.
+
+Core philosophies & style:
+
+- **The fresh-grind manifesto** — a specialised custom grinding line lets guests
+  dictate the whole coffee journey on the spot, from selecting the lot down to the
+  extraction profile and alternative brew method.
+- **Gourmet single-origin rotations** — a curated catalogue of high-quality single
+  origins and specialty coffees over mass-market blends, highlighting precise terroirs
+  (fruit-forward Ethiopias, smooth Brazils) via both espresso and manual methods.
+- **The dual-ecosystem hybrid menu** — premium origin coffee paired with world
+  breakfasts, French-Italian bistro classics (fresh pastas, salads, artisan
+  sandwiches), and natural Italian gelato sourced by Menodiciotto.
+- **The "connoisseur hub" era** — a departure from transactional mall kiosks: striking
+  wood paneling, open floor plans, and ambient lighting make each outpost a
+  neighbourhood sanctuary for discovering new sensory profiles.
