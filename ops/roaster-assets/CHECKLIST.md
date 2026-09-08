@@ -8,21 +8,10 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
-## In your library (64 roasters — 53 complete, 11 still need content)
+## In your library (64 roasters — 64 complete, 0 still need content)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
-| ☐ | ✅ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
-| ☐ | ✅ | Sloane | `sloane` | Romania | 1 | 3.8 |
-| ☐ | ✅ | Guido | `guido` | Romania | 1 | 3.8 |
-| ☐ | ✅ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
-| ☐ | ✅ | Koff & Bun | `koff-bun` | Thailand | 1 | 3.8 |
-| ☐ | ✅ | Kaffa | `kaffa` | Slovakia | 1 | 3.5 |
-| ☐ | ✅ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
-| ☐ | ✅ | Root & Branch | `root-branch` | Ireland | 1 | 3.3 |
-| ☐ | ✅ | Monmouth | `monmouth` | United Kingdom | 1 | 3.3 |
-| ☐ | ✅ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
-| ☐ | ✅ | 17g Coffee | `17g-coffee` | Switzerland | 1 | — |
 | ✅ | ✅ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
 | ✅ | ✅ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |
 | ✅ | ✅ | Tanat Coffee | `tanat-coffee` | France | 1 | 4.5 |
@@ -69,12 +58,23 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
 | ✅ | ✅ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
 | ✅ | ✅ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 | 3.8 |
+| ✅ | ✅ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ✅ | ✅ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
+| ✅ | ✅ | Sloane | `sloane` | Romania | 1 | 3.8 |
+| ✅ | ✅ | Guido | `guido` | Romania | 1 | 3.8 |
+| ✅ | ✅ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
+| ✅ | ✅ | Koff & Bun | `koff-bun` | Thailand | 1 | 3.8 |
 | ✅ | ✅ | April | `april` | Denmark | 14 | 3.6 |
 | ✅ | ✅ | Taf | `taf` | Greece | 1 | 3.5 |
+| ✅ | ✅ | Kaffa | `kaffa` | Slovakia | 1 | 3.5 |
+| ✅ | ✅ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
+| ✅ | ✅ | Root & Branch | `root-branch` | Ireland | 1 | 3.3 |
+| ✅ | ✅ | Monmouth | `monmouth` | United Kingdom | 1 | 3.3 |
 | ✅ | ✅ | Elbgold | `elbgold` | Germany | 2 | 3.1 |
 | ✅ | ✅ | Origo | `origo` | Romania | 4 | 3.0 |
 | ✅ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 | — |
+| ✅ | ✅ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
+| ✅ | ✅ | 17g Coffee | `17g-coffee` | Switzerland | 1 | — |
 | ✅ | ✅ | Spojka | `spojka` | Slovakia | 1 | — |
 
 ## Seeded but unused — 0 coffees (46) — low priority / test fixtures
