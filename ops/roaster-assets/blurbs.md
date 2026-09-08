@@ -1341,3 +1341,33 @@ Core philosophies & style:
 - **The "connoisseur hub" era** — a departure from transactional mall kiosks: striking
   wood paneling, open floor plans, and ambient lighting make each outpost a
   neighbourhood sanctuary for discovering new sensory profiles.
+
+## root-branch
+
+> ⚠️ Country mismatch for #133: the DB row `root-branch` is seeded as **Ireland**,
+> but Root & Branch is in **Belfast, Northern Ireland (United Kingdom)**. Decide the
+> correct `country_id` when populating.
+
+Root & Branch Coffee is a pioneering force in Northern Ireland's modern specialty
+coffee scene. Founded in Belfast in 2016 by Simon Johnston and Ben Craig, it grew from
+a backstreet brew bar into one of the industry's most creative independent
+micro-roasteries — Belfast's first dedicated specialty micro-roaster — and was named
+among the World's Top 50 Coffee Roasters by Roastful.
+
+Core philosophies & roasting style:
+
+- **Direct trade & disruption** — an activist stance on value transparency: formed to
+  bypass commodity brokers that squeeze farmer margins, building pure direct-trade
+  relationships with organic producers in Ethiopia, Colombia, and El Salvador, with a
+  portfolio of highly seasonal, traceable single origins.
+- **Artisanal micro-roasting control** — roasting on a small high-precision Giesen
+  drum roaster in East Belfast's historic Portview Trade Centre, chasing light-to-
+  medium profiles for terroir clarity, sweetness, and delicate fruit acids without
+  smoky defects.
+- **The craft-can revolution** — pioneered nitrogen-flushed, 100% recyclable aluminium
+  cans over foil-lined plastic bags (inspired by craft beer, frustrated by
+  "greenwashed" compostable bags), locking in freshness for global shipping; also an
+  early integrator of advanced payment rails like Bitcoin.
+- **Immersive community & food** — spaces known for live acoustic courtyard sessions
+  and a food menu celebrating Irish culinary history through a modern lens, pairing
+  pour-overs and espresso with local artisanal baked goods and dishes.
