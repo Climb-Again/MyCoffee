@@ -1371,3 +1371,29 @@ Core philosophies & roasting style:
 - **Immersive community & food** — spaces known for live acoustic courtyard sessions
   and a food menu celebrating Irish culinary history through a modern lens, pairing
   pour-overs and espresso with local artisanal baked goods and dishes.
+
+## monmouth
+
+Monmouth Coffee Company is a pioneering force in the global specialty coffee movement.
+Founded in London in 1978 by Anita Le Roy and Nicholas Saunders as a basement roasting
+operation on Monmouth Street in Covent Garden, it has grown over nearly five decades
+into one of the world's most revered independent roasters and a cornerstone of London
+café culture — laying down the blueprint of "third-wave coffee" decades before the
+term existed.
+
+Core philosophies & roasting style:
+
+- **Direct sourcing** — running direct-trade loops long before they were widespread,
+  travelling to build long-term relationships with individual producers and
+  cooperatives (e.g. Huila, Colombia), with a catalogue that turns over entirely by
+  season to mirror crop cycles.
+- **Precision eco-roasting** — now roasting in five converted Victorian railway arches
+  at Spa Terminus in Bermondsey on hyper-efficient Loring drum roasters, favouring
+  crisp sweetness and clean origin character over burnt, generic roasts.
+- **The anti-paper-cup stance** — single-use paper cups banned entirely: on-site
+  drinks in ceramic mugs, takeaway via a personal flask or a deposit-based reusable
+  cup scheme.
+- **Communal brick-and-mortar spaces** — three sought-after hubs (the original
+  Monmouth Street flagship, the historic Borough Market counter, and Dockley Road),
+  famous for winding queues, communal wooden tables, hand-brewed cone-filter stations,
+  and open loose-bean baskets.
