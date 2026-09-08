@@ -1236,3 +1236,29 @@ Core philosophies & roasting style:
 - **The academy & tasting hub** — the flagship on Strada Mihai Eminescu runs as an
   interactive tasting bar and professional classroom with espresso profiles and siphon
   systems, hosting certified masterclasses in brewing, espresso, and latte art.
+
+## maggma-beans
+
+Maggma Beans is an independent, progressive roastery in the Scandinavian specialty
+coffee scene. Founded in the "beautifully uneventful" city of Västerås, Sweden, and
+built on over 15 years of coffee and hospitality expertise, it has spread across
+European specialty networks and earned a following among coffee geeks for playful
+branding — humbly billing itself as "one more boring coffee roastery" — while
+delivering deeply complex, award-winning lots.
+
+Core philosophies & roasting style:
+
+- **The "interesting coffee" manifesto** — a defiant stance against safe, predictable
+  choices; they bypass mass-market lots to chase unusual origins, experimental
+  processing, and rare botanical varieties.
+- **Structured sensory tiering** — three clear tiers to help home brewers navigate an
+  unconventional catalogue: **Base** (sweet, balanced, low-acidity lots celebrating
+  origin terroir), **Explore** (funky, juicy, experimental micro-lots), and **Rare**
+  (exceptionally limited elite quantities of the rarest varieties).
+- **Transparent wholesale sourcing** — full-transparency micro-lots from tight-knit
+  global networks, from yeast-inoculated anaerobic Pink Bourbons in Brazil to clean
+  rare naturals from East Africa and Panama, each roasted to let origin and processing
+  shine without heavy defects.
+- **Digital-first Nordic distribution** — an agile, direct-to-consumer model, a
+  regular fixture in specialty subscription boxes and curated European multi-roaster
+  boutiques.

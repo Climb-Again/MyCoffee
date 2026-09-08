@@ -15,7 +15,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
 | ☐ | ✅ | Sloane | `sloane` | Romania | 1 | 3.8 |
 | ☐ | ✅ | Guido | `guido` | Romania | 1 | 3.8 |
-| ☐ | ☐ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
+| ☐ | ✅ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
 | ☐ | ☐ | Koff & Bun | `koff-bun` | Thailand | 1 | 3.8 |
 | ☐ | ☐ | Kaffa | `kaffa` | Slovakia | 1 | 3.5 |
 | ☐ | ☐ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
