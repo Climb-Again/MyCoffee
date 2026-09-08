@@ -1157,3 +1157,28 @@ Core philosophies & roasting style:
 - **The calm espresso bar** — a quiet, minimalist Prague pocket bar and educational
   sanctuary offering precision batch brews, plant-based alternatives at no surcharge,
   and freshly roasted whole-bean bags.
+
+## keen-coffee
+
+Keen Coffee is a pioneering force in Dutch specialty coffee. Founded in Utrecht,
+Netherlands in 2016 by baristas driven to "keenly learn about coffee," it has grown
+into one of the country's most respected independent roasters. Under co-founder Bonne
+Postma it has crafted coffees for global competitive stages — including the beans
+behind a third-place finish at the World Barista Championship.
+
+Core philosophies & roasting style:
+
+- **The flavour-forward manifesto** — a purist stance on origin clarity under the
+  motto "Explore. Taste. Repeat." They focus entirely on unique lots with distinct
+  geographical identity — coffees so pristine they claim you can taste the exact GPS
+  coordinates they came from.
+- **Precision Loring roasting** — advanced, eco-friendly Loring drum roasters for a
+  smoke-free, energy-efficient process, aiming at a clean, balanced light-to-medium
+  style that maximises natural sweetness and eliminates bitter roast defects.
+- **Direct trade & quality sourcing** — sourcing directly from small-scale farmers
+  worldwide and paying premiums well above market to fund farm-level projects; a
+  rotating menu of elite single origins, standout anaerobics (e.g. El Diamante Maria
+  from Costa Rica), and rare Geishas.
+- **The immersive tasting era** — the Keen Coffee Bar at Ganzenmarkt 30 runs as an
+  omakase-style U-shaped tasting room with personalised sensory note cards, paired
+  with an expanded industrial Roastery Café & Shop in Utrecht's Werkspoor Quarter.
