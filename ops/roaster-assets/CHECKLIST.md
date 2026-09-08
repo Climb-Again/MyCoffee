@@ -21,7 +21,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ☐ | ✅ | Manufaktura | `manufaktura` | Romania | 2 | 3.5 |
 | ☐ | ✅ | Root & Branch | `root-branch` | Ireland | 1 | 3.3 |
 | ☐ | ✅ | Monmouth | `monmouth` | United Kingdom | 1 | 3.3 |
-| ☐ | ☐ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
+| ☐ | ✅ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
 | ☐ | ☐ | 17g Coffee | `17g-coffee` | Switzerland | 1 | — |
 | ✅ | ✅ | Cupping Room | `cupping-room` | Hong Kong | 2 | 4.8 |
 | ✅ | ✅ | Rumbaba | `rumbaba` | Netherlands | 2 | 4.5 |

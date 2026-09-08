@@ -1397,3 +1397,28 @@ Core philosophies & roasting style:
   Monmouth Street flagship, the historic Borough Market counter, and Dockley Road),
   famous for winding queues, communal wooden tables, hand-brewed cone-filter stations,
   and open loose-bean baskets.
+
+## dos-mundos
+
+Dos Mundos is an independent, progressive roastery in Central Europe's specialty
+coffee scene. Founded in Prague in 2014 by partners Lukáš and Adéla, it has grown from
+a boutique project into one of the Czech Republic's most respected micro-roasteries.
+Its name — Spanish for "Two Worlds" — marks the handshake where green coffee meets
+master roasting, and it runs several flagship cafés across Prague.
+
+Core philosophies & roasting style:
+
+- **The "Two Worlds" sourcing manifesto** — bypassing commercial brokers to run up to
+  ten rotating single origins at once, in fair, transparent partnerships with
+  smallholder farmers across Latin America, East Africa, and the Pacific, each lot
+  chosen to showcase its terroir.
+- **Terroir-driven light roasting** — a Prague facility favouring clean, transparent
+  light-to-medium profiles that avoid smoky defects, letting native acidity, crisp
+  sweetness, and processing character guide the cup.
+- **Immersive neighbourhood hubs** — Dos Mundos Café in Letná (Prague 7), a bright
+  landmark famous for indoor wooden swing seats, and the Dos Mundos Coffee Roastery in
+  Vinohrady (Prague 2), a cosy tasting sanctuary around a communal table and open
+  retail wall.
+- **Culinary synergy & education** — daily filter (custom V60s, batch brew) served
+  with natural wines, brunches, and homemade Czech cakes including sought-after vegan
+  pastries, plus a dedicated barista training school for the public.
