@@ -1182,3 +1182,57 @@ Core philosophies & roasting style:
 - **The immersive tasting era** — the Keen Coffee Bar at Ganzenmarkt 30 runs as an
   omakase-style U-shaped tasting room with personalised sensory note cards, paired
   with an expanded industrial Roastery Café & Shop in Utrecht's Werkspoor Quarter.
+
+## sloane
+
+Sloane Coffee Roastery is a pioneering force in Romania's modern specialty coffee
+scene. Founded in Bucharest in 2016 by Teodora Pitiș — Romania's first female
+Q-Grader — alongside Cosmin Mihailov, it has grown from a boutique project into one
+of Eastern Europe's most revered independent roasting houses, known for uncompromising
+green-coffee curation, a sharp retail identity, and sensory focus. It is named after
+Sir Hans Sloane, a historic coffee enthusiast.
+
+Core philosophies & roasting style:
+
+- **The no-alteration manifesto** — a purist stance on beverage integrity: no sugar,
+  syrups, or artificial sweeteners across their espresso bars. Out of respect for the
+  farmers, cuppers, and roasters in the chain, each lot is presented exactly as it is
+  to preserve its native flavour compounds.
+- **Terroir- and lot-driven roasting** — every lot treated as a distinct masterpiece
+  rather than blended toward a generic consistency, emphasising green-bean
+  transparency, clean processing, and distinct acidity tuned to each origin's
+  micro-climate.
+- **Experimental & high-scoring batches** — a catalogue split into Classic Profiles,
+  Premium Lots, and rare Experimental runs, featuring complex processing like 120-hour
+  anaerobic macerations and skin-contact naturals from leading farms across Latin
+  America and East Africa.
+- **Dual flagship experiences** — an industrial Roastery, Kitchen & Shop on Splaiul
+  Independenței 287 (specialty brunch and an open garden) and the high-vibe Sloane
+  Specialty Coffee bar on Calea Victoriei 31, both with extensive retail lines and
+  coffee flights.
+
+## guido
+
+Guido Coffee is a pioneering force in Romania's modern specialty coffee scene.
+Founded in Bucharest in 2014 by Floriana Vlaicu — one of the country's premier
+certified Q-Graders — alongside Adrian Simion, it has grown into one of the nation's
+most respected independent roasting houses and educational institutions, a key
+catalyst for Bucharest's third-wave boom and a trainer of the country's competitive
+baristas. It works from its roastery, shop, and tasting academy on Strada Mihai
+Eminescu 182.
+
+Core philosophies & roasting style:
+
+- **The educational manifesto** — a tri-fold identity of "Coffee Shop, Roastery, and
+  Coffee School" focused on bridging professional sensory experts and home brewers,
+  with weekly public cupping flights and sensory wheels for local enthusiasts.
+- **"Core" vs. "Explore" curation** — a Core Line of accessible, low-acidity coffees
+  with chocolate and caramel notes tuned for smooth home extraction, and an Explore
+  Line of high-scoring anaerobics, rare geishas, and bright fruity lots for advanced
+  filter methods.
+- **Precision profile integrity** — each coffee profiled to its genetic character and
+  terroir, roasted multiple times a week to precise parameters so every bag ships at
+  peak freshness with clean, lively acidity and no smoky defects.
+- **The academy & tasting hub** — the flagship on Strada Mihai Eminescu runs as an
+  interactive tasting bar and professional classroom with espresso profiles and siphon
+  systems, hosting certified masterclasses in brewing, espresso, and latte art.

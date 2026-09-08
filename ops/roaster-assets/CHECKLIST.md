@@ -8,14 +8,13 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
-## In your library (64 roasters — 52 complete, 12 still need content)
+## In your library (64 roasters — 53 complete, 11 still need content)
 
 | Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |
 |---|---|---|---|---|---|---|
 | ☐ | ✅ | BirdSong Coffee | `birdsong-coffee` | Czech Republic | 1 | 3.8 |
-| ☐ | ✅ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
-| ☐ | ☐ | Sloane | `sloane` | Romania | 1 | 3.8 |
-| ☐ | ☐ | Guido | `guido` | Romania | 1 | 3.8 |
+| ☐ | ✅ | Sloane | `sloane` | Romania | 1 | 3.8 |
+| ☐ | ✅ | Guido | `guido` | Romania | 1 | 3.8 |
 | ☐ | ☐ | Maggma Beans | `maggma-beans` | Sweden | 1 | 3.8 |
 | ☐ | ☐ | Koff & Bun | `koff-bun` | Thailand | 1 | 3.8 |
 | ☐ | ☐ | Kaffa | `kaffa` | Slovakia | 1 | 3.5 |
@@ -70,6 +69,7 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
 | ✅ | ✅ | Radical Coffee | `radical-coffee` | Romania | 1 | 3.8 |
 | ✅ | ✅ | Mere Black Coffee | `mere-black-coffee` | Poland | 1 | 3.8 |
+| ✅ | ✅ | Keen Coffee | `keen-coffee` | Netherlands | 1 | 3.8 |
 | ✅ | ✅ | April | `april` | Denmark | 14 | 3.6 |
 | ✅ | ✅ | Taf | `taf` | Greece | 1 | 3.5 |
 | ✅ | ✅ | Elbgold | `elbgold` | Germany | 2 | 3.1 |
