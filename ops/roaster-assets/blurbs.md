@@ -1262,3 +1262,29 @@ Core philosophies & roasting style:
 - **Digital-first Nordic distribution** — an agile, direct-to-consumer model, a
   regular fixture in specialty subscription boxes and curated European multi-roaster
   boutiques.
+
+## koff-bun
+
+Koff & Bun Coffee Roasters is a boundary-pushing force in Thailand's modern specialty
+coffee scene. Grown from an industrial micro-roastery in Bangkok's Bang Khae district
+into one of the capital's most celebrated independent coffee houses, it earned major
+prestige after winning the Thailand National Roasting Championship, blending serious
+coffee pedigree with local heritage.
+
+Core philosophies & roasting style:
+
+- **Specialty coffee & fluffy bao** — a deliberate break from Western café concepts,
+  bridging third-wave coffee with local street-food heritage by pairing precision
+  roasts with traditional Chinese steamed buns (bao) and dim sum — fillings from
+  savoury minced pork to sweet custard, black sesame, and salted egg.
+- **Award-winning espresso profiling** — an in-house facility favouring deep
+  complexity and smooth consistency over bright Nordic styles: heavy sweetness, rich
+  body, and chocolate-caramel notes. Flagship blends like the Brazil-Laos and the 2449
+  Thailand house roast are calibrated to anchor milk-based drinks and automated
+  extraction.
+- **Elite micro-lot collaborations** — strong ties to competitive coffee circles,
+  hosting high-end sensory events (e.g. the limited "Brew for Next" series) showcasing
+  ultra-rare award-winning lots like Finca Sophia Piedra Washed.
+- **The historic Song Wat expansion** — a flagship in a converted old shophouse in
+  Bangkok's Chinatown, pairing warm minimalism with exposed brick and loft accents
+  where old-world trading heritage meets contemporary extraction.
