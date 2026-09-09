@@ -285,3 +285,29 @@ test('extractRuleFields: missing vocab dictionaries is handled without throwing'
   assert.ok(fields.weight_g);
   assert.ok(fields.rating);
 });
+
+// #185, second half. The currency list exists TWICE — CURRENCY_PATTERNS in
+// normalize.js and the marker gate here — and only one of them is on the path
+// a real request takes. Adding the ISO codes to normalize.js alone fixed
+// `parsePrice('103 RON')` while a live /api/score call still returned no price,
+// because this gate rejected the text before parsePrice was ever called. These
+// tests go through `extractRuleFields`, the way the voter actually runs, so a
+// future divergence between the two lists fails here.
+test('extractRuleFields: ISO currency codes open the price gate', () => {
+  const vocab = { roasterVocab: { candidates: [], aliasIndex: new Map() }, countryVocab: { candidates: [], aliasIndex: new Map() } };
+  for (const text of ['Price: 103 RON', 'Price: 200 CZK', 'Price: 80 PLN', 'Price: 250 SEK', 'Price: 250 NOK', 'Price: 250 DKK']) {
+    assert.ok(extractRuleFields(text, vocab).price, `${text} should propose a price`);
+  }
+});
+
+test('extractRuleFields: the symbol forms still open the gate', () => {
+  const vocab = { roasterVocab: { candidates: [], aliasIndex: new Map() }, countryVocab: { candidates: [], aliasIndex: new Map() } };
+  for (const text of ['Price: 103 lei', 'Price: 18.50 EUR', 'Price: €18', 'Price: 200 kč', 'Price: 3500 Ft']) {
+    assert.ok(extractRuleFields(text, vocab).price, `${text} should propose a price`);
+  }
+});
+
+test('extractRuleFields: an altitude in feet does not open the price gate', () => {
+  const vocab = { roasterVocab: { candidates: [], aliasIndex: new Map() }, countryVocab: { candidates: [], aliasIndex: new Map() } };
+  assert.equal(extractRuleFields('Altitude: 1500 ft', vocab).price, undefined);
+});

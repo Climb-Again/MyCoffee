@@ -177,11 +177,25 @@ function passthroughField(parseFn, rawText) {
 // or "/5"/"⭐") before proposing at all — canonicalize() re-runs the real
 // parser afterwards and takes the same marked (non-bare) branch, so this only
 // gates *whether* to propose, never how the value is read.
-const PRICE_MARKER_RE = /(?:\d[\d.,]*\s*(?:€|eur\b|lei\b|kč|kc\b|zł|zl\b|ft\b|huf\b|usd\b|gbp\b|chf\b)|[€$£]\s*\d[\d.,]*)/i;
-const RATING_MARKER_RE = /(?:\d[.,]?\d?\s*\/\s*5\b|⭐️?\s*\d[.,]?\d?)/u;
+// This gate must list the SAME currencies as `CURRENCY_PATTERNS` in
+// normalize.js, and #185 is the proof: adding the ISO codes there fixed
+// `parsePrice('103 RON')` while a live request still returned no price at all,
+// because THIS regex rejected the text before parsePrice was ever called. Two
+// lists of currencies, one of them silently authoritative. Keep them in step.
+const PRICE_MARKER_CI =
+  /(?:\d[\d.,]*\s*(?:€|eur\b|lei\b|ron\b|kč|kc\b|czk\b|zł|zl\b|pln\b|huf\b|usd\b|gbp\b|chf\b|sek\b|nok\b|dkk\b)|[€$£]\s*\d[\d.,]*)/i;
+// Case-sensitive for the same reason normalize.js is: `Ft` is the forint,
+// `ft` is feet, and an altitude in feet was opening the price gate.
+const PRICE_MARKER_CS = /\d[\d.,]*\s*(?:Ft|FT)\b/;
+const priceIsMarked = (t) => PRICE_MARKER_CI.test(t) || PRICE_MARKER_CS.test(t);
 
-function markerGatedField(rawText, markerRe, parseFn) {
-  if (!rawText || !markerRe.test(rawText) || !parseFn(rawText)) return null;
+const RATING_MARKER_RE = /(?:\d[.,]?\d?\s*\/\s*5\b|⭐️?\s*\d[.,]?\d?)/u;
+const ratingIsMarked = (t) => RATING_MARKER_RE.test(t);
+
+// `isMarked` is a predicate rather than a regex so a marker can span more than
+// one pattern (price needs a case-sensitive branch).
+function markerGatedField(rawText, isMarked, parseFn) {
+  if (!rawText || !isMarked(rawText) || !parseFn(rawText)) return null;
   return { value: rawText, confidence: 1.0 };
 }
 
@@ -205,9 +219,9 @@ export function extractRuleFields(rawText, { roasterVocab, countryVocab } = {}) 
   set('origin_country_ids', extractOriginCountriesField(rawText, countryVocab));
   set('origin_farm_id', extractFarmField(rawText));
   set('altitude', passthroughField(parseAltitude, rawText));
-  set('price', markerGatedField(rawText, PRICE_MARKER_RE, parsePrice));
+  set('price', markerGatedField(rawText, priceIsMarked, parsePrice));
   set('weight_g', passthroughField(parseWeight, rawText));
-  set('rating', markerGatedField(rawText, RATING_MARKER_RE, parseRating));
+  set('rating', markerGatedField(rawText, ratingIsMarked, parseRating));
   set('roasted_on', extractRoastedOnField(rawText));
   set('profile', extractProfileField(rawText));
 
