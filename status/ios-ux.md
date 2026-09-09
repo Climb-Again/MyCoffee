@@ -6,13 +6,63 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-09 10:47 UTC] #141-#148 coffee-page header redesign + roaster-page logo/markdown/rating (`HEADER_UPDATE.md`) — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-09 — #141-#148 coffee-page header redesign + roaster-page
+  cleanup, `HEADER_UPDATE.md`. Landed `aea6542`, compile-green on run #106
+  (queued at 11:02 UTC, success by 11:04).** #141 bare white photo controls
+  (heart/share/edit) with the old capsule/chip removed; the back chevron is
+  deliberately left as the system button rather than rebuilt as a fourth
+  overlay control — a custom overlay back button is the documented cause of
+  a past edge-swipe-back/duplicate-arrow regression (see the file's own doc
+  comment), so this is a known, deliberate partial gap against §1's exact
+  spec. #142 new `DesignSystem/RoasterLogoTile.swift` — the 86×86 rounded-
+  square medallion shared by the coffee page and the roaster page, with a
+  "use the mark not the lockup" crop: since there's no per-roaster crop
+  metadata and no vision framework in play, wide (lockup-shaped) logos get
+  a leading-square crop heuristic rather than true bounding-box detection —
+  documented as an approximation, not a promise of pixel-perfect mark
+  isolation. #143 sheet order is now roaster row → title → rating. #144
+  fractional star fill generalizes to any rating via `rating - index`
+  clamped 0...1, not a fifth-star special case. #145 new
+  `Features/Coffees/RoasterFactParser.swift` for the FROM THE ROASTER grid
+  — label-first, then a named-keyword sniff (the exact four keywords named
+  in the row) for whichever fact wasn't labelled; falls through to the
+  plain excerpt whenever fewer than two facts land, so a parser miss never
+  breaks the page. #146: grepped the whole app for `.shadow(`/`themeShadow`
+  before touching anything — found **zero** shadows anywhere, so the
+  "exactly three" audit was really "add exactly two" (photo controls +
+  medallion); nothing to remove. #147: (a) the "rail renders twice" and (c)
+  "custom capsule tab bar" complaints are **already fixed** by earlier
+  work — verified against current source, only one `ForEach(rails)` call
+  site exists (`CoffeeDetailView.railsSection`), and `RootTabView` has used
+  a native `TabView` since the v3 redesign (`fae4cf4`). Treating those two
+  as stale carryover in the handoff doc rather than reopening non-bugs; (b)
+  is real and fixed — added a fixed 84pt trailing spacer after the rails so
+  the last one clears the tab bar rather than sitting flush against it (no
+  API here for the live bar height, so this is a constant approximation of
+  "bar height + 16pt", not measured). #148: roaster page now uses the same
+  `RoasterLogoTile` (never a circle, no monogram fallback — deleted
+  `DesignSystem/MonogramAvatar.swift`, confirmed zero remaining call
+  sites), markdown-strips the blurb via new
+  `Features/Insights/EntityPages/RoasterBlurbParser.swift` (bold spans +
+  `- **Label** — text` bullets rendered as §5's label/value row pattern),
+  and the star/rating is accent blue instead of orange.
+  **Not verified visually** — no bundled sample roaster carries a
+  `logoUrl`/`blurb` (`SampleData.swift`, shell-owned, untouched), so the
+  medallion crop and the blurb bullet rendering were never seen on-device
+  or in a preview; compile-green is the only signal this session had.
+  Flagging in case a future session wants to add a sample roaster with
+  both fields for real visual QA of #142/#148. #149-#151 (Coffees list:
+  filter-state header, row density, filtered facet counts) are a separate,
+  similarly-sized cluster — left `ready`, not touched this session, to keep
+  this batch to one coherent screen redesign.
 
 - **2026-09-07 — #125 "Evaluate this coffee" — picked up, then re-blocked on
   a new row (#136) — no UX code written.** Read the row and the live backend
