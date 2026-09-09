@@ -111,6 +111,11 @@ free — lane count has no cost implication.
   row would have sat `ready` forever (the trap #27 and #136 both named). Backend owns
   the API the extension consumes and actually fires. Give it its own lane + cron only if
   it outgrows that.
+- **Changing `extension/**`? BUMP `extension/manifest.json`'s `version`.** The extension
+  auto-updates by comparing its running version against the manifest on `main`
+  (`extension/update.js`), so a change shipped without a version bump reaches nobody —
+  it sits on disk while every installed copy keeps running the old code and reports
+  itself up to date. Bump the patch digit for a fix, the minor for a feature.
 - The two iOS lanes share `ios-staging` but own **disjoint directories**, so git
   merges them cleanly. Their only seam is the `CoffeeStore` / `CoffeeIndex` API
   surface — shell publishes it, UX consumes it; changing it needs a claim in both.
