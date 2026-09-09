@@ -8,6 +8,7 @@
 // — no cors plugin, and none is needed as long as the fetch stays here.)
 import { scrapePage } from './scrape.js';
 import { getSettings } from './settings.js';
+import { checkForUpdate, scheduleUpdateChecks, UPDATE_ALARM } from './update.js';
 
 async function scoreActiveTab() {
   const { baseUrl, token } = await getSettings();
@@ -99,7 +100,31 @@ async function acceptEnrich({ coffeeId, field, value }) {
   return { ok: true };
 }
 
+// Auto-update (see update.js). The alarm survives the service worker being
+// torn down, which a setInterval would not -- an MV3 worker is evicted after
+// ~30s idle, so a timer-based check would simply never fire.
+chrome.runtime.onInstalled.addListener(() => {
+  scheduleUpdateChecks();
+  checkForUpdate();
+});
+chrome.runtime.onStartup.addListener(() => {
+  scheduleUpdateChecks();
+  checkForUpdate();
+});
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === UPDATE_ALARM) checkForUpdate();
+});
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  // Manual "check now" from the options page. autoReload:false so a human
+  // pressing the button gets an answer rather than the page vanishing under
+  // them mid-reload.
+  if (msg?.type === 'checkUpdate') {
+    checkForUpdate({ autoReload: Boolean(msg.autoReload) })
+      .then(sendResponse)
+      .catch((e) => sendResponse({ error: String(e?.message ?? e) }));
+    return true;
+  }
   if (msg?.type === 'enrich') {
     acceptEnrich(msg)
       .then(sendResponse)

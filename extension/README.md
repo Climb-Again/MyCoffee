@@ -6,14 +6,59 @@ page. Backlog #159–#162; the score itself is #106's, reached through
 
 ## Install (2 minutes, no Web Store)
 
+**Get the files as a git clone, not a ZIP** — auto-update below needs git, and
+this way you only download the extension folder (~88 KB), not the whole repo:
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/Climb-Again/MyCoffee.git mycoffee-ext
+cd mycoffee-ext && git sparse-checkout set extension
+```
+
+(Already have the repo cloned for other work? Just `git pull` and use its
+`extension/` folder.)
+
+Then:
+
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top right)
-3. Click **Load unpacked** and pick this `extension/` folder
+3. Click **Load unpacked** and pick the `extension/` folder (the one with
+   `manifest.json` in it)
 4. Click the extension's **Details → Extension options**
 5. Paste your **read token** (`APP_TOKEN`) and hit **Save**, then **Test connection**
 
 Pin it to the toolbar so the button is one click away. Then open any coffee
 product page and click it.
+
+## Auto-update (run once, then never think about it)
+
+```bash
+bash extension/install-autoupdate.sh
+```
+
+That installs a launchd agent that runs `git pull` in the checkout every hour
+and at login. The extension checks GitHub for a newer version every three hours
+and reloads itself when it finds one — and for an unpacked extension, reloading
+re-reads every file from disk. Between the two, updates arrive on their own.
+
+**Both halves are needed.** An unpacked extension cannot write its own files, so
+something outside Chrome has to fetch them; and nothing outside Chrome can make
+Chrome re-read them, so the extension has to reload itself. Neither works alone,
+which is why the ZIP route can't auto-update at all.
+
+Only a version *string* is ever fetched from GitHub — no code is downloaded or
+executed. MV3 forbids remote code and this respects that: the only thing that
+changes the extension's behaviour is a file `git pull` put on disk.
+
+**Options → Updates** shows the state. If it says a version is available but
+reloading isn't picking it up, the `git pull` half isn't running — check
+`launchctl list | grep mycoffee` and `~/Library/Logs/mycoffee-extension-update.log`.
+
+To undo:
+
+```bash
+launchctl bootout gui/$(id -u)/ro.climbagain.mycoffee.extension-update
+rm ~/Library/LaunchAgents/ro.climbagain.mycoffee.extension-update.plist
+```
 
 > Use `APP_TOKEN`, **not** `INGEST_TOKEN`. Scoring never writes anything, so the
 > extension only needs read access — and whatever token it carries lives in the
@@ -24,7 +69,8 @@ product page and click it.
 > everything else still works.
 
 Chrome forgets an unpacked extension's service worker between uses but keeps
-your settings; you never need to re-enter the token.
+your settings; you never need to re-enter the token, and an update never clears
+them.
 
 ## What the number means
 

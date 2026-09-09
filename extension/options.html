@@ -72,6 +72,16 @@
       <span id="saved"></span>
     </div>
 
+    <div class="field" style="margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px">
+      <label>Updates</label>
+      <p class="hint" id="update-status">Checking…</p>
+      <button class="btn ghost" id="check-update">Check now</button>
+      <p class="hint" id="update-help" hidden>
+        For updates to apply on their own, the extension must be a git clone and something must pull it. Run
+        <code>bash extension/install-autoupdate.sh</code> once — it installs an hourly <code>git pull</code>.
+      </p>
+    </div>
+
     <script type="module" src="options.js"></script>
   </body>
 </html>

@@ -44,3 +44,45 @@ $('test').addEventListener('click', async () => {
     flash(`Could not reach ${url}`, false);
   }
 });
+
+// ---- update status ----
+//
+// Shown so "is it actually updating?" is answerable without opening the
+// service-worker console. `stalled` is the honest case: the extension can see
+// a newer version on GitHub but reloading stopped changing anything, which
+// means nothing is pulling the files.
+function renderUpdate(state) {
+  const el = $('update-status');
+  const help = $('update-help');
+  help.hidden = true;
+
+  if (!state) {
+    el.textContent = 'No check has run yet.';
+    return;
+  }
+  if (state.error) {
+    el.textContent = `Could not check for updates (${state.error}). Running ${state.current}.`;
+    return;
+  }
+  if (state.upToDate) {
+    el.textContent = `Up to date — version ${state.current}.`;
+    return;
+  }
+  if (state.stalled) {
+    el.textContent = `Version ${state.latest} is available but reloading is not picking it up — you are still on ${state.current}.`;
+    help.hidden = false;
+    return;
+  }
+  el.textContent = `Updating to ${state.latest} (running ${state.current})…`;
+  help.hidden = false;
+}
+
+const { updateState } = await chrome.storage.local.get('updateState');
+renderUpdate(updateState);
+
+$('check-update').addEventListener('click', async () => {
+  $('update-status').textContent = 'Checking…';
+  // autoReload stays off here: a reload would close this page mid-click.
+  const state = await chrome.runtime.sendMessage({ type: 'checkUpdate', autoReload: false });
+  renderUpdate(state);
+});
