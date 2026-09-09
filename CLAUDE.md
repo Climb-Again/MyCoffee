@@ -15,6 +15,18 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 >
 > This applies to interactive sessions too, not just fired lane runs. When in
 > doubt whether he wants it built now, file the row and ask.
+>
+> **Landing rule (Radu, 2026-09-09): "Always merge. Any request I ever have must
+> never get lost in a conversation. I never ever push to main."** A backlog row,
+> spec or doc filed in an interactive session is not filed until it is **on
+> `main`** — the session that writes it merges it there (`git pull --rebase`,
+> resolve, `bash status/check-backlog.sh`, push) in the **same turn**, even when
+> the session's own working branch is a `claude/*` branch. Never end a turn with
+> "merge this branch to `main`" or "click push" addressed to Radu — that is the
+> stranded-branch trap (§12) wearing a different hat. Radu is asked only for
+> **product decisions** (a `human`-status row, an open question with a stated
+> default); the mechanics of landing text are always ours. This is standing
+> permission to push docs/`status/**` to `main` from any session.
 
 ## 0. Filled-in tokens (the once-and-done decisions)
 

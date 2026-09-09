@@ -1146,3 +1146,402 @@ tab bar at Coffees/Insights/Review. A segmented **Live / Plan** control:
 chip); **Plan** shows the **Needs your approval** section pinned at top, then a
 section per lane. Read-only (no actions) in v1 — it informs, it doesn't approve
 inline. Depends on #45 → #46. Same no-manual-publish rule.
+
+## 14. Addendum (2026-09-09) — Brew lab: recipes, devices, grind, temperature per coffee
+
+Radu: **"Recipe catalogue and checkboxes per coffee plus rate per recipe per
+coffee (just check 'best recipe'). Brew devices catalogue and checklist per
+coffee plus rate (best device). Grind size and temp tested per coffee with
+rating per pair (just check 'best grind size' / 'best temp'). So I want to be
+able to check what recipes, devices, grind sizes, temps I used for each coffee
+and pick the winner per coffee."**
+
+Four rows: **#155** (backend), **#156** (iOS shell), **#157** (iOS UX — the
+feature), **#158** (iOS UX — filters + insights, optional follow-on). Spec-only
+addendum; nothing here is implemented (intake rule, CLAUDE.md).
+
+> **Radu, 2026-09-09 (answers to open questions A and C below):** grind size is
+> **Comandante clicks**; a recipe is **structured around coffee grams, number
+> of pours, ml per pour, total water, grind size (clicks), water temperature**.
+> Folded in throughout — recipes are no longer a free-text `detail`.
+
+### What it is, in one paragraph
+
+Four **catalogues** (recipes, brew devices, grind sizes, water temperatures),
+each a short user-maintained list. Per coffee, each catalogue is a **checklist**:
+tick what you tried, and mark **at most one winner per catalogue** ("best
+recipe", "best device", "best grind", "best temp"). The "rating" Radu asked
+for *is* the winner tick — there is deliberately no 1–5 score per pair, no
+per-brew log, no timestamps in the UI. The whole thing must be tappable in
+under ten seconds from the coffee page.
+
+### Non-goals (say no now so the lanes don't drift)
+
+- **No brew journal.** Not "one row per cup with date, dose, yield, time,
+  score". If Radu wants that later it is a new addendum layered on these
+  tables, not a change to them.
+- **No scoring.** Tri-state per (coffee, option): *untried / tried / best*.
+- **No extraction.** Nothing here is read off a bag; the LLM ensemble,
+  `field_resolutions`, `resolveField` and the review queue are not involved.
+  Writes mirror `POST /api/coffees/:id/favorite` and `/rotation` — a human
+  display/preference field, `updated_at` bump carries it via delta sync.
+- **No cross-coffee "global best".** Winner is per coffee. Aggregates ("V60 won
+  7 of 12 coffees it was tried on") are *derived* on-device (#158), never stored.
+- **No pairing of grind × temp.** Radu's "rating per pair" resolves to two
+  independent winners ("best grind size" / "best temp"), per his own
+  parenthetical. A tried grind and a tried temp are not linked to each other.
+
+### Data model (Backend, #155) — `backend/migrations/034_brew_options.sql`
+
+One catalogue table with a `kind` discriminator, not four tables: one CRUD
+route, one Swift model, one snapshot block, one checklist component.
+
+```sql
+CREATE TABLE IF NOT EXISTS brew_options (
+  id           INT         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind         TEXT        NOT NULL CHECK (kind IN ('recipe', 'device', 'grind', 'temp')),
+  label        TEXT        NOT NULL,             -- "V60", "4:6 (Kasuya)", "24 clicks", "94 °C"
+  label_norm   TEXT        NOT NULL,             -- normalize.js fold; UNIQUE per kind
+  detail       TEXT,                             -- optional free note (recipe: "bloom 45 s"; device: model); else NULL
+  value_num    NUMERIC(6,1),                     -- temp: °C; grind: Comandante clicks; recipe/device: NULL
+  -- Recipe structure (Radu, 2026-09-09). NULL on every non-recipe row (CHECK below).
+  dose_g          NUMERIC(5,1),                  -- coffee grams
+  pours           SMALLINT,                      -- number of pours (1 = single pour / immersion)
+  ml_per_pour     SMALLINT,                      -- NULL when pours are uneven; UI prefills total = pours × ml_per_pour
+  total_water_ml  SMALLINT,                      -- stored, not generated: uneven pours make it non-derivable
+  grind_clicks    SMALLINT,                      -- the recipe's nominal Comandante setting
+  water_temp_c    SMALLINT,                      -- the recipe's nominal temperature
+  sort_order   INT         NOT NULL DEFAULT 0,   -- manual order within kind; grind/temp sort by value_num
+  archived_at  TIMESTAMPTZ,                      -- soft-hide from pickers; history stays intact
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (kind, label_norm),
+  CONSTRAINT brew_options_recipe_fields CHECK (
+    kind = 'recipe' OR (dose_g IS NULL AND pours IS NULL AND ml_per_pour IS NULL
+                        AND total_water_ml IS NULL AND grind_clicks IS NULL AND water_temp_c IS NULL)
+  ),
+  CONSTRAINT brew_options_recipe_complete CHECK (
+    kind <> 'recipe' OR (dose_g > 0 AND pours BETWEEN 1 AND 12 AND total_water_ml > 0
+                         AND grind_clicks BETWEEN 1 AND 60 AND water_temp_c BETWEEN 60 AND 100)
+  ),
+  CONSTRAINT brew_options_numeric_kinds CHECK (
+    (kind = 'temp'  AND value_num BETWEEN 60 AND 100) OR
+    (kind = 'grind' AND value_num BETWEEN 1 AND 60)   OR
+    (kind IN ('recipe', 'device') AND value_num IS NULL)
+  )
+);
+-- One row per (kind, numeric value) for grind/temp so the recipe auto-tick
+-- (below) can find "24 clicks" / "94 °C" by value, not by label spelling.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_brew_options_kind_value
+  ON brew_options (kind, value_num) WHERE kind IN ('grind', 'temp');
+
+CREATE TABLE IF NOT EXISTS coffee_brew_trials (
+  coffee_id    BIGINT      NOT NULL REFERENCES coffees (id) ON DELETE CASCADE,
+  option_id    INT         NOT NULL REFERENCES brew_options (id) ON DELETE RESTRICT,
+  -- Denormalized copy of brew_options.kind so the one-winner rule is a
+  -- partial unique index, not a route-level promise. Written by the route.
+  kind         TEXT        NOT NULL CHECK (kind IN ('recipe', 'device', 'grind', 'temp')),
+  is_best      BOOLEAN     NOT NULL DEFAULT false,
+  tried_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (coffee_id, option_id)
+);
+-- At most one winner per (coffee, kind). Race-proof by construction.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_coffee_brew_best
+  ON coffee_brew_trials (coffee_id, kind) WHERE is_best;
+CREATE INDEX IF NOT EXISTS idx_coffee_brew_trials_option ON coffee_brew_trials (option_id);
+```
+
+**Invariants:** `best ⇒ tried` (a best row *is* a trial row with `is_best`);
+one best per (coffee, kind); a trial always references a live or archived
+option (never deleted — `ON DELETE RESTRICT`, and the API archives rather than
+deletes). Setting a new best demotes the previous best of that kind to `tried`
+in the same transaction.
+
+**Seed (same migration, idempotent `ON CONFLICT (kind, label_norm) DO NOTHING`):**
+
+| kind | seed | notes |
+|---|---|---|
+| `device` | V60, Kalita Wave, Origami, Chemex, AeroPress, Clever Dripper, French press, Moka pot, Espresso, Cold brew | 10 rows |
+| `grind` | **Comandante clicks 16 … 36**, one row per click, label "`n` clicks", `value_num = n` | 21 rows (Radu, 2026-09-09: "use Comandante clicks"). Filter range; espresso on a C40 needs Red Clix and is out of scope — add rows from the app if needed |
+| `temp` | 85 °C … 100 °C in 1 °C steps, label "`n` °C", `value_num = n` | 16 rows. **Open question B** |
+| `recipe` | 5 structured templates below | Values are **starting points**, editable in Settings |
+
+Recipe seeds (`dose_g · pours · ml_per_pour · total_water_ml · grind_clicks · water_temp_c`):
+
+| label | dose | pours | ml/pour | total | clicks | °C |
+|---|---|---|---|---|---|---|
+| V60 1-cup (Hoffmann) | 15 | 3 | NULL (50 / 100 / 100 — uneven) | 250 | 24 | 95 |
+| 4:6 (Kasuya) | 20 | 5 | 60 | 300 | 28 | 92 |
+| AeroPress single pour | 15 | 1 | 200 | 200 | 20 | 85 |
+| Chemex 3-cup | 30 | 4 | 125 | 500 | 28 | 94 |
+| French press 4 min | 30 | 1 | 500 | 500 | 32 | 96 |
+
+Seeds are a starting point; Radu adds/renames/archives from the app (#157).
+Every recipe seed's `grind_clicks`/`water_temp_c` value must exist as a
+`grind`/`temp` row (24/28/20/32 clicks and 85/92/94/95/96 °C all fall inside
+the seeded ranges), so the auto-tick below always resolves.
+
+### API (Backend, #155) — `routes/coffees.js` + new `routes/brew.js`
+
+```
+GET   /api/brew-options                      requireAnyToken   → { options: [BrewOption] }  (incl. archived, flagged)
+POST  /api/brew-options                      requireIngestToken  { kind, label, detail?, valueNum?, recipe?: { doseG, pours, mlPerPour?, totalWaterMl, grindClicks, waterTempC } } → BrewOption   (201; dup label_norm within kind, or dup (kind, valueNum) for grind/temp → 200 with the existing row — "get-or-create", same spirit as #36)
+PATCH /api/brew-options/:id                  requireIngestToken  { label?, detail?, valueNum?, recipe?, sortOrder?, archived?: bool } → BrewOption   (recipe object replaces all six fields; 400 unless kind = recipe)
+POST  /api/coffees/:publicId/brew            requireIngestToken  { optionId, state: 'untried' | 'tried' | 'best' } → { id, brewTried: [int], brewBest: [int] }
+```
+
+`POST …/brew` semantics, in one transaction: `untried` → `DELETE` the trial
+row; `tried` → upsert with `is_best=false` (demotes a winner to tried if it
+was the best); `best` → `UPDATE … SET is_best=false WHERE coffee_id=$1 AND
+kind=$2 AND is_best`, then upsert with `is_best=true`. Always `UPDATE coffees
+SET updated_at = now()` so the delta sync picks the coffee up. Respond with the
+coffee's **whole** brew state so the client replaces it atomically (no
+per-option reconciliation). Validation: `state` enum (400
+`invalid_brew_state`), option exists and not archived for `tried`/`best` (404
+`brew_option_not_found` / 409 `brew_option_archived`), coffee exists (404).
+`valueNum` for `temp` must be an integer 60–100 (400 `invalid_temperature`),
+for `grind` an integer 1–60 (400 `invalid_grind_clicks`); a `recipe` body must
+be complete (400 `invalid_recipe`, naming the field) — `mlPerPour` is the only
+optional field; when present, `pours × mlPerPour` must be within ±5 % of
+`totalWaterMl` or the server rejects it (400 `recipe_water_mismatch`) so the
+two never silently disagree. Label for grind/temp is server-generated from the
+value ("24 clicks", "94 °C") — the client sends `valueNum` only.
+
+**Recipe auto-tick.** A recipe pins a nominal grind and temperature, and
+Radu's mental model is "I tried the 4:6 recipe" — which *is* trying 28 clicks
+at 92 °C. So when `POST …/brew` sets a **recipe** to `tried` or `best`, the
+same transaction also upserts `tried` (never `best`) trial rows for the
+`grind` row with `value_num = grind_clicks` and the `temp` row with
+`value_num = water_temp_c`, get-or-creating those option rows if missing
+(hence the `(kind, value_num)` unique index). One-way: un-trying the recipe
+leaves the grind/temp ticks alone — he may have tested them on their own. The
+response's whole-state shape means the client learns about the extra ticks
+without modelling the rule itself.
+
+**Snapshot.** Two additive changes to `GET /api/snapshot`, **no
+`SNAPSHOT_VERSION` bump** — both are additive and every coffee without trials
+correctly reads as "none", so the client's cached rows stay valid:
+
+1. `vocab.brewOptions: [{ id, kind, label, detail, valueNum, sortOrder, archived }]`
+   via a `loadBrewOptionVocab(query)` in `lib/vocab.js` (data lane owns that
+   file — the backend row adds the loader **only**; if the data lane objects,
+   put it in `routes/brew.js` and import it). Vocab is always sent in full, so
+   catalogue edits reach every device on the next sync.
+2. Compact row gains `brewTried: [int]` and `brewBest: [int]`, **omitted when
+   empty** (`undefined`, not `[]`) so the ~140 B/row budget only grows on
+   coffees that actually have trials. Aggregate with one `LEFT JOIN LATERAL
+   (SELECT array_agg(option_id ORDER BY option_id) AS tried, array_agg(option_id)
+   FILTER (WHERE is_best) AS best FROM coffee_brew_trials t WHERE t.coffee_id =
+   co.id) bt ON true` — not N+1, not a second round-trip. Same two fields on
+   `GET /api/coffees/:publicId`.
+
+**Tests (`backend/test/brew.test.js`, no DB — same shape as `rotation.test.js`):**
+state enum rejection; temp/grind range rejection; kind enum rejection; recipe
+completeness + water-mismatch rejection; and pure unit tests of
+`lib/brewState.js`: `nextTrialRows(current, option, state)` asserts "best
+demotes the old best", and `impliedTrials(recipeOption)` asserts the
+auto-tick yields exactly one grind + one temp `tried` row.
+
+**Deploy gate:** `backend/**` push — check `GET /api/admin/jobs` for a running
+extraction first (CLAUDE.md §12). Verify live with
+`curl -s "$BASE/api/brew-options" -H "Authorization: Bearer $TOK"` → **52** seed
+rows (10 + 21 + 16 + 5), then one `POST …/brew` on a real coffee marking the
+4:6 recipe `best` and confirm `brewBest` holds the recipe and `brewTried` also
+holds 28 clicks + 92 °C in `/api/snapshot?since=<1 min ago>`.
+
+### iOS shell (#156) — `Models`, `API/Wire`, `Store`, `Query`
+
+- **Models.** `enum BrewKind: String, Codable, CaseIterable { recipe, device,
+  grind, temp }` with `displayName` ("Recipe", "Device", "Grind size",
+  "Temperature") and `symbol`. `struct BrewOption: Identifiable, Codable,
+  Hashable, Sendable { id: Int; kind: BrewKind; label: String; detail: String?;
+  valueNum: Double?; recipe: BrewRecipeSpec?; sortOrder: Int; archived: Bool }`
+  with `struct BrewRecipeSpec: Codable, Hashable, Sendable { doseG: Double;
+  pours: Int; mlPerPour: Int?; totalWaterMl: Int; grindClicks: Int;
+  waterTempC: Int; var ratio: Double { Double(totalWaterMl) / doseG } }` and a
+  `summary` string ("15 g · 3 pours · 250 ml · 1:16.7 · 24 clicks · 95 °C",
+  dropping ml/pour when nil) the UX renders as the recipe's second line. `Vocabulary` gains
+  `brewOptions: [Int: BrewOption]` (+ `brewOptions(of kind:) -> [BrewOption]`
+  sorted by `sortOrder`, then `valueNum`, then label; archived last and only
+  when the caller asks). `Coffee` gains `brewTriedIds: [Int]` and
+  `brewBestIds: [Int]` — **decode with `decodeIfPresent … ?? []`** so an older
+  `PersistedSnapshot` on disk and rows that omit the keys both decode (the
+  `rotationQuarterTurns` lesson). `Coffee.withBrew(tried:best:)` copier, same
+  immutable-value pattern as `withFavorite`. Derived helpers on `Coffee`:
+  `bestBrewOptionId(for kind:) -> Int?` needs the vocab, so it lives on
+  `CoffeeIndex`: `bestBrewOption(for coffee: Coffee, kind: BrewKind) -> BrewOption?`,
+  `triedBrewOptions(for:kind:) -> [BrewOption]`, `brewState(for coffee:
+  option:) -> BrewTrialState` (`enum BrewTrialState { untried, tried, best }`).
+- **Wire.** `CompactCoffeeDTO`/`CoffeeDetailDTO` + `brewTried`/`brewBest`
+  optional arrays; `VocabDTO.brewOptions` with `FailableDecodable` element
+  leniency and `decodeIfPresent … ?? []` (an old backend must not blank the
+  app). New `API/Wire/BrewWire.swift`: `BrewOptionDTO`, `BrewStateResponseDTO`.
+- **APIClient.** `brewOptions()`, `createBrewOption(kind:label:detail:valueNum:)`,
+  `updateBrewOption(id:patch:)`, `setBrewState(publicId:optionId:state:)`.
+- **Repository / SyncEngine / Outbox.** `CoffeeRepository.setBrewState(coffeeId:
+  optionId: state:) async -> CoffeeIndex` — **optimistic + outbox**, like
+  favorite, because this is a fast tap-tap-tap surface and a spinner per tick
+  would kill it. New `PendingMutation.brewState(coffeeId:optionId:state:)`;
+  `MutationOutbox.enqueueBrewState` replaces any pending mutation for the same
+  (coffee, option); `pendingBrewStates(for coffeeId:) -> [Int: BrewTrialState]`
+  and `SyncEngine.sync`/`loadDetail` apply them over the server row (the
+  "pending mutation wins" rule, PLAN.md §5) — apply *after* `makeCoffee`, and
+  when applying a pending `.best`, locally demote any other best of that kind
+  so the optimistic state matches what the server will do. Flush: `POST
+  …/brew`, then replace the coffee's brew arrays from the response.
+  Because of the server-side recipe auto-tick, the optimistic local update
+  for a recipe `tried`/`best` **also** ticks the matching grind/temp options
+  locally (`Vocabulary.brewOption(kind:value:)` lookup) so the UI doesn't
+  flicker when the response arrives; if the grind/temp row doesn't exist
+  locally yet, skip it and let the response add it.
+  `createBrewOption`/`updateBrewOption` are **synchronous and throw** (like
+  `editField`): a trial needs a real server id, and a catalogue rename is rare.
+  On create success, insert the option into `vocabulary.brewOptions`
+  immediately (don't wait for the next sync) and return it. Update
+  `SampleCoffeeRepository` + `SampleData` with a handful of options and trials
+  so UX previews work.
+- **CoffeeStore.** `setBrewState(_ coffee: Coffee, option: BrewOption, state:
+  BrewTrialState)`, `createBrewOption(...) async throws -> BrewOption`,
+  `updateBrewOption(...) async throws -> BrewOption`, `@Published var
+  brewErrorText: String?`.
+- **Query (for #158, ship it in the same row so UX has it).**
+  `FilterDimension` gains `.brewDevice, .brewRecipe, .brewGrind, .brewTemp`,
+  postings keyed `.vocabID(optionId)` over **tried** ids (best ⊆ tried, so
+  "coffees I made on the V60" is the natural read; a "winners only" toggle is
+  a UX decision in #158, implemented as a second key set `.brewBest…` only if
+  #158 asks). `CoffeeFilter` gains the matching `Set<Int>` per kind and
+  `clearing(_:)`/`isEmpty` cover them. `CoffeeIndex.brewWinRates(kind:) ->
+  [(option: BrewOption, tried: Int, won: Int)]` sorted by won desc — the input
+  to the Insights card.
+- **PersistedSnapshot.** No schema bump: new fields are optional-decoded.
+  Verify by decoding a pre-change fixture in a unit test.
+
+Publish the surface in `status/ios-shell.md` (the seam rule, CLAUDE.md §4):
+`BrewKind`, `BrewOption`, `BrewTrialState`, `Vocabulary.brewOptions(of:)`,
+`CoffeeIndex.bestBrewOption/triedBrewOptions/brewState/brewWinRates`,
+`CoffeeStore.setBrewState/createBrewOption/updateBrewOption/brewErrorText`.
+
+### iOS UX (#157) — `Features/Coffees/BrewLab*.swift`, `SettingsSheet`
+
+**Coffee page section — "Brew lab".** New section in `CoffeeDetailView.card`
+between `priceBlock`/`factRows` and `notesSection`. Two states:
+
+- *Empty (no trials):* one row, label **BREW LAB** in the section-label style
+  (10pt, tracking 0.12em, neutral-700 — the `FROM THE ROASTER` treatment from
+  #145) and a single tappable line "Log what you brewed with →". Not a big
+  empty card.
+- *Has trials:* the **BREW LAB** label, then a 2×2 grid (same 12pt/18pt gaps
+  as #145's facts grid) — one cell per kind, caption = kind name, value = the
+  **winner's label** in semibold, or "n tried" in neutral-700 when tried but
+  no winner yet, or "—" when nothing tried for that kind. Winner cells carry a
+  small trophy glyph (Lucide `trophy`, add the SVG to `Resources` +
+  `Symbols`). A one-line footer "12 tried · 3 winners" is optional; drop it if
+  the grid already says it.
+- Tapping anywhere in the section opens **`BrewLabSheet`**.
+
+**`BrewLabSheet`** (`.sheet`, `presentationDetents([.large])`). A `List` with
+four sections, one per `BrewKind`, in the order recipe → device → grind →
+temp (matches Radu's sentence). Each row is one `BrewOption`:
+
+```
+[✓]  V60                                 🏆
+```
+- **Recipe and device sections are lists; grind and temp sections are chip
+  grids** (`WrapLayout`, already in `DesignSystem`) — 21 click values and 16
+  temperatures as list rows would be a 37-row scroll. Chip: "24" under a
+  section header "Grind · Comandante clicks" (temps "94°"), tap = toggle
+  tried, **long-press = best** (haptic, trophy badge on the chip); tried chips
+  filled neutral, best chip filled accent + trophy, untried outline. Same
+  tri-state, denser.
+- Leading **checkbox** = tried (tap toggles `untried ↔ tried`; untried on a
+  current winner also clears the winner — confirm with a `.confirmationDialog`
+  only in that case). Ticking a **recipe** also ticks its grind and temp chips
+  (server rule above) — animate those chips so the cause is visible.
+- Trailing **trophy** = best. Outline when not, filled accent when best. Tap
+  sets best (implies tried, demotes the previous winner in that section with
+  a single animated move — never two trophies visible). Tapping the filled
+  trophy demotes to *tried* (it stays checked).
+- Row label semibold when best, regular when tried, neutral-700 when untried.
+  Recipe rows show `BrewRecipeSpec.summary` as the secondary line (12pt, one
+  line, neutral-700) — "20 g · 5 × 60 ml · 300 ml · 1:15 · 28 clicks · 92 °C";
+  `detail` (free note), when present, as a third line.
+- Rows sorted per `Vocabulary.brewOptions(of:)`. **Archived options are hidden
+  unless this coffee tried them**, in which case they render greyed with an
+  "archived" tag so history never disappears.
+- Last row in every section: **"Add <kind>…"**. `device` → inline
+  `TextField`. `grind` → **wheel `Picker` 1–60 clicks**; `temp` → **wheel
+  `Picker` 60–100 °C** (grid seeds cover the common range, so this is for
+  outliers). `recipe` → **`RecipeFormSheet`**, a small `Form`: name
+  (`TextField`, required), coffee **g** (decimal, 0.1 step), **pours**
+  (`Stepper` 1–12), **ml per pour** (int, optional — clear it for uneven
+  pours), **total water ml** (int, prefilled `pours × ml/pour` whenever both
+  are set and the user hasn't overridden it), **grind** (wheel, Comandante
+  clicks 1–60), **water temp** (wheel 60–100 °C), optional note. A live
+  footer shows the ratio "1:16.7". Save disabled until complete. Submit calls
+  `store.createBrewOption`; on success the new row appears **already ticked
+  as tried** (the only reason to add one from a coffee is that you used it) —
+  for a recipe that also ticks its grind/temp chips via the server rule. A
+  duplicate label/value returns the existing option (server get-or-create) —
+  tick that one.
+- Section header shows the count: "Device · 3 tried". Every tap is
+  optimistic; `brewErrorText` surfaces as a non-blocking toast (same pattern
+  as `editErrorText`).
+
+**Catalogue management — Settings → "Brew catalogue".** A `NavigationLink`
+row in `SettingsSheet` to `BrewCatalogueView`: segmented by kind, list of
+options with swipe actions **Edit** (devices: rename alert; recipes: the same
+`RecipeFormSheet` pre-filled, saving via `updateBrewOption`; grind/temp: no
+edit — the value *is* the identity, archive and add instead) and **Archive /
+Unarchive**; a drag handle reorders recipes/devices (`onMove` → `sortOrder`
+patch, batched on drag end); grind/temp always sort by value. No delete
+anywhere in the UI. Empty state per kind: "No <kind>s yet
+— add one from any coffee's Brew lab."
+
+**Rules carried over:** three shadows only (#146); no new capsule
+controls; hit areas 44pt; missing data omits, never "N/A" (§6.3). The section
+does not appear on a `pendingPlaceholder` coffee (`reviewState ==
+"unextracted"`) — nothing to brew yet.
+
+**Acceptance (Radu's sentence, verbatim as tests):** open any coffee → see at a
+glance which recipe/device/grind/temp won, or that nothing is logged; two taps
+to mark a device tried and best; the previous best visibly loses its trophy;
+kill the app offline mid-tap → relaunch shows the ticks; next online sync does
+not undo them; add "Orea V3" from a coffee → it's in every other coffee's list.
+
+### iOS UX (#158, optional follow-on) — filter + insights
+
+- **Filter sheet:** a "Brew lab" group with four sections (device, recipe,
+  grind, temp), facet pills over tried option ids with the usual own-dimension-
+  excluded counts (§5); zero-count pills disabled at 30 %, not hidden. A
+  `Toggle("Winners only")` at the group top switches the postings to best ids
+  if #156 shipped the second key set; otherwise omit the toggle.
+- **Insights → "Brew winners" card:** for each kind, the top option by wins
+  with "won 7 of 12" (min 3 tried to show, same statistical-gate spirit as
+  #28), tap → Coffees list filtered to that option (reuse
+  `selectInCoffees(dimension:key:)`). Hidden entirely when no coffee has a
+  winner.
+- **Coffee row (list):** no change. Do not add a trophy to the row — the list
+  is already dense (#150).
+
+### Open questions for Radu (defaults stated so nothing blocks)
+
+- **A. Grind scale — ANSWERED 2026-09-09: Comandante clicks.** Seed 16–36,
+  `value_num` = clicks, chips in the sheet, wheel 1–60 for outliers. Only one
+  grinder is modelled; if a second grinder ever enters the picture it is a
+  new `kind`, not a relabel.
+- **B. Temperature range/step.** Default 85–100 °C by 1 °C (16 rows). Say if
+  you want 0.5 °C steps or a lower floor (cold brew is a *device* here, not a
+  temp).
+- **C. Recipe body — ANSWERED 2026-09-09: structured.** Coffee grams, number
+  of pours, ml per pour, total water, grind (clicks), water temp — six typed
+  columns on `brew_options`, `BrewRecipeSpec` on the client, `RecipeFormSheet`
+  in the UX, and the recipe → grind/temp auto-tick that the structure makes
+  possible. Free-text `detail` survives only as an optional note. Not asked
+  for and therefore not included: bloom time, total brew time, per-pour
+  schedule — each is a one-column, one-field addition later if wanted.
+- **D. Winners only vs tried in filters (#158).** Default: filter on *tried*,
+  toggle for *winners only*.
+
+Depends on #155 → #156 → #157 (→ #158) in order. Same **no manual
+`publish=true`** rule as §11–§13: backend lands on `main` (Railway
+auto-deploys), iOS on `ios-staging`, the Publish lane ships the iOS half.
