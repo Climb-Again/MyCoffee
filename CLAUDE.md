@@ -99,13 +99,18 @@ free — lane count has no cost implication.
 
 | Lane | Branch | Owns |
 |---|---|---|
-| Backend | `main` | `backend/src/**`, `backend/migrations/**` (except `005_vocab_seed.sql`), `backend/test/**` |
+| Backend | `main` | `backend/src/**`, `backend/migrations/**` (except `005_vocab_seed.sql`), `backend/test/**`, `extension/**` (see below) |
 | Data extract + validate | `main` | `ops/**`, `backend/migrations/005_vocab_seed.sql`, `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` |
 | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
 | Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is the private repo) |
 
 - **Shared:** root docs (`CLAUDE.md`, `BUILD_STATUS.md`, `PLAN.md`) — claim first.
+- **`extension/**` (the browser extension, #159–#162) is Backend-lane owned** — decided
+  2026-09-09. It was first filed to a lane called `ext`, which matches no cron, so the
+  row would have sat `ready` forever (the trap #27 and #136 both named). Backend owns
+  the API the extension consumes and actually fires. Give it its own lane + cron only if
+  it outgrows that.
 - The two iOS lanes share `ios-staging` but own **disjoint directories**, so git
   merges them cleanly. Their only seam is the `CoffeeStore` / `CoffeeIndex` API
   surface — shell publishes it, UX consumes it; changing it needs a claim in both.
@@ -373,7 +378,13 @@ into a runner. But three things change, and two of them are footguns:
   claiming, adopt it instead of redoing it, and treat a row as `done` only once it's on
   the shared branch. If lanes keep producing orphan branches, add a small integration
   routine (or a human step) that merges completed `claude/*` lane branches to
-  `main`/`ios-staging` on a schedule.
+  `main`/`ios-staging` on a schedule. **That routine now exists** (2026-09-09): a daily
+  `.github/workflows/stranded-branches.yml` runs `status/check-stranded.sh` and goes red
+  on any `claude/*` branch holding commits that reached neither shared branch. The audit
+  that prompted it found **19** such branches — two with genuinely lost work (the
+  browser-extension spec Radu locked five days earlier, and the entire Brew lab spec) and
+  one 407-line iOS surface that had been built twice. Run the script before you claim;
+  see `status/README.md` and backlog #164.
 - **`match` archive signing: derive the team from the installed profile, not the
   `DEVELOPMENT_TEAM` secret.** Root cause of publish runs #8–#12: the profile was
   installed, valid and correctly named, yet `xcodebuild archive` failed with "No

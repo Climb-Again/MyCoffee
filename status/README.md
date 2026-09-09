@@ -76,6 +76,29 @@ moved — "firing runs with no output." Two hard rules follow:
 Corollary: **`done` in the backlog means "on the shared branch."** A row whose work
 only exists on a `claude/*` branch is still `blocked`/`claimed`, never `done`.
 
+### This is now enforced, not remembered
+
+Rule 1 above was already written when the 2026-09-09 audit found **19** stranded
+branches — so relying on each session to run `git branch -r` by hand did not work.
+`status/check-stranded.sh` now does it, and `.github/workflows/stranded-branches.yml`
+runs it **daily**: any `claude/*` branch holding commits that are on neither `main` nor
+`ios-staging`, and untouched for 3+ days, turns the check red.
+
+```bash
+bash status/check-stranded.sh     # run it before you claim, it takes a second
+```
+
+What that audit cost, and why the check exists: the browser-extension spec Radu locked
+on 2026-09-04 sat unmerged for five days while a replacement was written from scratch
+(recovered as #159–#162); the Brew lab spec — `PLAN.md` §14, 399 lines — had never
+landed at all (recovered as #155–#158); and #76's Add Coffee wizard shell surface, 407
+lines, was **built twice**. Full write-up in `status/BACKLOG.md` #164.
+
+Branches already audited are listed in `status/stranded-ok.txt` and skipped, so the
+check is green today and goes red on the *next* orphan. When it does, do one of three
+things — merge it, port it, or add it to that file with a reason. **Dismissing without
+reading the commits is how work gets lost; merging is always better than dismissing.**
+
 ## Lanes
 
 | File | Lane | Branch | Owns |

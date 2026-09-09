@@ -1,0 +1,32 @@
+# Branches audited on 2026-09-09 and dismissed — status/check-stranded.sh skips
+# these. Everything of value on them is already on `main` or `ios-staging`.
+#
+# Add a branch here ONLY after checking its unique commits with:
+#   git log --oneline origin/claude/<branch> --not origin/main origin/ios-staging
+# One line: <branch> <reason>. Merging is always better than dismissing.
+
+# --- 12 branches: a single no-op lane heartbeat each. These are the commits
+# CLAUDE.md §10's audit identified (35 of 80 commits were "no ready row"
+# no-ops) and killed with gate-first lane prompts. Nothing to recover.
+claude/awesome-bardeen-mjyfw7      data lane session check, no ready row
+claude/confident-cerf-2lepas       backend lane session check, no ready row
+claude/confident-cerf-iwl1kr       backend lane session check, no ready row
+claude/confident-cerf-uwhk8k       backend lane session check, no ready row
+claude/confident-cerf-x1mruk       backend lane session check, no ready row
+claude/modest-newton-ae5v05        publish lane session check, no dispatch needed
+claude/peaceful-mccarthy-a2by6p    data lane session check, no ready row
+claude/peaceful-mccarthy-dyap8u    data lane session check, no ready row
+claude/peaceful-mccarthy-neqxc9    data lane session check, no ready row
+claude/peaceful-mccarthy-vsukf3    data lane session check 2026-08-21, no ready row
+claude/relaxed-thompson-vpp532     compile lane note: run #71 green (lane since deleted)
+claude/relaxed-thompson-xnl2lh     compile lane note: run #74 green (lane since deleted)
+
+# --- 4 branches: real work that reached a shared branch by another route.
+claude/determined-dirac-wjd3sp     #133 roaster logos/blurbs — all present on main
+claude/epic-euler-8dieig           #133 logos + rows #137-#151 — landed on main
+claude/optimistic-albattani-d9y2e4 rows #137-#140 — landed on main
+claude/wizardly-thompson-e42ekb    #76 wizard shell surface — rebuilt on ios-staging (built twice; the cost of this gap)
+
+# --- 2 branches: genuinely lost work, RECOVERED to main on 2026-09-09.
+claude/brave-ritchie-b9ushf              Brew lab: PLAN.md §14 + #155-#158 — merged to main (0fec62d)
+claude/coffee-ocr-origin-extraction-bx49z9  extension spec -> #159-#162; Congo/Sopacdi bug -> #165
