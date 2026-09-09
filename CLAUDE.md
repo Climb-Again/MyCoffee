@@ -114,6 +114,14 @@ free — lane count has no cost implication.
 - The two iOS lanes share `ios-staging` but own **disjoint directories**, so git
   merges them cleanly. Their only seam is the `CoffeeStore` / `CoffeeIndex` API
   surface — shell publishes it, UX consumes it; changing it needs a claim in both.
+- **Seam rule, compile-coupled case (2026-09-09).** When a shell-owned enum
+  (`FilterDimension`, `FacetKey`, `SortOption`, …) gains a case, UX-owned
+  exhaustive `switch`es stop compiling. That is **not** a reason to leave the
+  row `ready` and stop (it stalled #113/#137 on 2026-09-09). The ios-shell lane
+  adds the *minimal* new arms in the UX files in the same commit — plain label,
+  no styling — records it as a seam edit under `## Claimed` in **both** lane
+  files, and the UX lane restyles in its own row. A red compile is never the
+  right outcome of a lane boundary; a green plain-label one is.
 
 ## 5. dev/ship split
 
@@ -204,7 +212,15 @@ non-colliding days — two macOS runners never fire simultaneously.
 | iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
 | iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
 | Publish lane | `0 20 * * 4,0` | Thu + Sun |
+| Roaster logo intake sweep | `0 8 * * 2,5` | Tue + Fri — **paused by Radu 2026-09-08** (content intake for #133; re-enable when new logos land) |
+| Stranded-branch check (GitHub Actions, not a CCR routine) | `41 5 * * *` | daily — `status/check-stranded.sh` |
 | ~~Compile check lane~~ | — | **deleted** — replaced by the `ios-staging` push trigger |
+
+> **Gate reads `origin/main` (2026-09-09).** Every lane's step-0 grep runs against
+> `git show origin/main:status/BACKLOG.md`, not the working branch's copy. The
+> `ios-staging` copy lags every row filed on `main` and that lag silently stalled
+> both iOS lanes for a week (six firings, zero claims, 2026-08-31 → 09-06). Fixed
+> in the two iOS routine prompts and `status/README.md` step 0.
 
 ### Why this shape (the 2026-08-27 audit)
 

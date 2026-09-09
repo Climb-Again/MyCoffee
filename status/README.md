@@ -20,9 +20,18 @@ each of which had first read `BACKLOG.md` (153 KB), the lane file (up to 237 KB)
 nothing to do. So, before reading anything:
 
 ```bash
-git pull --rebase -q
-grep -nE '^\| *[0-9]+ *\| *<your-lane> *\|' status/BACKLOG.md | grep -E '\| *ready *\|'
+git fetch -q origin main
+git show origin/main:status/BACKLOG.md | grep -nE '^\| *[0-9]+ *\| *<your-lane> *\|' | grep -E '\| *ready *\|'
 ```
+
+**Read `origin/main`'s copy, not your branch's.** `main` is the backlog's single
+source of truth, and the `ios-staging` copy lags every row filed on `main`. That
+lag stalled both iOS lanes for a week (2026-08-31 → 09-06: six firings, zero
+claims — the 2026-09-06 publish note has the post-mortem) and on 2026-09-09 the
+`ios-staging` copy was missing 11 rows again. The two iOS routines were changed
+on 2026-09-09 to gate on `origin/main`; if you edit a lane prompt, keep it so.
+When the grep prints a row, merge `origin/main` into your working branch before
+claiming, so the row you claim is in the file you edit.
 
 - **No output → STOP.** Do not read `PLAN.md`, `CLAUDE.md`, or your lane file.
   Do not commit a "session check" note — those 35 commits were pure noise.
