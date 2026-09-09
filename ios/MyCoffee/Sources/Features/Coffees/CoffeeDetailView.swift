@@ -497,9 +497,9 @@ struct CoffeeDetailView: View {
                         valueMeter(valueRating)
                         if let band = valueRating.band {
                             Text(verdictLabel(band))
-                                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                                .font(.system(size: 10, weight: band == .great ? Theme.Weight.bold : Theme.Weight.semibold))
                                 .tracking(0.8)
-                                .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
+                                .foregroundStyle(bandColor(band))
                         }
                     }
                 }
@@ -520,16 +520,28 @@ struct CoffeeDetailView: View {
     }
 
     private func valueMeter(_ rating: ValueRating) -> some View {
-        HStack(spacing: 3) {
+        let tone = bandColor(rating.band)
+        return HStack(spacing: 3) {
             ForEach(0..<5, id: \.self) { pip in
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
-                    .fill(
-                        pip < rating.pillCount
-                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
-                            : Theme.Colors.neutral300
-                    )
+                    .fill(pip < rating.pillCount ? tone : tone.opacity(0.15))
                     .frame(width: 8, height: 4)
             }
+        }
+    }
+
+    /// One shared depth tone per band (#186, `VALUE_BAND_UPDATE.md`) — the
+    /// lit pills, the unlit track (this colour at 15%) and the verdict text
+    /// all read off this. Verbatim-copied at `CoffeeRowView.bandColor` until
+    /// #181 dedupes `valueMeter`/`verdictLabel` into one view.
+    private func bandColor(_ band: ValueRating.Band?) -> Color {
+        switch band {
+        case .overpaid: return Theme.Colors.valueOverpaid
+        case .poor: return Theme.Colors.valuePoor
+        case .fair: return Theme.Colors.valueFair
+        case .good: return Theme.Colors.valueGood
+        case .great: return Theme.Colors.valueGreat
+        case nil: return Theme.Colors.neutral700
         }
     }
 

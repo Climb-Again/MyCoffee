@@ -14,6 +14,25 @@ _none_
 
 ## Session notes
 
+- **2026-09-09 — #186 value band depth ramp, off-cycle fire (Radu asked for
+  this run specifically to catch the 2026-09-10 20:00 UTC publish).**
+  `VALUE_BAND_UPDATE.md`'s blue table, exactly: `Theme.Colors` gained five new
+  adaptive tokens (`valueOverpaid`/`valuePoor`/`valueFair`/`valueGood`/
+  `valueGreat`, light hexes from the spec, dark hexes the row's own
+  contrast-checked default) plus `Theme.Weight.bold` (700, GREAT VALUE only —
+  every other verdict stays `semibold`). `CoffeeRowView` and
+  `CoffeeDetailView` each got a local `bandColor(_:)` (verbatim-copied, same
+  as the `valueMeter`/`verdictLabel` pair they sit beside — #181 will absorb
+  all three together) replacing the old `Band.isPositive ? accent :
+  neutral700` two-tone split; the unlit track is now the band's own tone at
+  15% opacity instead of a fixed `neutral300`. Value logic untouched —
+  `CoffeeIndex.valueBand(for:)`, thresholds and suppression are byte-for-byte
+  as they were, only `bandColor`'s output changed. `Band.isPositive`
+  (`CoffeeIndex.swift:42`, shell-owned) now has no caller; left in place
+  unused per the row's own note rather than touching a shell file for this.
+  Did not touch #181 (dedupe) or any other ready row this run — Radu's fire
+  instruction scoped this session to #186 alone.
+
 - **2026-09-09 — #141-#148 coffee-page header redesign + roaster-page
   cleanup, `HEADER_UPDATE.md`. Landed `aea6542`, compile-green on run #106
   (queued at 11:02 UTC, success by 11:04).** #141 bare white photo controls

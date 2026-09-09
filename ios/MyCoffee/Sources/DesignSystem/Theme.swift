@@ -71,6 +71,20 @@ enum Theme {
         /// `neutral100`'s light/dark relationship so a dark logo mark still
         /// reads against it.
         static let logoTileBackground = adaptive(light: "F3F2E8", dark: "201E1E")
+
+        /// Value-band depth ramp (#186, `VALUE_BAND_UPDATE.md`) — one shared
+        /// tone per band, worst to best, used by the lit pills, the unlit
+        /// track (same colour at 15% opacity) and the verdict text so the
+        /// five outcomes read apart without counting pills. The spec only
+        /// gives light hexes; dark is this row's contrast-checked default
+        /// (read as distance-from-accent rather than darkness, since
+        /// `#1C1C1E` is invisible on the `#141212` dark surface) — all five
+        /// clear the 3:1 chip floor on it.
+        static let valueOverpaid = adaptive(light: "1C1C1E", dark: "6E6A6A")
+        static let valuePoor = adaptive(light: "334155", dark: "8A8585")
+        static let valueFair = adaptive(light: "3A6EA5", dark: "5C8CB8")
+        static let valueGood = adaptive(light: "0A84FF", dark: "2E90FF")
+        static let valueGreat = adaptive(light: "0078FF", dark: "2E90FF")
     }
 
     enum Radius {
@@ -98,6 +112,9 @@ enum Theme {
     enum Weight {
         static let regular: Font.Weight = .regular
         static let semibold: Font.Weight = .semibold
+        /// 700 — the value-band verdict at GREAT VALUE only (#186); every
+        /// other verdict stays `semibold` (600).
+        static let bold: Font.Weight = .bold
         static let heavy: Font.Weight = .heavy
     }
 
