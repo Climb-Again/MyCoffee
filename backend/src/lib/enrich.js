@@ -23,7 +23,7 @@
 // ~90 roasters), so the candidate set is tiny, and keeping it here makes the
 // whole decision unit-testable without a database.
 import { query } from '../db.js';
-import { foldDiacritics } from './normalize.js';
+import { foldDiacritics, parseProfile } from './normalize.js';
 
 // Words that appear in coffee titles everywhere and so carry no identifying
 // information. Romanian included — Radu's own titles are written in it
@@ -195,7 +195,25 @@ const ENRICHABLE = [
     field: 'profile',
     label: 'Process',
     isEmpty: (row) => row.profileId == null,
-    from: (p) => (p.profileName ? { value: p.profileName, display: p.profileName } : null),
+    // Round-trip or don't offer. The value goes back through `parseProfile` at
+    // accept time, and the profile SLUG is not itself an alias: `co_fermented`
+    // parses to nothing (its aliases are hyphenated -- 'co-fermented',
+    // 'cofermented'), so sending the slug would have made "Add process" a
+    // button that reports success and changes nothing -- the same silent no-op
+    // the farm edit path had. Try the page's own wording first, then the
+    // hyphenated slug, and offer only a candidate that parses back to the SAME
+    // profile we extracted.
+    from: (p) => {
+      const want = p.profileId ?? null;
+      const candidates = [p.profileDetail, p.profileId?.replace(/_/g, '-'), p.profileId].filter(Boolean);
+      for (const c of candidates) {
+        const parsed = parseProfile(c);
+        if (parsed?.profileId && (want == null || parsed.profileId === want)) {
+          return { value: c, display: c };
+        }
+      }
+      return null;
+    },
   },
   {
     field: 'roastedOn',

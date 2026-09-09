@@ -253,7 +253,8 @@ export default async function scoreRoutes(app) {
         const pageFields = {
           originCountryName: names.origin,
           farmName: farm?.name ?? (farm?.id != null ? nameFrom(shared.vocab.farms, farm.id) : null),
-          profileName: profile?.detail || (profileSlug ? profileSlug.replace(/_/g, ' ') : null),
+          profileId: profileSlug,
+          profileDetail: profile?.detail ?? null,
           roastedOn: roasted?.date ?? null,
           weightG,
           priceAmount: price?.amount ?? null,

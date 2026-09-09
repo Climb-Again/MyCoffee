@@ -181,7 +181,7 @@ test('the best match ranks first, with the rest offered as alternatives', () => 
 const fullPage = {
   originCountryName: 'Democratic Republic of the Congo',
   farmName: 'Sopacdi',
-  profileName: 'Washed',
+  profileId: 'washed',
   roastedOn: '2026-09-01',
   weightG: 250,
   priceAmount: 18.5,

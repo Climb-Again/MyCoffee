@@ -134,3 +134,6 @@ Three rules it follows:
   bags are added.
 - Enrichment needs a page title and a recognised roaster. Without both, matching
   would be guesswork, so the popup just shows the score.
+- **Prices in RON, CZK or PLN are currently dropped** — the parser knows the
+  symbols (`lei`, `kč`, `zł`) but not those ISO codes, and JSON-LD always uses
+  codes. On those shops you get affinity but no value half. Backlog #185.
