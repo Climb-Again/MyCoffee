@@ -117,25 +117,34 @@ export function parseNumber(raw, { field } = {}) {
 // "masl". Root cause of a review accept 422'ing on a candidate like
 // "2000 meter" (the extractor kept the bag's own wording).
 const ALTITUDE_UNIT = String.raw`m\.?a\.?s\.?l\.?|masl|m\.?s\.?n\.?m?\.?|met(?:er|re)s?|metros?|mts?|m`;
-const ALTITUDE_RANGE_RE = new RegExp(String.raw`(\d[\d.,]*)\s*(?:-|–|to|ro)\s*(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})?\b`, 'i');
-const ALTITUDE_SINGLE_RE = new RegExp(String.raw`(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})\b`, 'i');
+// Three patterns, tried in order of how much the text actually COMMITS to
+// being an altitude (#184). The old code had two, and the looser of them ran
+// first: a range whose unit was optional. That is why
+// `parseAltitude('Roasted on: 2026-09-01')` returned a 9-2026 m "range", and
+// worse, why it BEAT an explicit `1750 masl` sitting on the same page — the
+// date simply appeared earlier in the string. An unanchored pair of numbers
+// must never outrank a number with `masl` next to it.
+const ALTITUDE_RANGE_ANCHORED_RE = new RegExp(
+  String.raw`(\d[\d.,]*)\s*(?:-|–|to|ro)\s*(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})\b`,
+  'gi',
+);
+const ALTITUDE_SINGLE_RE = new RegExp(String.raw`(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})\b`, 'gi');
+const ALTITUDE_RANGE_LOOSE_RE = new RegExp(
+  String.raw`(\d[\d.,]*)\s*(?:-|–|to|ro)\s*(\d[\d.,]*)\s*(?:${ALTITUDE_UNIT})?\b`,
+  'gi',
+);
 
-export function parseAltitude(text) {
-  if (!text) return null;
-  const s = String(text);
-  let min, max;
+// An unanchored range has nothing but its own shape to argue it is an
+// altitude, so both endpoints must at least be three digits. Coffee is never
+// grown below 100 m, and this is what rejects the date shapes: `2026-09` and
+// `09-2026` both carry a `9`, and `01-09` from an ISO date carries two.
+const MIN_UNANCHORED_ENDPOINT_M = 100;
 
-  const rangeMatch = s.match(ALTITUDE_RANGE_RE);
-  if (rangeMatch) {
-    min = parseNumber(rangeMatch[1], { field: 'altitude' });
-    max = parseNumber(rangeMatch[2], { field: 'altitude' });
-  } else {
-    const singleMatch = s.match(ALTITUDE_SINGLE_RE);
-    if (!singleMatch) return null;
-    min = max = parseNumber(singleMatch[1], { field: 'altitude' });
-  }
-  if (min == null || max == null) return null;
-  if (min > max) [min, max] = [max, min];
+// Shared tail: envelope + confidence, once per candidate rather than once per
+// call, since parseAltitude now considers several candidates before settling.
+function altitudeResult(lo, hi) {
+  if (lo == null || hi == null) return null;
+  let [min, max] = lo > hi ? [hi, lo] : [lo, hi];
 
   // Hard plausibility envelope: coffee grows ~200-4000m. Below/above that the
   // extractor almost certainly grabbed something else (a roast-level scale, a
@@ -156,20 +165,82 @@ export function parseAltitude(text) {
   };
 }
 
+const num = (raw) => parseNumber(raw, { field: 'altitude' });
+
+export function parseAltitude(text) {
+  if (!text) return null;
+  const s = String(text);
+
+  // 1. A range WITH a unit — the strongest evidence there is.
+  for (const m of s.matchAll(ALTITUDE_RANGE_ANCHORED_RE)) {
+    const r = altitudeResult(num(m[1]), num(m[2]));
+    if (r) return r;
+  }
+
+  // 2. A single number with a unit. Beats any unanchored range, which is the
+  //    whole point of #184: `1750 masl` must win over a date elsewhere in the
+  //    text, regardless of which appears first.
+  for (const m of s.matchAll(ALTITUDE_SINGLE_RE)) {
+    const v = num(m[1]);
+    const r = altitudeResult(v, v);
+    if (r) return r;
+  }
+
+  // 3. A bare `1500-1800` with no unit. Still worth reading — plenty of bags
+  //    write it that way — but only when neither endpoint betrays it as a
+  //    date, and we keep scanning rather than giving up on the first reject,
+  //    so a real range later in the text is still found.
+  for (const m of s.matchAll(ALTITUDE_RANGE_LOOSE_RE)) {
+    const lo = num(m[1]);
+    const hi = num(m[2]);
+    if (lo == null || hi == null) continue;
+    if (lo < MIN_UNANCHORED_ENDPOINT_M || hi < MIN_UNANCHORED_ENDPOINT_M) continue;
+    const r = altitudeResult(lo, hi);
+    if (r) return r;
+  }
+
+  return null;
+}
+
 // ---- Price ----
 
+// Symbols AND ISO codes (#185). The table used to carry symbols plus only
+// EUR/USD/GBP/CHF, so `200 CZK`, `80 PLN` and `103 RON` all parsed to an
+// amount with a NULL currency and were dropped. That was survivable while
+// every price came from a photographed bag written in symbols — but the
+// browser extension reads JSON-LD `Product.offers.priceCurrency`, which is an
+// ISO code BY SPECIFICATION, so the whole value half of the score silently
+// vanished on any Czech, Polish or Romanian shop. RON is Radu's single most
+// common currency (103 of his coffees), so it was the likeliest to hit.
+//
+// ⚠ The fix is recognising the codes, NOT relaxing the "no currency, no
+// price" rule. `resolveField` assumes DEFAULT_PRICE_CURRENCY (RON) for a bare
+// human-typed amount, so anything that lets a currency-less number through to
+// a write would turn `200 CZK` into `200 RON` — a ~5x error on a value that
+// feeds the price bands.
 const CURRENCY_PATTERNS = [
   [/(\d[\d.,]*)\s*(?:€|eur\b)/i, 'EUR'],
   [/€\s*(\d[\d.,]*)/i, 'EUR'],
-  [/(\d[\d.,]*)\s*lei\b/i, 'RON'],
-  [/(\d[\d.,]*)\s*(?:kč|kc\b)/i, 'CZK'],
-  [/(\d[\d.,]*)\s*(?:zł|zl\b)/i, 'PLN'],
-  [/(\d[\d.,]*)\s*(?:ft|huf)\b/i, 'HUF'],
+  [/(\d[\d.,]*)\s*(?:lei\b|ron\b)/i, 'RON'],
+  [/(\d[\d.,]*)\s*(?:kč|kc\b|czk\b)/i, 'CZK'],
+  [/(\d[\d.,]*)\s*(?:zł|zl\b|pln\b)/i, 'PLN'],
+  // `Ft` is CASE-SENSITIVE, and deliberately so: Hungarian writes the forint
+  // capitalised ("3500 Ft") while feet is lowercase ("1500 ft"), and with /i
+  // this pattern read an altitude in feet as a price — `parsePrice('1500 ft')`
+  // returned 1500 HUF. `huf` stays case-insensitive; nothing writes "1500 HUF"
+  // meaning feet.
+  [/(\d[\d.,]*)\s*(?:Ft|FT)\b/, 'HUF'],
+  [/(\d[\d.,]*)\s*huf\b/i, 'HUF'],
   [/\$\s*(\d[\d.,]*)/i, 'USD'],
   [/(\d[\d.,]*)\s*usd\b/i, 'USD'],
   [/£\s*(\d[\d.,]*)/i, 'GBP'],
   [/(\d[\d.,]*)\s*gbp\b/i, 'GBP'],
   [/(\d[\d.,]*)\s*chf\b/i, 'CHF'],
+  // Nordic codes: no symbol form, since "kr" is shared by SEK/NOK/DKK and
+  // guessing between them would be worse than declining.
+  [/(\d[\d.,]*)\s*sek\b/i, 'SEK'],
+  [/(\d[\d.,]*)\s*nok\b/i, 'NOK'],
+  [/(\d[\d.,]*)\s*dkk\b/i, 'DKK'],
 ];
 
 // A price of zero (or below) is never a real bag — and unlike the rating it
