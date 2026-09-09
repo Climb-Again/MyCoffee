@@ -132,7 +132,7 @@ struct CoffeeIndex: Sendable {
                 guard let price = coffee.pricePer100gEur, let rating = coffee.rating else { continue }
                 let ratingPct = Self.percentileRank(rating, in: ratedSorted)
                 let cheapPct = 1 - Self.percentileRank(price, in: ppgSorted)
-                scores.append(ratingPct * cheapPct)
+                scores.append(Self.cheapForQualityScore(ratingPct: ratingPct, cheapPct: cheapPct))
             }
         }
         self.valueScoresSorted = scores.sorted()
@@ -198,22 +198,27 @@ struct CoffeeIndex: Sendable {
             result.formIntersection(dimensionSet)
         }
 
-        // For the vocab dimensions, selecting "Unknown" adds the missing-field
-        // bucket to the OR set — so picking only Unknown matches exactly the
-        // coffees lacking that field (what still needs editing).
+        // Selecting "Unknown" on a dimension adds the missing-field bucket to
+        // the OR set — so picking only Unknown matches exactly the coffees
+        // lacking that field (what still needs editing). Every dimension
+        // supports this the same way now (#117): the four band dimensions
+        // used to be handled by `intersectPostings` directly below with no
+        // `.unknown` arm at all, so `unknownDimensions.contains(.priceBand)`
+        // (as `toggleFacet`'s wildcard already lets the UI set) silently
+        // imposed no constraint — `buildPostings` never emitted an `.unknown`
+        // key for them, so this appended it to an empty set and intersected
+        // away nothing. See `buildPostings`'s matching fix.
+        func withUnknown(_ dimension: FilterDimension, _ keys: [FacetKey]) -> [FacetKey] {
+            filter.unknownDimensions.contains(dimension) ? keys + [.unknown] : keys
+        }
         func keysWithUnknown(_ dimension: FilterDimension, _ ids: Set<Int>) -> [FacetKey] {
-            var keys: [FacetKey] = ids.map { .vocabID($0) }
-            if filter.unknownDimensions.contains(dimension) { keys.append(.unknown) }
-            return keys
+            withUnknown(dimension, ids.map { .vocabID($0) })
         }
         intersectPostings(.roaster, keysWithUnknown(.roaster, filter.roasterIDs))
         intersectPostings(.roasterCountry, keysWithUnknown(.roasterCountry, filter.roasterCountryIDs))
         intersectPostings(.originCountry, keysWithUnknown(.originCountry, filter.originCountryIDs))
         intersectPostings(.farm, keysWithUnknown(.farm, filter.farmIDs))
-
-        var profileKeys: [FacetKey] = filter.profiles.map { .profile($0) }
-        if filter.unknownDimensions.contains(.profile) { profileKeys.append(.unknown) }
-        intersectPostings(.profile, profileKeys)
+        intersectPostings(.profile, withUnknown(.profile, filter.profiles.map { .profile($0) }))
 
         if let isDecaf = filter.isDecaf {
             intersectPostings(.decaf, [.bool(isDecaf)])
@@ -221,10 +226,10 @@ struct CoffeeIndex: Sendable {
         if filter.favoritesOnly {
             intersectPostings(.favorite, [.bool(true)])
         }
-        intersectPostings(.ratingBand, filter.ratingBands.map { .ratingBand($0) })
-        intersectPostings(.priceBand, filter.priceBands.map { .priceBand($0) })
-        intersectPostings(.pricePer100gBand, filter.pricePer100gBands.map { .priceBand($0) })
-        intersectPostings(.altitudeBand, filter.altitudeBands.map { .altitudeBand($0) })
+        intersectPostings(.ratingBand, withUnknown(.ratingBand, filter.ratingBands.map { .ratingBand($0) }))
+        intersectPostings(.priceBand, withUnknown(.priceBand, filter.priceBands.map { .priceBand($0) }))
+        intersectPostings(.pricePer100gBand, withUnknown(.pricePer100gBand, filter.pricePer100gBands.map { .priceBand($0) }))
+        intersectPostings(.altitudeBand, withUnknown(.altitudeBand, filter.altitudeBands.map { .altitudeBand($0) }))
         intersectPostings(.year, filter.years.map { .year($0) })
 
         return result
@@ -338,17 +343,15 @@ struct CoffeeIndex: Sendable {
     // MARK: - Redesign derived values (#84)
 
     /// The coffee's **cheap-for-quality** standing (#109, replacing the
-    /// per-price-band mean-comparison version from #95).
+    /// per-price-band mean-comparison version from #95; reweighted 65/35 by
+    /// #139).
     ///
-    /// `score = ratingPct × cheapPct`: `ratingPct` is the coffee's rating's
-    /// percentile rank among all rated coffees, `cheapPct` is 1 minus its
-    /// price's percentile rank among all priced coffees (so cheaper scores
-    /// higher). Percentiles, not z-scores or a band mean — a handful of
-    /// 100+€/100g outliers would otherwise wreck a mean/SD comparison.
-    /// Multiplicative rather than a 50/50 average so **both** dimensions must
-    /// be good: a cheap-but-mediocre bag can't buy its way up (low `ratingPct`
-    /// drags the product down regardless of `cheapPct`), and a highly-rated
-    /// but expensive bag can't coast on rating alone.
+    /// `ratingPct` is the coffee's rating's percentile rank among all rated
+    /// coffees, `cheapPct` is 1 minus its price's percentile rank among all
+    /// priced coffees (so cheaper scores higher) — see `cheapForQualityScore`
+    /// for how the two combine. Percentiles, not z-scores or a band mean — a
+    /// handful of 100+€/100g outliers would otherwise wreck a mean/SD
+    /// comparison.
     ///
     /// The score is mapped to the same five pill bands by its own quintile
     /// among all rated-and-priced coffees (`valueScoresSorted`), so `band` is
@@ -366,10 +369,27 @@ struct CoffeeIndex: Sendable {
 
         let ratingPct = Self.percentileRank(rating, in: ratingsSorted)
         let cheapPct = 1 - Self.percentileRank(price, in: pricePer100gSorted)
-        let score = ratingPct * cheapPct
+        let score = Self.cheapForQualityScore(ratingPct: ratingPct, cheapPct: cheapPct)
         // One scale: the band IS the pill count (#105).
         let band = ValueRating.Band(rawValue: Self.quintileRank(score, in: valueScoresSorted))!
         return ValueRating(band: band, pillCount: band.rawValue)
+    }
+
+    /// Combines a coffee's rating percentile and cheapness percentile into
+    /// one cheap-for-quality score (#139, Radu 2026-09-07: "give more weight
+    /// to rating than price, something like 65/35" — up from #109's even
+    /// 50/50 product). A **weighted geometric mean** rather than a weighted
+    /// arithmetic mean, deliberately: it keeps the original product's
+    /// "both must be decent" behaviour (either percentile at 0 still zeroes
+    /// the whole score, so a cheap-but-mediocre bag can't buy its way up),
+    /// while letting rating dominate the trade-off between two otherwise
+    /// close bags — the opposite of #109's even split, where a slightly
+    /// cheaper but clearly worse-rated bag could out-rank a pricier,
+    /// better-rated one.
+    private static func cheapForQualityScore(ratingPct: Double, cheapPct: Double) -> Double {
+        let ratingWeight = 0.65
+        let cheapWeight = 0.35
+        return pow(ratingPct, ratingWeight) * pow(cheapPct, cheapWeight)
     }
 
     /// Roasters with at least `minCount` rated coffees, sorted descending by
@@ -506,17 +526,44 @@ struct CoffeeIndex: Sendable {
 
             add(.decaf, .bool(coffee.isDecaf), index)
             add(.favorite, .bool(coffee.isFavorite), index)
-            add(.ratingBand, .ratingBand(RatingBand.band(for: coffee.rating)), index)
+
+            // The four band dimensions (#117): each already has its own
+            // "no value" band case for a labelled facet chip (`.unrated`,
+            // `AltitudeBand.unknown`, or simply no posting at all for the two
+            // price bands before this fix) — but the Insights data-quality
+            // rows and the chart "Unknown" slices route through
+            // `FilterDimension`'s generic `.unknown` bucket instead
+            // (`toggleFacet`'s wildcard), which was never populated for these
+            // four. Add `.unknown` alongside the normal band key whenever a
+            // coffee lands in that dimension's "no value" bucket, so both
+            // paths resolve to the same row set.
+            let ratingBand = RatingBand.band(for: coffee.rating)
+            add(.ratingBand, .ratingBand(ratingBand), index)
+            if ratingBand == .unrated {
+                add(.ratingBand, .unknown, index)
+            }
 
             if let priceEur = coffee.priceEur, let width = priceWidthCents {
                 add(.priceBand, .priceBand(PriceBand.band(forEUR: priceEur, widthCents: width)), index)
+            } else {
+                add(.priceBand, .unknown, index)
             }
             if let perHundredGrams = coffee.pricePer100gEur, let width = pricePer100gWidthCents {
                 add(.pricePer100gBand, .priceBand(PriceBand.band(forEUR: perHundredGrams, widthCents: width)), index)
+            } else {
+                add(.pricePer100gBand, .unknown, index)
             }
 
-            for band in AltitudeBand.bands(forMin: coffee.altitudeMinM, max: coffee.altitudeMaxM) {
+            // `AltitudeBand.bands(forMin:max:)` already returns exactly
+            // `[.unknown]` (its own case, not `FacetKey.unknown`) for missing
+            // altitude data — never an empty array — so the generic bucket
+            // needs its own explicit check rather than `isEmpty`.
+            let altitudeBands = AltitudeBand.bands(forMin: coffee.altitudeMinM, max: coffee.altitudeMaxM)
+            for band in altitudeBands {
                 add(.altitudeBand, .altitudeBand(band), index)
+            }
+            if altitudeBands == [.unknown] {
+                add(.altitudeBand, .unknown, index)
             }
 
             add(.year, .year(coffee.purchasedYear), index)

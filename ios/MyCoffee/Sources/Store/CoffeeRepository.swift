@@ -64,6 +64,12 @@ protocol CoffeeRepository: Sendable {
     /// photos and returns a draft the confirm screen (#77) can render/edit.
     func extractDraft(photoIds: [String]) async throws -> ExtractedDraft
 
+    /// Runs `/api/coffees/evaluate` (#106/#136) — "Evaluate this coffee": the
+    /// same light-extraction ensemble as `extractDraft`, scored against the
+    /// rated corpus for fit with what Radu actually buys. Read-only like
+    /// `extractDraft`: nothing is written or merged into the index.
+    func evaluateCoffee(photoIds: [String]) async throws -> EvaluateResult
+
     /// Persists the wizard's confirmed fields as a brand-new coffee, locked/
     /// human-decided on every field (#75), and merges it into the index.
     /// Returns the newly created coffee.

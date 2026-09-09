@@ -6,15 +6,40 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-09 04:26 UTC] #117(a) Unknown postings for the 4 band dimensions — branch `ios-staging`
-- [2026-09-09 04:26 UTC] #136 Client API surface for POST /api/coffees/evaluate — branch `ios-staging`
-- [2026-09-09 04:26 UTC] #139 Re-weight value algorithm to ~65/35 rating/price — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-09 — #117(a)/#136/#139 done this session** — see `BACKLOG.md`'s own
+  DONE notes for implementation summaries (unknown-postings fix for the four
+  band filter dimensions, the `POST /api/coffees/evaluate` client surface, and
+  the 65/35 value-algorithm reweight). One correctness find worth restating
+  here since it changes what a future evaluate-screen session should expect:
+  **`fields.profileId` in the evaluate response is a slug STRING
+  (`Profile.rawValue`-compatible), not a numeric vocab id** — the backend
+  variable name is misleading; verified by reading `adjudicate.js`/
+  `normalize.js`, not assumed. Also found (not fixed, not this lane's file):
+  `AltitudeBand.bands`'s "either min or max nil ⇒ Unknown" guard doesn't
+  quite match `InsightsAggregation.dataQuality`'s "both nil" missing-count —
+  pre-existing, harmless today, flagged in #117's DONE note.
+
+  **#113 and #137 (value-band filter/sort) are NOT done — found a real
+  cross-lane compile blocker, not just a "needs ux to consume it" seam.**
+  Both rows ask for new cases on `FilterDimension`/`SortOption`/`FacetKey`
+  (shell-owned, `Query/**`), but `Features/Coffees/CoffeeDisplay.swift`
+  (ux-owned) has three *exhaustive*, no-`default` switches over exactly
+  those three types (`SortOption.displayName`, `FilterDimension.title`,
+  `facetLabel(_:dimension:vocabulary:)`). Adding the cases alone breaks
+  `ios-staging`'s compile the moment they land, and this lane isn't allowed
+  to add the missing switch arms in `Features/**` to fix it. Documented in
+  both rows in `BACKLOG.md` rather than picking one side and creating a red
+  build — this needs the two iOS lanes to land their halves in the same
+  wave (or at least in immediate succession within one push), not the
+  normal independent-cadence pickup. Left both `ready`.
 
 - **2026-09-07 — RETRACTED: a "stranded branch" finding earlier this session
   was my own git mistake, not a real problem.** Mid-session I flipped

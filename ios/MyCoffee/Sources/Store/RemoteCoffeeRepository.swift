@@ -66,6 +66,11 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         return try await engine.extractDraft(photoIds: photoIds, client: client)
     }
 
+    func evaluateCoffee(photoIds: [String]) async throws -> EvaluateResult {
+        let client = try await APIClient(config: AppConfig.shared)
+        return try await engine.evaluateCoffee(photoIds: photoIds, client: client)
+    }
+
     func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee {
         let client = try await APIClient(config: AppConfig.shared)
         return try await engine.createCoffee(photoIds: photoIds, fields: fields, client: client)
