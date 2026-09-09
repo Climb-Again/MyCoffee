@@ -41,7 +41,7 @@ async function scoreActiveTab() {
     res = await fetch(`${baseUrl}/api/score`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ url: scraped.url, text: scraped.text }),
+      body: JSON.stringify({ url: scraped.url, title: scraped.title, text: scraped.text }),
     });
   } catch (e) {
     return { error: 'network', detail: String(e?.message ?? e) };
@@ -63,7 +63,49 @@ async function scoreActiveTab() {
   return { ok: true, data, pageTitle: scraped.title };
 }
 
+// #161: accept one enrich suggestion -- write a single field onto a coffee he
+// already owns. Deliberately routed through #40's edit endpoint rather than any
+// new write path: that endpoint re-parses the value with the same parser the
+// in-app edit sheet uses, refuses to touch a human-locked field, and records
+// the result as `decided_by='human'` -- correct, since Radu tapped it.
+async function acceptEnrich({ coffeeId, field, value }) {
+  const { baseUrl, writeToken } = await getSettings();
+  if (!writeToken) return { error: 'no_write_token' };
+  if (!coffeeId || !field) return { error: 'bad_request' };
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/coffees/${encodeURIComponent(coffeeId)}/edit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${writeToken}` },
+      body: JSON.stringify({ field, value }),
+    });
+  } catch (e) {
+    return { error: 'network', detail: String(e?.message ?? e) };
+  }
+
+  if (res.status === 401) return { error: 'bad_write_token' };
+  if (res.status === 422) return { error: 'unresolvable', detail: `the backend could not parse "${value}"` };
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) detail = body.error;
+    } catch {
+      // Non-JSON body; the status is enough.
+    }
+    return { error: 'server', detail };
+  }
+  return { ok: true };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'enrich') {
+    acceptEnrich(msg)
+      .then(sendResponse)
+      .catch((e) => sendResponse({ error: 'unexpected', detail: String(e?.message ?? e) }));
+    return true;
+  }
   if (msg?.type !== 'score') return false;
   // Returning true keeps the message channel open for the async reply; a
   // rejected promise must still produce a response or the popup hangs.

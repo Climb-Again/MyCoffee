@@ -20,6 +20,22 @@
       </div>
 
       <div class="state hidden" id="result">
+        <!-- #161: when he already owns this coffee, THAT leads — a fit score
+             for a bag already in the library answers the wrong question. -->
+        <section class="owned hidden" id="owned">
+          <div class="owned-head">
+            <span class="owned-tag" id="owned-tag">You have this one</span>
+            <span class="owned-meta" id="owned-meta"></span>
+          </div>
+          <div class="owned-title" id="owned-title"></div>
+          <div class="owned-why" id="owned-why"></div>
+
+          <div class="enrich hidden" id="enrich">
+            <div class="enrich-head" id="enrich-head"></div>
+            <div id="enrich-rows"></div>
+          </div>
+        </section>
+
         <header>
           <div class="headline">
             <div class="score" id="score">—</div>

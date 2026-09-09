@@ -251,3 +251,118 @@ footer {
   color: var(--ink-dim);
   font-size: 13px;
 }
+
+/* --- #161: "you already own this one" + the enrich diff --- */
+.owned {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.owned-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.owned-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--good);
+}
+
+.owned-tag.maybe {
+  color: var(--warn);
+}
+
+.owned-meta {
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.owned-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.owned-why {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.enrich {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.enrich-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.enrich-row {
+  display: grid;
+  grid-template-columns: 68px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.enrich-label {
+  color: var(--ink-dim);
+}
+
+.enrich-value {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.enrich-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.enrich-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.enrich-btn.done {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.enrich-btn.failed {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.enrich-note {
+  font-size: 11px;
+  color: var(--ink-dim);
+}

@@ -8,6 +8,8 @@
 // all — the server already returns `score: null` in that case, and this file
 // never invents one.
 
+import { getSettings } from './settings.js';
+
 const $ = (id) => document.getElementById(id);
 
 const show = (which) => {
@@ -85,8 +87,116 @@ function chip(text, isNew = false) {
   return el;
 }
 
-function render(data) {
-  const { score, confidence, components, fields, missing, explanation, cached } = data;
+// #161 -- the "you already own this one" card and its enrich diff.
+//
+// Two rules, both from Radu's brief:
+//   * If he owns it, that leads. A fit score for a bag already in the library
+//     answers the wrong question, so the card sits above the headline.
+//   * If the page adds nothing, say nothing. An enrich panel that is always
+//     present but always empty is worse than no panel, so the whole block
+//     stays hidden unless there is something real to offer.
+function renderOwned(match, enrich, hasWriteToken) {
+  const card = $('owned');
+  if (!match) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  const possible = match.confidence === 'possible';
+  $('owned-tag').textContent = possible ? 'Possibly one of yours' : 'You have this one';
+  $('owned-tag').classList.toggle('maybe', possible);
+
+  const meta = [];
+  if (match.purchasedOn) {
+    const d = new Date(`${match.purchasedOn}T00:00:00Z`);
+    meta.push(
+      Number.isNaN(d.getTime())
+        ? match.purchasedOn
+        : d.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+    );
+  }
+  if (match.rating != null) meta.push(`${match.rating.toFixed(1)}★`);
+  if (match.isFavorite) meta.push('favourite');
+  $('owned-meta').textContent = meta.join(' · ');
+
+  $('owned-title').textContent = match.rawTitle || '(untitled)';
+
+  // Always say WHY it matched. A match the user can't sanity-check is a match
+  // they can't correct, and this one can be wrong.
+  const why = [];
+  if (match.matchedOn?.length) why.push(`matched on ${match.matchedOn.join(', ')}`);
+  if (match.originAgrees === false) why.push('but the page lists a different origin');
+  if (match.alternatives?.length) why.push(`${match.alternatives.length} other close match(es)`);
+  $('owned-why').textContent = why.join(' — ');
+
+  const box = $('enrich');
+  const rows = $('enrich-rows');
+  rows.replaceChildren();
+
+  if (!enrich?.length) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  $('enrich-head').textContent = `This page adds ${enrich.length} thing${enrich.length === 1 ? '' : 's'}`;
+
+  for (const item of enrich) {
+    const row = document.createElement('div');
+    row.className = 'enrich-row';
+
+    const label = document.createElement('span');
+    label.className = 'enrich-label';
+    label.textContent = item.label;
+
+    const value = document.createElement('span');
+    value.className = 'enrich-value';
+    value.textContent = item.display;
+    value.title = item.display;
+
+    const btn = document.createElement('button');
+    btn.className = 'enrich-btn';
+    btn.textContent = 'Add';
+    btn.disabled = !hasWriteToken;
+    btn.title = hasWriteToken ? `Add ${item.label} to this coffee` : 'Add a write token in settings first';
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      const res = await chrome.runtime.sendMessage({
+        type: 'enrich',
+        coffeeId: match.id,
+        field: item.field,
+        value: item.value,
+      });
+      if (res?.ok) {
+        btn.textContent = 'Added';
+        btn.classList.add('done');
+      } else {
+        btn.textContent = 'Failed';
+        btn.classList.add('failed');
+        btn.disabled = false;
+        btn.title = res?.detail || res?.error || 'unknown error';
+      }
+    });
+
+    row.append(label, value, btn);
+    rows.appendChild(row);
+  }
+
+  if (!hasWriteToken) {
+    const note = document.createElement('div');
+    note.className = 'enrich-note';
+    note.textContent = 'Add your write token in settings to save these.';
+    rows.appendChild(note);
+  }
+
+  box.classList.remove('hidden');
+}
+
+function render(data, hasWriteToken) {
+  const { score, confidence, components, fields, missing, explanation, cached, match, enrich } = data;
+
+  renderOwned(match, enrich, hasWriteToken);
 
   // A suppressed headline is a deliberate outcome, not a failure: #106 says
   // show the components and say why, rather than invent a number.
@@ -147,7 +257,8 @@ async function run() {
   show('loading');
   const res = await chrome.runtime.sendMessage({ type: 'score' });
   if (!res || res.error) return renderError(res ?? { error: 'unexpected' });
-  render(res.data);
+  const { writeToken } = await getSettings();
+  render(res.data, Boolean(writeToken));
 }
 
 $('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());

@@ -36,6 +36,7 @@ import { extractRuleFields } from '../lib/deterministic.js';
 import { canonicalize } from '../lib/adjudicate.js';
 import { loadSharedContext } from '../lib/worker.js';
 import { loadScoringCorpus, groupsForCandidate, loadNovelty } from '../lib/corpus.js';
+import { loadRoasterCoffees, rankMatches, diffFields, genericTokensFromVocab } from '../lib/enrich.js';
 import { toEur } from '../lib/fx.js';
 import {
   evaluateCoffee,
@@ -138,13 +139,16 @@ export default async function scoreRoutes(app) {
   app.post('/api/score', { preHandler: requireAnyToken }, async (req, reply) => {
     const rawText = typeof req.body?.text === 'string' ? req.body.text : '';
     const url = typeof req.body?.url === 'string' ? req.body.url.slice(0, 2048) : null;
+    // #161 matches on the page's own title. Optional: without it the score is
+    // unchanged and only the "you already own this" half is skipped.
+    const title = typeof req.body?.title === 'string' ? req.body.title.slice(0, 500).trim() : '';
     const text = rawText.slice(0, MAX_TEXT_CHARS).trim();
 
     if (text.length < MIN_TEXT_CHARS) {
       return reply.code(400).send({ error: 'missing_text', minChars: MIN_TEXT_CHARS });
     }
 
-    const cacheKey = createHash('sha256').update(text).digest('hex');
+    const cacheKey = createHash('sha256').update(`${title}\u0000${text}`).digest('hex');
     const cached = cacheGet(cacheKey);
     if (cached) return { ...cached, cached: true };
 
@@ -165,6 +169,12 @@ export default async function scoreRoutes(app) {
     const price = canon('price');
     const weight = canon('weight_g');
     const roasted = canon('roasted_on');
+    // Extracted for #161's enrich diff rather than for the score: neither
+    // altitude nor farm is a scoring signal (#106 measured altitude at
+    // r=-0.02), but both are fields a shop page routinely has and a stored
+    // record routinely lacks.
+    const altitude = canon('altitude');
+    const farm = canon('origin_farm_id');
 
     const roasterId = roaster?.id ?? null;
     const originCountryIds = origins?.ids ?? [];
@@ -223,6 +233,55 @@ export default async function scoreRoutes(app) {
       origin: originCountryId != null ? nameFrom(shared.vocab.countries, originCountryId) : null,
     };
 
+    // #161: is this a coffee he ALREADY owns, and if so what can the page add?
+    //
+    // Gated on a known roaster and a page title. Without both, matching would
+    // be guesswork, and a false "you own this" is the one failure mode worth
+    // designing against -- it would invite him to write page data onto the
+    // wrong record. Costs one small query (a roaster has a handful of
+    // coffees), and only when the roaster resolved.
+    let match = null;
+    let enrich = [];
+    if (roasterId != null && title) {
+      const candidates = await loadRoasterCoffees(roasterId);
+      const ranked = rankMatches({ title, originCountryId }, candidates, {
+        roasterName: names.roaster,
+        genericTokens: genericTokensFromVocab(shared.vocab.countries),
+      });
+      const best = ranked[0];
+      if (best) {
+        const pageFields = {
+          originCountryName: names.origin,
+          farmName: farm?.name ?? (farm?.id != null ? nameFrom(shared.vocab.farms, farm.id) : null),
+          profileName: profile?.detail || (profileSlug ? profileSlug.replace(/_/g, ' ') : null),
+          roastedOn: roasted?.date ?? null,
+          weightG,
+          priceAmount: price?.amount ?? null,
+          priceCurrency: price?.currency ?? null,
+          altitudeMin: altitude?.min ?? null,
+          altitudeMax: altitude?.max ?? null,
+        };
+        enrich = diffFields(pageFields, best);
+        match = {
+          id: best.id,
+          rawTitle: best.rawTitle,
+          purchasedOn: best.purchasedOn,
+          rating: best.rating,
+          isFavorite: best.isFavorite,
+          confidence: best.confidence,
+          matchedOn: best.sharedTokens,
+          originAgrees: best.originAgrees,
+          alternatives: ranked.slice(1, 4).map((r) => ({
+            id: r.id,
+            rawTitle: r.rawTitle,
+            purchasedOn: r.purchasedOn,
+            rating: r.rating,
+            matchedOn: r.sharedTokens,
+          })),
+        };
+      }
+    }
+
     const result = {
       url,
       score,
@@ -257,6 +316,11 @@ export default async function scoreRoutes(app) {
         weight: !(weightG > 0),
         roastDate: roastedOn == null,
       },
+      // #161. `match` is null when this is a coffee he does not own, and
+      // `enrich` is [] when the page adds nothing to one he does -- the popup
+      // must render that as silence, not as an empty panel.
+      match,
+      enrich,
       explanation: explain({
         evaluation,
         recency,

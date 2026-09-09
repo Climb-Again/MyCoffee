@@ -10,14 +10,16 @@ const flash = (msg, ok = true) => {
   }, 4000);
 };
 
-const { baseUrl, token } = await getSettings();
+const { baseUrl, token, writeToken } = await getSettings();
 $('baseUrl').value = baseUrl || DEFAULT_BASE_URL;
 $('token').value = token;
+$('writeToken').value = writeToken;
 
 $('save').addEventListener('click', async () => {
   await chrome.storage.local.set({
     baseUrl: $('baseUrl').value.trim().replace(/\/+$/, '') || DEFAULT_BASE_URL,
     token: $('token').value.trim(),
+    writeToken: $('writeToken').value.trim(),
   });
   flash('Saved');
 });

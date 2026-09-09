@@ -56,6 +56,16 @@
       </p>
     </div>
 
+    <div class="field">
+      <label for="writeToken">Write token <span style="font-weight: 400">— optional</span></label>
+      <input id="writeToken" type="password" spellcheck="false" autocomplete="off" />
+      <p class="hint">
+        Only needed to <strong>add missing details</strong> to a coffee you already own. This is the ingest token
+        (<code>INGEST_TOKEN</code>) and it can write, so leave it blank if you just want scores — everything else works
+        without it.
+      </p>
+    </div>
+
     <div style="display: flex; gap: 10px; align-items: center">
       <button class="btn" id="save">Save</button>
       <button class="btn ghost" id="test">Test connection</button>

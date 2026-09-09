@@ -18,6 +18,10 @@ product page and click it.
 > Use `APP_TOKEN`, **not** `INGEST_TOKEN`. Scoring never writes anything, so the
 > extension only needs read access — and whatever token it carries lives in the
 > browser profile, where anything that can read your disk can read it.
+>
+> There is a **second, optional "write token"** field. It is only needed to add
+> missing details to a coffee you already own (below). Leave it blank and
+> everything else still works.
 
 Chrome forgets an unpacked extension's service worker between uses but keeps
 your settings; you never need to re-enter the token.
@@ -93,6 +97,32 @@ Three deliberate choices:
   first — does the parsing. No LLM call is made, so scoring a page costs $0 and
   takes no thinking-token budget.
 
+## When you already own the coffee
+
+If the page is a coffee that's already in your library, the popup leads with
+**that** rather than a score — *"You have this one · May 2018 · 4.0★"* — because
+a fit score for a bag you already own answers the wrong question. It always says
+**why** it matched (*"matched on sopacdi"*), because the match can be wrong and a
+match you can't sanity-check is one you can't correct.
+
+Underneath, it lists what the page could **add** to your stored record — roast
+date, weight, price, altitude, process, origin, farm — one tap each. **If the
+page adds nothing, nothing is shown.**
+
+Three rules it follows:
+
+- **Fill blanks only.** A field you already have is never offered, and nothing
+  is ever overwritten. Accepts go through the same edit endpoint the iOS edit
+  sheet uses, so anything you've decided by hand is untouchable, and each
+  accepted field lands human-locked — correct, since you tapped it.
+- **Matching is deliberately conservative.** The roaster must match exactly, and
+  beyond that at least one *distinctive* word must be shared. Origin and process
+  agreeing is not enough: "Gardelli Ethiopia Washed" describes plenty of
+  different bags. A false "you own this" would invite you to write page data
+  onto the wrong record, so the matcher would rather say nothing.
+- **No "Add as new".** New bags are still added in the iOS app. This is only for
+  coffees already in the library.
+
 ## Limits
 
 - Chrome refuses injection on `chrome://` pages, the Web Store, and PDFs.
@@ -100,5 +130,7 @@ Three deliberate choices:
   an error — it scores as novel, with lower confidence.
 - Identical page text is cached for 10 minutes server-side; the popup says
   "cached result" when you're seeing one.
-- Evaluate only. "Add as new" and "Enrich existing" are #161/#162's second half
-  and are not built yet.
+- "Add as new" is not built and is not planned here — the iOS app stays how new
+  bags are added.
+- Enrichment needs a page title and a recognised roaster. Without both, matching
+  would be guesswork, so the popup just shows the score.
