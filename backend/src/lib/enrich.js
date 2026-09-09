@@ -138,6 +138,41 @@ export function rankMatches(page, candidates, { roasterName, genericTokens } = {
   return ranked.sort((a, b) => b.score - a.score || String(b.purchasedOn ?? '').localeCompare(String(a.purchasedOn ?? '')));
 }
 
+// Plausibility bounds. An enrich suggestion is ONE TAP from being written to
+// the library, so a value that is merely parseable is not good enough -- unlike
+// the extraction pipeline, there is no adjudication or review queue behind this
+// to catch a bad one.
+//
+// This is not hypothetical. The first live test offered "9-2026 masl" for a
+// Congo bag: `parseAltitude` reads the roast date "2026-09-01" as a range, and
+// that reading BEATS the correct "1750 masl" on the same page. The parser
+// itself returns `needsReview: true` and `confidence: 0.5` for it -- signals
+// the extraction pipeline acts on and this path was ignoring. Now it drops
+// anything flagged, and bounds-checks besides. (The underlying parser bug is
+// data-lane and filed separately -- it can misfire in the main pipeline too.)
+const ALTITUDE_MIN_M = 100;
+const ALTITUDE_MAX_M = 3000; // Coffee tops out around 2,800 m.
+const WEIGHT_MIN_G = 20;
+const WEIGHT_MAX_G = 5000;
+const ROAST_MAX_AGE_DAYS = 3650;
+
+function plausibleAltitude(min, max) {
+  if (min == null && max == null) return false;
+  const lo = min ?? max;
+  const hi = max ?? min;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return false;
+  if (lo > hi) return false;
+  return lo >= ALTITUDE_MIN_M && hi <= ALTITUDE_MAX_M;
+}
+
+function plausibleRoastDate(iso, now = Date.now()) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return false;
+  const days = (now - t) / 86_400_000;
+  // A future roast date is a pre-order and fine; a decade-old one is a misparse.
+  return days <= ROAST_MAX_AGE_DAYS;
+}
+
 // Every field the extension can offer to fill, in the order the popup shows
 // them. `field` is the CLIENT field name #40's edit endpoint accepts, and
 // `format` produces a string that endpoint's own parser will re-read — the
@@ -166,13 +201,17 @@ const ENRICHABLE = [
     field: 'roastedOn',
     label: 'Roast date',
     isEmpty: (row) => row.roastedOn == null,
-    from: (p) => (p.roastedOn ? { value: p.roastedOn, display: p.roastedOn } : null),
+    from: (p) =>
+      p.roastedOn && plausibleRoastDate(p.roastedOn) ? { value: p.roastedOn, display: p.roastedOn } : null,
   },
   {
     field: 'weight',
     label: 'Weight',
     isEmpty: (row) => row.weightG == null,
-    from: (p) => (p.weightG > 0 ? { value: `${p.weightG} g`, display: `${p.weightG} g` } : null),
+    from: (p) =>
+      p.weightG >= WEIGHT_MIN_G && p.weightG <= WEIGHT_MAX_G
+        ? { value: `${p.weightG} g`, display: `${p.weightG} g` }
+        : null,
   },
   {
     field: 'price',
@@ -181,7 +220,7 @@ const ENRICHABLE = [
     // A currency marker is required: `parsePrice` returns null without one, so
     // sending a bare number would 422 at accept time.
     from: (p) =>
-      p.priceAmount != null && p.priceCurrency
+      p.priceAmount > 0 && p.priceCurrency
         ? { value: `${p.priceAmount} ${p.priceCurrency}`, display: `${p.priceAmount} ${p.priceCurrency}` }
         : null,
   },
@@ -190,7 +229,10 @@ const ENRICHABLE = [
     label: 'Altitude',
     isEmpty: (row) => row.altitudeMinM == null && row.altitudeMaxM == null,
     from: (p) => {
-      if (p.altitudeMin == null && p.altitudeMax == null) return null;
+      // `altitudeNeedsReview` is the parser's own doubt, carried through from
+      // canonicalize(). Never offer a value it already distrusts.
+      if (p.altitudeNeedsReview) return null;
+      if (!plausibleAltitude(p.altitudeMin, p.altitudeMax)) return null;
       const lo = p.altitudeMin ?? p.altitudeMax;
       const hi = p.altitudeMax ?? p.altitudeMin;
       const text = lo === hi ? `${lo} masl` : `${lo}-${hi} masl`;

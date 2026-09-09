@@ -242,3 +242,50 @@ test('zero weight is treated as absent, not as a value worth writing', () => {
   const diff = diffFields({ weightG: 0 }, sopacdi);
   assert.ok(!diff.some((d) => d.field === 'weight'));
 });
+
+// ---- plausibility: an enrich value is ONE TAP from the database ----
+//
+// Unlike the extraction pipeline there is no adjudication or review queue
+// behind this path, so "parseable" is not a high enough bar. Every case below
+// is one the first live run either produced or could have.
+
+test('an altitude the parser itself flagged is never offered', () => {
+  // The real failure: parseAltitude reads the roast date "2026-09-01" as a
+  // 9-2026 m range AND that reading beats the correct "1750 masl" on the same
+  // page. It returns needsReview: true; this path must honour that.
+  const diff = diffFields({ altitudeMin: 9, altitudeMax: 2026, altitudeNeedsReview: true }, sopacdi);
+  assert.ok(!diff.some((d) => d.field === 'altitude'));
+});
+
+test('an implausible altitude is dropped even when unflagged', () => {
+  for (const [min, max] of [[9, 2026], [0, 50], [3200, 4000], [2000, 100]]) {
+    const diff = diffFields({ altitudeMin: min, altitudeMax: max }, sopacdi);
+    assert.ok(!diff.some((d) => d.field === 'altitude'), `${min}-${max} should not be offered`);
+  }
+});
+
+test('a real coffee altitude still is offered', () => {
+  const diff = diffFields({ altitudeMin: 1750, altitudeMax: 1750 }, sopacdi);
+  assert.equal(diff.find((d) => d.field === 'altitude').value, '1750 masl');
+});
+
+test('an absurd weight is dropped, a real bag size is kept', () => {
+  assert.ok(!diffFields({ weightG: 2 }, sopacdi).some((d) => d.field === 'weight'));
+  assert.ok(!diffFields({ weightG: 99999 }, sopacdi).some((d) => d.field === 'weight'));
+  assert.equal(diffFields({ weightG: 250 }, sopacdi).find((d) => d.field === 'weight').value, '250 g');
+});
+
+test('a zero or negative price is dropped', () => {
+  assert.ok(!diffFields({ priceAmount: 0, priceCurrency: 'EUR' }, sopacdi).some((d) => d.field === 'price'));
+  assert.ok(!diffFields({ priceAmount: -5, priceCurrency: 'EUR' }, sopacdi).some((d) => d.field === 'price'));
+});
+
+test('a decade-old roast date is a misparse, not a roast date', () => {
+  assert.ok(!diffFields({ roastedOn: '1998-01-01' }, sopacdi).some((d) => d.field === 'roastedOn'));
+  assert.ok(!diffFields({ roastedOn: 'not a date' }, sopacdi).some((d) => d.field === 'roastedOn'));
+});
+
+test('a future roast date is kept — shop pre-orders really carry them', () => {
+  const soon = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  assert.ok(diffFields({ roastedOn: soon }, sopacdi).some((d) => d.field === 'roastedOn'));
+});

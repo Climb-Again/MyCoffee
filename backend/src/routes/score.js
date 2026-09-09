@@ -260,6 +260,7 @@ export default async function scoreRoutes(app) {
           priceCurrency: price?.currency ?? null,
           altitudeMin: altitude?.min ?? null,
           altitudeMax: altitude?.max ?? null,
+          altitudeNeedsReview: Boolean(altitude?.needsReview),
         };
         enrich = diffFields(pageFields, best);
         match = {
