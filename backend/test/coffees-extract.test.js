@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 
 process.env.INGEST_TOKEN = 'test-ingest-token';
 const { build } = await import('../src/server.js');
+const { buildExtractFields } = await import('../src/routes/coffees.js');
+const { adjudicateRecord } = await import('../src/lib/adjudicate.js');
 
 function post(app, url, payload) {
   return app.inject({
@@ -96,4 +98,49 @@ test('POST /api/coffees/evaluate with a non-empty photoIds list passes validatio
   // same convention as /extract above).
   assert.notEqual(res.statusCode, 400);
   await app.close();
+});
+
+// ---- buildExtractFields (#121) -- pure over adjudicateRecord's output, so ----
+// ---- this needs no DB/voter ensemble at all. ----
+
+const roasterVocab = { candidates: [{ id: 1, name: 'DAK', slug: 'dak' }], aliasIndex: new Map() };
+
+test('buildExtractFields: a roaster resolved against vocab is a normal accepted field', () => {
+  const candidatesByField = { roaster_id: [{ agent: 'extract_a', value: 'DAK', confidence: 0.9 }] };
+  const { resolutions } = adjudicateRecord(candidatesByField, { vocab: { roasters: roasterVocab } });
+  const fields = buildExtractFields(resolutions, candidatesByField);
+  assert.equal(fields.roaster.value, 'DAK');
+  assert.equal(fields.roaster.decision, 'accepted');
+});
+
+test('buildExtractFields: #121 -- a brand-new roaster not in vocab still surfaces as an editable draft, not dropped', () => {
+  const candidatesByField = {
+    roaster_id: [
+      { agent: 'extract_b', value: 'Spojka', confidence: 0.8 },
+      { agent: 'reconciler', value: 'Spojka', confidence: 0.9 },
+    ],
+  };
+  const { resolutions } = adjudicateRecord(candidatesByField, { vocab: { roasters: roasterVocab } });
+  // Confirms the underlying bug still reproduces: canonicalize can't resolve
+  // "Spojka" against the vocab, so the adjudicated value stays null.
+  assert.equal(resolutions.roaster_id.value, null);
+  const fields = buildExtractFields(resolutions, candidatesByField);
+  assert.equal(fields.roaster.value, 'Spojka');
+  assert.equal(fields.roaster.decision, 'draft');
+  assert.equal(fields.roaster.confidence, 0);
+});
+
+test('buildExtractFields: a field with no candidates at all is still omitted (unrelated to #121)', () => {
+  const { resolutions } = adjudicateRecord({}, { vocab: { roasters: roasterVocab } });
+  const fields = buildExtractFields(resolutions, {});
+  assert.equal(fields.roaster, undefined);
+  assert.equal(fields.price, undefined);
+});
+
+test('buildExtractFields: an unresolvable *price* stays dropped -- the draft carve-out is roaster-only', () => {
+  const candidatesByField = { price: [{ agent: 'extract_a', value: 'not a price', confidence: 0.9 }] };
+  const { resolutions } = adjudicateRecord(candidatesByField, {});
+  assert.equal(resolutions.price.value, null);
+  const fields = buildExtractFields(resolutions, candidatesByField);
+  assert.equal(fields.price, undefined);
 });
