@@ -15,7 +15,11 @@ async function scoreActiveTab() {
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return { error: 'no_tab' };
-  if (!/^https?:/.test(tab.url ?? '')) return { error: 'unsupported_page' };
+  // `tab.url` is only readable once `activeTab` is granted for this tab. Reject
+  // only a URL we can see AND know is unsupported -- an absent url means "not
+  // visible yet", not "not a web page", and letting executeScript fail below
+  // gives a truthful error instead of a wrong one.
+  if (tab.url && !/^https?:/i.test(tab.url)) return { error: 'unsupported_page' };
 
   let scraped;
   try {

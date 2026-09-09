@@ -89,14 +89,14 @@ export function explain({ evaluation, recency, days, fields, names }) {
   const parts = [];
   const affinity = evaluation.components.affinity.score;
 
-  if (names.roaster) {
+  if (names.roaster && fields.isNewRoaster != null) {
     parts.push(
       fields.isNewRoaster
         ? `${names.roaster} is a roaster you haven't bought from`
         : `you've bought ${names.roaster} before`,
     );
   }
-  if (names.origin) {
+  if (names.origin && fields.isNewOrigin != null) {
     parts.push(fields.isNewOrigin ? `${names.origin} is a new origin for you` : `${names.origin} is familiar ground`);
   }
 
@@ -229,6 +229,11 @@ export default async function scoreRoutes(app) {
       confidence: evaluation.confidence,
       components: {
         ...evaluation.components,
+        // `evaluateCoffee` coerces unknown novelty to false for the blend;
+        // the response keeps the nullable truth so the UI can stay silent
+        // about a field the page never gave us, rather than calling an
+        // unreadable origin "new".
+        novelty: { isNewRoaster, isNewOrigin },
         roastRecency: recency == null ? null : { score: recency, daysSinceRoast: days, roastedOn },
       },
       fields: {

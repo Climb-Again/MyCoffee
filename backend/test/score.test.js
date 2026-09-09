@@ -189,3 +189,32 @@ test('explain: never returns an empty string, even with nothing recognised', () 
   assert.ok(text.length > 0);
   assert.match(text, /\.$/);
 });
+
+test('explain: stays silent about novelty the page never established', () => {
+  // Regression: the first live /api/score call was a Congo coffee whose origin
+  // the vocab cannot resolve (#165). Novelty came back `true` and the sentence
+  // would have called an unreadable origin "new". Unknown must say nothing.
+  const text = explain({
+    evaluation: baseEval,
+    recency: null,
+    days: null,
+    fields: { pricePer100gEur: 8.5, isNewRoaster: false, isNewOrigin: null },
+    names: { roaster: 'Gardelli', origin: 'Congo' },
+  });
+  assert.doesNotMatch(text, /new origin/i);
+  assert.doesNotMatch(text, /familiar ground/i);
+  // The roaster half is known, so it still speaks.
+  assert.match(text, /bought Gardelli before/i);
+});
+
+test('explain: stays silent about an unknown roaster too', () => {
+  const text = explain({
+    evaluation: baseEval,
+    recency: null,
+    days: null,
+    fields: { pricePer100gEur: 8.5, isNewRoaster: null, isNewOrigin: false },
+    names: { roaster: null, origin: 'Ethiopia' },
+  });
+  assert.doesNotMatch(text, /roaster you haven't bought/i);
+  assert.match(text, /Ethiopia is familiar ground/i);
+});

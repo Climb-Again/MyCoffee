@@ -99,18 +99,37 @@ export function groupsForCandidate(stats, { roasterId, originCountryId, profileI
 // "Has Radu ever bought from this roaster / this origin?" -- novelty is an
 // any-coffee question, not a rated-only one, so it can't be read off the
 // aggregates above.
+//
+// Returns **null**, not `true`, when the field was never extracted. "We could
+// not read the origin" and "this origin is new to you" are different facts,
+// and conflating them produces a confident falsehood: the first live test of
+// /api/score was a Congo coffee whose origin the vocab cannot resolve at all
+// (backlog #165), and it came back flagged as a new origin. `evaluateCoffee`
+// coerces null to false, so an unknown field counts as NOT novel -- the
+// conservative direction, since novelty is surfaced to the user as a claim.
+const NOVELTY_COLUMNS = new Set(['roaster_id', 'origin_country_id']);
+
+async function everBought(column, id) {
+  // The column name is interpolated, not parameterised -- Postgres has no
+  // placeholder for identifiers. Both call sites pass a literal, and this
+  // allowlist keeps it that way if someone later reaches for this helper with
+  // something a request controls.
+  if (!NOVELTY_COLUMNS.has(column)) throw new Error(`everBought: unsupported column ${column}`);
+  if (id == null) return null;
+  const { rows } = await query(
+    `SELECT EXISTS(SELECT 1 FROM coffees WHERE ${column} = $1 AND deleted_at IS NULL) AS exists`,
+    [id],
+  );
+  return Boolean(rows[0]?.exists);
+}
+
 export async function loadNovelty({ roasterId, originCountryId }) {
   const [roasterSeen, originSeen] = await Promise.all([
-    roasterId == null
-      ? Promise.resolve(false)
-      : query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE roaster_id = $1 AND deleted_at IS NULL) AS exists`, [roasterId]).then(
-          (r) => Boolean(r.rows[0]?.exists),
-        ),
-    originCountryId == null
-      ? Promise.resolve(false)
-      : query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE origin_country_id = $1 AND deleted_at IS NULL) AS exists`, [
-          originCountryId,
-        ]).then((r) => Boolean(r.rows[0]?.exists)),
+    everBought('roaster_id', roasterId),
+    everBought('origin_country_id', originCountryId),
   ]);
-  return { isNewRoaster: !roasterSeen, isNewOrigin: !originSeen };
+  return {
+    isNewRoaster: roasterSeen == null ? null : !roasterSeen,
+    isNewOrigin: originSeen == null ? null : !originSeen,
+  };
 }
