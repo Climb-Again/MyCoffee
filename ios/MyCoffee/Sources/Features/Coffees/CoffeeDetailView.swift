@@ -2,24 +2,24 @@ import SwiftUI
 import UIKit
 
 /// The coffee detail page — 2a redesign (`#88`,
-/// `design/coffees_redesign/README.md` §Screen 2, folds in `#82`): a 300pt
-/// full-bleed hero with real `ToolbarItem` back (never
-/// `.navigationBarBackButtonHidden` + a custom overlay, which killed
-/// edge-swipe-back and duplicated the arrow the one time this was tried —
-/// see the toolbar below) plus floating favourite/share/edit circles, a
-/// white card overlapping it by 20pt, rating header, roaster row, title,
-/// pill row, a price block with the value meter, fact rows, a flavour-
-/// profile section, note blocks, then rating-ordered rails.
+/// `design/coffees_redesign/README.md` §Screen 2, folds in `#82`), header
+/// reworked per `HEADER_UPDATE.md` (#141-#147): a 300pt full-bleed hero with
+/// the system back button (never `.navigationBarBackButtonHidden` + a
+/// custom overlay, which killed edge-swipe-back and duplicated the arrow
+/// the one time this was tried) plus bare white favourite/share/edit
+/// controls on the photo, a white card overlapping it by 20pt with a
+/// roaster-logo medallion astride the seam, then roaster row → title →
+/// rating, pill row, a price block with the value meter, fact rows, a
+/// flavour-profile section, note blocks, the FROM THE ROASTER facts grid,
+/// then rating-ordered rails.
 struct CoffeeDetailView: View {
     private let initialCoffee: Coffee
     @EnvironmentObject private var store: CoffeeStore
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
     @State private var showReview = false
     @State private var showEdit = false
-    // §8.2: Full text is collapsed on open — it dumps raw scraped copy that
-    // overflows mid-sentence, so it must not wall off the rails by default.
-    @State private var fullTextExpanded = false
     @State private var showFullPhoto = false
+    @State private var showFullTextSheet = false
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -46,37 +46,17 @@ struct CoffeeDetailView: View {
         .task {
             await reviewCache.ensureLoaded()
         }
-        .toolbar {
-            // Only the trailing buttons are custom — the system back button
-            // stays (one arrow, and it keeps edge-swipe-back working). A
-            // second custom back button here is what produced the duplicate
-            // arrow the one time this was tried, so the handoff's leading
-            // "back circle" isn't reproduced pixel-for-pixel; the system
-            // chevron plays that role instead over the transparent bar.
-            ToolbarItem(placement: .topBarTrailing) {
-                favoriteButton
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
-                    AppIcon(name: Lucide.share, size: 18)
-                        .frame(width: 44, height: 44)
-                        // §8.1: neutral system material, no warm tint — a white
-                        // fill read cream/peach over the warm hero photo.
-                        .background(.regularMaterial, in: Circle())
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showEdit = true
-                } label: {
-                    AppIcon(name: Lucide.pencil, size: 18)
-                        .frame(width: 44, height: 44)
-                        // §8.1: neutral system material, no warm tint — a white
-                        // fill read cream/peach over the warm hero photo.
-                        .background(.regularMaterial, in: Circle())
-                }
-            }
-        }
+        // No ToolbarItems here any more (`HEADER_UPDATE.md` §1): favourite/
+        // share/edit are bare overlays on the photo now, not toolbar-hosted
+        // circles. The back chevron is left entirely to the system — it is
+        // NOT rebuilt as a fourth bare overlay control, even though §1 groups
+        // it with the other three, because a custom overlay back button
+        // paired with `.navigationBarBackButtonHidden` is exactly what killed
+        // edge-swipe-back and duplicated the arrow the one time this was
+        // tried (see the file-level doc comment). The automatic system back
+        // button over the transparent bar is the safe, already-working
+        // mechanism, so it stays untouched; its styling won't hit §1's exact
+        // stroke/shadow spec, which is a known, deliberate partial gap.
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
@@ -100,22 +80,68 @@ struct CoffeeDetailView: View {
         .sheet(isPresented: $showEdit) {
             CoffeeEditSheet(coffee: coffee)
         }
+        .sheet(isPresented: $showFullTextSheet) {
+            fullTextSheet
+        }
+    }
+
+    /// The roaster's raw scraped copy, verbatim and unedited (§5's "one tap
+    /// away" link), regardless of how many facts `RoasterFactParser` managed
+    /// to lift out of it.
+    private var fullTextSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(rawTextBlocks, id: \.label) { block in
+                        VStack(alignment: .leading, spacing: 4) {
+                            if rawTextBlocks.count > 1 {
+                                Text(block.label)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(block.text)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle("Full text")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showFullTextSheet = false }
+                }
+            }
+        }
     }
 
     private var hasPhoto: Bool {
         (coffee.images?.display).flatMap(URL.init(string:)) != nil
     }
 
-    /// Design handoff §Screen 2: `#0078ff` fill, white heart, 44×44.
+    /// §1: bare white heart, no chip/circle behind it. Favourited vs not
+    /// differs only by outline↔fill — never a coloured background.
     private var favoriteButton: some View {
         Button {
             store.toggleFavorite(coffee)
         } label: {
-            AppIcon(name: coffee.isFavorite ? Lucide.heartFill : Lucide.heart, size: 18)
-                .foregroundStyle(Theme.Colors.onAccent)
-                .frame(width: 44, height: 44)
-                .background(Theme.Colors.accent, in: Circle())
+            bareIcon(coffee.isFavorite ? Lucide.heartFill : Lucide.heart, size: 22)
         }
+    }
+
+    /// One bare white photo control (§1): no capsule/circle/material/fill,
+    /// just the icon, tinted white with a drop shadow for legibility, inside
+    /// a 44×44 hit area.
+    private func bareIcon(_ name: String, size: CGFloat) -> some View {
+        AppIcon(name: name, size: size)
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
     }
 
     // MARK: - Hero
@@ -138,22 +164,43 @@ struct CoffeeDetailView: View {
         .frame(height: 300)
         .frame(maxWidth: .infinity)
         .clipped()
-        // Tap the (cropped) hero to see the whole photo full-screen.
+        // Tap the (cropped) hero to see the whole photo full-screen — the
+        // old bottom-trailing expand button is gone (§1), this gesture is
+        // now the only way in, same as before.
         .contentShape(Rectangle())
         .onTapGesture {
             if hasPhoto { showFullPhoto = true }
         }
-        .overlay(alignment: .bottomTrailing) {
-            if hasPhoto {
-                Image(systemName: Symbols.reviewZoom)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.Colors.onAccent)
-                    .padding(8)
-                    .background(.black.opacity(0.35), in: Circle())
-                    .padding(12)
-                    .allowsHitTesting(false)
+        .overlay(alignment: .top) {
+            // §1: one top scrim, no bottom scrim — keeps the bare white
+            // controls legible over a pale bag.
+            LinearGradient(colors: [.black.opacity(0.42), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: 126)
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .top) {
+            photoControls
+        }
+    }
+
+    /// The trailing three bare controls, `HStack(spacing: 0)` per §1. All on
+    /// one baseline 50pt from the top of the frame — a 44pt-tall hit area
+    /// centred there sits 28pt from the top, hence the padding below.
+    private var photoControls: some View {
+        HStack(spacing: 0) {
+            Spacer()
+            favoriteButton
+            ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
+                bareIcon(Lucide.share, size: 21)
+            }
+            Button {
+                showEdit = true
+            } label: {
+                bareIcon(Lucide.pencil, size: 21)
             }
         }
+        .padding(.top, 28)
+        .padding(.trailing, 6)
     }
 
     private var heroPlaceholder: some View {
@@ -170,20 +217,25 @@ struct CoffeeDetailView: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ratingHeader
-            roasterRow
+            // §3: roaster (medallion overlay below) → title → rating.
+            roasterHeaderRow
             titleBlock
+            ratingHeader
             pillRow
             priceBlock
             if !factRows.isEmpty {
                 FactRowsList(rows: factRows)
             }
             notesSection
-            fullTextSection
+            fromTheRoasterSection
             railsSection
+            // §7(b): scrollable trailing space so the last rail's cards clear
+            // the (glass, native — `RootTabView`) tab bar rather than sitting
+            // flush against it. No API for the live bar height here, so this
+            // is a fixed approximation of "bar height + 16pt".
+            Color.clear.frame(height: 84)
         }
         .padding(.horizontal, 22)
-        .padding(.top, 20)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -194,7 +246,16 @@ struct CoffeeDetailView: View {
             )
             .fill(Theme.Colors.surface)
         )
+        // §6: the sheet itself carries no shadow — its corner radius and this
+        // -20pt overlap read as depth on their own. Must not `.clipped()`, or
+        // the medallion's top 40pt and its ring get sliced (§2).
         .offset(y: -20)
+        .overlay(alignment: .topLeading) {
+            if let roaster = coffee.roaster(vocabulary: vocabulary) {
+                RoasterLogoTile(logoUrl: roaster.logoUrl)
+                    .offset(x: 22, y: -40)
+            }
+        }
     }
 
     private var ratingHeader: some View {
@@ -202,8 +263,8 @@ struct CoffeeDetailView: View {
             if let rating = coffee.rating {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.1f", rating))
-                        .font(.system(size: 40, weight: Theme.Weight.heavy))
-                        .tracking(-1.2)
+                        .font(.system(size: 34, weight: Theme.Weight.heavy))
+                        .tracking(-1.02)
                         .foregroundStyle(Theme.Colors.accent)
                     starRow(for: rating)
                 }
@@ -266,73 +327,79 @@ struct CoffeeDetailView: View {
         .background(Theme.Colors.neutral100, in: Capsule())
     }
 
+    /// §4: the fractional star (e.g. 4.1 → fifth star 10% filled) is masked
+    /// to `rating - index` clamped to 0...1, not just special-cased for the
+    /// fifth position — any rating's partial star fills the same way.
     private func starRow(for rating: Double) -> some View {
         HStack(spacing: 2) {
             ForEach(0..<5, id: \.self) { index in
-                Image(systemName: Double(index) < rating ? Symbols.starFill : Symbols.star)
-                    .foregroundStyle(Double(index) < rating ? Theme.Colors.accent : Theme.Colors.neutral300)
-                    .font(.system(size: 13))
-            }
-        }
-    }
-
-    private var roasterRow: some View {
-        let roaster = coffee.roaster(vocabulary: vocabulary)
-        let roasterCountry = coffee.roasterCountry(vocabulary: vocabulary)
-
-        return Group {
-            if let roaster {
-                HStack(spacing: 6) {
-                    // Pushback #7: the flag beside the roaster is a *country*
-                    // flag, so it opens the roaster's country page; the name
-                    // opens the roaster page. Two separate tap targets, not one.
-                    if FeatureFlags.tapNavigatesToEntityPages, let roasterCountry {
-                        NavigationLink {
-                            CountryPageView(countryID: roasterCountry.id, role: .roaster)
-                        } label: {
-                            FlagView(isoCode: roasterCountry.isoCode).font(.system(size: 13))
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        FlagView(isoCode: roasterCountry?.isoCode).font(.system(size: 13))
-                    }
-
-                    if FeatureFlags.tapNavigatesToEntityPages {
-                        NavigationLink {
-                            RoasterPageView(roasterID: roaster.id)
-                        } label: {
-                            roasterNameLine(roaster)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        roasterNameLine(roaster)
-                    }
-
-                    Spacer()
-                    if FeatureFlags.tapNavigatesToEntityPages {
-                        AppIcon(name: Lucide.chevronRight, size: 13)
-                            .foregroundStyle(Theme.Colors.neutral700)
+                let fraction = min(max(rating - Double(index), 0), 1)
+                ZStack(alignment: .leading) {
+                    Image(systemName: Symbols.star)
+                        .foregroundStyle(Theme.Colors.neutral300)
+                    if fraction > 0 {
+                        Image(systemName: Symbols.starFill)
+                            .foregroundStyle(Theme.Colors.accent)
+                            .mask(alignment: .leading) {
+                                GeometryReader { proxy in
+                                    Rectangle().frame(width: proxy.size.width * fraction)
+                                }
+                            }
                     }
                 }
+                .font(.system(size: 13))
+                .frame(width: 13, height: 13)
             }
         }
     }
 
-    /// Blue name, always — the roaster row's one place blue always appears,
-    /// same as the rating. The "your best roaster" suffix only shows for the
-    /// single #1 roaster (`topRoasterIDs().first`), not mere membership in the
-    /// top set — that distinction is `CoffeeRowView`'s own note about itself.
-    private func roasterNameLine(_ roaster: Roaster) -> some View {
-        HStack(spacing: 4) {
-            Text(roaster.name)
-                .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(Theme.Colors.accent)
+    /// §3's medallion+roaster row: the medallion itself is `card`'s own
+    /// overlay (it must be able to draw outside this row's bounds, over the
+    /// photo above), so this only reserves the 100pt leading gap (86 tile +
+    /// 14 gap) and lays out the two text lines beside it. Per §3, the whole
+    /// row — medallion included — taps to the roaster page; this supersedes
+    /// pushback #7's separate flag→country tap target for this one row.
+    @ViewBuilder
+    private var roasterHeaderRow: some View {
+        if let roaster = coffee.roaster(vocabulary: vocabulary) {
+            let roasterCountry = coffee.roasterCountry(vocabulary: vocabulary)
+            if FeatureFlags.tapNavigatesToEntityPages {
+                NavigationLink {
+                    RoasterPageView(roasterID: roaster.id)
+                } label: {
+                    roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
+                }
+                .buttonStyle(.plain)
+            } else {
+                roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
+            }
+        }
+    }
+
+    private func roasterHeaderContent(roaster: Roaster, roasterCountry: Country?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                FlagView(isoCode: roasterCountry?.isoCode).font(.system(size: 13))
+                Text(roaster.name)
+                    .font(.system(size: 13, weight: Theme.Weight.semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                if FeatureFlags.tapNavigatesToEntityPages {
+                    AppIcon(name: Lucide.chevronRight, size: 15)
+                        .foregroundStyle(Theme.Colors.neutral700)
+                }
+                Spacer(minLength: 0)
+            }
+            // "Your best roaster" only for the single #1 roaster
+            // (`topRoasterIDs().first`), not mere top-set membership.
             if let average = bestRoasterAverage(for: roaster) {
-                Text("· your best roaster, \(String(format: "%.1f", average)) avg")
+                Text("Your best roaster · \(String(format: "%.1f", average)) avg")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.Colors.neutral700)
             }
         }
+        .padding(.leading, 100)
+        .frame(minHeight: 54, alignment: .bottom)
+        .padding(.bottom, 6)
     }
 
     private func bestRoasterAverage(for roaster: Roaster) -> Double? {
@@ -342,8 +409,8 @@ struct CoffeeDetailView: View {
 
     private var titleBlock: some View {
         Text(coffee.displayTitle(vocabulary: vocabulary))
-            .font(.system(size: 27, weight: Theme.Weight.heavy))
-            .tracking(-0.81)
+            .font(.system(size: 29, weight: Theme.Weight.heavy))
+            .tracking(-0.87)
             .foregroundStyle(Theme.Colors.text)
     }
 
@@ -551,12 +618,12 @@ struct CoffeeDetailView: View {
         }
     }
 
-    /// The raw scraped text (title / caption / description) exactly as ingested.
-    /// The curated `desc_*` note blocks above are empty on the freshly-extracted
-    /// "probe" coffees — this section is what actually shows their full content.
-    /// Selectable so a lot number or link can be copied straight out.
-    private var fullTextSection: some View {
-        let blocks: [(label: String, text: String)] = [
+    /// The raw scraped text (title / caption / description) exactly as
+    /// ingested — the curated `desc_*` note blocks above are empty on the
+    /// freshly-extracted "probe" coffees, so this is what actually carries
+    /// their full content. Also `RoasterFactParser`'s only input.
+    private var rawTextBlocks: [(label: String, text: String)] {
+        [
             ("Title", coffee.rawTitle),
             ("Caption", coffee.rawCaption),
             ("Description", coffee.rawDescription)
@@ -564,37 +631,59 @@ struct CoffeeDetailView: View {
             guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
             return (label, value)
         }
+    }
 
-        return Group {
-            if !blocks.isEmpty {
-                // Expanded by default (this is the coffee's full content), but
-                // collapsible so a very long caption doesn't wall off the rails.
-                DisclosureGroup(isExpanded: $fullTextExpanded) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(blocks, id: \.label) { block in
-                            VStack(alignment: .leading, spacing: 4) {
-                                // Only tag each block when more than one is present,
-                                // so a lone caption reads as plain body text.
-                                if blocks.count > 1 {
-                                    Text(block.label)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Text(block.text)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                                    .fixedSize(horizontal: false, vertical: true)
+    private var roasterFacts: [RoasterFact] {
+        RoasterFactParser.extract(from: rawTextBlocks.map(\.text))
+    }
+
+    /// §5: replaces the old "Full text" link with the FROM THE ROASTER
+    /// facts grid, falling back to a clamped excerpt (same link) whenever
+    /// parsing lifted fewer than two facts out of the roaster's copy.
+    @ViewBuilder
+    private var fromTheRoasterSection: some View {
+        if !rawTextBlocks.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("FROM THE ROASTER")
+                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.Colors.neutral700)
+
+                if roasterFacts.count >= 2 {
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible())],
+                        alignment: .leading, spacing: 12
+                    ) {
+                        ForEach(roasterFacts) { fact in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(fact.key)
+                                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+                                    .tracking(0.6)
+                                    .foregroundStyle(Theme.Colors.neutral700)
+                                Text(fact.value)
+                                    .font(.system(size: 13, weight: Theme.Weight.semibold))
+                                    .foregroundStyle(Theme.Colors.text)
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                } label: {
-                    Text("Full text")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
+                } else {
+                    Text(rawTextBlocks[0].text)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.Colors.neutral700)
+                        .lineLimit(2)
                 }
+
+                Button {
+                    showFullTextSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Read the full text")
+                            .font(.system(size: 12, weight: Theme.Weight.semibold))
+                        AppIcon(name: Lucide.chevronRight, size: 14)
+                    }
+                    .foregroundStyle(Theme.Colors.accent)
+                }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -66,6 +66,11 @@ enum Theme {
         /// Shadow ink. Kept dark in *both* themes — it must never follow
         /// `neutral900`, or shadows become white glows in dark mode.
         static let shadow = Color(hex: "000000")
+        /// Roaster medallion tile ground (`HEADER_UPDATE.md` §2/§8) — the
+        /// handoff's light value is `#F3F2E8`; the dark value follows
+        /// `neutral100`'s light/dark relationship so a dark logo mark still
+        /// reads against it.
+        static let logoTileBackground = adaptive(light: "F3F2E8", dark: "201E1E")
     }
 
     enum Radius {
