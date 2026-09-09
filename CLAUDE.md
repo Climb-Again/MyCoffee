@@ -137,7 +137,7 @@ free — lane count has no cost implication.
    Check for an in-flight `ios-testflight` run first — the concurrency group is
    serial with `cancel-in-progress: false`, so a publish queues behind a compile.
    Fix any red ship the same session.
-4. **Backend lane** — Mon + Thu (§10): pick a ready item, ship to `main`, verify
+4. **Backend lane** — Mon/Wed/Fri while the queue is long, else Mon + Thu (§10): pick a ready item, ship to `main`, verify
    with a live curl. `railway-deploy.yml` deploys it.
 5. **Data lane** — owns the extraction batch. It writes production Postgres, so it
    coordinates with Backend on migrations (see §12).
@@ -207,7 +207,7 @@ non-colliding days — two macOS runners never fire simultaneously.
 | Routine | Cron | Cadence |
 |---|---|---|
 | Ingest drain (extract + OCR, merged) | `13 8 * * *` | daily |
-| Backend lane | `23 7 * * 1,4` | Mon + Thu |
+| Backend lane | `23 7 * * 1,3,5` | Mon/Wed/Fri — **raised from Mon + Thu on 2026-09-09 (Radu, #183)** while >5 backend rows are `ready`; revert to `23 7 * * 1,4` when the queue is under 5 |
 | Data extract + validate lane | `37 1 * * 1` | Mon |
 | iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
 | iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
