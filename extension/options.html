@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>MyCoffee — settings</title>
+    <style>
+      body {
+        width: 420px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-dim);
+        margin-bottom: 4px;
+      }
+      input {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .hint {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--ink-dim);
+      }
+      #saved {
+        color: var(--good);
+        font-size: 12px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="font-size: 16px; margin: 0 0 14px">MyCoffee — Evaluate</h1>
+
+    <div class="field">
+      <label for="baseUrl">Backend URL</label>
+      <input id="baseUrl" type="url" spellcheck="false" />
+    </div>
+
+    <div class="field">
+      <label for="token">API token</label>
+      <input id="token" type="password" spellcheck="false" autocomplete="off" />
+      <p class="hint">
+        Use the <strong>read</strong> token (<code>APP_TOKEN</code>), not the ingest token — scoring never writes
+        anything. Stored in this browser only, never sent anywhere but your own backend.
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="writeToken">Write token <span style="font-weight: 400">— optional</span></label>
+      <input id="writeToken" type="password" spellcheck="false" autocomplete="off" />
+      <p class="hint">
+        Only needed to <strong>add missing details</strong> to a coffee you already own. This is the ingest token
+        (<code>INGEST_TOKEN</code>) and it can write, so leave it blank if you just want scores — everything else works
+        without it.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center">
+      <button class="btn" id="save">Save</button>
+      <button class="btn ghost" id="test">Test connection</button>
+      <span id="saved"></span>
+    </div>
+
+    <div class="field" style="margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px">
+      <label>Updates</label>
+      <p class="hint" id="update-status">Checking…</p>
+      <button class="btn ghost" id="check-update">Check now</button>
+      <p class="hint" id="update-help" hidden>
+        For updates to apply on their own, the extension must be a git clone and something must pull it. Run
+        <code>bash extension/install-autoupdate.sh</code> once — it installs an hourly <code>git pull</code>.
+      </p>
+    </div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,268 @@
+// Popup UI (#162).
+//
+// Wording is fixed by #106 and must stay identical to the iOS screen (#125):
+// this is FIT WITH WHAT YOU BUY, never a predicted rating. The endpoint's own
+// validation is r≈0.39 against real ratings, so calling it a prediction would
+// be a claim the data does not support. Components carry equal visual weight
+// with the headline, and a `low` confidence result shows no headline number at
+// all — the server already returns `score: null` in that case, and this file
+// never invents one.
+
+import { getSettings } from './settings.js';
+
+const $ = (id) => document.getElementById(id);
+
+const show = (which) => {
+  for (const id of ['loading', 'error', 'result']) $(id).classList.toggle('hidden', id !== which);
+};
+
+const ERRORS = {
+  no_token: {
+    title: 'Add your API token',
+    body: 'The extension needs your MyCoffee read token before it can score anything. It is stored only in this browser.',
+    settings: true,
+  },
+  bad_token: {
+    title: 'Token rejected',
+    body: 'The backend refused that token. Check it in settings — the read token (APP_TOKEN) is the one you want.',
+    settings: true,
+  },
+  unsupported_page: {
+    title: 'Not a web page',
+    body: 'Open a coffee shop product page and try again.',
+  },
+  cannot_read_page: {
+    title: "Chrome won't let the extension read this page",
+    body: 'Browser-internal pages, the Web Store and PDFs are off limits. Try a normal shop page.',
+  },
+  not_enough_text: {
+    title: 'Not enough on this page',
+    body: 'This looks like a listing or a nav shell rather than a product page. Open the individual coffee.',
+  },
+  no_tab: { title: 'No active tab', body: 'Nothing to read here.' },
+  network: {
+    title: "Couldn't reach the backend",
+    body: 'Check your connection and the backend URL in settings.',
+    settings: true,
+  },
+  server: { title: 'The backend returned an error', body: '' },
+  unexpected: { title: 'Something went wrong', body: '' },
+};
+
+function renderError(res) {
+  const spec = ERRORS[res.error] ?? ERRORS.unexpected;
+  $('err-title').textContent = spec.title;
+  $('err-body').textContent = [spec.body, res.detail].filter(Boolean).join(' ');
+  $('err-settings').hidden = !spec.settings;
+  show('error');
+}
+
+function bar(name, value, note) {
+  const row = document.createElement('div');
+  row.className = 'bar-row';
+
+  const label = document.createElement('span');
+  label.className = 'bar-name';
+  label.textContent = name;
+
+  const track = document.createElement('div');
+  track.className = 'bar-track';
+  const fill = document.createElement('div');
+  fill.className = 'bar-fill';
+  fill.style.width = `${Math.max(0, Math.min(100, value ?? 0))}%`;
+  track.appendChild(fill);
+
+  const val = document.createElement('span');
+  val.className = value == null ? 'bar-val none' : 'bar-val';
+  val.textContent = value == null ? (note ?? '—') : String(value);
+
+  row.append(label, track, val);
+  return row;
+}
+
+function chip(text, isNew = false) {
+  const el = document.createElement('span');
+  el.className = isNew ? 'chip new' : 'chip';
+  el.textContent = text;
+  return el;
+}
+
+// #161 -- the "you already own this one" card and its enrich diff.
+//
+// Two rules, both from Radu's brief:
+//   * If he owns it, that leads. A fit score for a bag already in the library
+//     answers the wrong question, so the card sits above the headline.
+//   * If the page adds nothing, say nothing. An enrich panel that is always
+//     present but always empty is worse than no panel, so the whole block
+//     stays hidden unless there is something real to offer.
+function renderOwned(match, enrich, hasWriteToken) {
+  const card = $('owned');
+  if (!match) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  const possible = match.confidence === 'possible';
+  $('owned-tag').textContent = possible ? 'Possibly one of yours' : 'You have this one';
+  $('owned-tag').classList.toggle('maybe', possible);
+
+  const meta = [];
+  if (match.purchasedOn) {
+    const d = new Date(`${match.purchasedOn}T00:00:00Z`);
+    meta.push(
+      Number.isNaN(d.getTime())
+        ? match.purchasedOn
+        : d.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+    );
+  }
+  if (match.rating != null) meta.push(`${match.rating.toFixed(1)}★`);
+  if (match.isFavorite) meta.push('favourite');
+  $('owned-meta').textContent = meta.join(' · ');
+
+  $('owned-title').textContent = match.rawTitle || '(untitled)';
+
+  // Always say WHY it matched. A match the user can't sanity-check is a match
+  // they can't correct, and this one can be wrong.
+  const why = [];
+  if (match.matchedOn?.length) why.push(`matched on ${match.matchedOn.join(', ')}`);
+  if (match.originAgrees === false) why.push('but the page lists a different origin');
+  if (match.alternatives?.length) why.push(`${match.alternatives.length} other close match(es)`);
+  $('owned-why').textContent = why.join(' — ');
+
+  const box = $('enrich');
+  const rows = $('enrich-rows');
+  rows.replaceChildren();
+
+  if (!enrich?.length) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  $('enrich-head').textContent = `This page adds ${enrich.length} thing${enrich.length === 1 ? '' : 's'}`;
+
+  for (const item of enrich) {
+    const row = document.createElement('div');
+    row.className = 'enrich-row';
+
+    const label = document.createElement('span');
+    label.className = 'enrich-label';
+    label.textContent = item.label;
+
+    const value = document.createElement('span');
+    value.className = 'enrich-value';
+    value.textContent = item.display;
+    value.title = item.display;
+
+    const btn = document.createElement('button');
+    btn.className = 'enrich-btn';
+    btn.textContent = 'Add';
+    btn.disabled = !hasWriteToken;
+    btn.title = hasWriteToken ? `Add ${item.label} to this coffee` : 'Add a write token in settings first';
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      const res = await chrome.runtime.sendMessage({
+        type: 'enrich',
+        coffeeId: match.id,
+        field: item.field,
+        value: item.value,
+      });
+      if (res?.ok) {
+        btn.textContent = 'Added';
+        btn.classList.add('done');
+      } else {
+        btn.textContent = 'Failed';
+        btn.classList.add('failed');
+        btn.disabled = false;
+        btn.title = res?.detail || res?.error || 'unknown error';
+      }
+    });
+
+    row.append(label, value, btn);
+    rows.appendChild(row);
+  }
+
+  if (!hasWriteToken) {
+    const note = document.createElement('div');
+    note.className = 'enrich-note';
+    note.textContent = 'Add your write token in settings to save these.';
+    rows.appendChild(note);
+  }
+
+  box.classList.remove('hidden');
+}
+
+function render(data, hasWriteToken) {
+  const { score, confidence, components, fields, missing, explanation, cached, match, enrich } = data;
+
+  renderOwned(match, enrich, hasWriteToken);
+
+  // A suppressed headline is a deliberate outcome, not a failure: #106 says
+  // show the components and say why, rather than invent a number.
+  const scoreEl = $('score');
+  scoreEl.textContent = score == null ? '—' : String(score);
+  scoreEl.classList.toggle('suppressed', score == null);
+  $('score-label').textContent = score == null ? 'no headline number' : 'fit with what you buy';
+  $('confidence').classList.toggle('hidden', confidence !== 'low');
+  $('explanation').textContent = explanation ?? '';
+
+  const bars = $('bars');
+  bars.replaceChildren();
+  bars.appendChild(bar('Affinity', components?.affinity?.score ?? null));
+  bars.appendChild(
+    components?.value == null
+      ? bar('Value', null, 'n/a')
+      : bar('Value', components.value.score, null),
+  );
+  if (components?.roastRecency != null) {
+    bars.appendChild(bar('Freshness', components.roastRecency.score));
+  }
+
+  const chips = $('fields');
+  chips.replaceChildren();
+  if (fields?.roasterName) chips.appendChild(chip(fields.roasterName, components?.novelty?.isNewRoaster));
+  if (fields?.originName) chips.appendChild(chip(fields.originName, components?.novelty?.isNewOrigin));
+  if (fields?.profileId) chips.appendChild(chip(String(fields.profileId).replace(/_/g, ' ')));
+  if (fields?.pricePer100gEur != null) chips.appendChild(chip(`€${fields.pricePer100gEur.toFixed(2)}/100g`));
+  else if (fields?.priceAmount != null) {
+    chips.appendChild(chip(`${fields.priceAmount}${fields.priceCurrency ? ` ${fields.priceCurrency}` : ''}`));
+  }
+  if (fields?.weightG) chips.appendChild(chip(`${fields.weightG} g`));
+  if (fields?.roastedOn) {
+    const d = components?.roastRecency?.daysSinceRoast;
+    chips.appendChild(chip(d == null ? fields.roastedOn : `roasted ${d}d ago`));
+  }
+  if (!chips.children.length) chips.appendChild(chip('nothing recognised on this page'));
+
+  // Say what the page failed to provide rather than quietly scoring on less.
+  // Value is 0.50 of the headline, so a missing price is worth naming.
+  const gaps = [];
+  if (missing?.price) gaps.push('no price');
+  else if (missing?.currency) gaps.push('a price with no currency');
+  if (missing?.weight) gaps.push('no weight');
+  const missingEl = $('missing');
+  if (gaps.length && components?.value == null) {
+    missingEl.textContent = `This page had ${gaps.join(' and ')}, so the value half of the score is missing — and value carries the most weight of the three.`;
+    missingEl.classList.remove('hidden');
+  } else {
+    missingEl.classList.add('hidden');
+  }
+
+  $('cached-note').textContent = cached ? 'cached result' : '';
+  show('result');
+}
+
+async function run() {
+  show('loading');
+  const res = await chrome.runtime.sendMessage({ type: 'score' });
+  if (!res || res.error) return renderError(res ?? { error: 'unexpected' });
+  const { writeToken } = await getSettings();
+  render(res.data, Boolean(writeToken));
+}
+
+$('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('err-settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('err-retry').addEventListener('click', run);
+
+run();
