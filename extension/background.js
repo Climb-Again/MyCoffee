@@ -1,0 +1,70 @@
+// MV3 service worker (#162).
+//
+// The API call happens HERE, not in the injected scraper or the popup, and
+// that is load-bearing: a service-worker fetch covered by `host_permissions`
+// is exempt from CORS, so the backend needs no @fastify/cors and no
+// `Access-Control-Allow-Origin` for a shop's origin. (Checked before writing
+// this: `server.js` registers helmet, rate-limit, multipart, compress and etag
+// — no cors plugin, and none is needed as long as the fetch stays here.)
+import { scrapePage } from './scrape.js';
+import { getSettings } from './settings.js';
+
+async function scoreActiveTab() {
+  const { baseUrl, token } = await getSettings();
+  if (!token) return { error: 'no_token' };
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return { error: 'no_tab' };
+  if (!/^https?:/.test(tab.url ?? '')) return { error: 'unsupported_page' };
+
+  let scraped;
+  try {
+    // `activeTab` grants this only because the user clicked the toolbar button.
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: scrapePage,
+    });
+    scraped = result;
+  } catch (e) {
+    // Chrome refuses injection on its own pages, the Web Store, and PDFs.
+    return { error: 'cannot_read_page', detail: String(e?.message ?? e) };
+  }
+
+  if (!scraped?.text || scraped.text.trim().length < 40) return { error: 'not_enough_text' };
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/score`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ url: scraped.url, text: scraped.text }),
+    });
+  } catch (e) {
+    return { error: 'network', detail: String(e?.message ?? e) };
+  }
+
+  if (res.status === 401) return { error: 'bad_token' };
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) detail = body.error;
+    } catch {
+      // Non-JSON error body; the status code is enough.
+    }
+    return { error: 'server', detail };
+  }
+
+  const data = await res.json();
+  return { ok: true, data, pageTitle: scraped.title };
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type !== 'score') return false;
+  // Returning true keeps the message channel open for the async reply; a
+  // rejected promise must still produce a response or the popup hangs.
+  scoreActiveTab()
+    .then(sendResponse)
+    .catch((e) => sendResponse({ error: 'unexpected', detail: String(e?.message ?? e) }));
+  return true;
+});

@@ -169,6 +169,61 @@ export function evaluateCoffee({
   };
 }
 
+// ---- Roast recency (#159, the browsing score) ----
+//
+// Radu's locked decision #5 for the browser extension: "roast date is a
+// scoring factor -- the closer to today, the better." Unlike every signal
+// above, this one is NOT backed by a leave-one-out study: #106 measured
+// origin/roaster/process/roaster-country against his real ratings, but the
+// corpus carries roast dates too sparsely to measure recency the same way.
+// #159 is explicit about the consequence -- "if the corpus has no roast dates
+// to measure against, give it a small fixed weight rather than a guessed one."
+//
+// So it is deliberately bounded: `ROAST_RECENCY_WEIGHT` caps its influence at
+// 10 points of a 0-100 headline, and it NEVER touches `evaluateCoffee` above
+// (the iOS evaluate path, #106/#136, is unchanged). A page with no roast date
+// is treated as neutral -- excluded from the blend entirely, never penalised,
+// because most shop listings simply don't publish one and a missing date says
+// nothing about the coffee.
+//
+// The curve is monotonic-with-age per Radu's wording, NOT the "peak at 7-21
+// days" curve a specialty roaster would draw. That is his call: he asked for
+// closer-to-today-is-better and a bag being 3 days off roast is never a
+// problem he needs warning about.
+
+export const ROAST_FRESH_DAYS = 14;
+export const ROAST_STALE_DAYS = 180;
+export const ROAST_RECENCY_WEIGHT = 0.10;
+
+// Whole days between a roast date and `now`, or null when unparseable.
+// Negative (a future-dated roast, which shop pre-orders do produce) clamps to
+// 0 rather than scoring above full marks.
+export function daysSinceRoast(roastedOn, now = Date.now()) {
+  if (!roastedOn) return null;
+  const t = roastedOn instanceof Date ? roastedOn.getTime() : Date.parse(roastedOn);
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor((now - t) / DAY_MS));
+}
+
+// 0-100, full marks inside the fresh window, linear decay to zero at stale.
+// Returns null for an unknown date so callers can drop the term rather than
+// score it as bad.
+export function roastRecencyScore(days) {
+  if (days == null || !Number.isFinite(days)) return null;
+  if (days <= ROAST_FRESH_DAYS) return 100;
+  if (days >= ROAST_STALE_DAYS) return 0;
+  const span = ROAST_STALE_DAYS - ROAST_FRESH_DAYS;
+  return Math.round((100 * (ROAST_STALE_DAYS - days)) / span);
+}
+
+// Folds recency into an existing 0-100 headline. Returns `base` untouched when
+// either side is unknown -- a suppressed headline stays suppressed, and an
+// undated coffee scores exactly as it would have without this factor.
+export function applyRoastRecency(base, recency, weight = ROAST_RECENCY_WEIGHT) {
+  if (base == null || recency == null) return base;
+  return Math.round((1 - weight) * base + weight * recency);
+}
+
 // "What to buy next" rotation recommendation (#107) -- ranks entities
 // (roaster / origin country / process) Radu already buys by how much he
 // likes them times how overdue he is for a repeat purchase. Reuses

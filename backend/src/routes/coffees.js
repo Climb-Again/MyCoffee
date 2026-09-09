@@ -37,7 +37,8 @@ import {
   processPhoto,
 } from '../lib/worker.js';
 import { toEur } from '../lib/fx.js';
-import { evaluateCoffee, blendAffinity } from '../lib/scoring.js';
+import { evaluateCoffee } from '../lib/scoring.js';
+import { loadScoringCorpus, groupsForCandidate, loadNovelty } from '../lib/corpus.js';
 import { EDIT_FIELD_TO_CLIENT, resolveField } from '../lib/resolveField.js';
 import { cleanCandidates } from './review.js';
 
@@ -637,7 +638,18 @@ export default async function coffeesRoutes(app) {
     const roasterId = resolutions.roaster_id?.value ?? null;
     const originCountryIds = resolutions.origin_country_ids?.value ?? [];
     const originCountryId = originCountryIds[0] ?? null;
+    // `parseProfile` returns a SLUG string ("washed", "co_fermented") -- #136
+    // documents this for the iOS DTO -- but `coffees.profile_id` is a SMALLINT
+    // FK to `profiles(id)`, so the corpus stats are keyed numerically. The
+    // persist path maps between them (`worker.js:159`); this route did not, so
+    // `processStats.get("washed")` was ALWAYS undefined and the process signal
+    // (r=0.30, one of only four) contributed nothing to any score this endpoint
+    // has ever returned -- while also holding the confidence gate down, since
+    // `CONFIDENCE_GATE_SIGNALS` counts process as unseen. Fixed 2026-09-09 while
+    // building #160, which reuses this scoring path. The response keeps the slug:
+    // #136's `EvaluateFieldsDTO` decodes `fields.profileId` as a String.
     const profileId = resolutions.profile?.value?.profileId ?? null;
+    const profileDbId = profileId != null ? (sharedCtx.profileIdBySlug?.get(profileId) ?? null) : null;
 
     let roasterCountryId = null;
     if (roasterId != null) {
@@ -662,70 +674,12 @@ export default async function coffeesRoutes(app) {
       }
     }
 
-    const [{ rows: globalRows }, { rows: signalRows }, { rows: pricedRows }] = await Promise.all([
-      query(`SELECT AVG(rating)::float AS mean FROM coffees WHERE rating IS NOT NULL AND deleted_at IS NULL`),
-      query(
-        `SELECT origin_country_id AS "originCountryId", roaster_id AS "roasterId", profile_id AS "profileId",
-                roaster_country_id AS "roasterCountryId", rating::float AS rating
-           FROM coffees WHERE rating IS NOT NULL AND deleted_at IS NULL`,
-      ),
-      query(
-        `SELECT price_per_100g_eur::float AS "pricePer100gEur", rating::float AS rating
-           FROM coffees WHERE rating IS NOT NULL AND price_per_100g_eur IS NOT NULL AND deleted_at IS NULL`,
-      ),
-    ]);
-    const globalMean = globalRows[0]?.mean ?? 4;
+    // Shared with #160's POST /api/score -- one loader so the app and the
+    // browser extension can never score the same bag differently (lib/corpus.js).
+    const { globalMean, pricedRows, stats, affinitySamples } = await loadScoringCorpus();
 
-    // Per-signal {n, mean} over the rated corpus -- one pass over signalRows,
-    // shared between the draft's own groups and every sample's affinity below.
-    const groupStats = (key) => {
-      const buckets = new Map();
-      for (const row of signalRows) {
-        const v = row[key];
-        if (v == null) continue;
-        const bucket = buckets.get(v) ?? { n: 0, sum: 0 };
-        bucket.n += 1;
-        bucket.sum += row.rating;
-        buckets.set(v, bucket);
-      }
-      const stats = new Map();
-      for (const [v, { n, sum }] of buckets) stats.set(v, { n, mean: sum / n });
-      return stats;
-    };
-    const originStats = groupStats('originCountryId');
-    const roasterStats = groupStats('roasterId');
-    const processStats = groupStats('profileId');
-    const roasterCountryStats = groupStats('roasterCountryId');
-
-    const groupsFor = (row) => ({
-      origin: row.originCountryId != null ? originStats.get(row.originCountryId) : undefined,
-      roaster: row.roasterId != null ? roasterStats.get(row.roasterId) : undefined,
-      process: row.profileId != null ? processStats.get(row.profileId) : undefined,
-      roasterCountry: row.roasterCountryId != null ? roasterCountryStats.get(row.roasterCountryId) : undefined,
-    });
-
-    // Non-LOO on purpose: this ranks the draft against the corpus as it
-    // stands today, it isn't a predictive-accuracy claim (that validation --
-    // LOO r=0.39 -- already happened at design time, see status/backend.md).
-    const affinitySamples = signalRows.map((row) => blendAffinity(groupsFor(row), globalMean)).sort((a, b) => a - b);
-
-    const draftGroups = {
-      origin: originCountryId != null ? originStats.get(originCountryId) : undefined,
-      roaster: roasterId != null ? roasterStats.get(roasterId) : undefined,
-      process: profileId != null ? processStats.get(profileId) : undefined,
-      roasterCountry: roasterCountryId != null ? roasterCountryStats.get(roasterCountryId) : undefined,
-    };
-
-    let hasRoaster = false;
-    let hasOrigin = false;
-    if (roasterId != null) {
-      const { rows } = await query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE roaster_id = $1 AND deleted_at IS NULL) AS exists`, [roasterId]);
-      hasRoaster = Boolean(rows[0]?.exists);
-    }
-    if (originCountryId != null) {
-      const { rows } = await query(`SELECT EXISTS(SELECT 1 FROM coffees WHERE origin_country_id = $1 AND deleted_at IS NULL) AS exists`, [originCountryId]);
-      hasOrigin = Boolean(rows[0]?.exists);
-    }
+    const draftGroups = groupsForCandidate(stats, { roasterId, originCountryId, profileId: profileDbId, roasterCountryId });
+    const { isNewRoaster, isNewOrigin } = await loadNovelty({ roasterId, originCountryId });
 
     const evaluation = evaluateCoffee({
       groups: draftGroups,
@@ -733,8 +687,8 @@ export default async function coffeesRoutes(app) {
       priced: pricedRows,
       affinitySamples,
       pricePer100gEur,
-      isNewRoaster: !hasRoaster,
-      isNewOrigin: !hasOrigin,
+      isNewRoaster,
+      isNewOrigin,
     });
 
     return {

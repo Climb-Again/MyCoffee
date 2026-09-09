@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Evaluate this coffee</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="state" id="loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Reading the page…</p>
+      </div>
+
+      <div class="state hidden" id="error">
+        <h1 class="err-title" id="err-title"></h1>
+        <p class="err-body" id="err-body"></p>
+        <button class="btn" id="err-settings" hidden>Open settings</button>
+        <button class="btn ghost" id="err-retry">Try again</button>
+      </div>
+
+      <div class="state hidden" id="result">
+        <header>
+          <div class="headline">
+            <div class="score" id="score">—</div>
+            <div class="score-meta">
+              <div class="score-label" id="score-label">fit with what you buy</div>
+              <div class="badge hidden" id="confidence">low confidence</div>
+            </div>
+          </div>
+          <p class="explanation" id="explanation"></p>
+        </header>
+
+        <section class="bars" id="bars"></section>
+
+        <section class="fields" id="fields"></section>
+
+        <p class="missing hidden" id="missing"></p>
+
+        <footer>
+          <span id="cached-note"></span>
+          <button class="btn ghost small" id="settings">Settings</button>
+        </footer>
+      </div>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
