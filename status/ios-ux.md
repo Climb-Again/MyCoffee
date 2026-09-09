@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-09 10:47 UTC] #141-#148 coffee-page header redesign + roaster-page logo/markdown/rating (`HEADER_UPDATE.md`) — branch `ios-staging`
 
 ## Abandoned
 
