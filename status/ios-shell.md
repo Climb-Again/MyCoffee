@@ -6,7 +6,9 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-09 04:26 UTC] #117(a) Unknown postings for the 4 band dimensions — branch `ios-staging`
+- [2026-09-09 04:26 UTC] #136 Client API surface for POST /api/coffees/evaluate — branch `ios-staging`
+- [2026-09-09 04:26 UTC] #139 Re-weight value algorithm to ~65/35 rating/price — branch `ios-staging`
 
 ## Abandoned
 
