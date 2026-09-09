@@ -370,6 +370,18 @@ into a runner. But three things change, and two of them are footguns:
   so CI never sees it). A real 1024² RGB no-alpha kettle icon has been in place since
   2026-08-13. The *shape* of that trap still applies to anything ASC validates
   asynchronously: a green publish run is an upload receipt, not an acceptance.
+- **A country (or roaster/farm) added without an ALIAS row is invisible to extraction.**
+  `findAliasMentions` scans `country_aliases` only — a country's own name is *not*
+  implicitly an alias, so a `countries` INSERT with no matching `country_aliases`
+  row can never be matched from text. `005_vocab_seed.sql` knew this and seeded a
+  self-alias for every country ('Ethiopia' → 'ethiopia'); **every later migration
+  that added a country forgot** — Cameroon (018), Hong Kong (021), Japan (023) and
+  Greece (024) were all silently unmatchable until 034 repaired them, and it is why
+  backlog #165's Congo report existed at all. It fails silently: the field just
+  comes back blank, and nothing logs. **Adding a country? Add its aliases in the
+  same migration** (self-alias plus any abbreviation or Romanian spelling), and
+  copy 034's trailing self-heal statement, which repairs the whole class from the
+  schema rather than a hardcoded list.
 - **`PHAsset` cannot read Photos titles/captions/descriptions** — they live in the
   Photos database, not the asset. Ingestion is `osxphotos` on the Mac; nothing in
   the plan depends on PhotoKit.
