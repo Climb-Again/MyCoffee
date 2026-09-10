@@ -169,6 +169,33 @@ Three rules it follows:
 - **No "Add as new".** New bags are still added in the iOS app. This is only for
   coffees already in the library.
 
+## Your last 10 days, ranked
+
+Every coffee you evaluate is saved, and the popup always carries a **Top
+coffees** section — the highest-scoring pages from the last **10 days**, best
+first. Anything older is discarded automatically. Revisiting a page updates its
+entry rather than adding a second one, so the ranking stays "best coffees", not
+"pages I refreshed most".
+
+Each row is the app's listing row: image · **ROASTER** / title / origin ·
+score, €/100g and the value pills on the right — with the **fit score in the
+rating's slot**, since that's the number this surface knows. **Why?** opens the
+evaluator note. Clicking the title opens the shop page again.
+
+The section and the notes both start collapsed, because ten rows plus the
+current page doesn't fit a popup. Your choice is remembered.
+
+It's always there — open the popup on any tab, even a non-coffee one, and the
+top 10 is still the bottom half of the panel.
+
+Coffees with no headline score (no price on the page) are still saved but can't
+be ranked, so they're counted at the bottom rather than sorted as if they were
+zero.
+
+**This lives in the browser, not the backend** — it needs no token and no
+round-trip, and it stays on this machine. The tradeoff is that it doesn't reach
+the iOS app; say so if you'd rather it did.
+
 ## Limits
 
 - Chrome refuses injection on `chrome://` pages, the Web Store, and PDFs.
@@ -178,6 +205,8 @@ Three rules it follows:
   "cached result" when you're seeing one.
 - "Add as new" is not built and is not planned here — the iOS app stays how new
   bags are added.
+- History is per-browser and per-profile. Clearing Chrome's site data for the
+  extension clears it; it does not sync to another machine or to the app.
 - Enrichment needs a page title and a recognised roaster. Without both, matching
   would be guesswork, so the popup just shows the score.
 - **Prices in RON, CZK or PLN are currently dropped** — the parser knows the

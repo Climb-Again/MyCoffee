@@ -366,3 +366,218 @@ footer {
   font-size: 11px;
   color: var(--ink-dim);
 }
+
+/* --- #187: browsing history, laid out like the app's listing row ---
+   CoffeeRowView's anatomy: photo · uppercase roaster / heavy one-line title /
+   origin line · a right column of numbers. The fit score takes the rating's
+   slot, since that is the number the extension knows. */
+body {
+  width: 380px;
+}
+
+.history {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.history-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+}
+
+.history-caret {
+  color: var(--ink-dim);
+  font-size: 10px;
+  width: 10px;
+}
+
+.history-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.history-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* One row = the app's row. 12px gutter, top-aligned columns, fixed height so
+   the list does not go ragged (CoffeeRowView §6). */
+.hrow {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.hrow:first-child {
+  border-top: 0;
+}
+
+.hthumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface);
+  display: block;
+}
+
+.hthumb-empty {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.hmid {
+  min-width: 0;
+}
+
+.hroaster {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.htitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.htitle:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.horigin {
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.howned {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--good);
+}
+
+.hright {
+  text-align: right;
+  min-width: 64px;
+}
+
+.hscore {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.hscore.high {
+  color: var(--accent);
+}
+
+.hprice {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+
+.hpills {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  margin-top: 3px;
+}
+
+.hpill {
+  width: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.hpill.on {
+  background: var(--accent);
+}
+
+/* Evaluator note, collapsed by default — ten of these open at once is a wall
+   of text in a 380px popup. */
+.hnote-toggle {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.hnote {
+  grid-column: 2 / -1;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+
+.history-empty {
+  font-size: 12px;
+  color: var(--ink-dim);
+  padding: 6px 0;
+}
+
+.history-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--ink-dim);
+}
