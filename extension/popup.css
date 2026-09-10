@@ -581,3 +581,22 @@ body {
   font-size: 10px;
   color: var(--ink-dim);
 }
+
+/* #188: roast age (colour-coded) + when the page was visited. */
+.hmeta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 2px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hroast {
+  font-weight: 700;
+}
+
+.hseen {
+  color: var(--ink-dim);
+}

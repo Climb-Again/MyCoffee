@@ -9,7 +9,7 @@
 // never invents one.
 
 import { getSettings } from './settings.js';
-import { loadHistory, rank, RETENTION_DAYS, TOP_N } from './history.js';
+import { loadHistory, rank, RETENTION_DAYS, TOP_N, roastColor, roastLabel, relativeTime } from './history.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -230,9 +230,22 @@ function render(data, hasWriteToken) {
     chips.appendChild(chip(`${fields.priceAmount}${fields.priceCurrency ? ` ${fields.priceCurrency}` : ''}`));
   }
   if (fields?.weightG) chips.appendChild(chip(`${fields.weightG} g`));
-  if (fields?.roastedOn) {
-    const d = components?.roastRecency?.daysSinceRoast;
-    chips.appendChild(chip(d == null ? fields.roastedOn : `roasted ${d}d ago`));
+  // #188: the roast chip is colour-coded — green under two weeks, ramping to
+  // red — and says outright when it cost points, since a -10 that is not
+  // explained just looks like a wrong number.
+  if (components?.roast) {
+    const { daysSinceRoast: d, stale, penalty } = components.roast;
+    const c = chip(roastLabel(d) ?? fields.roastedOn);
+    const colour = roastColor(d);
+    if (colour) {
+      c.style.borderColor = colour;
+      c.style.color = colour;
+      c.style.fontWeight = '600';
+    }
+    if (stale) c.title = `Over ${d} days old — ${penalty} points off the score`;
+    chips.appendChild(c);
+  } else if (fields?.roastedOn) {
+    chips.appendChild(chip(fields.roastedOn));
   }
   if (!chips.children.length) chips.appendChild(chip('nothing recognised on this page'));
 
@@ -328,6 +341,26 @@ function historyRow(entry) {
     o.textContent = bits;
     mid.appendChild(o);
   }
+
+  // Roast age (colour-coded) and when I looked at it, on one line.
+  const meta = document.createElement('div');
+  meta.className = 'hmeta';
+  if (entry.roastDays != null) {
+    const roast = document.createElement('span');
+    roast.className = 'hroast';
+    roast.textContent = roastLabel(entry.roastDays);
+    roast.style.color = roastColor(entry.roastDays);
+    if (entry.roastStale) roast.title = 'Over 40 days at the time — the score was penalised';
+    meta.appendChild(roast);
+  }
+  const seen = document.createElement('span');
+  seen.className = 'hseen';
+  // The age shown is the age AT THE VISIT, so the visit time is what makes it
+  // readable — "roasted 30d ago, seen 5d ago" is a different bag today.
+  seen.textContent = `seen ${relativeTime(entry.savedAt)}`;
+  seen.title = new Date(entry.savedAt).toLocaleString();
+  meta.appendChild(seen);
+  mid.appendChild(meta);
 
   if (entry.ownedTitle) {
     const owned = document.createElement('div');

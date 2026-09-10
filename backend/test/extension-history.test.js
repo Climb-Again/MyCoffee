@@ -124,3 +124,52 @@ test('upsert prunes as it writes', () => {
   const entries = upsert([stale], entry({ id: 'new' }), NOW);
   assert.deepEqual(entries.map((e) => e.url), ['https://shop.test/new']);
 });
+
+// ---- #188: roast-age colour and the visit timestamp ----
+const view = new Function(
+  `${src.slice(src.indexOf('// ---- roast-age colour')).replace(/^export /gm, '')}
+   ; return { roastColor, roastLabel, relativeTime, ROAST_GREEN_DAYS, ROAST_RED_DAYS };`,
+)();
+
+test('roast colour is green through two weeks', () => {
+  // Radu: "green less than 2w going red as its older".
+  const green = view.roastColor(0);
+  assert.equal(view.roastColor(7), green);
+  assert.equal(view.roastColor(view.ROAST_GREEN_DAYS), green, 'the whole first fortnight reads the same');
+  assert.match(green, /^hsl\(130 /);
+});
+
+test('roast colour ramps continuously rather than jumping between buckets', () => {
+  const hue = (c) => Number(/^hsl\((\d+)/.exec(c)[1]);
+  let prev = hue(view.roastColor(view.ROAST_GREEN_DAYS));
+  for (let d = view.ROAST_GREEN_DAYS; d <= view.ROAST_RED_DAYS; d += 2) {
+    const h = hue(view.roastColor(d));
+    assert.ok(h <= prev, `hue must fall toward red, rose at ${d}d`);
+    prev = h;
+  }
+  assert.equal(hue(view.roastColor(view.ROAST_RED_DAYS)), 0, 'fully red at the far end');
+});
+
+test('roast colour is null when there is no date — not green', () => {
+  // An unknown roast date must not be shown as fresh.
+  assert.equal(view.roastColor(null), null);
+  assert.equal(view.roastColor(undefined), null);
+  assert.equal(view.roastLabel(null), null);
+});
+
+test('roast label reads naturally at each scale', () => {
+  assert.equal(view.roastLabel(0), 'roasted today');
+  assert.equal(view.roastLabel(1), 'roasted 1d ago');
+  assert.equal(view.roastLabel(12), 'roasted 12d ago');
+  assert.match(view.roastLabel(120), /~4mo ago/);
+});
+
+test('relativeTime renders the visit timestamp that was always stored', () => {
+  const now = Date.UTC(2026, 8, 10, 12, 0, 0);
+  assert.equal(view.relativeTime(now - 30_000, now), 'just now');
+  assert.equal(view.relativeTime(now - 5 * 60_000, now), '5m ago');
+  assert.equal(view.relativeTime(now - 3 * 3_600_000, now), '3h ago');
+  assert.equal(view.relativeTime(now - 26 * 3_600_000, now), 'yesterday');
+  assert.equal(view.relativeTime(now - 4 * 86_400_000, now), '4d ago');
+  assert.equal(view.relativeTime(null, now), '');
+});

@@ -98,6 +98,12 @@ export function entryFromScore(data, { url, title }) {
     // Value pills and the affinity number, for the app-style right column.
     valuePills: data?.components?.value?.pillCount ?? null,
     affinity: data?.components?.affinity?.score ?? null,
+    // #188: the age AS EVALUATED, not recomputed at render time. A bag
+    // roasted 39 days before a visit was fresh-ish when he looked at it, and
+    // the saved score reflects that -- recomputing the age later would show a
+    // red chip beside a score that was calculated when it was amber.
+    roastDays: data?.components?.roast?.daysSinceRoast ?? null,
+    roastStale: data?.components?.roast?.stale ?? null,
     // Owned coffees are worth flagging in the list — "I already have this" is
     // the most useful thing the row can say.
     ownedTitle: data?.match?.rawTitle ?? null,
@@ -125,4 +131,50 @@ export async function recordVisit(data, { url, title }, now = Date.now()) {
 
 export async function clearHistory() {
   await chrome.storage.local.set({ [KEY]: [] });
+}
+
+// ---- roast-age colour (#188) ----
+//
+// Radu: "Make roasting date color coded - green less than 2w going red as its
+// older". A continuous hue ramp rather than three buckets, so there is no
+// visual cliff where one day changes the colour completely -- except at 40
+// days, where there IS a real cliff, because that is where the scoring
+// penalty lands and the colour should say so.
+export const ROAST_GREEN_DAYS = 14;
+export const ROAST_RED_DAYS = 60;
+
+export function roastColor(days) {
+  if (days == null || !Number.isFinite(days)) return null;
+  // 130 = green, 35 = amber, 0 = red.
+  const GREEN = 130;
+  const RED = 0;
+  if (days <= ROAST_GREEN_DAYS) return `hsl(${GREEN} 62% 38%)`;
+  if (days >= ROAST_RED_DAYS) return `hsl(${RED} 70% 45%)`;
+  const t = (days - ROAST_GREEN_DAYS) / (ROAST_RED_DAYS - ROAST_GREEN_DAYS);
+  return `hsl(${Math.round(GREEN - t * (GREEN - RED))} 66% 41%)`;
+}
+
+export function roastLabel(days) {
+  if (days == null) return null;
+  if (days === 0) return 'roasted today';
+  if (days === 1) return 'roasted 1d ago';
+  if (days < 7) return `roasted ${days}d ago`;
+  if (days < 70) return `roasted ${days}d ago`;
+  const months = Math.round(days / 30);
+  return `roasted ~${months}mo ago`;
+}
+
+// "when did I look at this" -- the timestamp was always stored, never shown.
+export function relativeTime(ts, now = Date.now()) {
+  if (!ts) return '';
+  // FLOOR at the minute scale, not round: Math.round(0.5) is 1, so 30 seconds
+  // ago rendered as "1m ago" instead of "just now". Hours and days stay
+  // rounded — at those scales nearest reads better than truncated.
+  const mins = Math.max(0, Math.floor((now - ts) / 60_000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'yesterday' : `${days}d ago`;
 }

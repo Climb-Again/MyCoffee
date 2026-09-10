@@ -681,6 +681,11 @@ export default async function coffeesRoutes(app) {
     const draftGroups = groupsForCandidate(stats, { roasterId, originCountryId, profileId: profileDbId, roasterCountryId });
     const { isNewRoaster, isNewOrigin } = await loadNovelty({ roasterId, originCountryId });
 
+    // #188 made roast date a weighted term, so this path has to supply it too
+    // -- otherwise the app and the extension would score the same bag
+    // differently, which is exactly what lib/corpus.js exists to prevent.
+    const roastedOn = resolutions.roasted_on?.value?.date ?? null;
+
     const evaluation = evaluateCoffee({
       groups: draftGroups,
       globalMean,
@@ -689,6 +694,7 @@ export default async function coffeesRoutes(app) {
       pricePer100gEur,
       isNewRoaster,
       isNewOrigin,
+      roastedOn,
     });
 
     return {

@@ -12,10 +12,8 @@ import assert from 'node:assert/strict';
 import {
   daysSinceRoast,
   roastRecencyScore,
-  applyRoastRecency,
   ROAST_FRESH_DAYS,
   ROAST_STALE_DAYS,
-  ROAST_RECENCY_WEIGHT,
 } from '../src/lib/scoring.js';
 import { explain } from '../src/routes/score.js';
 
@@ -64,31 +62,9 @@ test('roastRecencyScore: no roast date scores null, so it is dropped rather than
   assert.equal(roastRecencyScore(NaN), null);
 });
 
-test('applyRoastRecency: unknown recency leaves the headline exactly as it was', () => {
-  // The whole point of "neutral, not penalised" (#159).
-  assert.equal(applyRoastRecency(72, null), 72);
-});
 
-test('applyRoastRecency: a suppressed headline stays suppressed', () => {
-  assert.equal(applyRoastRecency(null, 100), null);
-  assert.equal(applyRoastRecency(null, 0), null);
-});
 
-test('applyRoastRecency: influence is bounded by ROAST_RECENCY_WEIGHT', () => {
-  // #159 requires this factor stay small: it is the one signal with no
-  // leave-one-out validation behind it.
-  const base = 50;
-  const best = applyRoastRecency(base, 100);
-  const worst = applyRoastRecency(base, 0);
-  assert.equal(best - worst, Math.round(100 * ROAST_RECENCY_WEIGHT));
-  assert.ok(best <= base + 100 * ROAST_RECENCY_WEIGHT);
-  assert.ok(worst >= base - 100 * ROAST_RECENCY_WEIGHT);
-});
 
-test('applyRoastRecency: a fresh bag is nudged up, a stale one down', () => {
-  assert.ok(applyRoastRecency(60, roastRecencyScore(3)) > 60);
-  assert.ok(applyRoastRecency(60, roastRecencyScore(175)) < 60);
-});
 
 // ---- explanation ----
 
@@ -217,4 +193,101 @@ test('explain: stays silent about an unknown roaster too', () => {
   });
   assert.doesNotMatch(text, /roaster you haven't bought/i);
   assert.match(text, /Ethiopia is familiar ground/i);
+});
+
+// ---- #188: the reweighted blend and the stale-roast penalty ----
+//
+// Radu, 2026-09-10: "weight more on the roaster, origin country, process,
+// roasting date. If roasting date older than 40d penalize with extra 10
+// points." This deliberately overrides what the corpus measurement suggests
+// (#106 found value the only reliable component); it is his call, and these
+// tests exist so nobody quietly reverts it to the r-values.
+import { evaluateCoffee, FINAL_WEIGHTS, STALE_ROAST_DAYS, STALE_ROAST_PENALTY } from '../src/lib/scoring.js';
+
+const NOW = Date.UTC(2026, 8, 10);
+const ago = (d) => new Date(NOW - d * 86_400_000).toISOString().slice(0, 10);
+
+// A fixture that reliably produces a headline: enough rated bags per signal
+// for `normal` confidence, and a price band with enough members to be trusted.
+const priced = Array.from({ length: 40 }, (_, i) => ({ pricePer100gEur: 4 + i * 0.4, rating: 3.5 + (i % 5) * 0.2 }));
+const fixture = (over = {}) => ({
+  groups: { roaster: { n: 10, mean: 4.2 }, origin: { n: 10, mean: 4.1 }, process: { n: 10, mean: 4.0 } },
+  globalMean: 4,
+  priced,
+  affinitySamples: Array.from({ length: 100 }, (_, i) => 3.5 + i / 100),
+  pricePer100gEur: 8,
+  isNewRoaster: false,
+  isNewOrigin: false,
+  now: NOW,
+  ...over,
+});
+
+test('the blend weights provenance over price, and sums to 1', () => {
+  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.value, 'affinity must outweigh value (#188)');
+  assert.equal(FINAL_WEIGHTS.affinity + FINAL_WEIGHTS.value + FINAL_WEIGHTS.roast, 1);
+  assert.equal(FINAL_WEIGHTS.novelty, undefined, 'novelty left the blend; it is a tag now');
+});
+
+test('novelty no longer moves the headline', () => {
+  const a = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) }));
+  const b = evaluateCoffee(fixture({ isNewRoaster: false, isNewOrigin: false, roastedOn: ago(5) }));
+  assert.equal(a.score, b.score, 'a fixed neutral term only ever compressed the range');
+  // ...but it is still reported.
+  assert.equal(a.components.novelty.isNewRoaster, true);
+});
+
+test('a fresh roast scores higher than a middle-aged one', () => {
+  const fresh = evaluateCoffee(fixture({ roastedOn: ago(3) })).score;
+  const older = evaluateCoffee(fixture({ roastedOn: ago(35) })).score;
+  assert.ok(fresh > older, `${fresh} should beat ${older}`);
+});
+
+test('crossing 40 days costs the flat penalty on top of the decay', () => {
+  const before = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS - 1) }));
+  const after = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS + 1) }));
+  assert.equal(before.components.roast.penalty, 0);
+  assert.equal(after.components.roast.penalty, STALE_ROAST_PENALTY);
+  assert.equal(after.components.roast.stale, true);
+  // The drop is the penalty plus the two days of ordinary decay, so it is
+  // strictly bigger than the penalty alone.
+  assert.ok(before.score - after.score >= STALE_ROAST_PENALTY, `${before.score} -> ${after.score}`);
+});
+
+test('exactly 40 days is not yet stale — the rule is "older than 40d"', () => {
+  const at = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS) }));
+  assert.equal(at.components.roast.stale, false);
+  assert.equal(at.components.roast.penalty, 0);
+});
+
+test('no roast date is neutral: no bonus, no penalty, no roast component', () => {
+  // "We don't know when it was roasted" and "it is stale" are different facts.
+  const undated = evaluateCoffee(fixture({ roastedOn: null }));
+  assert.equal(undated.components.roast, null);
+  assert.ok(undated.score > 0);
+
+  // Renormalising matters here: without it an undated coffee could never score
+  // above 80, which would make a missing date a silent penalty.
+  const perfect = evaluateCoffee(
+    fixture({ roastedOn: null, groups: { roaster: { n: 50, mean: 5 }, origin: { n: 50, mean: 5 }, process: { n: 50, mean: 5 } } }),
+  );
+  assert.ok(perfect.score > 80, `an undated coffee must be able to score high, got ${perfect.score}`);
+});
+
+test('the score stays inside 0-100 even when the penalty bites hardest', () => {
+  const awful = evaluateCoffee(
+    fixture({
+      roastedOn: ago(400),
+      groups: { roaster: { n: 30, mean: 1 }, origin: { n: 30, mean: 1 }, process: { n: 30, mean: 1 } },
+      pricePer100gEur: 40,
+    }),
+  );
+  assert.ok(awful.score >= 0 && awful.score <= 100, `got ${awful.score}`);
+});
+
+test('a suppressed headline stays suppressed regardless of roast date', () => {
+  const thin = evaluateCoffee(fixture({ groups: {}, roastedOn: ago(1) }));
+  assert.equal(thin.confidence, 'low');
+  assert.equal(thin.score, null);
+  // The roast component is still reported, so the UI can show the chip.
+  assert.equal(thin.components.roast.daysSinceRoast, 1);
 });

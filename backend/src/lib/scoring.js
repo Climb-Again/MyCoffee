@@ -13,6 +13,11 @@
 
 export const SHRINK_K = 5;
 
+// Radu's stale-roast rule (#188): past this many days, a flat penalty on top
+// of the smooth recency decay.
+export const STALE_ROAST_DAYS = 40;
+export const STALE_ROAST_PENALTY = 10;
+
 // Correlation-squared reliability weights measured by the row's own LOO
 // study. Re-measure (status/backend.md) before changing these -- they are
 // not guesses.
@@ -30,15 +35,24 @@ export const AFFINITY_SIGNALS = [
 const CONFIDENCE_GATE_SIGNALS = ['origin', 'roaster', 'process'];
 const CONFIDENCE_MIN_N = 5;
 
-// The row's suggested blend is "50 value / 35 affinity / 15 novelty", but
-// also insists novelty is "neither good nor bad" and belongs on the card as
-// a tag, not a score. Contributing it as a fixed neutral midpoint (50)
-// keeps the literal 3-way weighting the row asked for without smuggling an
-// unrequested directional bias into the headline number. Flag for Radu once
-// he's seen real samples -- he may prefer dropping it from the blend
-// entirely (see status/backend.md).
-export const FINAL_WEIGHTS = { value: 0.50, affinity: 0.35, novelty: 0.15 };
-const NEUTRAL_NOVELTY_SCORE = 50;
+// Reweighted 2026-09-10 on Radu's instruction (#188): "weight more on the
+// roaster, origin country, process, roasting date".
+//
+// ⚠ This deliberately overrides what the corpus measurement suggests, and
+// that is his call to make -- the same shape as #110's honey ruling. #106
+// measured VALUE as the only genuinely reliable component and affinity at
+// r≈0.39, so on the numbers alone value should dominate. Radu is telling us
+// the provenance signals matter more to him than the price comparison does.
+// He owns that judgement; do not "correct" it back by citing the r-values.
+//
+// Novelty LEAVES the blend. It only ever contributed a constant 50 at 0.15
+// weight -- pure compression toward the middle, never a signal -- and #106's
+// own note anticipated dropping it once real samples had been seen. It is
+// still surfaced as a tag, which is all the row ever wanted it to be.
+//
+// Roast recency is now a first-class term rather than something layered on
+// afterwards, so both scoring surfaces share it (see `evaluateCoffee`).
+export const FINAL_WEIGHTS = { affinity: 0.45, value: 0.35, roast: 0.20 };
 
 export function shrunkMean(n, mean, globalMean, k = SHRINK_K) {
   if (!n || n <= 0) return globalMean;
@@ -136,6 +150,8 @@ export function evaluateCoffee({
   pricePer100gEur,
   isNewRoaster,
   isNewOrigin,
+  roastedOn = null,
+  now = Date.now(),
 }) {
   const affinityRaw = blendAffinity(groups, globalMean);
   const affinityScore = percentileRank(affinityRaw, affinitySamples);
@@ -149,14 +165,30 @@ export function evaluateCoffee({
 
   const novelty = { isNewRoaster: Boolean(isNewRoaster), isNewOrigin: Boolean(isNewOrigin) };
 
+  const days = daysSinceRoast(roastedOn, now);
+  const recency = roastRecencyScore(days);
+
+  // The three weights sum to 1, but a page with no roast date has no recency
+  // term at all. Renormalising over the terms we actually have keeps the
+  // headline on the same 0-100 scale rather than capping an undated coffee at
+  // 80 -- "we don't know when it was roasted" must not read as a penalty.
+  const parts = [
+    [FINAL_WEIGHTS.affinity, affinityScore],
+    [FINAL_WEIGHTS.value, valueScore],
+    [FINAL_WEIGHTS.roast, recency],
+  ].filter(([, v]) => v != null);
+  const totalWeight = parts.reduce((sum, [w]) => sum + w, 0);
+
   const canShowHeadline = confidence === 'normal' && valueScore != null;
-  const score = canShowHeadline
-    ? Math.round(
-        FINAL_WEIGHTS.value * valueScore +
-          FINAL_WEIGHTS.affinity * affinityScore +
-          FINAL_WEIGHTS.novelty * NEUTRAL_NOVELTY_SCORE,
-      )
-    : null;
+  let score = null;
+  if (canShowHeadline && totalWeight > 0) {
+    const blended = parts.reduce((sum, [w, v]) => sum + w * v, 0) / totalWeight;
+    // Radu's flat penalty (#188), ON TOP of the recency curve: past 40 days a
+    // bag is stale enough that he wants it pushed down further than a smooth
+    // decay does. Only applied when a date is actually known.
+    const penalty = days != null && days > STALE_ROAST_DAYS ? STALE_ROAST_PENALTY : 0;
+    score = Math.max(0, Math.min(100, Math.round(blended - penalty)));
+  }
 
   return {
     score,
@@ -165,6 +197,16 @@ export function evaluateCoffee({
       affinity: { score: affinityScore, raw: Math.round(affinityRaw * 100) / 100 },
       value: valueScore == null ? null : { score: valueScore, pillCount, band: band.index, bandN: band.n },
       novelty,
+      roast:
+        days == null
+          ? null
+          : {
+              score: recency,
+              daysSinceRoast: days,
+              roastedOn,
+              stale: days > STALE_ROAST_DAYS,
+              penalty: days > STALE_ROAST_DAYS ? STALE_ROAST_PENALTY : 0,
+            },
     },
   };
 }
@@ -179,11 +221,11 @@ export function evaluateCoffee({
 // #159 is explicit about the consequence -- "if the corpus has no roast dates
 // to measure against, give it a small fixed weight rather than a guessed one."
 //
-// So it is deliberately bounded: `ROAST_RECENCY_WEIGHT` caps its influence at
-// 10 points of a 0-100 headline, and it NEVER touches `evaluateCoffee` above
-// (the iOS evaluate path, #106/#136, is unchanged). A page with no roast date
-// is treated as neutral -- excluded from the blend entirely, never penalised,
-// because most shop listings simply don't publish one and a missing date says
+// #188 promoted it from a bounded afterthought to a weighted term inside
+// `evaluateCoffee` (0.20), on Radu's instruction, with a flat -10 beyond
+// STALE_ROAST_DAYS on top. A page with no roast date is still treated as
+// neutral -- dropped from the blend and renormalised, never penalised --
+// because most shop listings don't publish one and a missing date says
 // nothing about the coffee.
 //
 // The curve is monotonic-with-age per Radu's wording, NOT the "peak at 7-21
@@ -193,7 +235,6 @@ export function evaluateCoffee({
 
 export const ROAST_FRESH_DAYS = 14;
 export const ROAST_STALE_DAYS = 180;
-export const ROAST_RECENCY_WEIGHT = 0.10;
 
 // Whole days between a roast date and `now`, or null when unparseable.
 // Negative (a future-dated roast, which shop pre-orders do produce) clamps to
@@ -214,14 +255,6 @@ export function roastRecencyScore(days) {
   if (days >= ROAST_STALE_DAYS) return 0;
   const span = ROAST_STALE_DAYS - ROAST_FRESH_DAYS;
   return Math.round((100 * (ROAST_STALE_DAYS - days)) / span);
-}
-
-// Folds recency into an existing 0-100 headline. Returns `base` untouched when
-// either side is unknown -- a suppressed headline stays suppressed, and an
-// undated coffee scores exactly as it would have without this factor.
-export function applyRoastRecency(base, recency, weight = ROAST_RECENCY_WEIGHT) {
-  if (base == null || recency == null) return base;
-  return Math.round((1 - weight) * base + weight * recency);
 }
 
 // "What to buy next" rotation recommendation (#107) -- ranks entities

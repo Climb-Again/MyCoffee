@@ -38,13 +38,7 @@ import { loadSharedContext } from '../lib/worker.js';
 import { loadScoringCorpus, groupsForCandidate, loadNovelty } from '../lib/corpus.js';
 import { loadRoasterCoffees, rankMatches, diffFields, genericTokensFromVocab } from '../lib/enrich.js';
 import { toEur } from '../lib/fx.js';
-import {
-  evaluateCoffee,
-  daysSinceRoast,
-  roastRecencyScore,
-  applyRoastRecency,
-  ROAST_FRESH_DAYS,
-} from '../lib/scoring.js';
+import { evaluateCoffee, ROAST_FRESH_DAYS } from '../lib/scoring.js';
 
 // A product page that yields less than this is a nav shell or a cookie wall,
 // not a listing -- scoring it would return a confident-looking global average.
@@ -213,6 +207,10 @@ export default async function scoreRoutes(app) {
     });
     const { isNewRoaster, isNewOrigin } = await loadNovelty({ roasterId, originCountryId });
 
+    // Roast date goes INTO the scorer (#188), not on top of it: it is a
+    // weighted term now, and keeping it inside `evaluateCoffee` is what stops
+    // this endpoint and /api/coffees/evaluate drifting apart.
+    const roastedOn = roasted?.date ?? null;
     const evaluation = evaluateCoffee({
       groups,
       globalMean,
@@ -221,12 +219,12 @@ export default async function scoreRoutes(app) {
       pricePer100gEur,
       isNewRoaster,
       isNewOrigin,
+      roastedOn,
     });
 
-    const roastedOn = roasted?.date ?? null;
-    const days = daysSinceRoast(roastedOn);
-    const recency = roastRecencyScore(days);
-    const score = applyRoastRecency(evaluation.score, recency);
+    const score = evaluation.score;
+    const days = evaluation.components.roast?.daysSinceRoast ?? null;
+    const recency = evaluation.components.roast?.score ?? null;
 
     const names = {
       roaster: roasterId != null ? nameFrom(shared.vocab.roasters, roasterId) : null,
@@ -295,7 +293,6 @@ export default async function scoreRoutes(app) {
         // about a field the page never gave us, rather than calling an
         // unreadable origin "new".
         novelty: { isNewRoaster, isNewOrigin },
-        roastRecency: recency == null ? null : { score: recency, daysSinceRoast: days, roastedOn },
       },
       fields: {
         roasterId,
