@@ -85,10 +85,15 @@ part that is actually defensible:
 
 | Component | Weight | What it is |
 |---|---|---|
-| **Affinity** | 0.45 | Shrunk means for roaster / origin / process / roaster-country, as a percentile within your own library. |
-| **Value** | 0.35 | Asking €/100 g against what you normally pay for bags you rate the same. |
-| **Freshness** | 0.20 | Roast recency — full marks to 14 days, decaying to zero at 180. |
-| **Novelty** | — | Not in the blend; shown as a tag, because "new" is neither good nor bad. |
+| **Affinity** | 50 | Shrunk means for roaster / origin / process / roaster-country, as a percentile within your own library. |
+| **Freshness** | 20 | Roast recency — full marks to 14 days, decaying to zero at 180. |
+| **Value** | 15 | Asking €/100 g against what you normally pay for bags you rate the same. |
+| **Novelty** | 10 | **New scores higher**: new roaster +50, new origin +50. |
+
+Those sum to 95, not 100 — deliberately. The blend renormalises over whichever
+components are actually present, so the **ratios** are what matter, and these
+are exactly the ratios asked for. In practice they land at 52.6 / 21.1 / 15.8 /
+10.5.
 
 **Past 40 days a further 10 points come off**, on top of the decay. You'll see
 the drop as a step, not a slope — that's deliberate.
@@ -102,18 +107,24 @@ unseen or under ~5 rated bags (`low` confidence), or when the page gave no
 usable price. Both are deliberate: the components are shown and the reason is
 stated rather than a number being invented.
 
-### Why these weights
+### Why these weights, and why novelty points the way it does
 
-They are Radu's call, not the corpus's. #106 measured value as the only reliably
-predictive component (affinity lands at r≈0.39), so on the numbers alone value
-should dominate — and until 2026-09-10 it did, at 0.50. He reweighted toward
-roaster, origin, process and roast date because those are what he actually
-shops on. That override is recorded in the code and in backlog #188 so nobody
-"fixes" it back by citing the correlations.
+Affinity leads because it is the only component ever measured **as a predictor**
+of your ratings — leave-one-out r≈0.39 (#106). Value was called "reliable" in
+that study, but that meant deterministic and low-noise: it is a price
+comparison, never validated as a rating predictor. So putting the measured
+predictor first follows the evidence rather than departing from it.
 
-Roast recency is also the one factor with **no leave-one-out validation** behind
-it: the corpus carries too few roast dates to measure it the way the other four
-were measured.
+**Novelty is directional: new scores higher.** #106 deliberately left it neutral
+("new is neither good nor bad"), and that was right while it carried no weight —
+but a weighted term has to point somewhere, or it just drags every score toward
+the middle. It points at the unfamiliar because this is a tool for deciding what
+to buy *next*. The useful side effect is a tension with affinity: affinity says
+"you like this kind", novelty says "but you've already had this one", so the two
+together favour **new bags within styles you like**.
+
+Roast recency remains the one factor with **no leave-one-out validation** behind
+it: the corpus carries too few roast dates to measure it the way the others were.
 
 ## Why the price matters more than anything else on the page
 

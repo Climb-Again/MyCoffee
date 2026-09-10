@@ -35,24 +35,40 @@ export const AFFINITY_SIGNALS = [
 const CONFIDENCE_GATE_SIGNALS = ['origin', 'roaster', 'process'];
 const CONFIDENCE_MIN_N = 5;
 
-// Reweighted 2026-09-10 on Radu's instruction (#188): "weight more on the
-// roaster, origin country, process, roasting date".
+// Radu's weights, set 2026-09-10 (#189, superseding #188 the same day):
+// "If affinity is the best predictor - give it 50%. Than roast recency 20%,
+// value 15%, novelty 10%".
 //
-// ⚠ This deliberately overrides what the corpus measurement suggests, and
-// that is his call to make -- the same shape as #110's honey ruling. #106
-// measured VALUE as the only genuinely reliable component and affinity at
-// r≈0.39, so on the numbers alone value should dominate. Radu is telling us
-// the provenance signals matter more to him than the price comparison does.
-// He owns that judgement; do not "correct" it back by citing the r-values.
+// His premise holds up on #106's own evidence: affinity is the only component
+// ever measured AS A PREDICTOR of his ratings (LOO r≈0.39). #106 called value
+// "reliable", but that meant deterministic and low-noise -- it is a price
+// comparison, never validated as a rating predictor. So putting the measured
+// predictor first is defensible, not a departure from the data.
 //
-// Novelty LEAVES the blend. It only ever contributed a constant 50 at 0.15
-// weight -- pure compression toward the middle, never a signal -- and #106's
-// own note anticipated dropping it once real samples had been seen. It is
-// still surfaced as a tag, which is all the row ever wanted it to be.
+// These sum to 0.95, not 1. Deliberate: the blend renormalises over whichever
+// terms are actually present (see `evaluateCoffee`), so what matters is the
+// RATIO between them, and these are his ratios untouched. Rounding them up to
+// 100 would have meant inventing a fifth digit he did not give.
+export const FINAL_WEIGHTS = { affinity: 0.50, roast: 0.20, value: 0.15, novelty: 0.10 };
+
+// ⚠ Novelty is now DIRECTIONAL: new scores higher.
 //
-// Roast recency is now a first-class term rather than something layered on
-// afterwards, so both scoring surfaces share it (see `evaluateCoffee`).
-export const FINAL_WEIGHTS = { affinity: 0.45, value: 0.35, roast: 0.20 };
+// This reverses #106's "new is neither good nor bad, surface it as a tag", and
+// it had to. Novelty was a fixed neutral 50; giving a constant 10 percent of
+// the blend would not weight anything, it would just pull every score 10
+// percent toward the middle. A weighted term has to point somewhere.
+//
+// The direction is "new is better" because this is a tool for deciding what to
+// BUY NEXT while browsing, where the useful nudge is toward what he has not
+// had. It also sets up a deliberate tension with affinity at 0.50: affinity
+// says "you like this kind", novelty says "but you have already had this one",
+// and the two together favour new bags within styles he likes.
+//
+// Easy to flip or narrow (e.g. 40/70/100 instead of 0/50/100) if the live
+// results argue otherwise.
+export function noveltyScore({ isNewRoaster, isNewOrigin } = {}) {
+  return (isNewRoaster ? 50 : 0) + (isNewOrigin ? 50 : 0);
+}
 
 export function shrunkMean(n, mean, globalMean, k = SHRINK_K) {
   if (!n || n <= 0) return globalMean;
@@ -164,6 +180,7 @@ export function evaluateCoffee({
   const valueScore = bandReliable ? pillCount * 20 : null;
 
   const novelty = { isNewRoaster: Boolean(isNewRoaster), isNewOrigin: Boolean(isNewOrigin) };
+  novelty.score = noveltyScore(novelty);
 
   const days = daysSinceRoast(roastedOn, now);
   const recency = roastRecencyScore(days);
@@ -176,6 +193,7 @@ export function evaluateCoffee({
     [FINAL_WEIGHTS.affinity, affinityScore],
     [FINAL_WEIGHTS.value, valueScore],
     [FINAL_WEIGHTS.roast, recency],
+    [FINAL_WEIGHTS.novelty, noveltyScore(novelty)],
   ].filter(([, v]) => v != null);
   const totalWeight = parts.reduce((sum, [w]) => sum + w, 0);
 

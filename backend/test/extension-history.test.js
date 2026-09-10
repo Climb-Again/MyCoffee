@@ -173,3 +173,35 @@ test('relativeTime renders the visit timestamp that was always stored', () => {
   assert.equal(view.relativeTime(now - 4 * 86_400_000, now), '4d ago');
   assert.equal(view.relativeTime(null, now), '');
 });
+
+// ---- the popup must only read component keys the server actually sends ----
+//
+// #188 renamed `components.roastRecency` to `components.roast` on the server
+// and the popup was not updated, so the Freshness bar silently disappeared for
+// a day. Nothing failed: a missing key is just `undefined`, and the DOM-id
+// cross-check I was running only verified element ids, not response paths.
+// This closes that gap.
+test('popup.js reads no component key the scorer does not produce', async () => {
+  const { evaluateCoffee } = await import('../src/lib/scoring.js');
+  const produced = new Set(
+    Object.keys(
+      evaluateCoffee({
+        groups: { roaster: { n: 9, mean: 4.2 } },
+        globalMean: 4,
+        priced: Array.from({ length: 20 }, (_, i) => ({ pricePer100gEur: 4 + i * 0.5, rating: 4 })),
+        affinitySamples: [3.9, 4, 4.1],
+        pricePer100gEur: 8,
+        roastedOn: '2026-09-01',
+      }).components,
+    ),
+  );
+
+  const popup = readFileSync(new URL('../../extension/popup.js', import.meta.url), 'utf8');
+  // Strip comments first: the fix for this very bug documents the old key by
+  // name, and a comment must not fail the check.
+  const code = popup.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const read = new Set([...code.matchAll(/components\??\.([a-zA-Z]+)/g)].map((m) => m[1]));
+
+  const unknown = [...read].filter((k) => !produced.has(k));
+  assert.deepEqual(unknown, [], `popup reads ${unknown.join(', ')}; scorer sends ${[...produced].join(', ')}`);
+});

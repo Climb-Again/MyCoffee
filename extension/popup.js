@@ -208,17 +208,23 @@ function render(data, hasWriteToken) {
   $('confidence').classList.toggle('hidden', confidence !== 'low');
   $('explanation').textContent = explanation ?? '';
 
+  // Ordered by weight (#189: affinity 50 · roast 20 · value 15 · novelty 10),
+  // so the bars read in the same order the blend actually weighs them.
+  //
+  // NOTE: this block read `components.roastRecency` until 2026-09-10. #188
+  // renamed that field to `components.roast` on the server and this was not
+  // updated, so the Freshness bar silently vanished — the id cross-check I ran
+  // only verified DOM ids, not response paths. Caught while adding Novelty.
   const bars = $('bars');
   bars.replaceChildren();
   bars.appendChild(bar('Affinity', components?.affinity?.score ?? null));
   bars.appendChild(
-    components?.value == null
-      ? bar('Value', null, 'n/a')
-      : bar('Value', components.value.score, null),
+    components?.roast == null ? bar('Freshness', null, 'no date') : bar('Freshness', components.roast.score),
   );
-  if (components?.roastRecency != null) {
-    bars.appendChild(bar('Freshness', components.roastRecency.score));
-  }
+  bars.appendChild(
+    components?.value == null ? bar('Value', null, 'n/a') : bar('Value', components.value.score, null),
+  );
+  bars.appendChild(bar('Novelty', components?.novelty?.score ?? null));
 
   const chips = $('fields');
   chips.replaceChildren();

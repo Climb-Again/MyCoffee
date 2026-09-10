@@ -202,7 +202,7 @@ test('explain: stays silent about an unknown roaster too', () => {
 // points." This deliberately overrides what the corpus measurement suggests
 // (#106 found value the only reliable component); it is his call, and these
 // tests exist so nobody quietly reverts it to the r-values.
-import { evaluateCoffee, FINAL_WEIGHTS, STALE_ROAST_DAYS, STALE_ROAST_PENALTY } from '../src/lib/scoring.js';
+import { evaluateCoffee, noveltyScore, FINAL_WEIGHTS, STALE_ROAST_DAYS, STALE_ROAST_PENALTY } from '../src/lib/scoring.js';
 
 const NOW = Date.UTC(2026, 8, 10);
 const ago = (d) => new Date(NOW - d * 86_400_000).toISOString().slice(0, 10);
@@ -222,18 +222,58 @@ const fixture = (over = {}) => ({
   ...over,
 });
 
-test('the blend weights provenance over price, and sums to 1', () => {
-  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.value, 'affinity must outweigh value (#188)');
-  assert.equal(FINAL_WEIGHTS.affinity + FINAL_WEIGHTS.value + FINAL_WEIGHTS.roast, 1);
-  assert.equal(FINAL_WEIGHTS.novelty, undefined, 'novelty left the blend; it is a tag now');
+test('the weights are Radu\'s ratios (#189): affinity 50 / roast 20 / value 15 / novelty 10', () => {
+  assert.equal(FINAL_WEIGHTS.affinity, 0.5);
+  assert.equal(FINAL_WEIGHTS.roast, 0.2);
+  assert.equal(FINAL_WEIGHTS.value, 0.15);
+  assert.equal(FINAL_WEIGHTS.novelty, 0.1);
+  // They sum to 0.95 on purpose -- the blend renormalises, so the RATIO is
+  // what carries, and rounding to 1 would mean inventing a digit he didn't give.
+  assert.ok(Math.abs(Object.values(FINAL_WEIGHTS).reduce((a, b) => a + b, 0) - 0.95) < 1e-9);
+  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.roast);
+  assert.ok(FINAL_WEIGHTS.roast > FINAL_WEIGHTS.value);
+  assert.ok(FINAL_WEIGHTS.value > FINAL_WEIGHTS.novelty);
 });
 
-test('novelty no longer moves the headline', () => {
-  const a = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) }));
-  const b = evaluateCoffee(fixture({ isNewRoaster: false, isNewOrigin: false, roastedOn: ago(5) }));
-  assert.equal(a.score, b.score, 'a fixed neutral term only ever compressed the range');
-  // ...but it is still reported.
-  assert.equal(a.components.novelty.isNewRoaster, true);
+test('novelty is directional now: new scores higher than familiar', () => {
+  // #189 reverses #106's "neither good nor bad". A weighted term has to point
+  // somewhere, and for a what-do-I-buy-next tool it points at the unfamiliar.
+  const familiar = evaluateCoffee(fixture({ isNewRoaster: false, isNewOrigin: false, roastedOn: ago(5) }));
+  const oneNew = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: false, roastedOn: ago(5) }));
+  const bothNew = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) }));
+
+  assert.ok(bothNew.score > oneNew.score, `${bothNew.score} should beat ${oneNew.score}`);
+  assert.ok(oneNew.score > familiar.score, `${oneNew.score} should beat ${familiar.score}`);
+  // Bounded by its weight: a tenth of the blend cannot swing the headline more
+  // than about ten points.
+  assert.ok(bothNew.score - familiar.score <= 12, `swing was ${bothNew.score - familiar.score}`);
+});
+
+test('noveltyScore is the plain 0 / 50 / 100 it claims to be', () => {
+  assert.equal(noveltyScore({ isNewRoaster: true, isNewOrigin: true }), 100);
+  assert.equal(noveltyScore({ isNewRoaster: true, isNewOrigin: false }), 50);
+  assert.equal(noveltyScore({ isNewRoaster: false, isNewOrigin: true }), 50);
+  assert.equal(noveltyScore({}), 0);
+  assert.equal(noveltyScore(), 0);
+});
+
+test('affinity moves the headline more than any other component', () => {
+  // The whole point of #189: affinity is the measured predictor (r≈0.39), so
+  // it should dominate. Swinging each component end to end, affinity wins.
+  const lowAff = { groups: { roaster: { n: 30, mean: 3.0 }, origin: { n: 30, mean: 3.0 }, process: { n: 30, mean: 3.0 } } };
+  const highAff = { groups: { roaster: { n: 30, mean: 4.9 }, origin: { n: 30, mean: 4.9 }, process: { n: 30, mean: 4.9 } } };
+  const affSwing =
+    evaluateCoffee(fixture({ ...highAff, roastedOn: ago(5) })).score -
+    evaluateCoffee(fixture({ ...lowAff, roastedOn: ago(5) })).score;
+
+  const roastSwing =
+    evaluateCoffee(fixture({ roastedOn: ago(0) })).score - evaluateCoffee(fixture({ roastedOn: ago(180) })).score;
+  const noveltySwing =
+    evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) })).score -
+    evaluateCoffee(fixture({ roastedOn: ago(5) })).score;
+
+  assert.ok(affSwing > roastSwing, `affinity ${affSwing} must outweigh roast ${roastSwing}`);
+  assert.ok(affSwing > noveltySwing, `affinity ${affSwing} must outweigh novelty ${noveltySwing}`);
 });
 
 test('a fresh roast scores higher than a middle-aged one', () => {
