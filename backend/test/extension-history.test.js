@@ -181,7 +181,12 @@ test('relativeTime renders the visit timestamp that was always stored', () => {
 // a day. Nothing failed: a missing key is just `undefined`, and the DOM-id
 // cross-check I was running only verified element ids, not response paths.
 // This closes that gap.
-test('popup.js reads no component key the scorer does not produce', async () => {
+test('popup.js reads no component key the API actually sends', async () => {
+  // The popup consumes the ROUTE's response, not evaluateCoffee's return
+  // value: /api/score reshapes components on the way out (it re-adds the
+  // deprecated `roastRecency` alias for installed extensions, #190). Checking
+  // against the scorer alone would fail a key the API legitimately sends --
+  // which it did, the first time this test met that alias.
   const { evaluateCoffee } = await import('../src/lib/scoring.js');
   const produced = new Set(
     Object.keys(
@@ -196,6 +201,11 @@ test('popup.js reads no component key the scorer does not produce', async () => 
     ),
   );
 
+  // Plus whatever the route adds or renames in its own `components:` literal.
+  const route = readFileSync(new URL('../src/routes/score.js', import.meta.url), 'utf8');
+  const block = route.slice(route.indexOf('components: {'), route.indexOf('fields: {'));
+  for (const m of block.matchAll(/^\s{8}([a-zA-Z]+):/gm)) produced.add(m[1]);
+
   const popup = readFileSync(new URL('../../extension/popup.js', import.meta.url), 'utf8');
   // Strip comments first: the fix for this very bug documents the old key by
   // name, and a comment must not fail the check.
@@ -203,5 +213,5 @@ test('popup.js reads no component key the scorer does not produce', async () => 
   const read = new Set([...code.matchAll(/components\??\.([a-zA-Z]+)/g)].map((m) => m[1]));
 
   const unknown = [...read].filter((k) => !produced.has(k));
-  assert.deepEqual(unknown, [], `popup reads ${unknown.join(', ')}; scorer sends ${[...produced].join(', ')}`);
+  assert.deepEqual(unknown, [], `popup reads ${unknown.join(', ')}; API sends ${[...produced].join(', ')}`);
 });

@@ -9,7 +9,7 @@
 // never invents one.
 
 import { getSettings } from './settings.js';
-import { loadHistory, rank, RETENTION_DAYS, TOP_N, roastColor, roastLabel, relativeTime } from './history.js';
+import { loadHistory, rank, RETENTION_DAYS, TOP_N, roastColor, roastLabel, relativeTime, daysSinceISO } from './history.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -219,7 +219,9 @@ function render(data, hasWriteToken) {
   bars.replaceChildren();
   bars.appendChild(bar('Affinity', components?.affinity?.score ?? null));
   bars.appendChild(
-    components?.roast == null ? bar('Freshness', null, 'no date') : bar('Freshness', components.roast.score),
+    (components?.roast ?? components?.roastRecency) == null
+      ? bar('Freshness', null, 'no date')
+      : bar('Freshness', (components.roast ?? components.roastRecency).score),
   );
   bars.appendChild(
     components?.value == null ? bar('Value', null, 'n/a') : bar('Value', components.value.score, null),
@@ -239,19 +241,26 @@ function render(data, hasWriteToken) {
   // #188: the roast chip is colour-coded — green under two weeks, ramping to
   // red — and says outright when it cost points, since a -10 that is not
   // explained just looks like a wrong number.
-  if (components?.roast) {
-    const { daysSinceRoast: d, stale, penalty } = components.roast;
-    const c = chip(roastLabel(d) ?? fields.roastedOn);
-    const colour = roastColor(d);
+  // One path, and it degrades in steps rather than falling off a cliff (#190).
+  // Radu got a bare "2026-08-14" — no label, no colour, no age — because the
+  // server had renamed the component this read and the fallback was the raw
+  // date. Now: use the component if present, else compute the age from the
+  // date ourselves, and even with no age at all still say "roasted".
+  const roastComp = components?.roast ?? components?.roastRecency ?? null;
+  const roastDays = roastComp?.daysSinceRoast ?? daysSinceISO(fields?.roastedOn);
+  if (roastDays != null || fields?.roastedOn) {
+    const c = chip(roastLabel(roastDays) ?? `roasted ${fields.roastedOn}`);
+    const colour = roastColor(roastDays);
     if (colour) {
       c.style.borderColor = colour;
       c.style.color = colour;
       c.style.fontWeight = '600';
     }
-    if (stale) c.title = `Over ${d} days old — ${penalty} points off the score`;
+    if (fields?.roastedOn) c.title = `Roasted ${fields.roastedOn}`;
+    if (roastComp?.stale) {
+      c.title = `Roasted ${fields.roastedOn} — over ${roastDays} days old, ${roastComp.penalty} points off the score`;
+    }
     chips.appendChild(c);
-  } else if (fields?.roastedOn) {
-    chips.appendChild(chip(fields.roastedOn));
   }
   if (!chips.children.length) chips.appendChild(chip('nothing recognised on this page'));
 

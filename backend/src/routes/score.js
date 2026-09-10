@@ -288,6 +288,20 @@ export default async function scoreRoutes(app) {
       confidence: evaluation.confidence,
       components: {
         ...evaluation.components,
+        // DEPRECATED ALIAS, kept for already-installed extensions (#190).
+        //
+        // #188 renamed this component from `roastRecency` to `roast`. The
+        // backend redeploys on every push; an extension sitting in someone's
+        // browser does not. So that rename instantly broke every installed
+        // copy -- the roast chip fell back to a bare unlabelled date and the
+        // Freshness bar disappeared -- and fixing the popup in the repo did
+        // nothing for the build actually running.
+        //
+        // The extension is a SEPARATELY DEPLOYED CLIENT. This response is a
+        // public contract with versions of it we do not control. Add fields,
+        // never rename or remove them; retire an alias only once no install
+        // can still be reading it.
+        roastRecency: evaluation.components.roast,
         // SPREAD, don't replace. `evaluateCoffee` also puts a `score` on
         // novelty (#189 made it a weighted, directional term), and replacing
         // the object wholesale silently dropped it -- the popup's Novelty bar

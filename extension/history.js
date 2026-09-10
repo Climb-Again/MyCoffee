@@ -154,6 +154,16 @@ export function roastColor(days) {
   return `hsl(${Math.round(GREEN - t * (GREEN - RED))} 66% 41%)`;
 }
 
+// Age from an ISO roast date, for when the response carries the date but no
+// computed component (#190: an older or newer server than this build expects).
+// Belt and braces -- the chip must never fall back to an unlabelled number.
+export function daysSinceISO(iso, now = Date.now()) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor((now - t) / 86_400_000));
+}
+
 export function roastLabel(days) {
   if (days == null) return null;
   if (days === 0) return 'roasted today';
