@@ -24,6 +24,7 @@ import {
   loadRoasterVocab,
   loadFarmVocab,
 } from '../lib/vocab.js';
+import { loadBrewOptionVocab } from './brew.js';
 import {
   loadSharedContext,
   applyResolutionsToCoffee,
@@ -98,7 +99,7 @@ function kickBackgroundExtraction(photo, log) {
 // a thumbnail that a detail visit had merged in. The URL is ~120 B/row; at the
 // current corpus that's a few KB, well within the snapshot budget.
 function toCompactCoffee(row, baseUrl) {
-  return {
+  const compact = {
     id: row.public_id,
     photoId: row.photo_public_id,
     thumbUrl: buildMediaUrl(baseUrl, row.photo_public_id, 'thumb', THUMB_URL_TTL_SECONDS),
@@ -129,6 +130,13 @@ function toCompactCoffee(row, baseUrl) {
     reviewState: row.review_state,
     updatedAt: row.updated_at,
   };
+  // Brew lab (PLAN.md §14). Omitted when empty (undefined, not []) so the
+  // per-row snapshot budget only grows on coffees that actually have trials;
+  // `brew_tried`/`brew_best` are NULL for a coffee with no trials via the
+  // LEFT JOIN LATERAL array_agg on the snapshot/detail queries.
+  if (row.brew_tried && row.brew_tried.length) compact.brewTried = row.brew_tried;
+  if (row.brew_best && row.brew_best.length) compact.brewBest = row.brew_best;
+  return compact;
 }
 
 // Builds the Add Coffee wizard's per-field draft payload from one adjudication
@@ -168,17 +176,21 @@ export function buildExtractFields(resolutions, candidatesByField) {
 }
 
 async function loadVocabDictionary() {
-  const [countries, roasters, farms, profilesResult] = await Promise.all([
+  const [countries, roasters, farms, profilesResult, brewOptions] = await Promise.all([
     loadCountryVocab(query),
     loadRoasterVocab(query),
     loadFarmVocab(query),
     query('SELECT id, slug, name FROM profiles ORDER BY id'),
+    // Brew lab catalogues (PLAN.md §14). Sent in full every sync — small, and a
+    // catalogue rename/archive must reach every device on the next sync.
+    loadBrewOptionVocab(query),
   ]);
   return {
     countries: countries.candidates,
     roasters: roasters.candidates,
     farms: farms.candidates,
     profiles: profilesResult.rows,
+    brewOptions,
   };
 }
 
@@ -190,8 +202,14 @@ export default async function coffeesRoutes(app) {
     const [vocab, coffeesResult, deletedResult] = await Promise.all([
       loadVocabDictionary(),
       query(
-        `SELECT co.*, p.public_id AS photo_public_id
+        `SELECT co.*, p.public_id AS photo_public_id,
+                bt.tried AS brew_tried, bt.best AS brew_best
          FROM coffees co JOIN photos p ON p.id = co.photo_id
+         LEFT JOIN LATERAL (
+           SELECT array_agg(t.option_id ORDER BY t.option_id) AS tried,
+                  array_agg(t.option_id ORDER BY t.option_id) FILTER (WHERE t.is_best) AS best
+           FROM coffee_brew_trials t WHERE t.coffee_id = co.id
+         ) bt ON true
          WHERE co.deleted_at IS NULL ${sinceValid ? 'AND co.updated_at > $1' : ''}
          ORDER BY co.purchased_on DESC NULLS LAST, co.id DESC`,
         sinceValid ? [since.toISOString()] : [],
@@ -275,9 +293,15 @@ export default async function coffeesRoutes(app) {
 
   app.get('/api/coffees/:publicId', { preHandler: requireAnyToken }, async (req, reply) => {
     const { rows } = await query(
-      `SELECT co.*, p.public_id AS photo_public_id
+      `SELECT co.*, p.public_id AS photo_public_id,
+              bt.tried AS brew_tried, bt.best AS brew_best
        FROM coffees co
        JOIN photos p ON p.id = co.photo_id
+       LEFT JOIN LATERAL (
+         SELECT array_agg(t.option_id ORDER BY t.option_id) AS tried,
+                array_agg(t.option_id ORDER BY t.option_id) FILTER (WHERE t.is_best) AS best
+         FROM coffee_brew_trials t WHERE t.coffee_id = co.id
+       ) bt ON true
        WHERE co.public_id = $1 AND co.deleted_at IS NULL`,
       [req.params.publicId],
     );
