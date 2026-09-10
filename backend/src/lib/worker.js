@@ -691,10 +691,27 @@ export async function adjudicateAndApply(photo, photoText, sharedCtx) {
   await closeStaleReviews(photo.id, resolutions, reviewedFieldSet);
 
   const coffee = await upsertCoffeeBase(photo, photoText);
-  await query(
-    `UPDATE coffees SET raw_title = $1, raw_caption = $2, raw_description = $3, updated_at = now() WHERE id = $4`,
-    [photo.title, photoText?.caption ?? null, photoText?.description ?? null, coffee.id],
+  // #166: re-derive raw_* from photo_texts, but NEVER clobber an "OCR text"
+  // block that appendOcrTextToCoffee added after extraction -- a bare overwrite
+  // here wiped every appended block on the 411-row #91 re-adjudication. Only
+  // write (and bump updated_at) when something actually changed, so a $0
+  // re-adjudication of an unchanged photo doesn't force a full delta resync.
+  const { rows: curRawRows } = await query(
+    'SELECT raw_title, raw_caption, raw_description FROM coffees WHERE id = $1',
+    [coffee.id],
   );
+  const curRaw = curRawRows[0] ?? {};
+  const newTitle = photo.title ?? null;
+  const newCaption = photoText?.caption ?? null;
+  const newDescription = mergeRawDescription(curRaw.raw_description ?? null, photoText?.description ?? null);
+  if ((curRaw.raw_title ?? null) !== newTitle
+    || (curRaw.raw_caption ?? null) !== newCaption
+    || (curRaw.raw_description ?? null) !== newDescription) {
+    await query(
+      `UPDATE coffees SET raw_title = $1, raw_caption = $2, raw_description = $3, updated_at = now() WHERE id = $4`,
+      [newTitle, newCaption, newDescription, coffee.id],
+    );
+  }
   await applyResolutionsToCoffee(coffee.id, photo.id, resolutions, { ...sharedCtx, photoDate: photo.captured_on, rawText });
 
   return { photoId: photo.id, coffeeId: coffee.id, reviewCount: reviews.length };
@@ -765,7 +782,11 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
     try {
       const ocr = await runOcrTranscribe({ images: [image] });
       if (!ocr.reused) spentUsd += Number(ocr.costUsd ?? 0);
-      await appendOcrTextToCoffee(result.coffeeId, ocr.text);
+      const appended = await appendOcrTextToCoffee(result.coffeeId, ocr.text);
+      // #166(b): refreshSearchBlobs ran inside adjudicateAndApply, BEFORE this
+      // append, so the transcription only enters search_prose_blob/search_tsv
+      // if we rebuild the blobs now that the block has landed.
+      if (appended) await refreshSearchBlobs(result.coffeeId, sharedCtx);
     } catch {
       // leave the coffee's text as-is; structured fields already applied
     }
@@ -799,6 +820,25 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
 // (backfillOcrText) need to distinguish a real write from a silent no-op,
 // since a blank/illegible transcription must not be reported as resolved.
 const OCR_HEADING = 'OCR text';
+
+// #166: preserve an appended "OCR text" block when re-deriving raw_description
+// from photo_texts. `incoming` is the freshly scraped description (no OCR
+// block); `existing` may already carry an OCR block that appendOcrTextToCoffee
+// added after the original description. Returns the value to store: the fresh
+// text with the existing OCR block re-attached (byte-for-byte identical to the
+// stored value when the scraped description is unchanged, so no needless
+// updated_at bump). Pure -- unit-tested in worker.test.js.
+export function mergeRawDescription(existing, incoming) {
+  const ex = existing ?? '';
+  const marker = `${OCR_HEADING}\n`;
+  const idx = ex.indexOf(marker);
+  if (idx === -1) return incoming ?? null; // no OCR block to preserve
+  const ocrBlock = ex.slice(idx);
+  const inc = incoming ?? '';
+  if (inc.includes(marker)) return incoming ?? null; // incoming already carries it (shouldn't)
+  return inc ? `${inc}\n\n${ocrBlock}` : ocrBlock;
+}
+
 async function appendOcrTextToCoffee(coffeeId, ocrText) {
   const trimmed = (ocrText || '').trim();
   if (!trimmed) return false;
@@ -851,6 +891,9 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null, include
   let updated = 0;
   let spentUsd = 0;
   const errors = [];
+  // #166(b): rebuild search blobs after each append so restored OCR text is
+  // searchable (load the vocab context once for the whole backfill).
+  const sharedCtx = await loadSharedContext();
   for (const row of rows) {
     if (spendCapUsd != null && spentUsd >= spendCapUsd) break;
     try {
@@ -859,6 +902,7 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null, include
       const ocr = await runOcrTranscribe({ images: [image] });
       spentUsd += Number(ocr.costUsd ?? 0);
       const wrote = await appendOcrTextToCoffee(row.coffee_id, ocr.text);
+      if (wrote) await refreshSearchBlobs(row.coffee_id, sharedCtx);
       // A blank/illegible transcription leaves raw_description untouched, so
       // this row still matches the SELECT above and would look identical to
       // "not tried yet" on the next run -- report it as an error, not a

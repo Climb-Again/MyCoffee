@@ -18,6 +18,7 @@ import {
   pickRawExtractedValue,
   runLightExtraction,
   buildFlavorNotesText,
+  mergeRawDescription,
 } from '../src/lib/worker.js';
 import { extractRoastedOnField } from '../src/lib/deterministic.js';
 import { canonicalize } from '../src/lib/adjudicate.js';
@@ -562,3 +563,31 @@ test('roast-date backfill recovery path: no roast keyword nearby proposes nothin
   // A bare purchase date with no roast keyword must not be mistaken for a roast date.
   assert.equal(extractRoastedOnField('Cumpărat pe 23 Iunie 2026'), null);
 });
+
+test('mergeRawDescription: no OCR block -> passes the incoming description through', () => {
+  assert.equal(mergeRawDescription('old desc', 'new desc'), 'new desc');
+  assert.equal(mergeRawDescription(null, 'new desc'), 'new desc');
+  assert.equal(mergeRawDescription('old desc', null), null);
+  assert.equal(mergeRawDescription(null, null), null);
+});
+
+test('mergeRawDescription: preserves an appended OCR block across a re-derive', () => {
+  const stored = 'Original scraped description\n\nOCR text\nBAG PRINTED TEXT';
+  // unchanged scraped description -> byte-for-byte identical, so no needless write
+  assert.equal(mergeRawDescription(stored, 'Original scraped description'), stored);
+  // changed scraped description -> new text, OCR block kept
+  assert.equal(
+    mergeRawDescription(stored, 'Edited description'),
+    'Edited description\n\nOCR text\nBAG PRINTED TEXT',
+  );
+  // scraped description now empty -> the OCR block is the whole value
+  assert.equal(mergeRawDescription(stored, null), 'OCR text\nBAG PRINTED TEXT');
+});
+
+test('mergeRawDescription: OCR-only stored value (image-only coffee) is preserved', () => {
+  const stored = 'OCR text\nONLY TEXT ON THE BAG';
+  assert.equal(mergeRawDescription(stored, null), stored);
+  assert.equal(mergeRawDescription(stored, ''), stored);
+  assert.equal(mergeRawDescription(stored, 'a caption arrived later'), 'a caption arrived later\n\nOCR text\nONLY TEXT ON THE BAG');
+});
+
