@@ -129,7 +129,21 @@ export async function loadNovelty({ roasterId, originCountryId }) {
     everBought('origin_country_id', originCountryId),
   ]);
   return {
-    isNewRoaster: roasterSeen == null ? null : !roasterSeen,
+    // An UNRESOLVED roaster counts as new (#189). The roaster vocab is derived
+    // from Radu's own library -- 005 seeds it from his roasters and
+    // `resolveField` get-or-creates on human accept -- so a roaster that does
+    // not resolve is one he has never bought from, which is precisely what
+    // novel means. Without this, browsing a roaster he has never heard of --
+    // the single most novel thing that can happen -- scored novelty 0, and
+    // #189's weight did nothing in the one case it exists for.
+    //
+    // The cost is an alias miss on a roaster he DOES own reading as new, worth
+    // about +5 on the headline. That is the better error: the alternative
+    // silently scores every genuinely new roaster as familiar.
+    isNewRoaster: roasterId == null ? true : !roasterSeen,
+    // Countries are the opposite: a CLOSED, seeded world list, not derived
+    // from his library. An unresolved origin means "we could not read it",
+    // never "he has not had it" -- so it stays unknown and out of the score.
     isNewOrigin: originSeen == null ? null : !originSeen,
   };
 }
