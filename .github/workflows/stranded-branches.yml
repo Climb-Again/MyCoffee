@@ -1,0 +1,47 @@
+name: Stranded branches
+
+# A CCR routine session commits to its OWN `claude/*` branch, not to `main`
+# (CLAUDE.md §12). When nobody merges that branch, the work is invisible to
+# every lane and the next session rebuilds it from scratch.
+#
+# This is not hypothetical. The 2026-09-09 audit of 19 such branches found:
+#   * the browser-extension spec Radu locked on 2026-09-04 unmerged for five
+#     days, while a replacement was being written from scratch;
+#   * the Brew lab spec (PLAN.md §14, 399 lines) never landed at all;
+#   * #76's Add Coffee wizard shell surface (407 lines) built twice.
+# CLAUDE.md §12 says to add an integration guard "if lanes keep producing
+# orphan branches" — they do, so here it is. See status/BACKLOG.md #164.
+#
+# Red means: work exists on no shared branch. Merge it, port it, or dismiss it
+# in status/stranded-ok.txt. Branches touched within STRANDED_GRACE_DAYS are
+# ignored so an in-flight session is never flagged.
+#
+# No secrets, ~10s on ubuntu. `contents: read` only, and no pull_request
+# trigger — CLAUDE.md §12's public-repo rules.
+on:
+  schedule:
+    # 05:41 UTC daily — clear of every lane cron in CLAUDE.md §10.
+    - cron: "41 5 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "status/check-stranded.sh"
+      - "status/stranded-ok.txt"
+      - ".github/workflows/stranded-branches.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # checkout populates only the triggering ref; the script compares every
+      # claude/* branch against main AND ios-staging, so fetch them all.
+      - name: Fetch all branches
+        run: git fetch --quiet origin "+refs/heads/*:refs/remotes/origin/*"
+      - run: bash status/check-stranded.sh

@@ -87,10 +87,9 @@ struct CoffeesListView: View {
                     Button {
                         showFilterSheet = true
                     } label: {
-                        // No Lucide funnel was supplied, so this stays an
-                        // outline SF glyph (never the `.fill` variant), tinted
-                        // when a filter is active.
-                        Image(systemName: "line.3.horizontal.decrease")
+                        // §11: Lucide list-filter (Radu supplied it 2026-09-07);
+                        // tinted accent while a filter is active.
+                        AppIcon(name: Lucide.listFilter, size: 22)
                             .foregroundStyle(store.filter.isEmpty ? Color.accentColor : Theme.Colors.accent)
                     }
                     .accessibilityLabel("Filter")

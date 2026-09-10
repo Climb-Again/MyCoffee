@@ -15,6 +15,18 @@ MyHealthOS. Built on the "Health OS" stack per `NEW_APP_SETUP_BRIEF.md`.
 >
 > This applies to interactive sessions too, not just fired lane runs. When in
 > doubt whether he wants it built now, file the row and ask.
+>
+> **Landing rule (Radu, 2026-09-09): "Always merge. Any request I ever have must
+> never get lost in a conversation. I never ever push to main."** A backlog row,
+> spec or doc filed in an interactive session is not filed until it is **on
+> `main`** — the session that writes it merges it there (`git pull --rebase`,
+> resolve, `bash status/check-backlog.sh`, push) in the **same turn**, even when
+> the session's own working branch is a `claude/*` branch. Never end a turn with
+> "merge this branch to `main`" or "click push" addressed to Radu — that is the
+> stranded-branch trap (§12) wearing a different hat. Radu is asked only for
+> **product decisions** (a `human`-status row, an open question with a stated
+> default); the mechanics of landing text are always ours. This is standing
+> permission to push docs/`status/**` to `main` from any session.
 
 ## 0. Filled-in tokens (the once-and-done decisions)
 
@@ -87,16 +99,34 @@ free — lane count has no cost implication.
 
 | Lane | Branch | Owns |
 |---|---|---|
-| Backend | `main` | `backend/src/**`, `backend/migrations/**` (except `005_vocab_seed.sql`), `backend/test/**` |
+| Backend | `main` | `backend/src/**`, `backend/migrations/**` (except `005_vocab_seed.sql`), `backend/test/**`, `extension/**` (see below) |
 | Data extract + validate | `main` | `ops/**`, `backend/migrations/005_vocab_seed.sql`, `backend/src/lib/{normalize,fuzzy,vocab,fx,deterministic,prompts}.js` |
 | iOS shell | `ios-staging` | `ios/MyCoffee/Sources/{App,Store,API,Models,Query,Utilities}/**` |
 | iOS UX | `ios-staging` | `ios/MyCoffee/Sources/{Features,DesignSystem}/**`, `ios/MyCoffee/Resources/**` |
 | Publish | `main` | `match_version.txt`, `.github/workflows/**` (match storage is the private repo) |
 
 - **Shared:** root docs (`CLAUDE.md`, `BUILD_STATUS.md`, `PLAN.md`) — claim first.
+- **`extension/**` (the browser extension, #159–#162) is Backend-lane owned** — decided
+  2026-09-09. It was first filed to a lane called `ext`, which matches no cron, so the
+  row would have sat `ready` forever (the trap #27 and #136 both named). Backend owns
+  the API the extension consumes and actually fires. Give it its own lane + cron only if
+  it outgrows that.
+- **Changing `extension/**`? BUMP `extension/manifest.json`'s `version`.** The extension
+  auto-updates by comparing its running version against the manifest on `main`
+  (`extension/update.js`), so a change shipped without a version bump reaches nobody —
+  it sits on disk while every installed copy keeps running the old code and reports
+  itself up to date. Bump the patch digit for a fix, the minor for a feature.
 - The two iOS lanes share `ios-staging` but own **disjoint directories**, so git
   merges them cleanly. Their only seam is the `CoffeeStore` / `CoffeeIndex` API
   surface — shell publishes it, UX consumes it; changing it needs a claim in both.
+- **Seam rule, compile-coupled case (2026-09-09).** When a shell-owned enum
+  (`FilterDimension`, `FacetKey`, `SortOption`, …) gains a case, UX-owned
+  exhaustive `switch`es stop compiling. That is **not** a reason to leave the
+  row `ready` and stop (it stalled #113/#137 on 2026-09-09). The ios-shell lane
+  adds the *minimal* new arms in the UX files in the same commit — plain label,
+  no styling — records it as a seam edit under `## Claimed` in **both** lane
+  files, and the UX lane restyles in its own row. A red compile is never the
+  right outcome of a lane boundary; a green plain-label one is.
 
 ## 5. dev/ship split
 
@@ -112,7 +142,7 @@ free — lane count has no cost implication.
    Check for an in-flight `ios-testflight` run first — the concurrency group is
    serial with `cancel-in-progress: false`, so a publish queues behind a compile.
    Fix any red ship the same session.
-4. **Backend lane** — Mon + Thu (§10): pick a ready item, ship to `main`, verify
+4. **Backend lane** — Mon/Wed/Fri while the queue is long, else Mon + Thu (§10): pick a ready item, ship to `main`, verify
    with a live curl. `railway-deploy.yml` deploys it.
 5. **Data lane** — owns the extraction batch. It writes production Postgres, so it
    coordinates with Backend on migrations (see §12).
@@ -182,12 +212,20 @@ non-colliding days — two macOS runners never fire simultaneously.
 | Routine | Cron | Cadence |
 |---|---|---|
 | Ingest drain (extract + OCR, merged) | `13 8 * * *` | daily |
-| Backend lane | `23 7 * * 1,4` | Mon + Thu |
+| Backend lane | `23 7 * * 1,3,5` | Mon/Wed/Fri — **raised from Mon + Thu on 2026-09-09 (Radu, #183)** while >5 backend rows are `ready`; revert to `23 7 * * 1,4` when the queue is under 5 |
 | Data extract + validate lane | `37 1 * * 1` | Mon |
 | iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
 | iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
 | Publish lane | `0 20 * * 4,0` | Thu + Sun |
+| Roaster logo intake sweep | `0 8 * * 2,5` | Tue + Fri — **paused by Radu 2026-09-08** (content intake for #133; re-enable when new logos land) |
+| Stranded-branch check (GitHub Actions, not a CCR routine) | `41 5 * * *` | daily — `status/check-stranded.sh` |
 | ~~Compile check lane~~ | — | **deleted** — replaced by the `ios-staging` push trigger |
+
+> **Gate reads `origin/main` (2026-09-09).** Every lane's step-0 grep runs against
+> `git show origin/main:status/BACKLOG.md`, not the working branch's copy. The
+> `ios-staging` copy lags every row filed on `main` and that lag silently stalled
+> both iOS lanes for a week (six firings, zero claims, 2026-08-31 → 09-06). Fixed
+> in the two iOS routine prompts and `status/README.md` step 0.
 
 ### Why this shape (the 2026-08-27 audit)
 
@@ -337,6 +375,29 @@ into a runner. But three things change, and two of them are footguns:
   so CI never sees it). A real 1024² RGB no-alpha kettle icon has been in place since
   2026-08-13. The *shape* of that trap still applies to anything ASC validates
   asynchronously: a green publish run is an upload receipt, not an acceptance.
+- **A country (or roaster/farm) added without an ALIAS row is invisible to extraction.**
+  `findAliasMentions` scans `country_aliases` only — a country's own name is *not*
+  implicitly an alias, so a `countries` INSERT with no matching `country_aliases`
+  row can never be matched from text. `005_vocab_seed.sql` knew this and seeded a
+  self-alias for every country ('Ethiopia' → 'ethiopia'); **every later migration
+  that added a country forgot** — Cameroon (018), Hong Kong (021), Japan (023) and
+  Greece (024) were all silently unmatchable until 034 repaired them, and it is why
+  backlog #165's Congo report existed at all. It fails silently: the field just
+  comes back blank, and nothing logs. **Adding a country? Add its aliases in the
+  same migration** (self-alias plus any abbreviation or Romanian spelling), and
+  copy 034's trailing self-heal statement, which repairs the whole class from the
+  schema rather than a hardcoded list.
+- **The API response is a PUBLIC CONTRACT with the browser extension — add fields,
+  never rename or remove them.** The backend redeploys on every push to `main`; an
+  extension sitting in someone's browser does not. #188 renamed
+  `components.roastRecency` → `components.roast` in `/api/score`, and the moment that
+  deployed, **every installed copy broke**: the roast chip fell back to a bare
+  unlabelled date and the Freshness bar vanished. Nothing errored — a missing key is
+  just `undefined` — and fixing the popup in the repo did nothing for the build
+  actually running. `roastRecency` is now kept as a deprecated alias; retire one only
+  when no install can still be reading it. A test in `backend/test/extension-history.test.js`
+  asserts the popup reads no component key the route sends, and it checks the
+  **route's** output, not the scorer's, because the reshape is where drift happens.
 - **`PHAsset` cannot read Photos titles/captions/descriptions** — they live in the
   Photos database, not the asset. Ingestion is `osxphotos` on the Mac; nothing in
   the plan depends on PhotoKit.
@@ -361,7 +422,13 @@ into a runner. But three things change, and two of them are footguns:
   claiming, adopt it instead of redoing it, and treat a row as `done` only once it's on
   the shared branch. If lanes keep producing orphan branches, add a small integration
   routine (or a human step) that merges completed `claude/*` lane branches to
-  `main`/`ios-staging` on a schedule.
+  `main`/`ios-staging` on a schedule. **That routine now exists** (2026-09-09): a daily
+  `.github/workflows/stranded-branches.yml` runs `status/check-stranded.sh` and goes red
+  on any `claude/*` branch holding commits that reached neither shared branch. The audit
+  that prompted it found **19** such branches — two with genuinely lost work (the
+  browser-extension spec Radu locked five days earlier, and the entire Brew lab spec) and
+  one 407-line iOS surface that had been built twice. Run the script before you claim;
+  see `status/README.md` and backlog #164.
 - **`match` archive signing: derive the team from the installed profile, not the
   `DEVELOPMENT_TEAM` secret.** Root cause of publish runs #8–#12: the profile was
   installed, valid and correctly named, yet `xcodebuild archive` failed with "No

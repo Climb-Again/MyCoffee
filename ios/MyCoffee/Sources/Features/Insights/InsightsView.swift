@@ -315,6 +315,9 @@ struct InsightsView: View {
                 CategoryPieChart(
                     title: chartsDimension.title,
                     slices: pieSlices(for: chartsDimension, facets: facets),
+                    // #135: the roaster-country pie counts distinct roasters,
+                    // not coffees — every other dimension stays coffee-count.
+                    valueLabel: chartsDimension == .roasterCountry ? "Roasters" : "Coffees",
                     onSelect: { key in selectInCoffees(dimension: chartsDimension, key: key) }
                 )
             }
@@ -326,6 +329,14 @@ struct InsightsView: View {
     /// be re-averaged without their rated counts, and a wrong number is worse
     /// than none.
     private func pieSlices(for dimension: FilterDimension, facets: FacetCounts) -> [PieSlice] {
+        // #135 (Radu, 2026-09-06): "count unique roasters per country here,
+        // not all coffees of roaster country" — every other dimension's pie
+        // legitimately stays coffee-count via `facets`, so this is the one
+        // special case, computed directly from the windowed coffees rather
+        // than through the generic (coffee-count) facet machinery.
+        if dimension == .roasterCountry {
+            return roasterCountryPieSlices(from: windowedCoffees)
+        }
         let entries = facets[dimension]
             .filter { $0.count > 0 }
             .sorted { $0.count > $1.count }
@@ -339,6 +350,48 @@ struct InsightsView: View {
             )
         }
         let overflow = entries.dropFirst(maxSlices).reduce(0) { $0 + $1.count }
+        if overflow > 0 { slices.append(PieSlice(label: "Other", count: overflow, key: nil, averageRating: nil)) }
+        return slices
+    }
+
+    /// #135: one bucket per roaster country, `count` = **distinct `roasterId`s**
+    /// among `coffees` whose roaster is based there (not the coffee count).
+    /// The ★ average stays coffee-weighted — Radu hasn't said whether it
+    /// should become an average-over-roasters instead (flagged in the row),
+    /// so this keeps today's semantics rather than guessing. No shell change
+    /// needed: `Coffee.roasterId`/`roasterCountryId` are already on every
+    /// synced row, so this reads the same `windowedCoffees` the rest of the
+    /// Charts section already groups locally.
+    private func roasterCountryPieSlices(from coffees: [Coffee]) -> [PieSlice] {
+        struct Bucket {
+            var roasterIDs: Set<Int> = []
+            var ratingSum: Double = 0
+            var ratingCount: Int = 0
+        }
+        var buckets: [Int: Bucket] = [:]
+        for coffee in coffees {
+            guard let countryId = coffee.roasterCountryId, let roasterId = coffee.roasterId else { continue }
+            buckets[countryId, default: Bucket()].roasterIDs.insert(roasterId)
+            if let rating = coffee.rating {
+                buckets[countryId, default: Bucket()].ratingSum += rating
+                buckets[countryId, default: Bucket()].ratingCount += 1
+            }
+        }
+
+        let maxSlices = 8
+        let ranked = buckets.sorted { $0.value.roasterIDs.count > $1.value.roasterIDs.count }
+        var slices = ranked.prefix(maxSlices).map { countryId, bucket -> PieSlice in
+            let average = bucket.ratingCount > 0 ? bucket.ratingSum / Double(bucket.ratingCount) : nil
+            return PieSlice(
+                label: vocabulary.countries[countryId]?.name ?? "Unknown",
+                count: bucket.roasterIDs.count,
+                key: .vocabID(countryId),
+                averageRating: average
+            )
+        }
+        // Every roaster belongs to exactly one country, so summing the
+        // dropped buckets' distinct counts double-counts no one.
+        let overflow = ranked.dropFirst(maxSlices).reduce(0) { $0 + $1.value.roasterIDs.count }
         if overflow > 0 { slices.append(PieSlice(label: "Other", count: overflow, key: nil, averageRating: nil)) }
         return slices
     }

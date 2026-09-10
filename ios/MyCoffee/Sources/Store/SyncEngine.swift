@@ -213,6 +213,13 @@ actor SyncEngine {
         return ExtractedDraft(dto: try await client.extractDraft(photoIds: photoIds))
     }
 
+    /// Scores a not-yet-owned bag against the rated corpus (#106/#136) — a
+    /// stateless read, same as `extractDraft`.
+    func evaluateCoffee(photoIds: [String], client: APIClient?) async throws -> EvaluateResult {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        return EvaluateResult(dto: try await client.evaluateCoffee(photoIds: photoIds))
+    }
+
     /// Persists the wizard's confirmed fields as a brand-new coffee (#75/#76),
     /// then merges it into the index the same way `editField` does — a fresh
     /// `loadDetail` fetch, so any backend-derived side effect (e.g. a resolved

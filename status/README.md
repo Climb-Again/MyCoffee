@@ -20,9 +20,18 @@ each of which had first read `BACKLOG.md` (153 KB), the lane file (up to 237 KB)
 nothing to do. So, before reading anything:
 
 ```bash
-git pull --rebase -q
-grep -nE '^\| *[0-9]+ *\| *<your-lane> *\|' status/BACKLOG.md | grep -E '\| *ready *\|'
+git fetch -q origin main
+git show origin/main:status/BACKLOG.md | grep -nE '^\| *[0-9]+ *\| *<your-lane> *\|' | grep -E '\| *ready *\|'
 ```
+
+**Read `origin/main`'s copy, not your branch's.** `main` is the backlog's single
+source of truth, and the `ios-staging` copy lags every row filed on `main`. That
+lag stalled both iOS lanes for a week (2026-08-31 → 09-06: six firings, zero
+claims — the 2026-09-06 publish note has the post-mortem) and on 2026-09-09 the
+`ios-staging` copy was missing 11 rows again. The two iOS routines were changed
+on 2026-09-09 to gate on `origin/main`; if you edit a lane prompt, keep it so.
+When the grep prints a row, merge `origin/main` into your working branch before
+claiming, so the row you claim is in the file you edit.
 
 - **No output → STOP.** Do not read `PLAN.md`, `CLAUDE.md`, or your lane file.
   Do not commit a "session check" note — those 35 commits were pure noise.
@@ -75,6 +84,29 @@ moved — "firing runs with no output." Two hard rules follow:
 
 Corollary: **`done` in the backlog means "on the shared branch."** A row whose work
 only exists on a `claude/*` branch is still `blocked`/`claimed`, never `done`.
+
+### This is now enforced, not remembered
+
+Rule 1 above was already written when the 2026-09-09 audit found **19** stranded
+branches — so relying on each session to run `git branch -r` by hand did not work.
+`status/check-stranded.sh` now does it, and `.github/workflows/stranded-branches.yml`
+runs it **daily**: any `claude/*` branch holding commits that are on neither `main` nor
+`ios-staging`, and untouched for 3+ days, turns the check red.
+
+```bash
+bash status/check-stranded.sh     # run it before you claim, it takes a second
+```
+
+What that audit cost, and why the check exists: the browser-extension spec Radu locked
+on 2026-09-04 sat unmerged for five days while a replacement was written from scratch
+(recovered as #159–#162); the Brew lab spec — `PLAN.md` §14, 399 lines — had never
+landed at all (recovered as #155–#158); and #76's Add Coffee wizard shell surface, 407
+lines, was **built twice**. Full write-up in `status/BACKLOG.md` #164.
+
+Branches already audited are listed in `status/stranded-ok.txt` and skipped, so the
+check is green today and goes red on the *next* orphan. When it does, do one of three
+things — merge it, port it, or add it to that file with a reason. **Dismissing without
+reading the commits is how work gets lost; merging is always better than dismissing.**
 
 ## Lanes
 

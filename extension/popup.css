@@ -1,0 +1,602 @@
+/* Matches the app's accent (#0078ff, backlog #83) so the extension and the
+   phone read as one product. Light and dark both handled — a browser popup
+   inherits the OS theme and a white slab at night is jarring. */
+:root {
+  --accent: #0078ff;
+  --bg: #ffffff;
+  --surface: #f6f7f9;
+  --ink: #16181d;
+  --ink-dim: #605d5d;
+  --line: #e6e8ec;
+  --good: #1a9d5a;
+  --warn: #b26a00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17191d;
+    --surface: #212429;
+    --ink: #f2f3f5;
+    --ink-dim: #a2a6ad;
+    --line: #2e323a;
+    --good: #3fbf7f;
+    --warn: #e0a04a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  padding: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    14px/1.45 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- loading --- */
+#loading {
+  align-items: center;
+  padding: 28px 0;
+  color: var(--ink-dim);
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* --- headline --- */
+.headline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score {
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.score.suppressed {
+  color: var(--ink-dim);
+  font-size: 34px;
+}
+
+.score-label {
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.explanation {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* --- component bars. #106 requires the components carry equal visual weight
+   with the headline: the number is the hook, these are what is defensible. --- */
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: 10px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.bar-name {
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+
+.bar-track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.bar-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.bar-val.none {
+  color: var(--ink-dim);
+  font-weight: 400;
+}
+
+/* --- extracted fields --- */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.chip.new {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.missing {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border-left: 3px solid var(--warn);
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+/* --- chrome --- */
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+
+.btn.small {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.err-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.err-body {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+/* --- #161: "you already own this one" + the enrich diff --- */
+.owned {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.owned-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.owned-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--good);
+}
+
+.owned-tag.maybe {
+  color: var(--warn);
+}
+
+.owned-meta {
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.owned-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.owned-why {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.enrich {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.enrich-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.enrich-row {
+  display: grid;
+  grid-template-columns: 68px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.enrich-label {
+  color: var(--ink-dim);
+}
+
+.enrich-value {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.enrich-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.enrich-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.enrich-btn.done {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.enrich-btn.failed {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.enrich-note {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+/* --- #187: browsing history, laid out like the app's listing row ---
+   CoffeeRowView's anatomy: photo · uppercase roaster / heavy one-line title /
+   origin line · a right column of numbers. The fit score takes the rating's
+   slot, since that is the number the extension knows. */
+body {
+  width: 380px;
+}
+
+.history {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.history-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+}
+
+.history-caret {
+  color: var(--ink-dim);
+  font-size: 10px;
+  width: 10px;
+}
+
+.history-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.history-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* One row = the app's row. 12px gutter, top-aligned columns, fixed height so
+   the list does not go ragged (CoffeeRowView §6). */
+.hrow {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.hrow:first-child {
+  border-top: 0;
+}
+
+.hthumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface);
+  display: block;
+}
+
+.hthumb-empty {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.hmid {
+  min-width: 0;
+}
+
+.hroaster {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.htitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.htitle:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.horigin {
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.howned {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--good);
+}
+
+.hright {
+  text-align: right;
+  min-width: 64px;
+}
+
+.hscore {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.hscore.high {
+  color: var(--accent);
+}
+
+.hprice {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+
+.hpills {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  margin-top: 3px;
+}
+
+.hpill {
+  width: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.hpill.on {
+  background: var(--accent);
+}
+
+/* Evaluator note, collapsed by default — ten of these open at once is a wall
+   of text in a 380px popup. */
+.hnote-toggle {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.hnote {
+  grid-column: 2 / -1;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+
+.history-empty {
+  font-size: 12px;
+  color: var(--ink-dim);
+  padding: 6px 0;
+}
+
+.history-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+
+/* #188: roast age (colour-coded) + when the page was visited. */
+.hmeta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 2px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hroast {
+  font-weight: 700;
+}
+
+.hseen {
+  color: var(--ink-dim);
+}

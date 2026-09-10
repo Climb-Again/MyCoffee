@@ -219,6 +219,13 @@ final class CoffeeStore: ObservableObject {
         try await repository.extractDraft(photoIds: photoIds)
     }
 
+    /// "Evaluate this coffee" (#106/#136) — scores a bag Radu doesn't own yet
+    /// against the rated corpus. Ephemeral like `extractWizardDraft`: nothing
+    /// here is persisted or merged into `index`.
+    func evaluateCoffee(photoIds: [String]) async throws -> EvaluateResult {
+        try await repository.evaluateCoffee(photoIds: photoIds)
+    }
+
     /// Persists the wizard's confirmed fields as a brand-new coffee (#75/#76)
     /// and merges it into the index — same shape as `editField`: a full
     /// refresh first (fresh vocab, and the new coffee's own compact row),

@@ -454,3 +454,91 @@ test('parseAltitude and parseWeight already reject their degenerate ends', () =>
   assert.equal(parseWeight('0g'), null);
   assert.equal(parseWeight('250g')?.grams, 250);
 });
+
+// ---- #184: a date is not an altitude, and never outranks a real one ----
+//
+// Found 2026-09-09 when the extension's enrich diff offered "9-2026 masl" for
+// a Congo bag. The range pattern made its unit OPTIONAL and ran first, so
+// `2026-09-01` parsed as a 9-2026 m range — and beat an explicit `1750 masl`
+// on the same page purely by appearing earlier in the string.
+
+test('parseAltitude: an ISO date is not an altitude', () => {
+  assert.equal(parseAltitude('Roasted on: 2026-09-01'), null);
+  assert.equal(parseAltitude('2026-09-01'), null);
+  assert.equal(parseAltitude('01-09-2026'), null);
+});
+
+test('parseAltitude: a unit-anchored value beats a date anywhere in the text', () => {
+  // The date comes FIRST here, which is exactly what used to lose.
+  const r = parseAltitude('Roasted on: 2026-09-01\nAltitude: 1750 masl');
+  assert.equal(r.min, 1750);
+  assert.equal(r.max, 1750);
+  assert.equal(r.needsReview, false);
+});
+
+test('parseAltitude: an anchored range beats a bare numeric pair earlier in the text', () => {
+  const r = parseAltitude('Lot 12-34, grown at 1500-1800 masl');
+  assert.deepEqual([r.min, r.max], [1500, 1800]);
+});
+
+test('parseAltitude: a bare range is still read when nothing contradicts it', () => {
+  // Plenty of bags write it without a unit; this must keep working.
+  assert.deepEqual(
+    (({ min, max }) => ({ min, max }))(parseAltitude('1500-1800')),
+    { min: 1500, max: 1800 },
+  );
+});
+
+test('parseAltitude: scanning continues past a date to find a real bare range', () => {
+  const r = parseAltitude('Roasted 2026-09-01, grown 1500-1800');
+  assert.deepEqual([r.min, r.max], [1500, 1800]);
+});
+
+test('parseAltitude: an unanchored endpoint under 100 m is rejected as date-shaped', () => {
+  // Coffee is never grown below 100 m, so this costs no real data and is what
+  // kills 2026-09 / 09-2026 / 01-09.
+  assert.equal(parseAltitude('9-2026'), null);
+  assert.equal(parseAltitude('2026-09'), null);
+});
+
+// ---- #185: ISO currency codes, and feet is not forints ----
+//
+// JSON-LD's `Product.offers.priceCurrency` is an ISO code by specification and
+// is the first thing the browser extension reads, so codes the table did not
+// know silently dropped the whole value half of the score.
+
+test('parsePrice: ISO codes are recognised, not just symbols', () => {
+  const expected = {
+    '103 RON': 'RON', '200 CZK': 'CZK', '80 PLN': 'PLN', '3500 HUF': 'HUF',
+    '250 SEK': 'SEK', '250 NOK': 'NOK', '250 DKK': 'DKK',
+    '18.5 EUR': 'EUR', '20 USD': 'USD', '15 GBP': 'GBP', '25 CHF': 'CHF',
+  };
+  for (const [text, currency] of Object.entries(expected)) {
+    assert.equal(parsePrice(text)?.currency, currency, `${text} should be ${currency}`);
+  }
+});
+
+test('parsePrice: the symbol forms still work', () => {
+  const expected = { '103 lei': 'RON', '200 kč': 'CZK', '80 zł': 'PLN', '€18': 'EUR', '$20': 'USD', '£15': 'GBP' };
+  for (const [text, currency] of Object.entries(expected)) {
+    assert.equal(parsePrice(text)?.currency, currency, `${text} should be ${currency}`);
+  }
+});
+
+test('parsePrice: an altitude in FEET is not a price in forints', () => {
+  // `ft` was the HUF marker under /i, so `parsePrice('1500 ft')` returned
+  // 1500 HUF. Hungarian capitalises the forint; feet does not.
+  // parsePrice still reports the bare amount (that is its contract); what
+  // matters is that no CURRENCY is invented, because canonicalize() drops a
+  // price with no currency and so the feet never become money.
+  assert.equal(parsePrice('1500 ft')?.currency ?? null, null);
+  assert.equal(parsePrice('grown at 1500 ft')?.currency ?? null, null);
+  assert.equal(parsePrice('3500 Ft')?.currency, 'HUF');
+  assert.equal(parsePrice('3500 FT')?.currency, 'HUF');
+});
+
+test('parsePrice: an unknown currency still declines rather than guessing', () => {
+  // Load-bearing: resolveField assumes RON for a bare amount, so a currency
+  // that slipped through as null would be written as RON.
+  assert.equal(parsePrice('200 XYZ')?.currency ?? null, null);
+});

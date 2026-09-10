@@ -64,6 +64,12 @@ actor SampleCoffeeRepository: CoffeeRepository {
         throw APIClient.APIError.notConfigured
     }
 
+    // No live backend to evaluate against in previews — same reasoning as
+    // `extractDraft`.
+    func evaluateCoffee(photoIds: [String]) async throws -> EvaluateResult {
+        throw APIClient.APIError.notConfigured
+    }
+
     func createCoffee(photoIds: [String], fields: [CoffeeFieldEdit]) async throws -> Coffee {
         throw APIClient.APIError.notConfigured
     }

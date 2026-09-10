@@ -106,6 +106,10 @@ struct PieSlice: Identifiable {
 struct CategoryPieChart: View {
     let title: String
     let slices: [PieSlice]
+    /// The Swift Charts semantic name for the plotted value (VoiceOver reads
+    /// it as "\(valueLabel), \(count)") — "Coffees" for every dimension
+    /// except #135's roaster-country pie, which plots distinct roasters.
+    var valueLabel: String = "Coffees"
     var onSelect: ((FacetKey) -> Void)?
 
     private struct ColoredSlice: Identifiable {
@@ -131,7 +135,7 @@ struct CategoryPieChart: View {
             } else {
                 Chart(coloredSlices) { item in
                     SectorMark(
-                        angle: .value("Coffees", item.slice.count),
+                        angle: .value(valueLabel, item.slice.count),
                         innerRadius: .ratio(0.55),
                         angularInset: 1.5
                     )

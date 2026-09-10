@@ -127,11 +127,25 @@ export async function resolveField(photoId, field, rawValue, ctx) {
   let value = rawValue;
   if (STRUCTURED_FIELDS.has(field)) {
     let canonical = canonicalize(field, value, ctx);
-    if (!canonical && VOCAB_GET_OR_CREATE[field]) {
-      // A human explicitly accepting/entering this name IS the confirmation
-      // (PLAN.md §11 #36) -- get-or-create instead of 422ing. Countries have
-      // no entry in VOCAB_GET_OR_CREATE, so an unknown country still 422s.
-      const newId = await getOrCreateVocabEntry(field, String(value));
+    // A human explicitly accepting/entering this name IS the confirmation
+    // (PLAN.md §11 #36) -- get-or-create instead of 422ing. Countries have no
+    // entry in VOCAB_GET_OR_CREATE, so an unknown country still 422s.
+    //
+    // Test `canonical?.id == null`, NOT `!canonical`: two different shapes
+    // reach here for an unresolved name. `roaster_id` returns null outright,
+    // but `origin_farm_id` returns a TRUTHY carrier `{id: null, name}` --
+    // deliberately, so voters proposing the same new farm still cluster
+    // (adjudicate.js's farm branch). The old `!canonical` test therefore never
+    // fired for farms, which are the ONLY 0-seeded vocab and so the only field
+    // that routinely needs this: the edit wrote a human-locked resolution whose
+    // id was null, `applyResolutionsToCoffee` stored `origin_farm_id = NULL`,
+    // and the farm the human typed vanished with a 200 OK. The batch path never
+    // hit it because the adjudicator routes new farm names through
+    // `createPendingVocabEntries` (worker.js) instead. Found 2026-09-09 setting
+    // the Sopacdi farm on #165's Congo coffee -- the edit reported success and
+    // changed nothing.
+    if (VOCAB_GET_OR_CREATE[field] && canonical?.id == null) {
+      const newId = await getOrCreateVocabEntry(field, String(canonical?.name ?? value));
       if (newId != null) canonical = { id: newId, confidenceFactor: 1 };
     }
     // Bare human-entered price with no currency marker -> assume the default

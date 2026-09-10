@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Evaluate this coffee</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="state" id="loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Reading the page…</p>
+      </div>
+
+      <div class="state hidden" id="error">
+        <h1 class="err-title" id="err-title"></h1>
+        <p class="err-body" id="err-body"></p>
+        <button class="btn" id="err-settings" hidden>Open settings</button>
+        <button class="btn ghost" id="err-retry">Try again</button>
+      </div>
+
+      <div class="state hidden" id="result">
+        <!-- #161: when he already owns this coffee, THAT leads — a fit score
+             for a bag already in the library answers the wrong question. -->
+        <section class="owned hidden" id="owned">
+          <div class="owned-head">
+            <span class="owned-tag" id="owned-tag">You have this one</span>
+            <span class="owned-meta" id="owned-meta"></span>
+          </div>
+          <div class="owned-title" id="owned-title"></div>
+          <div class="owned-why" id="owned-why"></div>
+
+          <div class="enrich hidden" id="enrich">
+            <div class="enrich-head" id="enrich-head"></div>
+            <div id="enrich-rows"></div>
+          </div>
+        </section>
+
+        <header>
+          <div class="headline">
+            <div class="score" id="score">—</div>
+            <div class="score-meta">
+              <div class="score-label" id="score-label">fit with what you buy</div>
+              <div class="badge hidden" id="confidence">low confidence</div>
+            </div>
+          </div>
+          <p class="explanation" id="explanation"></p>
+        </header>
+
+        <section class="bars" id="bars"></section>
+
+        <section class="fields" id="fields"></section>
+
+        <p class="missing hidden" id="missing"></p>
+
+        <footer>
+          <span id="cached-note"></span>
+          <button class="btn ghost small" id="settings">Settings</button>
+        </footer>
+      </div>
+
+      <!-- #187: always present, whatever happened to the current page — so
+           the top 10 is reachable from any tab, not only a coffee one. -->
+      <section class="history hidden" id="history">
+        <button class="history-head" id="history-toggle" aria-expanded="false" aria-controls="history-list">
+          <span class="history-caret" id="history-caret">▸</span>
+          <span class="history-title">Top coffees</span>
+          <span class="history-meta" id="history-meta"></span>
+        </button>
+        <div class="history-list hidden" id="history-list"></div>
+      </section>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

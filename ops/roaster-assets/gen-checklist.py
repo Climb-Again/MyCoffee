@@ -75,23 +75,61 @@ def main():
     counts = collections.Counter(
         c["roasterId"] for c in coffees if c.get("roasterId") is not None
     )
+    # average rating per roaster (over coffees that carry a rating)
+    rating_sum = collections.defaultdict(float)
+    rating_n = collections.Counter()
+    for c in coffees:
+        rid = c.get("roasterId")
+        rat = c.get("rating")
+        if rid is None or rat is None:
+            continue
+        try:
+            rat = float(rat)  # NUMERIC can arrive as a JSON string
+        except (TypeError, ValueError):
+            continue
+        rating_sum[rid] += rat
+        rating_n[rid] += 1
     blurb_slugs = load_blurb_slugs()
 
-    rows = [
-        (
-            r["name"],
-            r["slug"],
-            countries.get(r.get("country_id"), "") or "",
-            counts.get(r["id"], 0),
-            "✅" if have_logo(r["slug"]) else "☐",
-            "✅" if r["slug"] in blurb_slugs else "☐",
+    rows = []
+    for r in roasters:
+        rid = r["id"]
+        avg = (rating_sum[rid] / rating_n[rid]) if rating_n[rid] else None
+        rows.append(
+            {
+                "name": r["name"],
+                "slug": r["slug"],
+                "country": countries.get(r.get("country_id"), "") or "",
+                "n": counts.get(rid, 0),
+                "avg": avg,
+                "logo": have_logo(r["slug"]),
+                "blurb": r["slug"] in blurb_slugs,
+            }
         )
-        for r in roasters
-    ]
-    rows.sort(key=lambda x: (-x[3], x[0].lower()))
-    used = [r for r in rows if r[3] > 0]
-    unused = [r for r in rows if r[3] == 0]
 
+    used = [r for r in rows if r["n"] > 0]
+    unused = [r for r in rows if r["n"] == 0]
+
+    # In-library worklist order: incomplete first (missing logo OR blurb), then by
+    # rating desc (unrated last), then by coffee count desc — so content lands on
+    # the best-rated coffees first.
+    def rank(r):
+        complete = r["logo"] and r["blurb"]
+        return (complete, -(r["avg"] if r["avg"] is not None else -1), -r["n"])
+
+    used.sort(key=rank)
+    unused.sort(key=lambda r: r["name"].lower())
+
+    def cell(r):
+        lg = "✅" if r["logo"] else "☐"
+        bl = "✅" if r["blurb"] else "☐"
+        avg = f"{r['avg']:.1f}" if r["avg"] is not None else "—"
+        return (
+            f"| {lg} | {bl} | {esc(r['name'])} | `{r['slug']}` | "
+            f"{esc(r['country'])} | {r['n']} | {avg} |"
+        )
+
+    done_ct = sum(1 for r in used if r["logo"] and r["blurb"])
     out = []
     w = out.append
     w("# Roaster content checklist — logos + blurbs")
@@ -109,22 +147,34 @@ def main():
     )
     w("")
     w("- **Logo** / **Blurb**: ☐ = missing, ✅ = provided.")
+    w(
+        "- **★avg** = average rating across that roaster's rated coffees "
+        "(— = none rated yet)."
+    )
+    w(
+        "- Sorted **incomplete first** (still missing a logo or blurb), then by "
+        "**★avg descending** — so the top rows are the highest-rated coffees still "
+        "needing content."
+    )
     w("")
-    w(f"## In your library ({len(used)} roasters, by # coffees)")
+    w(
+        f"## In your library ({len(used)} roasters — {done_ct} complete, "
+        f"{len(used) - done_ct} still need content)"
+    )
     w("")
-    w("| Logo | Blurb | Roaster | slug | Country | Coffees |")
-    w("|---|---|---|---|---|---|")
-    for name, slug, country, n, lg, bl in used:
-        w(f"| {lg} | {bl} | {esc(name)} | `{slug}` | {esc(country)} | {n} |")
+    w("| Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |")
+    w("|---|---|---|---|---|---|---|")
+    for r in used:
+        w(cell(r))
     w("")
     w(
         f"## Seeded but unused — 0 coffees ({len(unused)}) — low priority / test fixtures"
     )
     w("")
-    w("| Logo | Blurb | Roaster | slug | Country | Coffees |")
-    w("|---|---|---|---|---|---|")
-    for name, slug, country, n, lg, bl in unused:
-        w(f"| {lg} | {bl} | {esc(name)} | `{slug}` | {esc(country)} | {n} |")
+    w("| Logo | Blurb | Roaster | slug | Country | Coffees | ★avg |")
+    w("|---|---|---|---|---|---|---|")
+    for r in unused:
+        w(cell(r))
     w("")
 
     with open(os.path.join(HERE, "CHECKLIST.md"), "w") as f:

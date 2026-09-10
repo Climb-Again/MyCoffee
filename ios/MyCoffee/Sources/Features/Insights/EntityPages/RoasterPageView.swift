@@ -1,14 +1,15 @@
 import SwiftUI
 
 /// A roaster's entity page (PLAN.md §6.3, pushback #7: the roaster **name**
-/// row leads here). Pushback #11 flags that a roaster page wants a logo and
-/// a blurb that don't exist in the data yet — `Roaster` (shell-owned,
-/// `Models/Vocab.swift`) has no `blurb` field today, so that section is
-/// simply omitted rather than shipping an empty box; a monogram avatar
-/// stands in for the missing logo.
+/// row leads here). Logo + blurb treatment reworked per `HEADER_UPDATE.md`
+/// §8: the same rounded-square logo tile as the coffee-detail header
+/// (`#142`/`#148`, never a circle, never a monogram fallback — no logo
+/// means no tile), markdown stripped out of the blurb, and the rating in
+/// accent blue rather than orange.
 struct RoasterPageView: View {
     let roasterID: Int
     @EnvironmentObject private var store: CoffeeStore
+    @State private var introExpanded = false
 
     private var vocabulary: Vocabulary { store.index.vocabulary }
     private var roaster: Roaster? { vocabulary.roasters[roasterID] }
@@ -26,11 +27,18 @@ struct RoasterPageView: View {
         return ratings.reduce(0, +) / Double(ratings.count)
     }
 
+    private var parsedBlurb: RoasterBlurbParser.Parsed? {
+        guard let blurb = roaster?.blurb?.trimmingCharacters(in: .whitespacesAndNewlines), !blurb.isEmpty else {
+            return nil
+        }
+        return RoasterBlurbParser.parse(blurb)
+    }
+
     var body: some View {
         List {
             Section {
                 HStack(spacing: 16) {
-                    roasterLogo
+                    RoasterLogoTile(logoUrl: roaster?.logoUrl, size: 86, cornerRadius: 22)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(roaster?.name ?? "Unknown roaster")
                             .font(.title3.weight(.bold))
@@ -51,22 +59,35 @@ struct RoasterPageView: View {
                     if let averageRating {
                         Spacer()
                         Label(String(format: "%.2f", averageRating), systemImage: Symbols.starFill)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.Colors.accent)
                     }
                 }
                 .font(.subheadline)
             }
             .listRowSeparator(.hidden)
 
-            // #134: the roaster blurb, shown only when there is one (an empty
-            // box is worse than nothing — the original omitted this section).
-            if let blurb = roaster?.blurb?.trimmingCharacters(in: .whitespacesAndNewlines), !blurb.isEmpty {
+            // #134/#148: the roaster blurb, markdown stripped, shown only
+            // when there is one (an empty box is worse than nothing).
+            if let parsedBlurb {
                 Section {
-                    Text(blurb)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if !parsedBlurb.intro.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(parsedBlurb.intro)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(introExpanded ? nil : 3)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if !introExpanded {
+                                Button("Read more") { introExpanded = true }
+                                    .font(.caption.weight(.semibold))
+                            }
+                        }
                         .listRowSeparator(.hidden)
+                    }
+                    ForEach(parsedBlurb.bullets) { bullet in
+                        blurbBulletRow(bullet)
+                            .listRowSeparator(.hidden)
+                    }
                 }
             }
 
@@ -85,24 +106,25 @@ struct RoasterPageView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// #134: the roaster's logo, fetched **web-only** (`AsyncImage`, not the
-    /// 30 MB `ImageStore` cache — Radu, 2026-09-07 "do not cache logos"). Falls
-    /// back to the `MonogramAvatar` while loading, on failure, or when the
-    /// roaster has no `logoUrl`.
-    @ViewBuilder private var roasterLogo: some View {
-        let fallback = MonogramAvatar(name: roaster?.name ?? "?")
-        if let urlString = roaster?.logoUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    fallback
-                }
+    /// §5's label/value pattern, one row per bullet — a labelled bullet
+    /// (`- **Label** — text`) becomes a caption+value pair; a plain bullet
+    /// stays a plain line.
+    @ViewBuilder
+    private func blurbBulletRow(_ bullet: RoasterBlurbBullet) -> some View {
+        if let label = bullet.label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label.uppercased())
+                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.Colors.neutral700)
+                Text(bullet.text)
+                    .font(.system(size: 13, weight: Theme.Weight.semibold))
+                    .foregroundStyle(Theme.Colors.text)
             }
-            .frame(width: 56, height: 56)
-            .clipShape(Circle())
         } else {
-            fallback
+            Text(bullet.text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 }
