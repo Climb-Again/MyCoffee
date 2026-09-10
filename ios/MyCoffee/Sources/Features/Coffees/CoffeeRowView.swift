@@ -122,6 +122,13 @@ struct CoffeeRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
 
+            // #131: a just-quick-created coffee has no fields yet — the
+            // background extraction pass hasn't landed — so this is the only
+            // thing distinguishing it from a genuinely-empty row.
+            if coffee.reviewState == "unextracted" {
+                extractingBadge
+            }
+
             if let originLine {
                 HStack(spacing: 4) {
                     // One flag per origin: a blend used to force `nil` here and
@@ -155,6 +162,19 @@ struct CoffeeRowView: View {
         }
     }
 
+    /// Subtle, non-interactive — unlike the review pill on the detail page,
+    /// there's nothing to tap yet: the fields this coffee will get haven't
+    /// been extracted at all.
+    private var extractingBadge: some View {
+        HStack(spacing: 4) {
+            ProgressView()
+                .controlSize(.mini)
+            Text("Extracting…")
+                .font(.system(size: 12, weight: Theme.Weight.semibold))
+        }
+        .foregroundStyle(Theme.Colors.neutral700)
+    }
+
     // MARK: - Right column
 
     private var rightColumn: some View {
@@ -184,9 +204,9 @@ struct CoffeeRowView: View {
                     .padding(.top, 2)
                 if let band = valueRating.band {
                     Text(verdictLabel(band))
-                        .font(.system(size: 10, weight: Theme.Weight.semibold))
+                        .font(.system(size: 10, weight: band == .great ? Theme.Weight.bold : Theme.Weight.semibold))
                         .tracking(0.8)
-                        .foregroundStyle(band.isPositive ? Theme.Colors.accent : Theme.Colors.neutral700)
+                        .foregroundStyle(bandColor(band))
                 }
             }
         }
@@ -194,16 +214,28 @@ struct CoffeeRowView: View {
     }
 
     private func valueMeter(_ rating: ValueRating) -> some View {
-        HStack(spacing: 3) {
+        let tone = bandColor(rating.band)
+        return HStack(spacing: 3) {
             ForEach(0..<5, id: \.self) { pip in
                 RoundedRectangle(cornerRadius: Theme.Radius.pill)
-                    .fill(
-                        pip < rating.pillCount
-                            ? ((rating.band?.isPositive ?? false) ? Theme.Colors.accent : Theme.Colors.neutral700)
-                            : Theme.Colors.neutral300
-                    )
+                    .fill(pip < rating.pillCount ? tone : tone.opacity(0.15))
                     .frame(width: 8, height: 4)
             }
+        }
+    }
+
+    /// One shared depth tone per band (#186, `VALUE_BAND_UPDATE.md`) — the
+    /// lit pills, the unlit track (this colour at 15%) and the verdict text
+    /// all read off this. Verbatim-copied at `CoffeeDetailView.bandColor`
+    /// until #181 dedupes `valueMeter`/`verdictLabel` into one view.
+    private func bandColor(_ band: ValueRating.Band?) -> Color {
+        switch band {
+        case .overpaid: return Theme.Colors.valueOverpaid
+        case .poor: return Theme.Colors.valuePoor
+        case .fair: return Theme.Colors.valueFair
+        case .good: return Theme.Colors.valueGood
+        case .great: return Theme.Colors.valueGreat
+        case nil: return Theme.Colors.neutral700
         }
     }
 

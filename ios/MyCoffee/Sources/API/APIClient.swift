@@ -301,6 +301,20 @@ struct APIClient: Sendable {
         }
     }
 
+    // POST /api/coffees/evaluate — "Evaluate this coffee" (#106/#136): scores
+    // a bag Radu doesn't own yet against the rated corpus. Same request shape
+    // and auth as `extractDraft`; read-only, nothing is written.
+    func evaluateCoffee(photoIds: [String]) async throws -> EvaluateResponseDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["photoIds": photoIds])
+        let req = try makeRequest(path: "/api/coffees/evaluate", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(EvaluateResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // POST /api/coffees — persists the wizard's confirmed fields as a
     // brand-new coffee (#75/#76); every field lands `locked=true`/
     // `decided_by='human'` server-side so the monthly re-extraction backfill

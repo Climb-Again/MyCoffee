@@ -11,6 +11,7 @@ enum Lucide {
     static let circlePlus = "lucide-circle-plus"
     static let barChart3 = "lucide-bar-chart-3"
     static let slidersHorizontal = "lucide-sliders-horizontal"
+    static let listFilter = "lucide-list-filter"
     static let settings = "lucide-settings"
     static let heart = "lucide-heart"
     static let heartFill = "lucide-heart-fill"
