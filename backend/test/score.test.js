@@ -9,6 +9,7 @@
 // there is one scorer to test, not two.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   daysSinceRoast,
   roastRecencyScore,
@@ -330,4 +331,16 @@ test('a suppressed headline stays suppressed regardless of roast date', () => {
   assert.equal(thin.score, null);
   // The roast component is still reported, so the UI can show the chip.
   assert.equal(thin.components.roast.daysSinceRoast, 1);
+});
+
+test('the route must not drop fields the scorer puts on a component', () => {
+  // Twice now a route-level reshape has silently dropped a field the scorer
+  // produced: `roastRecency` -> `roast` (the Freshness bar vanished) and then
+  // novelty's new `score` (#189, the Novelty bar rendered empty). Both were
+  // invisible -- a missing key is just undefined. This asserts the one
+  // reshape /api/score still performs is a SPREAD, not a replacement.
+  const src = readFileSync(new URL('../src/routes/score.js', import.meta.url), 'utf8');
+  const line = src.split('\n').find((l) => /^\s*novelty:/.test(l));
+  assert.ok(line, 'the novelty reshape should still exist');
+  assert.match(line, /\.\.\.evaluation\.components\.novelty/, 'must spread the scorer output, not replace it');
 });

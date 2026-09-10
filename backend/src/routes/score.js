@@ -288,11 +288,16 @@ export default async function scoreRoutes(app) {
       confidence: evaluation.confidence,
       components: {
         ...evaluation.components,
-        // `evaluateCoffee` coerces unknown novelty to false for the blend;
-        // the response keeps the nullable truth so the UI can stay silent
-        // about a field the page never gave us, rather than calling an
-        // unreadable origin "new".
-        novelty: { isNewRoaster, isNewOrigin },
+        // SPREAD, don't replace. `evaluateCoffee` also puts a `score` on
+        // novelty (#189 made it a weighted, directional term), and replacing
+        // the object wholesale silently dropped it -- the popup's Novelty bar
+        // rendered empty while the server was scoring it correctly. Same
+        // class of drift as the `roastRecency` -> `roast` rename.
+        //
+        // The flags are still overridden with the nullable versions: the blend
+        // coerces unknown to false (conservative, #161), but the response must
+        // keep saying "we could not read this" rather than "this is not new".
+        novelty: { ...evaluation.components.novelty, isNewRoaster, isNewOrigin },
       },
       fields: {
         roasterId,
