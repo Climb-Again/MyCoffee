@@ -85,23 +85,35 @@ part that is actually defensible:
 
 | Component | Weight | What it is |
 |---|---|---|
-| **Value** | 0.50 | Asking €/100 g against what you normally pay for bags you rate the same. The only genuinely reliable component. |
-| **Affinity** | 0.35 | Shrunk means for origin / roaster / process / roaster-country, expressed as a percentile within your own library. |
-| **Novelty** | 0.15 | Enters as a fixed neutral 50 — "new" is neither good nor bad — and surfaces as a tag. |
-| **Freshness** | ±10 pts | Roast recency, on top of the blend. See the caveat below. |
+| **Affinity** | 0.45 | Shrunk means for roaster / origin / process / roaster-country, as a percentile within your own library. |
+| **Value** | 0.35 | Asking €/100 g against what you normally pay for bags you rate the same. |
+| **Freshness** | 0.20 | Roast recency — full marks to 14 days, decaying to zero at 180. |
+| **Novelty** | — | Not in the blend; shown as a tag, because "new" is neither good nor bad. |
+
+**Past 40 days a further 10 points come off**, on top of the decay. You'll see
+the drop as a step, not a slope — that's deliberate.
+
+**A page with no roast date is judged on affinity and value alone**, with the
+weights renormalised. It is never penalised for the gap — but a bag you can see
+is fresh will out-score one you can't, which is the point.
 
 **No headline number appears when** the roaster, origin and process are all
 unseen or under ~5 rated bags (`low` confidence), or when the page gave no
 usable price. Both are deliberate: the components are shown and the reason is
 stated rather than a number being invented.
 
-### The freshness caveat
+### Why these weights
 
-Roast recency is the one factor with **no leave-one-out validation** behind it —
-the corpus carries too few roast dates to measure it the way the other four were
-measured. So it is capped at 10 points of a 0–100 score, and a page with no
-roast date is treated as neutral, never penalised. The curve is full marks to 14
-days, then linear decay to zero at 180.
+They are Radu's call, not the corpus's. #106 measured value as the only reliably
+predictive component (affinity lands at r≈0.39), so on the numbers alone value
+should dominate — and until 2026-09-10 it did, at 0.50. He reweighted toward
+roaster, origin, process and roast date because those are what he actually
+shops on. That override is recorded in the code and in backlog #188 so nobody
+"fixes" it back by citing the correlations.
+
+Roast recency is also the one factor with **no leave-one-out validation** behind
+it: the corpus carries too few roast dates to measure it the way the other four
+were measured.
 
 ## Why the price matters more than anything else on the page
 
@@ -181,6 +193,12 @@ Each row is the app's listing row: image · **ROASTER** / title / origin ·
 score, €/100g and the value pills on the right — with the **fit score in the
 rating's slot**, since that's the number this surface knows. **Why?** opens the
 evaluator note. Clicking the title opens the shop page again.
+
+Under each one: **roast age, colour-coded** — green under two weeks, ramping to
+red past 40 days — and **when you looked at it**. Those two belong together,
+because the age shown is the age *at the time of the visit*, matching the score
+that was saved with it. A bag that was 30 days old when you saw it last week is
+a different bag today.
 
 The section and the notes both start collapsed, because ten rows plus the
 current page doesn't fit a popup. Your choice is remembered.
