@@ -62,11 +62,22 @@ struct RoasterLogoTile: View {
             return
         }
         guard let (data, _) = try? await URLSession.shared.data(from: url),
-              let source = UIImage(data: data),
-              let cgImage = source.cgImage
+              let source = UIImage(data: data)
         else { return }
-        let cropped = Self.cropToMark(cgImage)
-        let result = UIImage(cgImage: cropped, scale: source.scale, orientation: source.imageOrientation)
+        // The logos are WebP, and a UIImage decoded from WebP data can have a
+        // nil `cgImage` (its backing isn't always a CGImage). Gating the whole
+        // render on `cgImage` is exactly why every logo drew an empty tile —
+        // "text but no logo" (Radu, 2026-09-10). Crop the leading square only
+        // when the pixels are reachable; otherwise render the decoded image
+        // as-is rather than nothing. `UIImage(cgImage:)` needs a non-nil
+        // CGImage, so build the crop from `source.cgImage`, never force-unwrap.
+        let result: UIImage
+        if let cgImage = source.cgImage {
+            let cropped = Self.cropToMark(cgImage)
+            result = UIImage(cgImage: cropped, scale: source.scale, orientation: source.imageOrientation)
+        } else {
+            result = source
+        }
         await RoasterMarkCache.shared.set(logoUrl, result)
         mark = result
     }
