@@ -206,8 +206,12 @@ ios/
 
 ## 10. Cron schedule (audited + retuned 2026-08-27)
 
-All UTC. MyHealthOS fires at 09:00, so all macOS work here stays at **20:00** on
-non-colliding days — two macOS runners never fire simultaneously.
+All UTC. **Verified against the live routines 2026-09-11** — the publish row
+below used to read `0 20 * * 4,0` here while the routine has actually been
+`0 15 * * 4,0` (15:00). Nothing broke, but every piece of reasoning in this
+file that started "publish is at 20:00" was reasoning about a schedule that
+does not exist, and the 2026-09-10 Thu ship at 15:03 is right there in the run
+log. MyHealthOS fires at 09:00, so no MyCoffee routine shares its hour.
 
 | Routine | Cron | Cadence |
 |---|---|---|
@@ -216,7 +220,7 @@ non-colliding days — two macOS runners never fire simultaneously.
 | Data extract + validate lane | `37 1 * * 1` | Mon |
 | iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
 | iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
-| Publish lane | `0 20 * * 4,0` | Thu + Sun |
+| Publish lane | `0 15 * * 4,0` | Thu + Sun (15:00, **not** 20:00 — corrected 2026-09-11) |
 | Roaster logo intake sweep | `0 8 * * 2,5` | Tue + Fri — **paused by Radu 2026-09-08** (content intake for #133; re-enable when new logos land) |
 | Stranded-branch check (GitHub Actions, not a CCR routine) | `41 5 * * *` | daily — `status/check-stranded.sh` |
 | ~~Compile check lane~~ | — | **deleted** — replaced by the `ios-staging` push trigger |
@@ -275,8 +279,27 @@ and unlimited**. Combined with 90-second runs, the old "batch 2–4 items to mak
 red ship cheap to diagnose" rationale is much weaker: a red compile now costs 90
 free seconds. Batch when it's natural, not out of thrift.
 
-Publish stays at Thu/Sun 20:00 so two macOS runners never fire simultaneously
-with MyHealthOS's 09:00 run.
+Publish stays at Thu/Sun **15:00** (see the correction above), which shares no
+hour with MyHealthOS's 09:00 run.
+
+### The lane→publish window (added 2026-09-11)
+
+A lane firing after the last publish-eligible slot ships **three days late**,
+and nothing in the schedule made that visible. With publish at Thu/Sun 15:00:
+
+| Publish | Last shell session before it | Last UX session before it |
+|---|---|---|
+| Thu 15:00 | Wed 04:17 | Wed 10:47 |
+| Sun 15:00 | Sat 04:17 | Sat 10:47 |
+
+Saturday was **added to both iOS lanes on 2026-09-11** for exactly this reason:
+before that they ran Mon/Wed/Fri, so the Sunday ship's newest possible iOS work
+was Friday 10:47 — a full weekend of nothing — and anything a lane started on
+Friday afternoon waited until Thursday. The same session raised both to
+Mon/Tue/Wed/Thu/Fri/Sat while the ready queue is deep (6 ios-shell + 7 ios-ux
+rows `ready` at the time), mirroring the rule Radu set for the Backend lane in
+**#183**: raise the cadence while more than 5 rows are `ready`, drop back to
+Mon/Wed/Fri when the queue is under 5.
 
 ### Row numbers are unique — enforced, not remembered
 
@@ -303,14 +326,23 @@ world, and the iOS lanes kept waking to a backlog that looked alive.
 `status/BACKLOG.md` change on `main` in the same session:
 
 ```bash
-git checkout main && git pull --rebase
-git checkout ios-staging -- status/BACKLOG.md
-git commit -m "Backlog: sync row statuses from ios-staging" && git push origin main
-git checkout ios-staging
+bash status/sync-backlog-rows.sh 157 158    # the rows you actually flipped
 ```
 
-This is safe: `status/**` matches no workflow path filter, so it deploys nothing
-and builds nothing.
+**Do NOT use `git checkout ios-staging -- status/BACKLOG.md` for this.** That
+was the recipe here until 2026-09-11 and it is a full-file *overwrite*: `main`
+routinely carries rows `ios-staging` has never seen, because the backend and
+data lanes file straight to `main`. On 2026-08-29 it silently deleted #102,
+#103 and #104 and reverted #92 from `done` to `ready` — in the same commit that
+correctly synced three other rows. `status/README.md` carried a warning about
+it; the two iOS routine prompts did not, and the prompt is what a fired session
+actually runs. So it is a script now, not a warning: it touches only the row
+numbers you name, leaves the rest of `main`'s copy byte-identical, refuses to
+push anything `check-backlog.sh` rejects, and regenerates the app's Plan tab
+data in the same commit.
+
+Safe to run from any lane: `status/**` matches no workflow path filter, so it
+deploys nothing and builds nothing.
 
 ## 11. Manual steps still owed by Radu (not doable from the agent)
 

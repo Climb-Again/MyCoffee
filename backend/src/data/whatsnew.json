@@ -54,51 +54,224 @@
       "title": "See what's shipped and what's next, from inside the app",
       "detail": "A Live/Plan screen reachable from Settings — this is that screen, reading its own data straight from the backend.",
       "area": "ios"
+    },
+    {
+      "title": "The coffee page got a real header",
+      "detail": "Bare white photo controls, a roaster logo medallion, fractional star ratings, and a FROM THE ROASTER facts grid instead of a 'Full text' link.",
+      "area": "ios"
+    },
+    {
+      "title": "Roaster pages have logos and readable blurbs",
+      "detail": "64 roasters now carry a logo and a written blurb; the markdown the blurbs arrived in is rendered as label/value rows instead of showing raw asterisks.",
+      "area": "ios"
+    },
+    {
+      "title": "Value reads at a glance",
+      "detail": "The five value outcomes each get their own tone on a near-black to accent-blue ramp, so OVERPAID and GREAT VALUE read apart without counting pills. Rating now outweighs price 65/35 in the score.",
+      "area": "ios"
+    },
+    {
+      "title": "Filter and sort by value",
+      "detail": "Cheap-for-quality is a real filter dimension and a sort order now, plus its own donut in Insights — 'show me only the great-value bags' is one tap.",
+      "area": "ios"
+    },
+    {
+      "title": "Brew lab",
+      "detail": "Log what you brewed each coffee with — recipe, device, grind and water temperature — and crown a winner per kind. The coffee page shows the four winners at a glance; Settings has the catalogue.",
+      "area": "ios"
+    },
+    {
+      "title": "The coffee list starts higher and says what it's filtering",
+      "detail": "Shorter rows, a tighter header, an unmistakably 'on' filter button, and a line telling you which filters are actually applied. Review and chip counts now follow the filter instead of staying library-wide.",
+      "area": "ios"
+    },
+    {
+      "title": "Runs on iPad, and rotates",
+      "detail": "One universal app rather than a second one — it now runs natively on iPad instead of letterboxed, and rotates to landscape on both.",
+      "area": "ios"
+    },
+    {
+      "title": "Add a coffee without waiting",
+      "detail": "The Add Coffee wizard saves and returns immediately; extraction finishes in the background and the coffee shows an 'Extracting…' badge until it does.",
+      "area": "ios"
+    },
+    {
+      "title": "A browser extension that scores a coffee while you shop",
+      "detail": "Open a roaster's product page and get its fit, value and freshness against your own library, plus a ranked history of the last coffees you looked at.",
+      "area": "backend"
+    },
+    {
+      "title": "Bag text is no longer lost",
+      "detail": "Re-running extraction used to wipe the OCR transcription appended to a coffee; it is kept now, and it is searchable.",
+      "area": "backend"
+    },
+    {
+      "title": "Prices and altitudes read correctly",
+      "detail": "Romanian lei, Czech koruna, zloty, forint and the Nordic currencies now parse with their currency attached, and a roast date can no longer be mistaken for an altitude range.",
+      "area": "data"
     }
   ],
   "plan": {
     "byLane": {
-      "backend": [],
-      "data": [],
+      "backend": [
+        {
+          "title": "Retry storm: up to 42 HTTP attempts / ~2.7 h per voter call, 400s retried, 10-min lease not renewed —…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Add Coffee wizard drops a roaster that isn't already in the vocab",
+          "detail": "Queued."
+        },
+        {
+          "title": "Roast-date backfill is incomplete: POST /api/admin/adjudicate does NOT re-run the deterministic rules voter,…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Re-measure what (if anything) a captioned coffee is still missing from its bag photo before doing more —…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Extract the coffee's own product name off the package into a new product_name field",
+          "detail": "Queued."
+        },
+        {
+          "title": "Stop retrying a photo whose OCR keeps coming back illegible — give up after 3 failures",
+          "detail": "Queued."
+        },
+        {
+          "title": "/api/snapshot can never 304 — its ETag changes every second; /api/snapshot/text has no since. (Audit…",
+          "detail": "Queued."
+        },
+        {
+          "title": "POST /api/admin/jobs/:id/resume silently turns a text-only job into an images-on job with a fresh limit.…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Daily ingest drain: expose a pending count and early-exit runWorker when it is 0. (Audit 2026-09-09; the…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Multi-field edit / wizard save can 422 half-way and leave locked human resolutions the coffee row never…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Apply the same rating-over-price reweight to the evaluator's value scoring — match #139",
+          "detail": "Queued."
+        },
+        {
+          "title": "Roaster content WRITE path — let the app submit a blurb + logo for a roaster (enables the in-app \"missing…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Backend hygiene batch (Audit 2026-09-09) — all S, ship together",
+          "detail": "Queued."
+        },
+        {
+          "title": "CI never runs a single route handler body: make the backend test job exercise real success paths. (Audit…",
+          "detail": "Queued."
+        }
+      ],
+      "data": [
+        {
+          "title": "Normalise honey processing to Washed, and show the detail in brackets on the coffee page",
+          "detail": "Queued."
+        },
+        {
+          "title": "ops/start-extraction-batch.sh exits 0 without POSTing when pending is 0, and the ingest routine says so in…",
+          "detail": "Queued behind earlier work."
+        }
+      ],
       "ios": [
         {
-          "title": "Tap a chart or finding to jump to the filtered list",
-          "detail": "Tapping an Insights legend, a 'what tends to score well' finding, or a data-quality row should deep-link into the Coffees list already filtered to that value."
+          "title": "Brew lab — coffee-page section + BrewLabSheet + Settings catalogue (the feature Radu asked for; PLAN.md §14)",
+          "detail": "Queued."
         },
         {
-          "title": "Add a time window to the coffee list filter",
-          "detail": "The Insights charts already have an All/12m/18m/by-year control; the Coffees list filter should get the same one, and carry it through when you tap into a chart."
+          "title": "Brew lab — filter-sheet group + Insights \"Brew winners\" card (optional follow-on; PLAN.md §14)",
+          "detail": "Queued behind earlier work."
         },
         {
-          "title": "Make the review photo actually zoom",
-          "detail": "The zoom icon, tap, and pinch on the Review screen's photo currently do nothing — needs a real full-screen pan/zoom viewer."
+          "title": "Sync hygiene: conditional GETs, one cold-start sync not two, a truly optimistic heart, and refreshed thumb…",
+          "detail": "Queued."
         },
         {
-          "title": "Save each review decision as you make it",
-          "detail": "Accepting or dismissing a review item should save immediately, so quitting partway through doesn't lose the ones you already did."
+          "title": "UNBLOCKED 2026-09-09 (audit): both needs are done (#109 2026-09-07, #112 2026-09-07), and the \"cross-lane…",
+          "detail": "Queued."
         },
         {
-          "title": "A rotate fix that actually saves",
-          "detail": "Some photos are sideways even though they're upright in the Photos app; the fix needs to persist across launches and devices, not just correct the on-screen view."
+          "title": "Main-thread work on every navigation: lazy snapshot load, folded search text computed once, replacingCoffee…",
+          "detail": "Queued."
         },
         {
-          "title": "Move search to the bottom of the list",
-          "detail": "Match the iOS 26 pattern of anchoring search at the bottom of the screen instead of the top."
+          "title": "ImageStore: in-memory decoded cache, off-actor decode, one mtime touch per launch; route display through it.…",
+          "detail": "Queued."
         },
         {
-          "title": "Let 'Unknown' be a real filter everywhere",
-          "detail": "Filtering to 'no roaster yet' or 'no origin yet' only works for Process today; it should work for every field."
+          "title": "UX correctness batch (Audit 2026-09-09)",
+          "detail": "Queued."
         },
         {
-          "title": "Fix single-value altitude edits",
-          "detail": "Entering just a max altitude (with no min) doesn't currently save — it should be treated as a single point value."
+          "title": "iPad: ship the same app as a universal binary and use the landscape width",
+          "detail": "Queued."
+        },
+        {
+          "title": "But #106's ship gate still stands and it is a HUMAN step, not a lane's: no lane ships the headline number…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Make the package's product name the default coffee title",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "(needs re-pointed 137 → 113 on 2026-09-09; #137 was a duplicate of #113.)",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "Coffees list — filtered-state header: active filter glyph + a human-readable summary line under the search…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Coffees list — reduce header whitespace and row height so the list doesn't start below mid-screen (bullet 3)",
+          "detail": "Queued."
+        },
+        {
+          "title": "Coffees list — recompute \"N need review\" and the filter-chip counts against the active filter (bullet 4)",
+          "detail": "Queued."
+        },
+        {
+          "title": "In-app nudge + editor to add a missing roaster logo/blurb (the feature Radu asked for)",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "Push notification when a new roaster lands with no logo/blurb (Radu wants a real push, not just the in-app…",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "Shell hygiene batch (Audit 2026-09-09)",
+          "detail": "Queued."
+        },
+        {
+          "title": "Route the hero / zoom / review display images through ImageStore and fix the thumb-as-hero flash. (Audit…",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "UX dedupe + dead-code batch (Audit 2026-09-09)",
+          "detail": "Queued."
+        },
+        {
+          "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
+          "detail": "Queued."
         }
       ]
     },
     "needsApproval": [
       {
+        "title": "Nothing here blocks the extension any more — both open questions were given working defaults on 2026-09-09.…",
+        "detail": "Waiting on your call."
+      },
+      {
         "title": "Anything that would exceed the 50 MB app+data cap",
-        "detail": "A bigger image cache, larger bundled assets, or a fatter snapshot all need your sign-off before shipping."
+        "detail": "A lane will ask before crossing it rather than deciding on its own."
       }
     ]
   }

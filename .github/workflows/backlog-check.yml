@@ -15,6 +15,8 @@ on:
     paths:
       - "status/BACKLOG.md"
       - "status/check-backlog.sh"
+      - "ops/gen-whatsnew-plan.mjs"
+      - "backend/src/data/whatsnew.json"
       - ".github/workflows/backlog-check.yml"
   workflow_dispatch:
 
@@ -27,3 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash status/check-backlog.sh
+      # The in-app What's New > Plan tab reads backend/src/data/whatsnew.json.
+      # That file used to be kept in sync with this backlog BY HAND, which meant
+      # not at all: on 2026-09-11 it was 15 days stale, listing 8 iOS items that
+      # had all shipped and ZERO backend/data items while 14 backend rows sat
+      # ready. A stale plan serves 200 exactly like a fresh one, so only a
+      # check catches it.
+      - name: What's New plan matches the backlog
+        run: node ops/gen-whatsnew-plan.mjs --check

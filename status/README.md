@@ -175,30 +175,29 @@ A lane that flips a row on `ios-staging` **must land the same `BACKLOG.md` chang
 on `main` in the same session**:
 
 ```bash
-git checkout main && git pull --rebase
-git checkout ios-staging -- status/BACKLOG.md
-git commit -m "Backlog: sync row statuses from ios-staging" && git push origin main
-git checkout ios-staging
+bash status/sync-backlog-rows.sh 157 158    # the rows you actually flipped
 ```
 
 Safe by construction: `status/**` matches no workflow path filter, so this
 deploys nothing and builds nothing.
 
-> ⚠️ **This wholesale checkout is only safe when `main` has no `BACKLOG.md`
-> rows of its own that `ios-staging` doesn't have.** It is a full-file
-> overwrite, not a merge. On 2026-08-29 an ios-ux sync ran this recipe while
-> `main` had rows **#92 (done) / #102 / #103 / #104** that `ios-staging`'s
-> copy predated — the checkout silently deleted #102–#104 and reverted #92
-> to `ready`, undoing a backend session's work in the same commit that
-> synced #93/#94/#99. **Before running this recipe, diff row numbers on both
-> sides first:**
-> ```bash
-> diff <(grep -oE '^\| [0-9]+' origin/main:status/BACKLOG.md 2>/dev/null || git show origin/main:status/BACKLOG.md | grep -oE '^\| [0-9]+') \
->      <(git show origin/ios-staging:status/BACKLOG.md | grep -oE '^\| [0-9]+')
-> ```
-> If `main` has rows `ios-staging` lacks (or vice versa), do a row-level
-> merge — copy just the rows that changed on `ios-staging` into `main`'s
-> copy — instead of the blind `git checkout ios-staging -- status/BACKLOG.md`.
+> ⚠️ **Never `git checkout ios-staging -- status/BACKLOG.md` for this.** That
+> was the recipe here (and in both iOS routine prompts) until 2026-09-11, and
+> it is a full-file **overwrite**, not a merge. `main` routinely carries rows
+> `ios-staging` has never seen, because the backend and data lanes file
+> straight to `main`. On 2026-08-29 an ios-ux sync ran it while `main` held
+> **#92 (done) / #102 / #103 / #104** — the checkout silently deleted
+> #102–#104 and reverted #92 to `ready`, undoing a backend session's work in
+> the same commit that correctly synced #93/#94/#99.
+>
+> This page already warned about that, and it happened anyway, because the
+> **routine prompt** is what a fired session executes and the prompt carried
+> the blind recipe with no warning attached. Hence a script rather than a
+> longer warning: `sync-backlog-rows.sh` touches only the row numbers you
+> name, leaves every other line of `main`'s copy byte-identical, refuses to
+> push anything `check-backlog.sh` rejects, and regenerates the app's Plan
+> tab data (`backend/src/data/whatsnew.json`) in the same commit so
+> `backlog-check.yml` stays green.
 
 ## Hard interlocks
 
