@@ -18,6 +18,15 @@
 // hand-written: that half is release-note prose about things that already
 // shipped, which is a genuine writing job and does not go stale on its own.
 //
+// ONE COUPLING TO KNOW ABOUT
+// --------------------------
+// This writes under `backend/`, and Railway deploys on any push touching
+// `backend/**` — so wiring this up made every backlog row flip a potential
+// redeploy, and a redeploy SIGTERMs a running extraction worker (CLAUDE.md
+// §12). `railway-deploy.yml`'s path filter therefore negates this one file.
+// The deployed plan then lags the repo by at most one backend deploy, which is
+// bounded and self-correcting — unlike the 15 days of staleness it replaced.
+//
 // Usage:
 //   node ops/gen-whatsnew-plan.mjs            # rewrite the plan section
 //   node ops/gen-whatsnew-plan.mjs --check    # exit 1 if it would change

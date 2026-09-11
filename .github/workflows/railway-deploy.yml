@@ -14,6 +14,20 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      # backend/src/data/whatsnew.json is GENERATED from status/BACKLOG.md
+      # (ops/gen-whatsnew-plan.mjs), so as of 2026-09-11 every lane that flips
+      # a backlog row rewrites a file under backend/. Without this negation
+      # each row flip would trigger a full redeploy — and a redeploy SIGTERMs a
+      # running extraction worker (CLAUDE.md §12), which is exactly the thing
+      # the "never push backend/** while a job is running" rule exists to stop.
+      # Path filters evaluate in order, so this excludes a push that touches
+      # ONLY that file; a push that also changes real backend code still
+      # deploys and carries the newest plan with it.
+      # Cost of the negation: the DEPLOYED plan lags the repo by at most one
+      # backend deploy (the backend lane runs Mon/Wed/Fri). That is a bounded,
+      # self-correcting lag, versus the unbounded 15-day staleness this whole
+      # mechanism replaced.
+      - "!backend/src/data/whatsnew.json"
       - ".github/workflows/railway-deploy.yml"
   workflow_dispatch:
 
