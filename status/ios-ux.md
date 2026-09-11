@@ -6,13 +6,46 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-11 11:05 UTC] #179 UX correctness batch (a)-(e) (findings deep-link id, rotation error surfacing, filteredCoffees rebind, Charts CoffeeIndex cache, RoasterLogoTile downsample+NSCache) — branch `ios-staging`. (f) skipped: #178 (`lastSyncError`/`lastSyncedAt`) is still `ready`, not `done`, per the row's own fallback.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-11 (iOS UX lane routine) — #179 UX correctness batch (a)-(e),
+  `14f6257`; (f) split out as #192, `blocked` on `ios-shell`'s #178.**
+  (a) `InsightsFinding.id` derived from `text` instead of a stored `UUID()` —
+  the computed `findings` property rebuilds on every access, so the old
+  random id never matched between the render that built a deep-link URL and
+  the `OpenURLAction` handler looking it up in a freshly-rebuilt array; the
+  link now carries the id as a `URLComponents` query item. (b)
+  `ZoomableImageView.onRotate` is now `(Int) async -> Bool`, awaited in
+  `CoffeeDetailView`; a `false` reverts the local flip and shows a toast —
+  previously the `Task { await ... }` wrapper discarded the result entirely.
+  Left `reviewErrorText` alone: checked `ReviewQueueEngine.confirmSave`/
+  `restore` and it already reverts + toasts a failed resolve/dismiss with a
+  more specific per-field message, so the store field is genuinely dead, not
+  a live gap — and it's `CoffeeStore.swift`, shell-owned, not mine to remove
+  either way. (c) `CoffeesListView.body` binds `store.filteredCoffees` once,
+  threaded through `sections(for:)`/`filterStateLine(coffees:)`/
+  `visibleReviewCount(in:)`/`reviewNudge(count:)` instead of each
+  independently re-running `CoffeeIndex.coffees(matching:sortedBy:)`. (d)
+  Insights Charts caches its windowed `CoffeeIndex` in `@State`, rebuilt via
+  `.task(id:)` keyed on `(window, years, coffee count)` — tapping between
+  dimension chips no longer rebuilds the index just to read a different
+  facet off the same data. (e) `RoasterLogoTile` downsamples via `ImageIO`'s
+  `CGImageSourceCreateThumbnailAtIndex` at `size × displayScale` pixels
+  instead of decoding full-resolution WebP; kept the existing full-decode
+  path as a fallback for whatever sources made `source.cgImage` nil before
+  (the 2026-09-10 "text but no logo" fix), so that resilience isn't lost.
+  `RoasterMarkCache` now backs onto `NSCache` instead of a bare dictionary,
+  so a few hundred roasters' logos evict under memory pressure instead of
+  living for the rest of the process. (f) needs #178's
+  `lastSyncError`/`lastSyncedAt` fields, which `ios-shell` hasn't shipped yet
+  — split into its own row (#192, blocked on 178) rather than leaving it
+  attached to an otherwise-done row.
 
 - **2026-09-11 (iOS UX lane routine) — #158 Brew lab filter-sheet group +
   Insights "Brew winners" card, `029b0c1`.** Both `needs` (#156, #157) were
