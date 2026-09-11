@@ -23,7 +23,7 @@ struct FilterSheetView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(FilterDimension.allCases, id: \.self) { dimension in
+                ForEach(FilterDimension.nonBrewCases, id: \.self) { dimension in
                     Section(dimension.title) {
                         switch dimension {
                         case .favorite:
@@ -43,6 +43,23 @@ struct FilterSheetView: View {
                                 draft: $draft
                             )
                         }
+                    }
+                }
+                Section("Brew lab") {
+                    ForEach(FilterDimension.brewCases, id: \.self) { dimension in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(dimension.title.uppercased())
+                                .font(.system(size: 10, weight: .semibold))
+                                .tracking(0.6)
+                                .foregroundStyle(.secondary)
+                            DimensionPills(
+                                dimension: dimension,
+                                entries: facets[dimension],
+                                vocabulary: store.index.vocabulary,
+                                draft: $draft
+                            )
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 Section("Time window") {
@@ -210,6 +227,10 @@ func isFacetSelected(_ key: FacetKey, dimension: FilterDimension, in filter: Cof
     case (.valueBand, .valueBand(let b)): return filter.valueBands.contains(b)
     case (.year, .year(let y)): return filter.years.contains(y)
     case (.decaf, .bool(let d)): return filter.isDecaf == d
+    case (.brewDevice, .vocabID(let id)): return filter.brewDeviceIDs.contains(id)
+    case (.brewRecipe, .vocabID(let id)): return filter.brewRecipeIDs.contains(id)
+    case (.brewGrind, .vocabID(let id)): return filter.brewGrindIDs.contains(id)
+    case (.brewTemp, .vocabID(let id)): return filter.brewTempIDs.contains(id)
     case (_, .unknown): return filter.unknownDimensions.contains(dimension)
     default: return false
     }
@@ -235,6 +256,10 @@ func toggleFacet(_ key: FacetKey, dimension: FilterDimension, in filter: inout C
     case (.valueBand, .valueBand(let b)): flip(&filter.valueBands, b)
     case (.year, .year(let y)): flip(&filter.years, y)
     case (.decaf, .bool(let d)): filter.isDecaf = (filter.isDecaf == d) ? nil : d
+    case (.brewDevice, .vocabID(let id)): flip(&filter.brewDeviceIDs, id)
+    case (.brewRecipe, .vocabID(let id)): flip(&filter.brewRecipeIDs, id)
+    case (.brewGrind, .vocabID(let id)): flip(&filter.brewGrindIDs, id)
+    case (.brewTemp, .vocabID(let id)): flip(&filter.brewTempIDs, id)
     case (_, .unknown): flip(&filter.unknownDimensions, dimension)
     default: break
     }

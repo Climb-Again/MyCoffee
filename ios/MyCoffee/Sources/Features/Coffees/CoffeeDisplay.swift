@@ -88,6 +88,19 @@ extension SortOption {
     }
 }
 
+extension BrewKind {
+    /// The filter dimension a win-rate for this kind deep-links into
+    /// (Insights "Brew winners" card, #158).
+    var filterDimension: FilterDimension {
+        switch self {
+        case .recipe: return .brewRecipe
+        case .device: return .brewDevice
+        case .grind: return .brewGrind
+        case .temp: return .brewTemp
+        }
+    }
+}
+
 extension FilterDimension {
     var title: String {
         switch self {
@@ -121,6 +134,18 @@ extension FilterDimension {
         case .roaster, .farm: return true
         default: return false
         }
+    }
+
+    /// The four brew-lab dimensions, in Radu's own sentence order (recipe →
+    /// device → grind → temp, PLAN.md §14) — grouped under one "Brew lab"
+    /// filter-sheet section (#158) rather than rendered inline with the rest
+    /// of `allCases`.
+    static let brewCases: [FilterDimension] = [.brewRecipe, .brewDevice, .brewGrind, .brewTemp]
+
+    /// Every dimension the filter sheet renders as its own top-level section
+    /// — everything except the brew-lab group, which gets one shared section.
+    static var nonBrewCases: [FilterDimension] {
+        allCases.filter { !brewCases.contains($0) }
     }
 }
 

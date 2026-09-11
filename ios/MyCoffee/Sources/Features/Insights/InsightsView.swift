@@ -166,6 +166,10 @@ struct InsightsView: View {
             headlineStats
             BriefCard(brief: brief)
             findingsSection
+            BrewWinnersCard(
+                winners: BrewWinnersCard.Winner.build(index: store.index),
+                onSelect: { dimension, key in selectInCoffees(dimension: dimension, key: key) }
+            )
         }
     }
 
