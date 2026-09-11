@@ -14,6 +14,69 @@ _none_
 
 ## Session notes
 
+- **2026-09-11 — #156 done this session (Brew lab shell surface: models,
+  wire, store, outbox, query).** `Models/BrewOption.swift` (`BrewKind`,
+  `BrewOption`, `BrewRecipeSpec` incl. `ratio`/`summary`, `BrewTrialState`);
+  `API/Wire/BrewWire.swift` (`BrewOptionDTO`, `BrewRecipeSpecDTO`,
+  `BrewStateResponseDTO`); `VocabDTO.brewOptions` (lenient, `[]` default) and
+  `CompactCoffeeDTO`/`CoffeeDetailDTO.brewTried`/`brewBest` (both `[Int]?`).
+  `Coffee.brewTriedIds`/`brewBestIds` are `[Int]?` (not the spec's literal
+  non-optional `[Int]`) with `triedBrewOptionIds`/`bestBrewOptionIds`
+  nil-coalescing accessors — same pattern as `rotationQuarterTurns`/
+  `rotationTurns`, chosen over a hand-written `CodingKeys`/`init(from:)` for
+  `Coffee` (which has ~30 fields and explicitly avoids a parallel
+  `CodingKeys` enum per its own doc comment) purely because the synthesized
+  decoder already does `decodeIfPresent` for `Optional` properties for free;
+  behavior is identical (missing key -> reads as "nothing tried"). `Coffee.withBrew(tried:best:)`.
+  `Vocabulary.brewOptions: [Int: BrewOption]` + `brewOptions(of:includeArchived:)`
+  + `brewOption(kind:value:)` + `insertingBrewOption(_:)`; no `PersistedSnapshot`
+  schema bump (`decodeIfPresent … ?? []`, same class of fix as `Coffee`'s fields).
+  `APIClient.brewOptions/createBrewOption/updateBrewOption/setBrewState`.
+  `SyncEngine`: `setBrewState` optimistic+outbox (mirrors the server's
+  `nextTrialRows`/`impliedTrials` state machine locally, including the recipe
+  auto-tick), `createBrewOption`/`updateBrewOption` confirmed+throwing;
+  `pendingBrewStates(for:)` applied over both `sync` and `loadDetail`.
+  `MutationOutbox.flush` now returns `[FlushedBrewState]` (was `Void`) so a
+  successful brew POST's whole-state response can replace the coffee's local
+  arrays — every other call site (`setFavorite`/`resolveReview`/
+  `dismissReview`/`sync`) now goes through a new private `SyncEngine.flushOutbox`
+  wrapper instead of calling `outbox.flush` directly, so the reconciliation
+  isn't duplicated per call site. `CoffeeIndex.bestBrewOption/triedBrewOptions/
+  brewState/brewWinRates`. `CoffeeStore.setBrewState/createBrewOption/
+  updateBrewOption` + `brewErrorText`. `SampleCoffeeRepository`/`SampleData`
+  got a small real fixture (3 recipes, 4 devices, a few grind/temp rows, two
+  sample coffees ticked) — `createBrewOption`/`updateBrewOption` still throw
+  `.notConfigured` in the sample repo (no fixture logic to fake a rename),
+  same stance as `editField`.
+
+  **Query half for #158, shipped in the same row per the spec:**
+  `FilterDimension.brewDevice/.brewRecipe/.brewGrind/.brewTemp`, postings over
+  **tried** ids, `CoffeeFilter.brew{Device,Recipe,Grind,Temp}IDs` +
+  `isEmpty`/`clearing`.
+
+  **Seam edit (CLAUDE.md §4) in `Features/Coffees/CoffeeDisplay.swift`
+  (ux-owned) — recorded here and in `status/ios-ux.md`:** added the 4 new
+  cases to `FilterDimension.title`'s exhaustive switch (plain labels: "Brew
+  device"/"Brew recipe"/"Grind size"/"Water temp") and to `facetLabel`'s
+  nested `.vocabID` switch (resolves `vocabulary.brewOptions[id]?.label`
+  instead of falling through to "Unknown" — trivial and correctness-only, no
+  styling). Deliberately did **not** touch `FilterSheetView.swift`'s
+  `toggleFacet`/`isFacetSelected` — both already have a `default:` arm so
+  they compile untouched; wiring an actual tappable "Brew lab" filter group
+  is #158's UX work, not required for `ios-staging` to stay green.
+
+  **No unit test target exists in this project** (`ios/project.yml` only
+  defines the `MyCoffee` application target — no local Xcode/Simulator
+  either), so the spec's ask to "prove [no schema bump] with a pre-change
+  fixture test" isn't mechanically checkable here; verified instead by
+  reasoning through the decode path (every new/changed field is
+  `Optional`-typed or defaults via `decodeIfPresent`) the same way every
+  other backward-compat fix in this file has been.
+
+  Not done: #157 (the UX feature — coffee-page section, `BrewLabSheet`,
+  Settings catalogue) and #158 (filter UI + Insights card) — both ios-ux,
+  now unblocked (#157 flipped `blocked` → `ready`).
+
 - **2026-09-09 — #117(a)/#136/#139 done this session** — see `BACKLOG.md`'s own
   DONE notes for implementation summaries (unknown-postings fix for the four
   band filter dimensions, the `POST /api/coffees/evaluate` client surface, and

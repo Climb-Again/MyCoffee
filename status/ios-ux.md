@@ -14,6 +14,21 @@ _none_
 
 ## Session notes
 
+- **2026-09-11 — seam edit from ios-shell #156 (Brew lab), not a UX-lane
+  claim.** ios-shell added `FilterDimension.brewDevice/.brewRecipe/
+  .brewGrind/.brewTemp` (`Query/FilterDimension.swift`), which broke two
+  ux-owned exhaustive switches in `Features/Coffees/CoffeeDisplay.swift`
+  (`FilterDimension.title`, `facetLabel`'s nested `.vocabID` switch — no
+  `default` arm on either). Per CLAUDE.md §4's seam rule, ios-shell added the
+  minimal plain-label arms in the same commit (`ios-staging@9aa21a1`): `title`
+  gets "Brew device"/"Brew recipe"/"Grind size"/"Water temp"; `facetLabel`
+  resolves `vocabulary.brewOptions[id]?.label` instead of falling through to
+  "Unknown". `FilterSheetView.swift`'s `toggleFacet`/`isFacetSelected` were
+  **not** touched (both already have a `default:` arm, so they compiled
+  as-is) — a tappable "Brew lab" filter group with real chip UI is still
+  #158's work to do, this seam edit only kept the plain-label switches green.
+  #157 (the Brew lab feature itself) is now `ready`.
+
 - **2026-09-09 — #186 value band depth ramp, off-cycle fire (Radu asked for
   this run specifically to catch the 2026-09-10 20:00 UTC publish).**
   `VALUE_BAND_UPDATE.md`'s blue table, exactly: `Theme.Colors` gained five new
