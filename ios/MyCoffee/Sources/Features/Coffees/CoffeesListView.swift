@@ -26,7 +26,13 @@ struct CoffeesListView: View {
     @State private var showReviewQueue = false
 
     var body: some View {
-        NavigationStack {
+        // #179c: `filteredCoffees` re-runs `CoffeeIndex.coffees(matching:sortedBy:)`
+        // over the whole library on every access; the body used to call it
+        // three separate times (the empty check, the review count, the
+        // section grouping) on every render. Bound once here and threaded
+        // through instead.
+        let coffees = store.filteredCoffees
+        return NavigationStack {
             List {
                 // #150 (Radu, 2026-09-07: "reduce white space — now coffees
                 // start below mid screen"): the header used to stack a stats
@@ -37,11 +43,12 @@ struct CoffeesListView: View {
                 if store.filter.isEmpty {
                     statsLine
                 } else {
-                    filterStateLine
+                    filterStateLine(coffees: coffees)
                 }
 
-                if visibleReviewCount > 0 {
-                    reviewNudge
+                let reviewCount = visibleReviewCount(in: coffees)
+                if reviewCount > 0 {
+                    reviewNudge(count: reviewCount)
                 }
 
                 let cards = store.topFilterCards
@@ -49,7 +56,7 @@ struct CoffeesListView: View {
                     filterChipsSection(cards)
                 }
 
-                ForEach(sections) { section in
+                ForEach(sections(for: coffees)) { section in
                     Section {
                         ForEach(section.coffees) { coffee in
                             coffeeRow(coffee)
@@ -62,7 +69,7 @@ struct CoffeesListView: View {
                     }
                 }
 
-                if store.filteredCoffees.isEmpty {
+                if coffees.isEmpty {
                     ContentUnavailableView(
                         "No coffees match",
                         systemImage: Symbols.emptyCup,
@@ -200,11 +207,11 @@ struct CoffeesListView: View {
     /// Fails open exactly like `ReviewFeedCache` itself: with no resolved feed
     /// (sample builds, offline, first launch) this is the old library-wide
     /// count, never a spurious 0.
-    private var visibleReviewCount: Int {
+    private func visibleReviewCount(in coffees: [Coffee]) -> Int {
         guard !store.filter.isEmpty, let reviewable = reviewCache.reviewableCoffeeIds else {
             return store.reviewQueueCount
         }
-        return store.filteredCoffees.reduce(into: 0) { total, coffee in
+        return coffees.reduce(into: 0) { total, coffee in
             if reviewable.contains(coffee.id) { total += 1 }
         }
     }
@@ -224,12 +231,12 @@ struct CoffeesListView: View {
 
     // MARK: - Review nudge
 
-    private var reviewNudge: some View {
+    private func reviewNudge(count: Int) -> some View {
         Button {
             showReviewQueue = true
         } label: {
             HStack(spacing: 6) {
-                Text("\(visibleReviewCount) bag\(visibleReviewCount == 1 ? "" : "s") need review")
+                Text("\(count) bag\(count == 1 ? "" : "s") need review")
                     .font(.system(size: 12, weight: Theme.Weight.semibold))
                 AppIcon(name: Lucide.chevronRight, size: 12)
             }
@@ -299,10 +306,10 @@ struct CoffeesListView: View {
     /// #149b: the count **and** what is actually being filtered on. The chips
     /// only cover the ≤7 top-filter shortcuts, so a filter assembled in the
     /// sheet showed no trace of itself here before `FilterSummary`.
-    private var filterStateLine: some View {
+    private func filterStateLine(coffees: [Coffee]) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("\(store.filteredCoffees.count) of \(store.index.coffees.count) bags")
+                Text("\(coffees.count) of \(store.index.coffees.count) bags")
                     .font(.system(size: 11, weight: Theme.Weight.semibold))
                     .foregroundStyle(Theme.Colors.accent)
                 if let summary = FilterSummary.text(
@@ -362,8 +369,7 @@ struct CoffeesListView: View {
     /// Coffees arrive from `CoffeeIndex.coffees(matching:sortedBy:)` already
     /// ordered, and every sort's section key is monotonic along that order,
     /// so a single contiguous-run pass is enough.
-    private var sections: [CoffeeListSection] {
-        let coffees = store.filteredCoffees
+    private func sections(for coffees: [Coffee]) -> [CoffeeListSection] {
         let index = store.index
         var result: [CoffeeListSection] = []
         var currentHeader: String?

@@ -1,3 +1,4 @@
+import ImageIO
 import SwiftUI
 import UIKit
 
@@ -18,6 +19,7 @@ struct RoasterLogoTile: View {
     var cornerRadius: CGFloat = 22
 
     @State private var mark: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     private var hasLogo: Bool {
         !(logoUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
@@ -61,25 +63,48 @@ struct RoasterLogoTile: View {
             mark = cached
             return
         }
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
-              let source = UIImage(data: data)
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        // Downsample straight from the source bytes at ~this tile's pixel
+        // size (#179e) — the previous full `UIImage(data:)` decode held one
+        // full-resolution bitmap per roaster in memory, unbounded, for as
+        // long as the process ran. Falls back to a full decode only when
+        // ImageIO's thumbnail path can't handle the source, same as before.
+        guard let result = Self.downsampledMark(data: data, maxPixelSize: size * displayScale)
+            ?? Self.fullSizeMark(data: data)
         else { return }
-        // The logos are WebP, and a UIImage decoded from WebP data can have a
-        // nil `cgImage` (its backing isn't always a CGImage). Gating the whole
-        // render on `cgImage` is exactly why every logo drew an empty tile —
-        // "text but no logo" (Radu, 2026-09-10). Crop the leading square only
-        // when the pixels are reachable; otherwise render the decoded image
-        // as-is rather than nothing. `UIImage(cgImage:)` needs a non-nil
-        // CGImage, so build the crop from `source.cgImage`, never force-unwrap.
-        let result: UIImage
-        if let cgImage = source.cgImage {
-            let cropped = Self.cropToMark(cgImage)
-            result = UIImage(cgImage: cropped, scale: source.scale, orientation: source.imageOrientation)
-        } else {
-            result = source
-        }
         await RoasterMarkCache.shared.set(logoUrl, result)
         mark = result
+    }
+
+    /// Decodes a thumbnail directly via ImageIO rather than materializing
+    /// the full-resolution image first — the standard "downsample without
+    /// decoding the whole thing" recipe. Crops to the leading square (the
+    /// same heuristic as `fullSizeMark`) since the thumbnail preserves the
+    /// source's aspect ratio.
+    private static func downsampledMark(data: Data, maxPixelSize: CGFloat) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cropToMark(cgImage))
+    }
+
+    /// The logos are WebP, and a UIImage decoded from WebP data can have a
+    /// nil `cgImage` (its backing isn't always a CGImage) — the same is true
+    /// of `downsampledMark`'s ImageIO thumbnail path for some sources. Gating
+    /// the whole render on `cgImage` is exactly why every logo drew an empty
+    /// tile — "text but no logo" (Radu, 2026-09-10). Crop the leading square
+    /// only when the pixels are reachable; otherwise render the decoded
+    /// image as-is rather than nothing. `UIImage(cgImage:)` needs a non-nil
+    /// CGImage, so build the crop from `source.cgImage`, never force-unwrap.
+    private static func fullSizeMark(data: Data) -> UIImage? {
+        guard let source = UIImage(data: data) else { return nil }
+        guard let cgImage = source.cgImage else { return source }
+        return UIImage(cgImage: cropToMark(cgImage), scale: source.scale, orientation: source.imageOrientation)
     }
 
     /// "Use the mark, not the lockup" (§2): a wide image (mark + wordmark,
@@ -100,10 +125,16 @@ struct RoasterLogoTile: View {
 /// Per-process memo of the leading-square crop, keyed by `logoUrl` — avoids
 /// re-decoding/re-cropping the same roaster's mark on every render. Not a
 /// disk cache; nothing here survives past the running process.
+///
+/// `NSCache` rather than a plain dictionary (#179e): a roaster count in the
+/// hundreds meant a bare `[String: UIImage]` held one decoded bitmap per
+/// roaster for as long as the process ran, with no eviction — `NSCache`
+/// purges entries under memory pressure like every other image cache in the
+/// app (`ImageStore`).
 private actor RoasterMarkCache {
     static let shared = RoasterMarkCache()
-    private var storage: [String: UIImage] = [:]
+    private let storage = NSCache<NSString, UIImage>()
 
-    func get(_ key: String) -> UIImage? { storage[key] }
-    func set(_ key: String, _ image: UIImage) { storage[key] = image }
+    func get(_ key: String) -> UIImage? { storage.object(forKey: key as NSString) }
+    func set(_ key: String, _ image: UIImage) { storage.setObject(image, forKey: key as NSString) }
 }

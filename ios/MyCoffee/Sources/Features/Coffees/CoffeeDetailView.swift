@@ -74,7 +74,7 @@ struct CoffeeDetailView: View {
                 urlString: coffee.images?.display,
                 initialRotationQuarterTurns: coffee.rotationTurns,
                 onRotate: { turns in
-                    Task { await store.setRotation(coffeeId: coffee.id, quarterTurns: turns) }
+                    await store.setRotation(coffeeId: coffee.id, quarterTurns: turns)
                 }
             )
         }

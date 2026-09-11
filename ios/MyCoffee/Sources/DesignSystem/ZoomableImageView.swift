@@ -16,12 +16,18 @@ struct ZoomableImageView: View {
     /// when a handler is provided (so the Review card, whose photo has no coffee
     /// row yet, gets a plain zoomable viewer with no rotate button).
     var initialRotationQuarterTurns: Int = 0
-    var onRotate: ((Int) -> Void)?
+    /// Awaited, not fire-and-forget (#179b): the flip is applied locally right
+    /// away, but a `false` (the save didn't round-trip) reverts it and shows
+    /// `rotateErrorToast` — otherwise a rotate that silently failed to persist
+    /// looked saved until the next launch read the old value back off disk.
+    var onRotate: ((Int) async -> Bool)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var rotationTurns: Int = 0
+    @State private var rotateErrorToast: String?
+    @State private var rotateErrorToken = 0
     @GestureState private var pinchDelta: CGFloat = 1
     @GestureState private var dragDelta: CGSize = .zero
 
@@ -48,9 +54,7 @@ struct ZoomableImageView: View {
         .overlay(alignment: .bottomTrailing) {
             if onRotate != nil {
                 Button {
-                    let next = (rotationTurns + 1) % 4
-                    withAnimation { rotationTurns = next }
-                    onRotate?(next)
+                    rotate()
                 } label: {
                     Image(systemName: Symbols.rotate)
                         .font(.title3.weight(.semibold))
@@ -61,7 +65,50 @@ struct ZoomableImageView: View {
                 .padding()
             }
         }
+        .overlay(alignment: .bottom) { errorToast }
         .onAppear { rotationTurns = ((initialRotationQuarterTurns % 4) + 4) % 4 }
+    }
+
+    /// Flips the shown orientation immediately, then confirms it saved;
+    /// reverts and toasts on a `false` (#179b) rather than leaving an
+    /// unsaved rotation displayed as though it had persisted.
+    private func rotate() {
+        let previous = rotationTurns
+        let next = (previous + 1) % 4
+        withAnimation { rotationTurns = next }
+        Task {
+            guard let onRotate else { return }
+            let success = await onRotate(next)
+            guard !success else { return }
+            withAnimation { rotationTurns = previous }
+            showRotateError("Couldn't save the rotation — check your connection and try again.")
+        }
+    }
+
+    private func showRotateError(_ message: String) {
+        rotateErrorToken += 1
+        let token = rotateErrorToken
+        rotateErrorToast = message
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard rotateErrorToken == token else { return }
+            rotateErrorToast = nil
+        }
+    }
+
+    @ViewBuilder
+    private var errorToast: some View {
+        if let message = rotateErrorToast {
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.pill).fill(Color.black.opacity(0.82)))
+                .padding(.bottom, 24)
+                .transition(.opacity)
+                .onTapGesture { rotateErrorToast = nil }
+        }
     }
 
     private var content: some View {

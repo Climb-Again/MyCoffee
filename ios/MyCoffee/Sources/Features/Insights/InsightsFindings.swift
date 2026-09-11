@@ -6,7 +6,14 @@ import Foundation
 /// one discrete filterable value — an ordinal finding ("Higher altitude
 /// tends toward...") has no single value to deep-link to, so both stay nil.
 struct InsightsFinding: Identifiable {
-    let id = UUID()
+    /// Derived from `text` (which already encodes the subject, direction,
+    /// magnitude and `n`) rather than a stored `UUID()` — the computed
+    /// `findings` property is rebuilt on every access, so a stored random id
+    /// never matched between the render that created the deep-link URL and
+    /// the `OpenURLAction` handler that looked it up in a freshly-rebuilt
+    /// array (#179a). A pure function of `text` matches across rebuilds as
+    /// long as the underlying data hasn't changed.
+    var id: String { text }
     let text: String
     let subjectText: String?
     let subject: FindingSubject?

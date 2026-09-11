@@ -37,6 +37,22 @@ struct InsightsView: View {
     @State private var selectedYears: Set<Int> = []
     @State private var chartsDimension: FilterDimension = .originCountry
 
+    /// #179d: `chartsSection` used to build a throwaway `CoffeeIndex` over the
+    /// windowed coffees on every render — including re-renders that only
+    /// change `chartsDimension` (tapping between dimension chips), which
+    /// doesn't need a new index at all, just a different facet read off the
+    /// same one. Rebuilt only when `window`/`selectedYears`/the coffee count
+    /// actually change, via `.task(id:)` below.
+    @State private var chartsIndex: CoffeeIndex = .empty
+    private struct ChartsIndexKey: Equatable {
+        let window: ChartWindow
+        let years: Set<Int>
+        let coffeeCount: Int
+    }
+    private var chartsIndexKey: ChartsIndexKey {
+        ChartsIndexKey(window: window, years: selectedYears, coffeeCount: windowedCoffees.count)
+    }
+
     private var coffees: [Coffee] { store.index.coffees }
     private var vocabulary: Vocabulary { store.index.vocabulary }
 
@@ -231,8 +247,9 @@ struct InsightsView: View {
         }
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == Self.findingLinkScheme,
-                  let uuid = UUID(uuidString: url.host ?? ""),
-                  let finding = findings.first(where: { $0.id == uuid }),
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let id = components.queryItems?.first(where: { $0.name == "id" })?.value,
+                  let finding = findings.first(where: { $0.id == id }),
                   let subject = finding.subject
             else { return .discarded }
             selectInCoffees(dimension: subject.dimension, key: subject.key)
@@ -267,7 +284,11 @@ struct InsightsView: View {
            let range = attributed.range(of: subjectText) {
             attributed[range].foregroundColor = Theme.Colors.accent
             attributed[range].font = .system(size: 14, weight: Theme.Weight.semibold)
-            attributed[range].link = URL(string: "\(Self.findingLinkScheme)://\(finding.id.uuidString)")
+            var components = URLComponents()
+            components.scheme = Self.findingLinkScheme
+            components.host = "finding"
+            components.queryItems = [URLQueryItem(name: "id", value: finding.id)]
+            attributed[range].link = components.url
         }
         if let parenStart = finding.text.lastIndex(of: "("),
            let range = attributed.range(of: String(finding.text[parenStart...])) {
@@ -299,12 +320,12 @@ struct InsightsView: View {
     // MARK: - Charts section
 
     /// One `CategoryPieChart` for the switcher's currently-picked dimension,
-    /// sourced from facet counts computed over the *windowed* subset (a
-    /// throwaway `CoffeeIndex` over the date-filtered coffees) so the
+    /// sourced from facet counts computed over the *windowed* subset — an
+    /// index cached on `(window, years, coffee count)`, per #179d — so the
     /// breakdown always agrees with what filtering to that window would show.
     private var chartsSection: some View {
         let windowed = windowedCoffees
-        let facets = CoffeeIndex(coffees: windowed, vocabulary: vocabulary).facets(for: CoffeeFilter())
+        let facets = chartsIndex.facets(for: CoffeeFilter())
         return VStack(alignment: .leading, spacing: 20) {
             windowControls
             windowSummary(for: windowed)
@@ -325,6 +346,9 @@ struct InsightsView: View {
                     onSelect: { key in selectInCoffees(dimension: chartsDimension, key: key) }
                 )
             }
+        }
+        .task(id: chartsIndexKey) {
+            chartsIndex = CoffeeIndex(coffees: windowed, vocabulary: vocabulary)
         }
     }
 
