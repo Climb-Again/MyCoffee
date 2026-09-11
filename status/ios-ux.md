@@ -6,13 +6,40 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-11 10:50 UTC] #158 Brew lab filter-sheet group + Insights "Brew winners" card — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-11 (iOS UX lane routine) — #158 Brew lab filter-sheet group +
+  Insights "Brew winners" card, `029b0c1`.** Both `needs` (#156, #157) were
+  already `done`. Filter sheet: the four brew dimensions
+  (`.brewDevice/.brewRecipe/.brewGrind/.brewTemp`) come out of the generic
+  per-dimension `ForEach` and into one "Brew lab" section, sub-labeled,
+  ordered recipe → device → grind → temp per Radu's own sentence in
+  PLAN.md §14. Found and fixed a real bug while restyling the seam stub:
+  `isFacetSelected`/`toggleFacet` in `FilterSheetView.swift` had no cases for
+  the four brew dimensions (the shell lane's #156 seam edit only touched
+  `title`/`facetLabel`, per CLAUDE.md §4's "plain label, no styling" rule), so
+  every brew pill rendered with a correct label and count but tapping it did
+  nothing — added the four cases each. No "winners only" toggle: #156 shipped
+  only tried-id postings (`CoffeeFilter.brewDeviceIDs` etc.), no separate
+  best-id key set, so the row's own fallback applies. Insights: new
+  `BrewWinnersCard.swift`, styled like `DataQualityCard` (no card background,
+  plain rows) since it's the same "tap a row to filter" shape, not
+  `BriefCard`'s boxed one. Per kind (recipe/device/grind/temp), shows the top
+  option by `CoffeeIndex.brewWinRates(kind:)`, gated at ≥3 tried (the #28
+  statistical-gate spirit) **and** ≥1 win — added the win>0 gate myself since
+  `brewWinRates` sorts by wins descending and a kind where nobody has ever
+  won anything would otherwise show "won 0 of N" as if it were a verdict.
+  Tap deep-links via the existing `selectInCoffees`, through a new
+  `BrewKind.filterDimension` mapping in `CoffeeDisplay.swift`. Card renders
+  nothing when no kind clears the gate, matching `DataQualityCard`'s
+  `!fields.isEmpty` pattern. No trophy added to `CoffeeRowView` (#150 density
+  rule stands, unchanged). Compile check pending on this push.
 
 - **2026-09-11 (interactive session, Radu: "analyse all lanes… already
   implement some of the features and solve any blockers") — #138, #149, #150,
