@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-11 11:20 UTC] #125 "Evaluate this coffee" screen (photo + paste-text 3-step flow, result screen with gated headline per #163, components, price-gap banner) — branch `ios-staging`.
 
 ## Abandoned
 
