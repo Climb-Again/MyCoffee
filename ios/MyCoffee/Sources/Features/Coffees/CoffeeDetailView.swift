@@ -369,16 +369,12 @@ struct CoffeeDetailView: View {
     private var roasterHeaderRow: some View {
         if let roaster = coffee.roaster(vocabulary: vocabulary) {
             let roasterCountry = coffee.roasterCountry(vocabulary: vocabulary)
-            if FeatureFlags.tapNavigatesToEntityPages {
-                NavigationLink {
-                    RoasterPageView(roasterID: roaster.id)
-                } label: {
-                    roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
-                }
-                .buttonStyle(.plain)
-            } else {
+            NavigationLink {
+                RoasterPageView(roasterID: roaster.id)
+            } label: {
                 roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -389,10 +385,8 @@ struct CoffeeDetailView: View {
                 Text(roaster.name)
                     .font(.system(size: 13, weight: Theme.Weight.semibold))
                     .foregroundStyle(Theme.Colors.accent)
-                if FeatureFlags.tapNavigatesToEntityPages {
-                    AppIcon(name: Lucide.chevronRight, size: 15)
-                        .foregroundStyle(Theme.Colors.neutral700)
-                }
+                AppIcon(name: Lucide.chevronRight, size: 15)
+                    .foregroundStyle(Theme.Colors.neutral700)
                 Spacer(minLength: 0)
             }
             // "Your best roaster" only for the single #1 roaster
@@ -429,7 +423,7 @@ struct CoffeeDetailView: View {
             // Blend/decaf pills keep their pre-redesign styling (handoff
             // §Screen 2: "Blend/decaf pills as today").
             if coffee.isBlend {
-                InfoPill(icon: nil, text: "🏳️ Blend")
+                Pill(text: "🏳️ Blend", font: .caption.weight(.medium), foreground: .primary, background: Color.secondary.opacity(0.1), fixedWidth: false)
             }
             if !origins.isEmpty {
                 ForEach(origins) { country in
@@ -442,13 +436,13 @@ struct CoffeeDetailView: View {
             // neutral pill, and omitted entirely when the profile is unknown
             // rather than rendering "Unknown" (missing fields omit their row).
             if let profile = coffee.profile {
-                DetailPill(text: profile.displayName)
+                Pill(text: profile.displayName)
             }
             if let altitude = coffee.altitudeLabel {
-                DetailPill(text: altitude)
+                Pill(text: altitude)
             }
             if let weight = coffee.weightLabel {
-                DetailPill(text: weight)
+                Pill(text: weight)
             }
             if coffee.isDecaf {
                 DecafBadge()
@@ -463,16 +457,17 @@ struct CoffeeDetailView: View {
             + (average.map { " " + String(format: "%.1f", $0) } ?? "")
         // Pushback #7: the origin flag (folded into this pill's text) opens the
         // origin-country page.
-        if FeatureFlags.tapNavigatesToEntityPages {
-            NavigationLink {
-                CountryPageView(countryID: country.id, role: .origin)
-            } label: {
-                DetailPill(text: text, isAccent: average != nil)
-            }
-            .buttonStyle(.plain)
-        } else {
-            DetailPill(text: text, isAccent: average != nil)
+        NavigationLink {
+            CountryPageView(countryID: country.id, role: .origin)
+        } label: {
+            let isAccent = average != nil
+            Pill(
+                text: text,
+                foreground: isAccent ? Theme.Colors.accent700 : Theme.Colors.text,
+                background: isAccent ? Theme.Colors.accent100 : Theme.Colors.neutral100
+            )
         }
+        .buttonStyle(.plain)
     }
 
     /// `nil` unless this country is in the user's top-origin set (design
@@ -537,12 +532,13 @@ struct CoffeeDetailView: View {
                 EyebrowLabel(text: "FLAVOUR PROFILE", tracking: 1.2)
                 WrapLayout() {
                     ForEach(chips, id: \.self) { note in
-                        Text(note)
-                            .font(.system(size: 11, weight: Theme.Weight.semibold))
-                            .foregroundStyle(Theme.Colors.accent800)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Theme.Colors.accent100, in: Capsule())
+                        Pill(
+                            text: note,
+                            font: .system(size: 11, weight: Theme.Weight.semibold),
+                            foreground: Theme.Colors.accent800,
+                            background: Theme.Colors.accent100,
+                            fixedWidth: false
+                        )
                     }
                 }
                 Text("Read from the roaster's own copy on the bag.")
@@ -776,24 +772,6 @@ struct CoffeeDetailView: View {
     }
 }
 
-private struct InfoPill: View {
-    let icon: String?
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if let icon {
-                Image(systemName: icon)
-            }
-            Text(text)
-        }
-        .font(.caption.weight(.medium))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color.secondary.opacity(0.1), in: Capsule())
-    }
-}
-
 private struct NoteBlock: View {
     let title: String
     let text: String
@@ -809,22 +787,4 @@ private struct NoteBlock: View {
     }
 }
 
-/// The redesigned pill row's plain (non-tinted) pill — process/altitude/
-/// weight always, origin only when it isn't a top-preference country
-/// (`originPill(for:)`'s own `isAccent` branch covers that case).
-private struct DetailPill: View {
-    let text: String
-    var isAccent: Bool = false
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .foregroundStyle(isAccent ? Theme.Colors.accent700 : Theme.Colors.text)
-            .background(isAccent ? Theme.Colors.accent100 : Theme.Colors.neutral100, in: Capsule())
-    }
-}
 

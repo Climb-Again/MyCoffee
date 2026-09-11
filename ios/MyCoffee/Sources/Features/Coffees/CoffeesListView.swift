@@ -61,9 +61,7 @@ struct CoffeesListView: View {
                         ForEach(section.coffees) { coffee in
                             coffeeRow(coffee)
                         }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                        .plainListRow()
                     } header: {
                         monthHeader(section.header)
                     }
@@ -224,9 +222,7 @@ struct CoffeesListView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 22)
             .padding(.vertical, 6)          // #150: was 10
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .plainListRow()
     }
 
     // MARK: - Review nudge
@@ -247,9 +243,7 @@ struct CoffeesListView: View {
             .padding(.horizontal, 22)
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .plainListRow()
     }
 
     // MARK: - Filter chips (§4, §12)
@@ -264,9 +258,7 @@ struct CoffeesListView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 2)          // #150: was 4
         }
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .plainListRow()
     }
 
     private func filterChip(_ card: TopFilterCard) -> some View {
@@ -332,9 +324,7 @@ struct CoffeesListView: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 6)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .plainListRow()
     }
 
     // MARK: - Month headers (§5)

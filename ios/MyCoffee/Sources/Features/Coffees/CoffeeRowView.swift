@@ -156,8 +156,8 @@ struct CoffeeRowView: View {
             // §6.1 (Redesign v3): process is **plain text**, not a tinted
             // capsule — the red "Natural"/purple "Anaerobic" pills were the
             // loudest thing on screen and are not in the design. This reverts
-            // #104. `ProcessTag` still lives on the detail page. Gated on a
-            // non-nil profile so an unknown process omits the line entirely.
+            // #104. Gated on a non-nil profile so an unknown process omits
+            // the line entirely.
             if let profile = coffee.profile {
                 Text(profile.displayName)
                     .font(.system(size: 11))

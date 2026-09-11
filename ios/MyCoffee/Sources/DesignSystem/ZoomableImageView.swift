@@ -66,7 +66,7 @@ struct ZoomableImageView: View {
             }
         }
         .overlay(alignment: .bottom) { errorToast }
-        .onAppear { rotationTurns = ((initialRotationQuarterTurns % 4) + 4) % 4 }
+        .onAppear { rotationTurns = initialRotationQuarterTurns.normalizedQuarterTurns }
     }
 
     /// Flips the shown orientation immediately, then confirms it saved;
