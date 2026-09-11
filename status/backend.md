@@ -6,7 +6,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-09-11 07:27 UTC] #167 Retry storm: drop the double retry (worker.js's `withBackoff` wrapping vertex.js's own retry loop), add a per-photo deadline + lease heartbeat, bound the two synchronous routes — branch `main`
 
 ## 2026-09-07 07:23 UTC: #121 Add Coffee wizard drops a new (not-in-vocab) roaster — DONE, `a345d1b`
 
