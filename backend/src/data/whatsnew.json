@@ -191,6 +191,10 @@
           "detail": "Queued."
         },
         {
+          "title": "Split from #179(f) (2026-09-11) — #179's (a)-(e) shipped ios-staging@14f6257, this is just the part gated on…",
+          "detail": "Queued behind earlier work."
+        },
+        {
           "title": "But #106's ship gate still stands and it is a HUMAN step, not a lane's: no lane ships the headline number…",
           "detail": "Queued."
         },
