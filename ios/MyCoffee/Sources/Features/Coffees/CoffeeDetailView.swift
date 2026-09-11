@@ -20,6 +20,7 @@ struct CoffeeDetailView: View {
     @State private var showEdit = false
     @State private var showFullPhoto = false
     @State private var showFullTextSheet = false
+    @State private var showBrewLab = false
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -79,6 +80,10 @@ struct CoffeeDetailView: View {
         }
         .sheet(isPresented: $showEdit) {
             CoffeeEditSheet(coffee: coffee)
+        }
+        .sheet(isPresented: $showBrewLab) {
+            BrewLabSheet(coffeeId: coffee.id)
+                .presentationDetents([.large])
         }
         .sheet(isPresented: $showFullTextSheet) {
             fullTextSheet
@@ -226,6 +231,7 @@ struct CoffeeDetailView: View {
             if !factRows.isEmpty {
                 FactRowsList(rows: factRows)
             }
+            brewLabSection
             notesSection
             fromTheRoasterSection
             railsSection
@@ -602,6 +608,86 @@ struct CoffeeDetailView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         return chips.isEmpty ? nil : chips
+    }
+
+    // MARK: - Brew lab (#157, PLAN.md §14)
+
+    /// A four-cell glance: what won for recipe / device / grind / temp. The
+    /// point of the whole feature is that the answer to "how do I brew this
+    /// one" is on the coffee's own page, not in a note you have to read.
+    ///
+    /// Hidden entirely on an `unextracted` placeholder — a coffee that is
+    /// still being read off its bag has nothing to brew against yet, and the
+    /// quick-create flow (#131) leaves those on screen for a while.
+    @ViewBuilder
+    private var brewLabSection: some View {
+        if coffee.reviewState != "unextracted" {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("BREW LAB")
+                    .font(.system(size: 10, weight: Theme.Weight.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.Colors.neutral700)
+
+                if brewHasAnyTrial {
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)],
+                        alignment: .leading,
+                        spacing: 12
+                    ) {
+                        ForEach(BrewKind.allCases, id: \.self) { kind in
+                            brewCell(kind)
+                        }
+                    }
+                } else {
+                    Text("Log what you brewed with →")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { showBrewLab = true }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Open the brew lab for this coffee")
+        }
+    }
+
+    private var brewHasAnyTrial: Bool { !coffee.triedBrewOptionIds.isEmpty }
+
+    /// Winner's label if there is one, else "n tried", else an em dash — the
+    /// omit-not-"N/A" rule, but a 2×2 grid needs all four cells present or
+    /// the kinds stop being comparable at a glance.
+    @ViewBuilder
+    private func brewCell(_ kind: BrewKind) -> some View {
+        let winner = store.index.bestBrewOption(for: coffee, kind: kind)
+        let triedCount = store.index.triedBrewOptions(for: coffee, kind: kind).count
+        VStack(alignment: .leading, spacing: 2) {
+            Text(kind.displayName.uppercased())
+                .font(.system(size: 10, weight: Theme.Weight.semibold))
+                .tracking(0.6)
+                .foregroundStyle(Theme.Colors.neutral700)
+            if let winner {
+                HStack(spacing: 4) {
+                    Image(systemName: Symbols.trophyFill)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.Colors.accent)
+                    Text(winner.chipLabel)
+                        .font(.system(size: 13, weight: Theme.Weight.semibold))
+                        .foregroundStyle(Theme.Colors.text)
+                        .lineLimit(1)
+                }
+            } else if triedCount > 0 {
+                Text("\(triedCount) tried")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            } else {
+                Text("—")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var notesSection: some View {

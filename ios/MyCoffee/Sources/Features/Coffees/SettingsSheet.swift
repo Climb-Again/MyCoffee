@@ -23,6 +23,14 @@ struct SettingsSheet: View {
                     }
                 }
                 Section {
+                    // #157: library-wide catalogue maintenance. Logging a brew
+                    // happens on the coffee's own page; this is where you fix
+                    // a name or retire a device.
+                    NavigationLink {
+                        BrewCatalogueView()
+                    } label: {
+                        Label("Brew catalogue", systemImage: Symbols.brewLab)
+                    }
                     NavigationLink {
                         WhatsNewView()
                     } label: {

@@ -113,6 +113,18 @@ enum Symbols {
     static let whatsNewEmpty = "tray"
     static let whatsNewUnavailable = "wifi.exclamationmark"
 
+    // Brew lab (PLAN.md §14, #157). DEVIATION from the row's "add a Lucide
+    // trophy SVG": the Lucide set here is vendored from files Radu supplied,
+    // and inventing a lookalike path would put a different-looking glyph in a
+    // set whose whole point (§11) is that it is his. SF Symbols' trophy is the
+    // stand-in; swapping in his SVG later is a one-line change to these two.
+    static let trophy = "trophy"
+    static let trophyFill = "trophy.fill"
+    static let checkboxEmpty = "square"
+    static let checkboxChecked = "checkmark.square.fill"
+    static let plus = "plus"
+    static let brewLab = "testtube.2"
+
     // Add Coffee wizard (#77)
     static let wizardAdd = "plus"
     static let wizardPhotos = "photo.on.rectangle.angled"
