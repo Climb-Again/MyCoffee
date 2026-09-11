@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-11 10:50 UTC] #158 Brew lab filter-sheet group + Insights "Brew winners" card — branch `ios-staging`
 
 ## Abandoned
 
