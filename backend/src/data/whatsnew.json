@@ -179,10 +179,6 @@
       ],
       "ios": [
         {
-          "title": "Brew lab — filter-sheet group + Insights \"Brew winners\" card (optional follow-on; PLAN.md §14)",
-          "detail": "Queued."
-        },
-        {
           "title": "Sync hygiene: conditional GETs, one cold-start sync not two, a truly optimistic heart, and refreshed thumb…",
           "detail": "Queued."
         },
