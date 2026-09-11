@@ -243,7 +243,14 @@ struct CoffeeDetailView: View {
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // #191: the text content clamps to a readable width and centers
+        // within the card on iPad landscape — a no-op on iPhone, where
+        // 700pt is never reached. The card's own full-bleed white
+        // background (below) is untouched, so the hero-overlap illusion
+        // (`.offset(y: -20)`) and the medallion's `.topLeading` anchor
+        // still read off the card's actual full width, not this clamp.
+        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         .background(
             UnevenRoundedRectangle(
                 topLeadingRadius: Theme.Radius.card, bottomLeadingRadius: 0,

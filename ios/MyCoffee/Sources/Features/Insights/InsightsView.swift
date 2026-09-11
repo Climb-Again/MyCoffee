@@ -116,7 +116,9 @@ struct InsightsView: View {
                     }
                 }
             }
-            .background(Theme.Colors.surface)
+            // #191: clamps to a readable column on iPad landscape/wide
+            // multitasking — a no-op on iPhone.
+            .readableWidth(background: Theme.Colors.surface)
             // §9: native large title, one bar, no blue band, no dead space.
             .navigationTitle("Insights")
             .navigationBarTitleDisplayMode(.large)

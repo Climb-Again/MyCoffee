@@ -84,7 +84,6 @@ struct CoffeesListView: View {
             // #100: 2a assumes a `surface` ground everywhere; without these the
             // system supplies black under adaptive ink in dark mode.
             .scrollContentBackground(.hidden)
-            .background(Theme.Colors.surface)
             .navigationTitle("Coffees")
             .navigationBarTitleDisplayMode(.large)
             // §2: native search — system placement and appearance, no custom pill.
@@ -166,6 +165,11 @@ struct CoffeesListView: View {
                 // `visibleReviewCount` is the library-wide count as before.
                 await reviewCache.ensureLoaded()
             }
+            // #191: clamps to a readable column on iPad landscape/wide
+            // multitasking — a no-op on iPhone. Carries the surface
+            // background the List used to paint itself (still scrolls edge
+            // to edge, but the visible content stops stretching full-width).
+            .readableWidth(background: Theme.Colors.surface)
         }
     }
 
