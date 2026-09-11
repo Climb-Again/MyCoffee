@@ -6,13 +6,52 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-11 11:20 UTC] #125 "Evaluate this coffee" screen (photo + paste-text 3-step flow, result screen with gated headline per #163, components, price-gap banner) — branch `ios-staging`.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-11 (iOS UX lane routine) — #125 "Evaluate this coffee" screen,
+  `6c757e9`, compile-green (run #117).** Both `needs` (#106, #136) were
+  already `done`; #163 (the human decision on the headline gate) resolved
+  "ship with a flag" as standing guidance, so this was buildable outright.
+  New `Features/Evaluate/{EvaluateCoffeeView,EvaluateResultViews}.swift`: a
+  3-step flow mirroring the Add Coffee wizard (photo(s) → paste the listing
+  text → result), reusing `CoffeeStore.uploadWizardPhotos` verbatim per the
+  row's instruction and calling the already-shipped
+  `CoffeeStore.evaluateCoffee` (#136) — nothing persists, same ephemeral
+  shape as `extractWizardDraft`. Result screen has four pieces:
+  `EvaluateFactsRow` (roaster/origin/process/roaster country, omitting
+  missing fields per the app-wide rule rather than "Unknown"),
+  `EvaluateHeadlineBlock` (the single "fit" number gated behind
+  `EvaluateCoffeeView.showHeadline == false` — the literal one-word flip
+  #163 asked for; the low-confidence badge is independent of that flag and
+  shows on its own since it was never gated), `EvaluateComponentsRow`
+  (affinity/value/novelty at equal visual weight per the row's own spec,
+  value reusing `ValueRating.Band`'s existing wording and tone colors rather
+  than inventing new ones), and `EvaluatePriceBanner`. One deviation from
+  the row's price-plumbing prose worth flagging: it describes three
+  conditions (amount, currency, `weightG > 0`) as worth surfacing
+  separately, but the client-side `EvaluateFields` DTO only carries
+  `pricePer100gEur` — no raw price, currency, or weight reach the app — so
+  I could only distinguish two cases client-side ("no price recognised at
+  all" vs "price recognised but too few peers in that band"), not the finer
+  three-way split. If Radu wants the finer breakdown, `fields` needs more
+  from the backend/shell side first.
+  Entry point: the row didn't specify one, and I didn't want to reopen #87's
+  decided three-tab structure for a single new screen, so `RootTabView`'s
+  `+` now opens a `confirmationDialog` ("Add a coffee I own" / "Evaluate a
+  coffee") instead of jumping straight into the wizard. Three new
+  `Symbols.swift` entries (`evaluateEntry`/`evaluateAffinity`/
+  `evaluateNovelty`); reused `wizardPhotos`/`wizardCamera`/`eurosign`/
+  `needsReview` rather than duplicating them. Couldn't visually verify
+  against `BundledSampleRepository` — `SampleCoffeeRepository.evaluateCoffee`
+  throws `.notConfigured` by design (no live backend in previews), same
+  limitation #131 hit for the wizard's save button — compile-green is the
+  only verification available this session.
 
 - **2026-09-11 (iOS UX lane routine) — #179 UX correctness batch (a)-(e),
   `14f6257`; (f) split out as #192, `blocked` on `ios-shell`'s #178.**
