@@ -8,15 +8,25 @@ import SwiftUI
 /// floats over a row or the detail page.
 ///
 /// The `+` is a **third tab item** in the middle (`RootTab.add`): selecting it
-/// presents the Add Coffee wizard as a sheet and immediately restores the
-/// previous tab, so it never stays selected. No overlay, no shadow, no offset.
+/// immediately restores the previous tab (never stays selected — no overlay,
+/// no shadow, no offset) and offers a `confirmationDialog` between the two
+/// things it can start: the Add Coffee wizard (a bag going into the library)
+/// or "Evaluate this coffee" (#125, a bag that isn't — nothing it produces is
+/// saved). One entry point for both keeps the tab count at three (#87) rather
+/// than giving the evaluate flow a fourth tab or a home buried in Settings.
 ///
 /// `RootTab.review` (shell-owned, `Store/CoffeeStore.swift`) is left untouched —
 /// nothing references it now that the Review tab is gone.
 struct RootTabView: View {
     @StateObject private var store = CoffeeStore()
     @ObservedObject private var reviewCache = ReviewFeedCache.shared
+    @State private var showAddChooser = false
     @State private var showAddCoffeeWizard = false
+    /// #125: "Evaluate this coffee" needed a home and the tab structure is
+    /// decided (#87) — no fourth tab. The `+` now offers a choice rather than
+    /// jumping straight to the wizard, so the evaluate flow doesn't need its
+    /// own entry point elsewhere (Settings, a toolbar item, …) for one row.
+    @State private var showEvaluateCoffee = false
 
     var body: some View {
         TabView(selection: $store.selectedTab) {
@@ -47,9 +57,14 @@ struct RootTabView: View {
         .tint(Theme.Colors.accent)
         .onChange(of: store.selectedTab) { oldValue, newValue in
             guard newValue == .add else { return }
-            // Restore the tab the user was on, then present the wizard.
+            // Restore the tab the user was on, then offer the choice.
             store.selectedTab = oldValue == .add ? .coffees : oldValue
-            showAddCoffeeWizard = true
+            showAddChooser = true
+        }
+        .confirmationDialog("Add", isPresented: $showAddChooser, titleVisibility: .hidden) {
+            Button("Add a coffee I own") { showAddCoffeeWizard = true }
+            Button("Evaluate a coffee") { showEvaluateCoffee = true }
+            Button("Cancel", role: .cancel) {}
         }
         .environmentObject(store)
         .task {
@@ -65,6 +80,10 @@ struct RootTabView: View {
         }
         .sheet(isPresented: $showAddCoffeeWizard) {
             AddCoffeeWizardView()
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showEvaluateCoffee) {
+            EvaluateCoffeeView()
                 .environmentObject(store)
         }
     }

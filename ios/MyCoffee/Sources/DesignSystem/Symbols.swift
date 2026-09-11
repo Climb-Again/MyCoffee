@@ -129,4 +129,10 @@ enum Symbols {
     static let wizardAdd = "plus"
     static let wizardPhotos = "photo.on.rectangle.angled"
     static let wizardCamera = "camera.fill"
+
+    // "Evaluate this coffee" (PLAN.md, #106/#125/#136) — a bag not yet owned,
+    // scored against the rated corpus.
+    static let evaluateEntry = "gauge"
+    static let evaluateAffinity = "wand.and.stars"
+    static let evaluateNovelty = "sparkle"
 }
