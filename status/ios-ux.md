@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-11 11:05 UTC] #179 UX correctness batch (a)-(e) (findings deep-link id, rotation error surfacing, filteredCoffees rebind, Charts CoffeeIndex cache, RoasterLogoTile downsample+NSCache) — branch `ios-staging`. (f) skipped: #178 (`lastSyncError`/`lastSyncedAt`) is still `ready`, not `done`, per the row's own fallback.
 
 ## Abandoned
 
