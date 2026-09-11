@@ -215,10 +215,6 @@
           "detail": "Queued behind earlier work."
         },
         {
-          "title": "UX dedupe + dead-code batch (Audit 2026-09-09)",
-          "detail": "Queued."
-        },
-        {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
           "detail": "Queued."
         },
