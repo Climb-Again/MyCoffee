@@ -355,13 +355,24 @@ struct CoffeeIndex: Sendable {
     /// against the full, unfiltered corpus — tapping a card replaces whatever
     /// filter is active, so cards represent stable corpus segments, not the
     /// current selection.
-    func topFilterCards(limit: Int = 7) -> [TopFilterCard] {
+    /// `countedWithin` (#151, Radu 2026-09-07: "when filtered — … filter
+    /// labels") scopes the **displayed counts** to a row set — normally the
+    /// current results — while the *selection* of which cards exist stays
+    /// computed over the whole corpus. That split is deliberate: gating card
+    /// selection on the filtered set too would make chips appear and vanish
+    /// as you filter, which is worse than a stale number. Passing `nil`
+    /// (the default) is the pre-#151 whole-corpus behaviour.
+    ///
+    /// Note the counts and the tap action intentionally disagree while a
+    /// filter is active: a chip says how many of *these* results it covers,
+    /// but tapping it still replaces the whole filter (PLAN.md §6.1).
+    func topFilterCards(limit: Int = 7, countedWithin scope: IndexSet? = nil) -> [TopFilterCard] {
         let total = coffees.count
         guard total > 0 else { return [] }
 
         func makeCard(kind: TopFilterCard.Kind, title: String, indexSet: IndexSet) -> TopFilterCard? {
-            let count = indexSet.count
-            guard count >= 5, count < total else { return nil }
+            guard indexSet.count >= 5, indexSet.count < total else { return nil }
+            let count = scope.map { indexSet.intersection($0).count } ?? indexSet.count
             return TopFilterCard(kind: kind, title: title, count: count)
         }
 

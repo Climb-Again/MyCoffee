@@ -11,7 +11,12 @@ struct CoffeeRowView: View {
     let vocabulary: Vocabulary
 
     @EnvironmentObject private var store: CoffeeStore
-    @ScaledMetric(relativeTo: .body) private var thumbSize: CGFloat = 88
+    /// #150 (Radu, 2026-09-07: "reduce height for rows"): 88 -> 74. The
+    /// thumbnail is the row's height floor, so this is the only lever that
+    /// actually shortens it; at 74 the three middle-column lines and the
+    /// right column still fit without clipping, and roughly one more row
+    /// lands above the fold. Still `@ScaledMetric`, so Dynamic Type grows it.
+    @ScaledMetric(relativeTo: .body) private var thumbSize: CGFloat = 74
 
     private var roaster: Roaster? { coffee.roaster(vocabulary: vocabulary) }
 
@@ -60,7 +65,7 @@ struct CoffeeRowView: View {
         }
         .padding(.leading, 22)
         .padding(.trailing, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)          // #150: was 10
     }
 
     // MARK: - Photo + favourite

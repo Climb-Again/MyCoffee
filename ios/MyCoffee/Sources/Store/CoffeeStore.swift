@@ -336,6 +336,10 @@ final class CoffeeStore: ObservableObject {
     }
 
     var topFilterCards: [TopFilterCard] {
-        index.topFilterCards()
+        // #151: while a filter is active the chip counts describe the current
+        // results, not the whole library. Unfiltered, this is identical to
+        // the pre-#151 call.
+        guard !filter.isEmpty else { return index.topFilterCards() }
+        return index.topFilterCards(countedWithin: index.matches(filter))
     }
 }
