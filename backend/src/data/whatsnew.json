@@ -221,6 +221,10 @@
         {
           "title": "Use the landscape width — the layout half of #114, split out 2026-09-11 so the row that is done is done",
           "detail": "Queued."
+        },
+        {
+          "title": "Split from #181(c) (2026-09-11) -- the toggle-pill family the safer half of #181 left alone",
+          "detail": "Queued."
         }
       ]
     },
