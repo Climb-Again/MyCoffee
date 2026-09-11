@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-11 11:50 UTC] #191 iPad landscape width — max-width clamp on CoffeesListView/InsightsView/FilterSheetView/CoffeeDetailView's card content, RootTabView/sheet audit — branch `ios-staging`.
 
 ## Abandoned
 
