@@ -499,15 +499,9 @@ struct CoffeeDetailView: View {
                 }
                 Spacer(minLength: 12)
                 if let valueRating = store.index.valueBand(for: coffee) {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        valueMeter(valueRating)
-                        if let band = valueRating.band {
-                            Text(verdictLabel(band))
-                                .font(.system(size: 10, weight: band == .great ? Theme.Weight.bold : Theme.Weight.semibold))
-                                .tracking(0.8)
-                                .foregroundStyle(bandColor(band))
-                        }
-                    }
+                    // #181: shared `ValueMeterView` (was verbatim-duplicated
+                    // here and in `CoffeeRowView`).
+                    ValueMeterView(rating: valueRating)
                 }
             }
         }
@@ -515,49 +509,12 @@ struct CoffeeDetailView: View {
 
     private func priceStat(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(0.6)
-                .foregroundStyle(Theme.Colors.neutral700)
+            EyebrowLabel(text: label, tracking: 0.6)
             Text(value)
                 .font(.system(size: 22, weight: Theme.Weight.heavy))
                 .foregroundStyle(Theme.Colors.text)
         }
     }
-
-    private func valueMeter(_ rating: ValueRating) -> some View {
-        let tone = bandColor(rating.band)
-        return HStack(spacing: 3) {
-            ForEach(0..<5, id: \.self) { pip in
-                RoundedRectangle(cornerRadius: Theme.Radius.pill)
-                    .fill(pip < rating.pillCount ? tone : tone.opacity(0.15))
-                    .frame(width: 8, height: 4)
-            }
-        }
-    }
-
-    /// One shared depth tone per band (#186, `VALUE_BAND_UPDATE.md`) — the
-    /// lit pills, the unlit track (this colour at 15%) and the verdict text
-    /// all read off this. Verbatim-copied at `CoffeeRowView.bandColor` until
-    /// #181 dedupes `valueMeter`/`verdictLabel` into one view.
-    private func bandColor(_ band: ValueRating.Band?) -> Color {
-        switch band {
-        case .overpaid: return Theme.Colors.valueOverpaid
-        case .poor: return Theme.Colors.valuePoor
-        case .fair: return Theme.Colors.valueFair
-        case .good: return Theme.Colors.valueGood
-        case .great: return Theme.Colors.valueGreat
-        case nil: return Theme.Colors.neutral700
-        }
-    }
-
-    /// One word per pill (#105) — the label and the meter are the same five-step
-    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
-    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
-    /// point is that you rated it low for what it cost, not that it was dear.
-    /// #113 moved the wording onto `ValueRating.Band` itself so the filter
-    /// pills and the `.value` sort headers print exactly what the meter does.
-    private func verdictLabel(_ band: ValueRating.Band) -> String { band.label }
 
     private var factRows: [FactRow] {
         var rows: [FactRow] = []
@@ -577,10 +534,7 @@ struct CoffeeDetailView: View {
     private var flavourProfileSection: some View {
         if let chips = flavourChips {
             VStack(alignment: .leading, spacing: 8) {
-                Text("FLAVOUR PROFILE")
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: "FLAVOUR PROFILE", tracking: 1.2)
                 WrapLayout() {
                     ForEach(chips, id: \.self) { note in
                         Text(note)
@@ -623,10 +577,7 @@ struct CoffeeDetailView: View {
     private var brewLabSection: some View {
         if coffee.reviewState != "unextracted" {
             VStack(alignment: .leading, spacing: 12) {
-                Text("BREW LAB")
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: "BREW LAB", tracking: 1.2)
 
                 if brewHasAnyTrial {
                     LazyVGrid(
@@ -663,10 +614,7 @@ struct CoffeeDetailView: View {
         let winner = store.index.bestBrewOption(for: coffee, kind: kind)
         let triedCount = store.index.triedBrewOptions(for: coffee, kind: kind).count
         VStack(alignment: .leading, spacing: 2) {
-            Text(kind.displayName.uppercased())
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(0.6)
-                .foregroundStyle(Theme.Colors.neutral700)
+            EyebrowLabel(text: kind.displayName.uppercased(), tracking: 0.6)
             if let winner {
                 HStack(spacing: 4) {
                     Image(systemName: Symbols.trophyFill)
@@ -736,10 +684,7 @@ struct CoffeeDetailView: View {
     private var fromTheRoasterSection: some View {
         if !rawTextBlocks.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                Text("FROM THE ROASTER")
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: "FROM THE ROASTER", tracking: 1.2)
 
                 if roasterFacts.count >= 2 {
                     LazyVGrid(
@@ -748,10 +693,7 @@ struct CoffeeDetailView: View {
                     ) {
                         ForEach(roasterFacts) { fact in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(fact.key)
-                                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                                    .tracking(0.6)
-                                    .foregroundStyle(Theme.Colors.neutral700)
+                                EyebrowLabel(text: fact.key, tracking: 0.6)
                                 Text(fact.value)
                                     .font(.system(size: 13, weight: Theme.Weight.semibold))
                                     .foregroundStyle(Theme.Colors.text)
@@ -858,11 +800,8 @@ private struct NoteBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            EyebrowLabel(text: title, tracking: 1.2)
                 .textCase(.uppercase)
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(1.2)
-                .foregroundStyle(Theme.Colors.neutral700)
             Text(text)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.Colors.text)

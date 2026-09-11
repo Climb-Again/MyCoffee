@@ -205,52 +205,15 @@ struct CoffeeRowView: View {
                     .foregroundStyle(Theme.Colors.neutral700)
             }
             if let valueRating = store.index.valueBand(for: coffee) {
-                valueMeter(valueRating)
+                // #181: pills + verdict label now one shared `ValueMeterView`
+                // (was verbatim-duplicated here and in `CoffeeDetailView`).
+                // `spacing: 2` matches this column's old outer-`VStack` gap.
+                ValueMeterView(rating: valueRating, spacing: 2)
                     .padding(.top, 2)
-                if let band = valueRating.band {
-                    Text(verdictLabel(band))
-                        .font(.system(size: 10, weight: band == .great ? Theme.Weight.bold : Theme.Weight.semibold))
-                        .tracking(0.8)
-                        .foregroundStyle(bandColor(band))
-                }
             }
         }
         .frame(width: 96, alignment: .trailing)
     }
-
-    private func valueMeter(_ rating: ValueRating) -> some View {
-        let tone = bandColor(rating.band)
-        return HStack(spacing: 3) {
-            ForEach(0..<5, id: \.self) { pip in
-                RoundedRectangle(cornerRadius: Theme.Radius.pill)
-                    .fill(pip < rating.pillCount ? tone : tone.opacity(0.15))
-                    .frame(width: 8, height: 4)
-            }
-        }
-    }
-
-    /// One shared depth tone per band (#186, `VALUE_BAND_UPDATE.md`) — the
-    /// lit pills, the unlit track (this colour at 15%) and the verdict text
-    /// all read off this. Verbatim-copied at `CoffeeDetailView.bandColor`
-    /// until #181 dedupes `valueMeter`/`verdictLabel` into one view.
-    private func bandColor(_ band: ValueRating.Band?) -> Color {
-        switch band {
-        case .overpaid: return Theme.Colors.valueOverpaid
-        case .poor: return Theme.Colors.valuePoor
-        case .fair: return Theme.Colors.valueFair
-        case .good: return Theme.Colors.valueGood
-        case .great: return Theme.Colors.valueGreat
-        case nil: return Theme.Colors.neutral700
-        }
-    }
-
-    /// One word per pill (#105) — the label and the meter are the same five-step
-    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
-    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
-    /// point is that you rated it low for what it cost, not that it was dear.
-    /// #113 moved the wording onto `ValueRating.Band` itself so the filter
-    /// pills and the `.value` sort headers print exactly what the meter does.
-    private func verdictLabel(_ band: ValueRating.Band) -> String { band.label }
 }
 
 enum PlainDateFormatting {

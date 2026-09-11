@@ -340,11 +340,8 @@ struct CoffeesListView: View {
     // MARK: - Month headers (§5)
 
     private func monthHeader(_ title: String) -> some View {
-        Text(title)
+        EyebrowLabel(text: title, tracking: 1.4)
             .textCase(.uppercase)
-            .font(.system(size: 10, weight: Theme.Weight.semibold))
-            .tracking(1.4)
-            .foregroundStyle(Theme.Colors.neutral700)
             .frame(maxWidth: .infinity, alignment: .leading)
             // §5: plain grey text on the surface — no black band, no rule. The
             // 20pt top inset is the only separation between sections.

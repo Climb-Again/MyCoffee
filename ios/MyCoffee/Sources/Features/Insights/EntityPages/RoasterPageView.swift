@@ -21,11 +21,7 @@ struct RoasterPageView: View {
         return store.index.coffees(matching: filter, sortedBy: .rating)
     }
 
-    private var averageRating: Double? {
-        let ratings = coffees.compactMap(\.rating)
-        guard !ratings.isEmpty else { return nil }
-        return ratings.reduce(0, +) / Double(ratings.count)
-    }
+    private var averageRating: Double? { coffees.averageRating }
 
     private var parsedBlurb: RoasterBlurbParser.Parsed? {
         guard let blurb = roaster?.blurb?.trimmingCharacters(in: .whitespacesAndNewlines), !blurb.isEmpty else {
@@ -37,11 +33,10 @@ struct RoasterPageView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 16) {
-                    RoasterLogoTile(logoUrl: roaster?.logoUrl, size: 86, cornerRadius: 22)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(roaster?.name ?? "Unknown roaster")
-                            .font(.title3.weight(.bold))
+                EntityHeader(
+                    icon: { RoasterLogoTile(logoUrl: roaster?.logoUrl, size: 86, cornerRadius: 22) },
+                    title: roaster?.name ?? "Unknown roaster",
+                    subtitle: {
                         if let country {
                             HStack(spacing: 4) {
                                 FlagView(isoCode: country.isoCode)
@@ -50,19 +45,10 @@ struct RoasterPageView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                    }
-                }
-                .padding(.vertical, 4)
-
-                HStack {
-                    Text("\(coffees.count) coffee\(coffees.count == 1 ? "" : "s")")
-                    if let averageRating {
-                        Spacer()
-                        Label(String(format: "%.2f", averageRating), systemImage: Symbols.starFill)
-                            .foregroundStyle(Theme.Colors.accent)
-                    }
-                }
-                .font(.subheadline)
+                    },
+                    coffeeCount: coffees.count,
+                    averageRating: averageRating
+                )
             }
             .listRowSeparator(.hidden)
 
@@ -113,10 +99,7 @@ struct RoasterPageView: View {
     private func blurbBulletRow(_ bullet: RoasterBlurbBullet) -> some View {
         if let label = bullet.label {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label.uppercased())
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: label.uppercased(), tracking: 0.6)
                 Text(bullet.text)
                     .font(.system(size: 13, weight: Theme.Weight.semibold))
                     .foregroundStyle(Theme.Colors.text)

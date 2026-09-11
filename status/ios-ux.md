@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-11 11:35 UTC] #181 UX dedupe + dead-code batch (a) ValueMeterView, (b) EyebrowLabel, (d) [Coffee].averageRating, (e) EntityHeader done so far; (c) Pill(style:), (f) .plainListRow(), (g) Int.normalizedQuarterTurns, deletions in progress — branch `ios-staging`.
 
 ## Abandoned
 

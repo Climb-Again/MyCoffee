@@ -462,8 +462,7 @@ struct InsightsView: View {
     }
 
     private func windowSummary(for windowed: [Coffee]) -> some View {
-        let ratings = windowed.compactMap(\.rating)
-        let mean = ratings.isEmpty ? nil : ratings.reduce(0, +) / Double(ratings.count)
+        let mean = windowed.averageRating
         return HStack(spacing: 6) {
             Text("\(windowed.count) " + (windowed.count == 1 ? "coffee" : "coffees"))
             if let mean {
@@ -554,9 +553,5 @@ struct InsightsView: View {
         Dictionary(coffees.map { ($0.purchasedYear, 1) }, uniquingKeysWith: +)
     }
 
-    private var overallAverageRating: Double? {
-        let ratings = coffees.compactMap(\.rating)
-        guard !ratings.isEmpty else { return nil }
-        return ratings.reduce(0, +) / Double(ratings.count)
-    }
+    private var overallAverageRating: Double? { coffees.averageRating }
 }

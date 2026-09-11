@@ -76,6 +76,17 @@ extension Coffee {
     }
 }
 
+extension Array where Element == Coffee {
+    /// Mean `rating` across the rated subset — `nil` when none are rated.
+    /// #181: same "guard on empty, else reduce/count" shape was duplicated
+    /// in `RoasterPageView`, `CountryPageView` and twice in `InsightsView`.
+    var averageRating: Double? {
+        let ratings = compactMap(\.rating)
+        guard !ratings.isEmpty else { return nil }
+        return ratings.reduce(0, +) / Double(ratings.count)
+    }
+}
+
 extension SortOption {
     var displayName: String {
         switch self {
