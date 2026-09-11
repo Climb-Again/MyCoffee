@@ -395,6 +395,17 @@ into a runner. But three things change, and two of them are footguns:
    the product brief lives on that repo's `main`. `MATCH_PAT` reaches it and is
    scoped to that repo alone. `contents:` permission here is `read` — CI has no
    reason to write to this repo.
+- **`backend/src/data/whatsnew.json` is GENERATED — never hand-edit it.**
+  `ops/gen-whatsnew-plan.mjs` derives its `plan` half from `status/BACKLOG.md`
+  and `backlog-check.yml` fails on drift, because the hand-curated version went
+  **15 days stale** (2026-08-27 → 09-11) showing 8 shipped iOS items and zero
+  backend/data items while 14 backend rows sat `ready` — a stale plan deploys
+  and serves 200 exactly like a fresh one, so nothing caught it. Its `live` half
+  is still hand-written; that is release-note prose and does not rot on its own.
+  Because it lives under `backend/`, `railway-deploy.yml`'s path filter
+  **negates this one file** so a row flip cannot trigger a redeploy (see the
+  next bullet); the deployed plan therefore lags the repo by at most one backend
+  deploy.
 - **Never push `backend/**` while an extraction job is `running`** — the push
   redeploys and SIGTERMs the worker. Check `GET /api/admin/jobs` first. The lease
   reaper makes it recoverable, not free.
