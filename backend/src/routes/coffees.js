@@ -17,6 +17,7 @@
 // same as every other write path — the iOS app holds INGEST_TOKEN in the
 // Keychain for exactly this (CLAUDE.md §9), not just the Mac exporter.
 import { requireAnyToken, requireIngestToken } from '../auth.js';
+import { config } from '../config.js';
 import { query } from '../db.js';
 import { buildMediaUrl } from '../media.js';
 import {
@@ -544,6 +545,7 @@ export default async function coffeesRoutes(app) {
       vocabShortlist,
       vocab: sharedCtx.vocab,
       photoDate: primaryPhoto.captured_on,
+      deadlineMs: config.extraction.worker.lightExtractionDeadlineMs,
     });
 
     // Same client field set the generic edit endpoint (#40) accepts, so the
@@ -657,6 +659,7 @@ export default async function coffeesRoutes(app) {
       vocabShortlist,
       vocab: sharedCtx.vocab,
       photoDate: primaryPhoto.captured_on,
+      deadlineMs: config.extraction.worker.lightExtractionDeadlineMs,
     });
 
     const roasterId = resolutions.roaster_id?.value ?? null;

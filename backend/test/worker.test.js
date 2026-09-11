@@ -19,6 +19,7 @@ import {
   runLightExtraction,
   buildFlavorNotesText,
   mergeRawDescription,
+  withBackoff,
 } from '../src/lib/worker.js';
 import { extractRoastedOnField } from '../src/lib/deterministic.js';
 import { canonicalize } from '../src/lib/adjudicate.js';
@@ -519,6 +520,87 @@ test('runLightExtraction: a genuine cluster split still resolves (applied provis
 
   assert.equal(resolutions.rating.decision, 'split');
   assert.ok(resolutions.rating.value === 4 || resolutions.rating.value === 5);
+});
+
+// #167: withBackoff must not retry a non-retryable/exhausted Gemini error --
+// vertex.js's generateContent() already retries 429/500/503 internally with
+// its own backoff, so retrying a "Gemini 4xx" it rethrows here again just
+// multiplies the worst-case wall-clock time without a different outcome.
+test('withBackoff: bails immediately on a "Gemini 4xx" error, no retry delay', async () => {
+  let calls = 0;
+  await assert.rejects(
+    () =>
+      withBackoff(() => {
+        calls += 1;
+        throw new Error('Gemini 429: RESOURCE_EXHAUSTED');
+      }, [2, 5, 15, 45, 120]),
+    /Gemini 429/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('withBackoff: still retries a non-Gemini (e.g. network) error through all delays', async () => {
+  let calls = 0;
+  await assert.rejects(
+    () =>
+      withBackoff(() => {
+        calls += 1;
+        throw new Error('fetch failed');
+      }, [0, 0]),
+    /fetch failed/,
+  );
+  assert.equal(calls, 3); // initial + 2 retries
+});
+
+test('withBackoff: succeeds without retrying when the first call succeeds', async () => {
+  let calls = 0;
+  const result = await withBackoff(() => {
+    calls += 1;
+    return Promise.resolve('ok');
+  }, [2, 5]);
+  assert.equal(result, 'ok');
+  assert.equal(calls, 1);
+});
+
+// #167: the synchronous wizard routes (/api/coffees/extract, /evaluate) had no
+// bound on how long a stuck voter could hold the request open. runLightExtraction's
+// deadlineMs must stop calling further voters once exceeded, rather than hang.
+test('runLightExtraction: deadlineMs bails before a later voter once exceeded', async () => {
+  const fakeVoters = [
+    { agent: 'extract_b', run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.9 } }, costUsd: 0.01 }) },
+    { agent: 'reconciler', run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.9 } }, costUsd: 0.02 }) },
+  ];
+
+  await assert.rejects(
+    () =>
+      runLightExtraction({
+        rawText: '',
+        images: [],
+        vocabShortlist: [],
+        voters: fakeVoters,
+        vocab: {},
+        deadlineMs: -1, // already expired before the first voter runs
+      }),
+    /deadline exceeded/,
+  );
+});
+
+test('runLightExtraction: a generous deadlineMs does not interfere with a normal run', async () => {
+  const fakeVoters = [
+    { agent: 'extract_b', run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.9 } }, costUsd: 0.01 }) },
+    { agent: 'reconciler', run: async () => ({ fields: { rating: { value: '4.5', confidence: 0.9 } }, costUsd: 0.02 }) },
+  ];
+
+  const { resolutions } = await runLightExtraction({
+    rawText: '',
+    images: [],
+    vocabShortlist: [],
+    voters: fakeVoters,
+    vocab: {},
+    deadlineMs: 90_000,
+  });
+
+  assert.equal(resolutions.rating.value, 4.5);
 });
 
 // #124: backfillRoastDates itself is DB-touching (not unit-tested here, same as

@@ -248,13 +248,24 @@ export function buildSearchBlobs(coffee, ctx = {}) {
   };
 }
 
-async function withBackoff(fn, delays) {
+// #167: vertex.js's generateContent() already retries retryable statuses
+// (429/500/503) internally, with its own backoff -- a "Gemini 4xx" error
+// surfacing here already exhausted those retries (429) or was never
+// retryable in the first place (400/401/403/404). Retrying it again at this
+// level can't change the outcome; it only multiplies the worst-case
+// wall-clock time (6 outer attempts x vertex.js's own ~27.5 min worst case
+// measured at ~2.7h/42 HTTP attempts for a single voter call) against a
+// 10-minute lease. Bail immediately instead.
+const NON_RETRYABLE_GEMINI_ERROR = /^Gemini 4\d\d/;
+
+export async function withBackoff(fn, delays) {
   let lastErr;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
       return await fn();
     } catch (err) {
       lastErr = err;
+      if (NON_RETRYABLE_GEMINI_ERROR.test(err?.message ?? '')) throw err;
       const wait = delays[attempt];
       if (wait === undefined) break;
       await new Promise((resolve) => setTimeout(resolve, wait * 1000));
@@ -327,12 +338,23 @@ export function pickRawExtractedValue(field, candidatesByField) {
 // the batch worker's `processPhoto` does. `ctx.locked`/`criticVerdicts` are
 // always empty -- a brand-new coffee has no prior human decisions and this
 // ensemble carries no critic.
-export async function runLightExtraction({ rawText, images, vocabShortlist, voters, vocab, photoDate } = {}) {
+//
+// #167: this backs the synchronous `/api/coffees/extract` and `/evaluate`
+// routes, which had no bound on how long the request could hang -- a voter
+// stuck retrying against Gemini could hold the HTTP connection open
+// indefinitely. `deadlineMs` (default config.extraction.worker.
+// lightExtractionDeadlineMs) bails before the next voter once exceeded,
+// throwing rather than let the caller wait forever.
+export async function runLightExtraction({ rawText, images, vocabShortlist, voters, vocab, photoDate, deadlineMs } = {}) {
   const resolvedVoters = voters ?? (await lightVoters());
   const candidatesByField = {};
   let spentUsd = 0;
+  const deadlineAt = deadlineMs != null ? Date.now() + deadlineMs : null;
 
   for (const voter of resolvedVoters) {
+    if (deadlineAt != null && Date.now() > deadlineAt) {
+      throw new Error(`runLightExtraction: deadline exceeded before voter '${voter.agent}'`);
+    }
     const result = await withBackoff(
       () => voter.run({ rawText, images, vocabShortlist, candidatesByField }),
       config.extraction.worker.backoffSeconds,
@@ -733,8 +755,19 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
 
   let spentUsd = 0;
   const candidatesByFieldSoFar = {}; // prompt context only -- this run's own voters
+  // #167: even after dropping the outer withBackoff double-retry, a single
+  // voter call can legitimately take several minutes (vertex.js's own
+  // 429/500/503 retry loop) -- past this photo's 10-minute lease. Bound the
+  // total time spent on one photo's voters (deadlineAt), and renew the lease
+  // after every voter (heartbeat) so a legitimately slow-but-still-running
+  // photo doesn't get reaped and re-claimed by another worker mid-flight.
+  const deadlineAt = Date.now() + config.extraction.worker.photoDeadlineMs;
 
   for (const voter of voters) {
+    if (Date.now() > deadlineAt) {
+      throw new Error(`processPhoto: deadline exceeded before voter '${voter.agent}' (photo ${photo.id})`);
+    }
+
     const promptVersion = voter.promptVersion ?? PROMPT_VERSION;
     const inputSha = computeInputSha({
       agent: voter.agent,
@@ -753,6 +786,12 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
       candidatesByField: candidatesByFieldSoFar,
     });
     if (!reused) spentUsd += Number(extraction.cost_usd ?? 0);
+
+    await query(
+      `UPDATE photos SET extraction_leased_until = now() + ($2 || ' minutes')::interval
+       WHERE id = $1 AND extraction_leased_until IS NOT NULL`,
+      [photo.id, String(config.extraction.worker.leaseMinutes)],
+    );
 
     const fieldsToStore = voter.isCritic
       ? Object.fromEntries(
