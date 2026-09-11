@@ -6,13 +6,68 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-11 11:35 UTC] #181 UX dedupe + dead-code batch (a) ValueMeterView, (b) EyebrowLabel, (d) [Coffee].averageRating, (e) EntityHeader done so far; (c) Pill(style:), (f) .plainListRow(), (g) Int.normalizedQuarterTurns, deletions in progress — branch `ios-staging`.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-11 (iOS UX lane routine) — #181 UX dedupe + dead-code batch,
+  `1f609de` + `2bd8705`, compile-green (runs #118, #119); split (c)'s
+  harder half into #193.** (a) `DesignSystem/ValueMeterView.swift` folds in
+  the verbatim `valueMeter`/`bandColor`/`verdictLabel` trio duplicated in
+  `CoffeeRowView`/`CoffeeDetailView` — parameterized on `spacing` so the
+  row's tighter gap (2pt, from an old `.padding(.top, 2)` plus the outer
+  VStack's own spacing) and the detail page's original nested-VStack gap
+  (4pt) both come out pixel-identical to before. (b) `EyebrowLabel.swift`
+  replaces 9 of the exact "10pt semibold, `.tracking(_)`, neutral700"
+  copies; deliberately left two families alone — `CoffeeRowView`'s
+  roaster-name label (conditionally accent-colored, not a plain neutral700
+  copy) and the three accent/accent700 stat-line labels (a different
+  semantic role, "headline stat" vs "section eyebrow"). (c) `Pill.swift`
+  only takes the safer half: `DetailPill`, `InfoPill` and the inline
+  flavour-note chip were three near-identical flat, non-interactive
+  capsules differing just in font/color. The other three
+  (`CoffeesListView.filterChip`, `InsightsView.equalPill`/`chip`) carry
+  `isSelected` state, a fill-vs-border pair, and (for `filterChip`) a
+  second count `Text` — genuinely more load-bearing UI (the primary
+  filter/section-switcher affordance) where a rushed one-size-fits-all
+  component risked more than it saved. Split that half out as **#193**
+  rather than force it through under session pressure. (d)
+  `Array<Coffee>.averageRating` (`CoffeeDisplay.swift`) replaces the same
+  "guard on empty, else reduce/count" block hand-rolled in
+  `RoasterPageView`, `CountryPageView`, and twice in `InsightsView`. (e)
+  `DesignSystem/EntityHeader.swift` replaces `RoasterPageView`'s and
+  `CountryPageView`'s near-identical header blocks — found while merging
+  them that they'd actually drifted: the star was `Theme.Colors.accent` on
+  the roaster page but `.orange` on the country page. Accent wins (#148),
+  fixed as part of the dedupe rather than filed as a separate bug. Uses
+  `Group` (not `VStack`) internally so it still expands into two
+  independent `List` rows inside each page's `Section`, matching prior
+  behaviour exactly. (f) `View.plainListRow()` replaces the same
+  `listRowInsets`/`listRowSeparator`/`listRowBackground` triple repeated
+  5× in `CoffeesListView`. (g) `Int.normalizedQuarterTurns` replaces
+  `((x % 4) + 4) % 4` in `Thumbnail.swift`/`ZoomableImageView.swift`;
+  `Models/Coffee.swift:91,176` has the identical expression but is
+  shell-owned, so I didn't touch it — flagging here for `ios-shell` to
+  adopt in a seam edit, not filing a full row since it's not
+  compile-coupled (nothing breaks if it's never adopted, it's just a
+  missed dedupe). Deletions, each double-checked for zero remaining
+  references first: `FeatureFlags.swift` (both flags had been `true`
+  since #28) and its three dead `else` branches
+  (`CoffeeDetailView.roasterHeaderRow`/`roasterHeaderContent`/`originPill`,
+  `RailView.moreDestination`); `YearlyStackedChart` +
+  `InsightsAggregation.yearlyTopCategories` (and the two structs,
+  `CategoryYearPoint`/`CategoryYearChartData`, that existed only to feed
+  it) + `ChartPalette.scale`/`.rotation` (same story); `ProcessTag` (kept
+  `DecafBadge`, trimmed `ProcessStyles` down to just the `.decaf` case
+  since `.style(for:)` and the five per-profile styles had no other
+  caller); `ReviewSampleData.swift`, whose only consumer was
+  `ReviewQueueEngine`'s init default — verified both real call sites
+  (`CoffeeReviewSheet`, `ReviewQueueView`) already pass `tasks: []`
+  explicitly, so nothing ever read the default.
 
 - **2026-09-11 (iOS UX lane routine) — #125 "Evaluate this coffee" screen,
   `6c757e9`, compile-green (run #117).** Both `needs` (#106, #136) were
