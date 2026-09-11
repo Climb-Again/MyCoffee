@@ -30,3 +30,14 @@ claude/wizardly-thompson-e42ekb    #76 wizard shell surface — rebuilt on ios-s
 # --- 2 branches: genuinely lost work, RECOVERED to main on 2026-09-09.
 claude/brave-ritchie-b9ushf              Brew lab: PLAN.md §14 + #155-#158 — merged to main (0fec62d)
 claude/coffee-ocr-origin-extraction-bx49z9  extension spec -> #159-#162; Congo/Sopacdi bug -> #165
+
+# --- 1 branch: disjoint/unrelated history (no merge-base with main), audited
+# 2026-09-11 by the backend lane. Its tip (c62b4aa) files the v2 redesign
+# brief for #93-#97; main's design/coffees_redesign/UPDATE_BRIEF.md is a v3
+# that explicitly supersedes v2, and #93-#97 are already in BACKLOG.md, so
+# nothing here is unrecovered. status/backend.md etc. on this branch are an
+# earlier, now-archived lineage (main split history into status/archive/**,
+# which this branch predates and doesn't have). `git merge` is not safe here —
+# unrelated histories touching all 239 files — so this is a documented dismiss,
+# not a silent one.
+claude/plan-scheduling-optimization-txdrl5   v2 redesign brief, superseded by main's v3 UPDATE_BRIEF.md; #93-#97 already filed
