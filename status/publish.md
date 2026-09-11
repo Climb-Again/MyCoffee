@@ -311,3 +311,66 @@ no further code changes.
   dispatch this session was green, so the loop's fix-and-retry path was never
   needed. Processing (~20 min, async, `skip_waiting_for_build_processing`)
   unconfirmed — check TestFlight/email.
+
+- **2026-09-10 (autopilot session, Thu cron) — shipped 14 days of iOS work; the
+  scary-looking 694-commit divergence was a shallow-clone artifact, not a
+  rewrite.** Step 0 read `origin/main..origin/ios-staging` = **694 commits**,
+  against 40 at the last ship and only **54 commits reachable from `origin/main`
+  in total** — the shape of a force-pushed/recreated branch, which CLAUDE.md
+  forbids. It isn't: `.git/shallow` exists, so the grafted boundary makes the
+  two lineages look unrelated and every `rev-list --count` across it is
+  meaningless. **The number to trust is the tree, not the commit count** — the
+  real merge base is `15297f7` (an ancestor of both) and `git diff --stat
+  main..ios-staging` was 42 files. Don't re-derive this next session; if the
+  count looks absurd, check `.git/shallow` first and then diff the trees.
+  The one thing that genuinely needed checking, and did get checked before
+  merging: the base-relative diff showed `extension/popup.js` **−275 lines**,
+  which read like the merge would revert #188/#189/#190 — the public-contract
+  fixes that broke every installed extension once already. It would not.
+  `git log 15297f7..origin/ios-staging -- extension/` is **empty** (the iOS lanes
+  never touched it), so those −275 lines are main's newer work seen from the base,
+  not a deletion the merge would apply. Confirmed after the trial merge with
+  `git diff --stat HEAD -- extension/ backend/` → **empty**, and again on the
+  pushed result. `roastRecency` is still in `popup.js` (4 hits) and the manifest
+  is still 1.4.1.
+  Step 1: dispatch was the session's **GitHub MCP connector** again
+  (`mcp__github__actions_run_trigger`), `204`. `$GH_TOKEN` works fine for reads
+  (public repo) and was used for all run/job polling via `curl`; no env PAT was
+  tried for the dispatch, since 2026-08-27 established all six candidates return
+  `403` on `POST .../dispatches`.
+  Step 2: `ios-staging` tip `6ad0e01` was compile-green at **run #107**. Merged
+  into `main` — one conflict, `status/BACKLOG.md`, and it was one-sided: `main`
+  carries rows **#187–#190** (filed by the backend lane since the last sync) and
+  `ios-staging`'s copy had **no edits of its own**, so keeping `main`'s hunk lost
+  nothing. Verified rather than assumed — the resolved file is byte-identical to
+  `git show origin/main:status/BACKLOG.md`. `check-backlog.sh` green, 178 rows.
+  Pushed as `c906ffe`.
+  **Trap worth recording: `git pull --rebase` after creating the merge commit
+  tried to rebase the merge and died on `92b6109 Scaffold MyCoffee infrastructure`
+  — a shallow-boundary commit it cannot replay.** The `git push` in the same
+  command line still succeeded (`273f010..c906ffe`), because a rebase in progress
+  leaves the `main` *ref* untouched while `HEAD` goes detached — which is why
+  `git rev-parse HEAD` printed the *old* SHA right after a successful push and
+  looked like a failure. `git rebase --abort` restored everything;
+  `origin/main == c906ffe` confirmed by re-fetch. **Next session: after
+  `git merge origin/ios-staging`, do NOT `git pull --rebase` — `git fetch` and
+  check fast-forward instead.** CLAUDE.md §3's blanket "pull --rebase before every
+  push" does not survive contact with a merge commit on a shallow clone.
+  Shipped: #141–#148 (coffee-page header redesign, `RoasterLogoTile`,
+  `RoasterFactParser`, `RoasterBlurbParser`, roaster-page cleanup, `MonogramAvatar`
+  deleted), #117(a)/#136/#139 (unknown-postings across the four band dimensions,
+  the `/api/coffees/evaluate` client surface, 65/35 value reweight), #135
+  (roaster-country pie counts distinct roasters), #131 (Add Coffee wizard
+  quick-create), #111 (Lucide list-filter glyph), the `country_id`/`countryId`
+  decode fix, and #186 (value-band black→blue depth ramp). 26 files, +1198/−486.
+  Step 3: push queued compile run **#108** (green); publish dispatch **#109**
+  queued behind it per the serial concurrency group and completed **success**.
+  Job log confirms `Build & upload to TestFlight` **actually ran** — 133 s,
+  15:04:28→15:06:41 UTC — and `Compile check (no upload)` was skipped, as expected
+  for a `publish=true` ref. First dispatch was green; the fix-and-retry loop was
+  never entered. Processing (~20 min, async, `skip_waiting_for_build_processing`)
+  **unconfirmed** — check TestFlight/email.
+  **Left for a future publish session: backlog #182 is `publish`-lane, `ready`,
+  and nobody else will pick it up** — archive the 123 `done`/`dropped` rows and the
+  52 KB of post-table prose out of the 321 KB `status/BACKLOG.md`. This routine's
+  prompt is the ship cycle only, so it was not claimed here.

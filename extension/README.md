@@ -85,23 +85,46 @@ part that is actually defensible:
 
 | Component | Weight | What it is |
 |---|---|---|
-| **Value** | 0.50 | Asking €/100 g against what you normally pay for bags you rate the same. The only genuinely reliable component. |
-| **Affinity** | 0.35 | Shrunk means for origin / roaster / process / roaster-country, expressed as a percentile within your own library. |
-| **Novelty** | 0.15 | Enters as a fixed neutral 50 — "new" is neither good nor bad — and surfaces as a tag. |
-| **Freshness** | ±10 pts | Roast recency, on top of the blend. See the caveat below. |
+| **Affinity** | 50 | Shrunk means for roaster / origin / process / roaster-country, as a percentile within your own library. |
+| **Freshness** | 20 | Roast recency — full marks to 14 days, decaying to zero at 180. |
+| **Value** | 15 | Asking €/100 g against what you normally pay for bags you rate the same. |
+| **Novelty** | 10 | **New scores higher**: new roaster +50, new origin +50. |
+
+Those sum to 95, not 100 — deliberately. The blend renormalises over whichever
+components are actually present, so the **ratios** are what matter, and these
+are exactly the ratios asked for. In practice they land at 52.6 / 21.1 / 15.8 /
+10.5.
+
+**Past 40 days a further 10 points come off**, on top of the decay. You'll see
+the drop as a step, not a slope — that's deliberate.
+
+**A page with no roast date is judged on affinity and value alone**, with the
+weights renormalised. It is never penalised for the gap — but a bag you can see
+is fresh will out-score one you can't, which is the point.
 
 **No headline number appears when** the roaster, origin and process are all
 unseen or under ~5 rated bags (`low` confidence), or when the page gave no
 usable price. Both are deliberate: the components are shown and the reason is
 stated rather than a number being invented.
 
-### The freshness caveat
+### Why these weights, and why novelty points the way it does
 
-Roast recency is the one factor with **no leave-one-out validation** behind it —
-the corpus carries too few roast dates to measure it the way the other four were
-measured. So it is capped at 10 points of a 0–100 score, and a page with no
-roast date is treated as neutral, never penalised. The curve is full marks to 14
-days, then linear decay to zero at 180.
+Affinity leads because it is the only component ever measured **as a predictor**
+of your ratings — leave-one-out r≈0.39 (#106). Value was called "reliable" in
+that study, but that meant deterministic and low-noise: it is a price
+comparison, never validated as a rating predictor. So putting the measured
+predictor first follows the evidence rather than departing from it.
+
+**Novelty is directional: new scores higher.** #106 deliberately left it neutral
+("new is neither good nor bad"), and that was right while it carried no weight —
+but a weighted term has to point somewhere, or it just drags every score toward
+the middle. It points at the unfamiliar because this is a tool for deciding what
+to buy *next*. The useful side effect is a tension with affinity: affinity says
+"you like this kind", novelty says "but you've already had this one", so the two
+together favour **new bags within styles you like**.
+
+Roast recency remains the one factor with **no leave-one-out validation** behind
+it: the corpus carries too few roast dates to measure it the way the others were.
 
 ## Why the price matters more than anything else on the page
 
@@ -169,6 +192,39 @@ Three rules it follows:
 - **No "Add as new".** New bags are still added in the iOS app. This is only for
   coffees already in the library.
 
+## Your last 10 days, ranked
+
+Every coffee you evaluate is saved, and the popup always carries a **Top
+coffees** section — the highest-scoring pages from the last **10 days**, best
+first. Anything older is discarded automatically. Revisiting a page updates its
+entry rather than adding a second one, so the ranking stays "best coffees", not
+"pages I refreshed most".
+
+Each row is the app's listing row: image · **ROASTER** / title / origin ·
+score, €/100g and the value pills on the right — with the **fit score in the
+rating's slot**, since that's the number this surface knows. **Why?** opens the
+evaluator note. Clicking the title opens the shop page again.
+
+Under each one: **roast age, colour-coded** — green under two weeks, ramping to
+red past 40 days — and **when you looked at it**. Those two belong together,
+because the age shown is the age *at the time of the visit*, matching the score
+that was saved with it. A bag that was 30 days old when you saw it last week is
+a different bag today.
+
+The section and the notes both start collapsed, because ten rows plus the
+current page doesn't fit a popup. Your choice is remembered.
+
+It's always there — open the popup on any tab, even a non-coffee one, and the
+top 10 is still the bottom half of the panel.
+
+Coffees with no headline score (no price on the page) are still saved but can't
+be ranked, so they're counted at the bottom rather than sorted as if they were
+zero.
+
+**This lives in the browser, not the backend** — it needs no token and no
+round-trip, and it stays on this machine. The tradeoff is that it doesn't reach
+the iOS app; say so if you'd rather it did.
+
 ## Limits
 
 - Chrome refuses injection on `chrome://` pages, the Web Store, and PDFs.
@@ -178,6 +234,8 @@ Three rules it follows:
   "cached result" when you're seeing one.
 - "Add as new" is not built and is not planned here — the iOS app stays how new
   bags are added.
+- History is per-browser and per-profile. Clearing Chrome's site data for the
+  extension clears it; it does not sync to another machine or to the app.
 - Enrichment needs a page title and a recognised roaster. Without both, matching
   would be guesswork, so the popup just shows the score.
 - **Prices in RON, CZK or PLN are currently dropped** — the parser knows the

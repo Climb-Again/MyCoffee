@@ -9,13 +9,12 @@
 // there is one scorer to test, not two.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   daysSinceRoast,
   roastRecencyScore,
-  applyRoastRecency,
   ROAST_FRESH_DAYS,
   ROAST_STALE_DAYS,
-  ROAST_RECENCY_WEIGHT,
 } from '../src/lib/scoring.js';
 import { explain } from '../src/routes/score.js';
 
@@ -64,31 +63,9 @@ test('roastRecencyScore: no roast date scores null, so it is dropped rather than
   assert.equal(roastRecencyScore(NaN), null);
 });
 
-test('applyRoastRecency: unknown recency leaves the headline exactly as it was', () => {
-  // The whole point of "neutral, not penalised" (#159).
-  assert.equal(applyRoastRecency(72, null), 72);
-});
 
-test('applyRoastRecency: a suppressed headline stays suppressed', () => {
-  assert.equal(applyRoastRecency(null, 100), null);
-  assert.equal(applyRoastRecency(null, 0), null);
-});
 
-test('applyRoastRecency: influence is bounded by ROAST_RECENCY_WEIGHT', () => {
-  // #159 requires this factor stay small: it is the one signal with no
-  // leave-one-out validation behind it.
-  const base = 50;
-  const best = applyRoastRecency(base, 100);
-  const worst = applyRoastRecency(base, 0);
-  assert.equal(best - worst, Math.round(100 * ROAST_RECENCY_WEIGHT));
-  assert.ok(best <= base + 100 * ROAST_RECENCY_WEIGHT);
-  assert.ok(worst >= base - 100 * ROAST_RECENCY_WEIGHT);
-});
 
-test('applyRoastRecency: a fresh bag is nudged up, a stale one down', () => {
-  assert.ok(applyRoastRecency(60, roastRecencyScore(3)) > 60);
-  assert.ok(applyRoastRecency(60, roastRecencyScore(175)) < 60);
-});
 
 // ---- explanation ----
 
@@ -217,4 +194,153 @@ test('explain: stays silent about an unknown roaster too', () => {
   });
   assert.doesNotMatch(text, /roaster you haven't bought/i);
   assert.match(text, /Ethiopia is familiar ground/i);
+});
+
+// ---- #188: the reweighted blend and the stale-roast penalty ----
+//
+// Radu, 2026-09-10: "weight more on the roaster, origin country, process,
+// roasting date. If roasting date older than 40d penalize with extra 10
+// points." This deliberately overrides what the corpus measurement suggests
+// (#106 found value the only reliable component); it is his call, and these
+// tests exist so nobody quietly reverts it to the r-values.
+import { evaluateCoffee, noveltyScore, FINAL_WEIGHTS, STALE_ROAST_DAYS, STALE_ROAST_PENALTY } from '../src/lib/scoring.js';
+
+const NOW = Date.UTC(2026, 8, 10);
+const ago = (d) => new Date(NOW - d * 86_400_000).toISOString().slice(0, 10);
+
+// A fixture that reliably produces a headline: enough rated bags per signal
+// for `normal` confidence, and a price band with enough members to be trusted.
+const priced = Array.from({ length: 40 }, (_, i) => ({ pricePer100gEur: 4 + i * 0.4, rating: 3.5 + (i % 5) * 0.2 }));
+const fixture = (over = {}) => ({
+  groups: { roaster: { n: 10, mean: 4.2 }, origin: { n: 10, mean: 4.1 }, process: { n: 10, mean: 4.0 } },
+  globalMean: 4,
+  priced,
+  affinitySamples: Array.from({ length: 100 }, (_, i) => 3.5 + i / 100),
+  pricePer100gEur: 8,
+  isNewRoaster: false,
+  isNewOrigin: false,
+  now: NOW,
+  ...over,
+});
+
+test('the weights are Radu\'s ratios (#189): affinity 50 / roast 20 / value 15 / novelty 10', () => {
+  assert.equal(FINAL_WEIGHTS.affinity, 0.5);
+  assert.equal(FINAL_WEIGHTS.roast, 0.2);
+  assert.equal(FINAL_WEIGHTS.value, 0.15);
+  assert.equal(FINAL_WEIGHTS.novelty, 0.1);
+  // They sum to 0.95 on purpose -- the blend renormalises, so the RATIO is
+  // what carries, and rounding to 1 would mean inventing a digit he didn't give.
+  assert.ok(Math.abs(Object.values(FINAL_WEIGHTS).reduce((a, b) => a + b, 0) - 0.95) < 1e-9);
+  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.roast);
+  assert.ok(FINAL_WEIGHTS.roast > FINAL_WEIGHTS.value);
+  assert.ok(FINAL_WEIGHTS.value > FINAL_WEIGHTS.novelty);
+});
+
+test('novelty is directional now: new scores higher than familiar', () => {
+  // #189 reverses #106's "neither good nor bad". A weighted term has to point
+  // somewhere, and for a what-do-I-buy-next tool it points at the unfamiliar.
+  const familiar = evaluateCoffee(fixture({ isNewRoaster: false, isNewOrigin: false, roastedOn: ago(5) }));
+  const oneNew = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: false, roastedOn: ago(5) }));
+  const bothNew = evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) }));
+
+  assert.ok(bothNew.score > oneNew.score, `${bothNew.score} should beat ${oneNew.score}`);
+  assert.ok(oneNew.score > familiar.score, `${oneNew.score} should beat ${familiar.score}`);
+  // Bounded by its weight: a tenth of the blend cannot swing the headline more
+  // than about ten points.
+  assert.ok(bothNew.score - familiar.score <= 12, `swing was ${bothNew.score - familiar.score}`);
+});
+
+test('noveltyScore is the plain 0 / 50 / 100 it claims to be', () => {
+  assert.equal(noveltyScore({ isNewRoaster: true, isNewOrigin: true }), 100);
+  assert.equal(noveltyScore({ isNewRoaster: true, isNewOrigin: false }), 50);
+  assert.equal(noveltyScore({ isNewRoaster: false, isNewOrigin: true }), 50);
+  assert.equal(noveltyScore({}), 0);
+  assert.equal(noveltyScore(), 0);
+});
+
+test('affinity moves the headline more than any other component', () => {
+  // The whole point of #189: affinity is the measured predictor (r≈0.39), so
+  // it should dominate. Swinging each component end to end, affinity wins.
+  const lowAff = { groups: { roaster: { n: 30, mean: 3.0 }, origin: { n: 30, mean: 3.0 }, process: { n: 30, mean: 3.0 } } };
+  const highAff = { groups: { roaster: { n: 30, mean: 4.9 }, origin: { n: 30, mean: 4.9 }, process: { n: 30, mean: 4.9 } } };
+  const affSwing =
+    evaluateCoffee(fixture({ ...highAff, roastedOn: ago(5) })).score -
+    evaluateCoffee(fixture({ ...lowAff, roastedOn: ago(5) })).score;
+
+  const roastSwing =
+    evaluateCoffee(fixture({ roastedOn: ago(0) })).score - evaluateCoffee(fixture({ roastedOn: ago(180) })).score;
+  const noveltySwing =
+    evaluateCoffee(fixture({ isNewRoaster: true, isNewOrigin: true, roastedOn: ago(5) })).score -
+    evaluateCoffee(fixture({ roastedOn: ago(5) })).score;
+
+  assert.ok(affSwing > roastSwing, `affinity ${affSwing} must outweigh roast ${roastSwing}`);
+  assert.ok(affSwing > noveltySwing, `affinity ${affSwing} must outweigh novelty ${noveltySwing}`);
+});
+
+test('a fresh roast scores higher than a middle-aged one', () => {
+  const fresh = evaluateCoffee(fixture({ roastedOn: ago(3) })).score;
+  const older = evaluateCoffee(fixture({ roastedOn: ago(35) })).score;
+  assert.ok(fresh > older, `${fresh} should beat ${older}`);
+});
+
+test('crossing 40 days costs the flat penalty on top of the decay', () => {
+  const before = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS - 1) }));
+  const after = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS + 1) }));
+  assert.equal(before.components.roast.penalty, 0);
+  assert.equal(after.components.roast.penalty, STALE_ROAST_PENALTY);
+  assert.equal(after.components.roast.stale, true);
+  // The drop is the penalty plus the two days of ordinary decay, so it is
+  // strictly bigger than the penalty alone.
+  assert.ok(before.score - after.score >= STALE_ROAST_PENALTY, `${before.score} -> ${after.score}`);
+});
+
+test('exactly 40 days is not yet stale — the rule is "older than 40d"', () => {
+  const at = evaluateCoffee(fixture({ roastedOn: ago(STALE_ROAST_DAYS) }));
+  assert.equal(at.components.roast.stale, false);
+  assert.equal(at.components.roast.penalty, 0);
+});
+
+test('no roast date is neutral: no bonus, no penalty, no roast component', () => {
+  // "We don't know when it was roasted" and "it is stale" are different facts.
+  const undated = evaluateCoffee(fixture({ roastedOn: null }));
+  assert.equal(undated.components.roast, null);
+  assert.ok(undated.score > 0);
+
+  // Renormalising matters here: without it an undated coffee could never score
+  // above 80, which would make a missing date a silent penalty.
+  const perfect = evaluateCoffee(
+    fixture({ roastedOn: null, groups: { roaster: { n: 50, mean: 5 }, origin: { n: 50, mean: 5 }, process: { n: 50, mean: 5 } } }),
+  );
+  assert.ok(perfect.score > 80, `an undated coffee must be able to score high, got ${perfect.score}`);
+});
+
+test('the score stays inside 0-100 even when the penalty bites hardest', () => {
+  const awful = evaluateCoffee(
+    fixture({
+      roastedOn: ago(400),
+      groups: { roaster: { n: 30, mean: 1 }, origin: { n: 30, mean: 1 }, process: { n: 30, mean: 1 } },
+      pricePer100gEur: 40,
+    }),
+  );
+  assert.ok(awful.score >= 0 && awful.score <= 100, `got ${awful.score}`);
+});
+
+test('a suppressed headline stays suppressed regardless of roast date', () => {
+  const thin = evaluateCoffee(fixture({ groups: {}, roastedOn: ago(1) }));
+  assert.equal(thin.confidence, 'low');
+  assert.equal(thin.score, null);
+  // The roast component is still reported, so the UI can show the chip.
+  assert.equal(thin.components.roast.daysSinceRoast, 1);
+});
+
+test('the route must not drop fields the scorer puts on a component', () => {
+  // Twice now a route-level reshape has silently dropped a field the scorer
+  // produced: `roastRecency` -> `roast` (the Freshness bar vanished) and then
+  // novelty's new `score` (#189, the Novelty bar rendered empty). Both were
+  // invisible -- a missing key is just undefined. This asserts the one
+  // reshape /api/score still performs is a SPREAD, not a replacement.
+  const src = readFileSync(new URL('../src/routes/score.js', import.meta.url), 'utf8');
+  const line = src.split('\n').find((l) => /^\s*novelty:/.test(l));
+  assert.ok(line, 'the novelty reshape should still exist');
+  assert.match(line, /\.\.\.evaluation\.components\.novelty/, 'must spread the scorer output, not replace it');
 });

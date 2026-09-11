@@ -387,6 +387,17 @@ into a runner. But three things change, and two of them are footguns:
   same migration** (self-alias plus any abbreviation or Romanian spelling), and
   copy 034's trailing self-heal statement, which repairs the whole class from the
   schema rather than a hardcoded list.
+- **The API response is a PUBLIC CONTRACT with the browser extension — add fields,
+  never rename or remove them.** The backend redeploys on every push to `main`; an
+  extension sitting in someone's browser does not. #188 renamed
+  `components.roastRecency` → `components.roast` in `/api/score`, and the moment that
+  deployed, **every installed copy broke**: the roast chip fell back to a bare
+  unlabelled date and the Freshness bar vanished. Nothing errored — a missing key is
+  just `undefined` — and fixing the popup in the repo did nothing for the build
+  actually running. `roastRecency` is now kept as a deprecated alias; retire one only
+  when no install can still be reading it. A test in `backend/test/extension-history.test.js`
+  asserts the popup reads no component key the route sends, and it checks the
+  **route's** output, not the scorer's, because the reshape is where drift happens.
 - **`PHAsset` cannot read Photos titles/captions/descriptions** — they live in the
   Photos database, not the asset. Ingestion is `osxphotos` on the Mac; nothing in
   the plan depends on PhotoKit.

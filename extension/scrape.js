@@ -56,6 +56,10 @@ export function scrapePage() {
       push('Product', node.name);
       push('Brand', typeof node.brand === 'object' ? node.brand?.name : node.brand);
       push('Description', node.description);
+      // Marker line, stripped before the text is sent (see the return below).
+      const img = Array.isArray(node.image) ? node.image[0] : node.image;
+      const imgUrl = typeof img === 'string' ? img : img?.url;
+      if (imgUrl) out.push(`__IMAGE__:${imgUrl}`);
       push('Weight', node.weight?.value ? `${node.weight.value}${node.weight.unitText ?? ''}` : null);
       readOffer(node.offers);
       if (Array.isArray(node.hasVariant)) node.hasVariant.forEach(readProduct);
@@ -119,9 +123,32 @@ export function scrapePage() {
     .join('\n');
   push(null, text);
 
+  // The history list (#187) mirrors the app's listing row, which leads with a
+  // photo, so grab the product image. JSON-LD first (it names the product
+  // image specifically), then OpenGraph. Never a page-relative path: the popup
+  // renders it from a different origin, so only an absolute URL is usable.
+  let imageUrl = null;
+  const absolute = (u) => {
+    try {
+      const abs = new URL(u, location.href).href;
+      return abs.startsWith('http') ? abs : null;
+    } catch {
+      return null;
+    }
+  };
+  for (const line of out) {
+    if (!line.startsWith('__IMAGE__:')) continue;
+    imageUrl = absolute(line.slice('__IMAGE__:'.length).trim());
+    if (imageUrl) break;
+  }
+  if (!imageUrl) imageUrl = absolute(meta('meta[property="og:image"]') ?? '');
+
   return {
     url: location.href,
     title: document.title,
-    text: out.join('\n').slice(0, MAX),
+    imageUrl,
+    // The image marker lines are scaffolding for the block above, not text
+    // worth extracting from — strip them before the server sees them.
+    text: out.filter((l) => !l.startsWith('__IMAGE__:')).join('\n').slice(0, MAX),
   };
 }

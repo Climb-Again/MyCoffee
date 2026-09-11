@@ -38,13 +38,7 @@ import { loadSharedContext } from '../lib/worker.js';
 import { loadScoringCorpus, groupsForCandidate, loadNovelty } from '../lib/corpus.js';
 import { loadRoasterCoffees, rankMatches, diffFields, genericTokensFromVocab } from '../lib/enrich.js';
 import { toEur } from '../lib/fx.js';
-import {
-  evaluateCoffee,
-  daysSinceRoast,
-  roastRecencyScore,
-  applyRoastRecency,
-  ROAST_FRESH_DAYS,
-} from '../lib/scoring.js';
+import { evaluateCoffee, ROAST_FRESH_DAYS } from '../lib/scoring.js';
 
 // A product page that yields less than this is a nav shell or a cookie wall,
 // not a listing -- scoring it would return a confident-looking global average.
@@ -213,6 +207,10 @@ export default async function scoreRoutes(app) {
     });
     const { isNewRoaster, isNewOrigin } = await loadNovelty({ roasterId, originCountryId });
 
+    // Roast date goes INTO the scorer (#188), not on top of it: it is a
+    // weighted term now, and keeping it inside `evaluateCoffee` is what stops
+    // this endpoint and /api/coffees/evaluate drifting apart.
+    const roastedOn = roasted?.date ?? null;
     const evaluation = evaluateCoffee({
       groups,
       globalMean,
@@ -221,12 +219,12 @@ export default async function scoreRoutes(app) {
       pricePer100gEur,
       isNewRoaster,
       isNewOrigin,
+      roastedOn,
     });
 
-    const roastedOn = roasted?.date ?? null;
-    const days = daysSinceRoast(roastedOn);
-    const recency = roastRecencyScore(days);
-    const score = applyRoastRecency(evaluation.score, recency);
+    const score = evaluation.score;
+    const days = evaluation.components.roast?.daysSinceRoast ?? null;
+    const recency = evaluation.components.roast?.score ?? null;
 
     const names = {
       roaster: roasterId != null ? nameFrom(shared.vocab.roasters, roasterId) : null,
@@ -290,12 +288,30 @@ export default async function scoreRoutes(app) {
       confidence: evaluation.confidence,
       components: {
         ...evaluation.components,
-        // `evaluateCoffee` coerces unknown novelty to false for the blend;
-        // the response keeps the nullable truth so the UI can stay silent
-        // about a field the page never gave us, rather than calling an
-        // unreadable origin "new".
-        novelty: { isNewRoaster, isNewOrigin },
-        roastRecency: recency == null ? null : { score: recency, daysSinceRoast: days, roastedOn },
+        // DEPRECATED ALIAS, kept for already-installed extensions (#190).
+        //
+        // #188 renamed this component from `roastRecency` to `roast`. The
+        // backend redeploys on every push; an extension sitting in someone's
+        // browser does not. So that rename instantly broke every installed
+        // copy -- the roast chip fell back to a bare unlabelled date and the
+        // Freshness bar disappeared -- and fixing the popup in the repo did
+        // nothing for the build actually running.
+        //
+        // The extension is a SEPARATELY DEPLOYED CLIENT. This response is a
+        // public contract with versions of it we do not control. Add fields,
+        // never rename or remove them; retire an alias only once no install
+        // can still be reading it.
+        roastRecency: evaluation.components.roast,
+        // SPREAD, don't replace. `evaluateCoffee` also puts a `score` on
+        // novelty (#189 made it a weighted, directional term), and replacing
+        // the object wholesale silently dropped it -- the popup's Novelty bar
+        // rendered empty while the server was scoring it correctly. Same
+        // class of drift as the `roastRecency` -> `roast` rename.
+        //
+        // The flags are still overridden with the nullable versions: the blend
+        // coerces unknown to false (conservative, #161), but the response must
+        // keep saying "we could not read this" rather than "this is not new".
+        novelty: { ...evaluation.components.novelty, isNewRoaster, isNewOrigin },
       },
       fields: {
         roasterId,

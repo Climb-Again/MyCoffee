@@ -9,6 +9,7 @@
 // never invents one.
 
 import { getSettings } from './settings.js';
+import { loadHistory, rank, RETENTION_DAYS, TOP_N, roastColor, roastLabel, relativeTime, daysSinceISO } from './history.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -207,17 +208,25 @@ function render(data, hasWriteToken) {
   $('confidence').classList.toggle('hidden', confidence !== 'low');
   $('explanation').textContent = explanation ?? '';
 
+  // Ordered by weight (#189: affinity 50 · roast 20 · value 15 · novelty 10),
+  // so the bars read in the same order the blend actually weighs them.
+  //
+  // NOTE: this block read `components.roastRecency` until 2026-09-10. #188
+  // renamed that field to `components.roast` on the server and this was not
+  // updated, so the Freshness bar silently vanished — the id cross-check I ran
+  // only verified DOM ids, not response paths. Caught while adding Novelty.
   const bars = $('bars');
   bars.replaceChildren();
   bars.appendChild(bar('Affinity', components?.affinity?.score ?? null));
   bars.appendChild(
-    components?.value == null
-      ? bar('Value', null, 'n/a')
-      : bar('Value', components.value.score, null),
+    (components?.roast ?? components?.roastRecency) == null
+      ? bar('Freshness', null, 'no date')
+      : bar('Freshness', (components.roast ?? components.roastRecency).score),
   );
-  if (components?.roastRecency != null) {
-    bars.appendChild(bar('Freshness', components.roastRecency.score));
-  }
+  bars.appendChild(
+    components?.value == null ? bar('Value', null, 'n/a') : bar('Value', components.value.score, null),
+  );
+  bars.appendChild(bar('Novelty', components?.novelty?.score ?? null));
 
   const chips = $('fields');
   chips.replaceChildren();
@@ -229,9 +238,29 @@ function render(data, hasWriteToken) {
     chips.appendChild(chip(`${fields.priceAmount}${fields.priceCurrency ? ` ${fields.priceCurrency}` : ''}`));
   }
   if (fields?.weightG) chips.appendChild(chip(`${fields.weightG} g`));
-  if (fields?.roastedOn) {
-    const d = components?.roastRecency?.daysSinceRoast;
-    chips.appendChild(chip(d == null ? fields.roastedOn : `roasted ${d}d ago`));
+  // #188: the roast chip is colour-coded — green under two weeks, ramping to
+  // red — and says outright when it cost points, since a -10 that is not
+  // explained just looks like a wrong number.
+  // One path, and it degrades in steps rather than falling off a cliff (#190).
+  // Radu got a bare "2026-08-14" — no label, no colour, no age — because the
+  // server had renamed the component this read and the fallback was the raw
+  // date. Now: use the component if present, else compute the age from the
+  // date ourselves, and even with no age at all still say "roasted".
+  const roastComp = components?.roast ?? components?.roastRecency ?? null;
+  const roastDays = roastComp?.daysSinceRoast ?? daysSinceISO(fields?.roastedOn);
+  if (roastDays != null || fields?.roastedOn) {
+    const c = chip(roastLabel(roastDays) ?? `roasted ${fields.roastedOn}`);
+    const colour = roastColor(roastDays);
+    if (colour) {
+      c.style.borderColor = colour;
+      c.style.color = colour;
+      c.style.fontWeight = '600';
+    }
+    if (fields?.roastedOn) c.title = `Roasted ${fields.roastedOn}`;
+    if (roastComp?.stale) {
+      c.title = `Roasted ${fields.roastedOn} — over ${roastDays} days old, ${roastComp.penalty} points off the score`;
+    }
+    chips.appendChild(c);
   }
   if (!chips.children.length) chips.appendChild(chip('nothing recognised on this page'));
 
@@ -253,16 +282,238 @@ function render(data, hasWriteToken) {
   show('result');
 }
 
+
+// ---- #187: the top-10 list ----
+//
+// Radu: "always show last top 10 coffees ranked on score for 10 days ...
+// Include a short summary using the coffee listing layout from the app but
+// including of course the evaluator notes."
+//
+// The row deliberately mirrors `CoffeeRowView` from the app (the 2a redesign):
+// image · UPPERCASE ROASTER / heavy one-line title / origin line · a
+// right-aligned column of numbers. The FIT SCORE takes the rating's slot,
+// because that is the number this surface knows — the app shows what he rated
+// it, the extension shows how well it fits.
+//
+// Collapsed by default and per-row notes collapsed too: ten rows plus the
+// current page's result does not fit a popup, which is the "if it's too many
+// data expand / collapse" half of the ask.
+
+const HISTORY_OPEN_KEY = 'historyOpen';
+
+function historyRow(entry) {
+  const row = document.createElement('div');
+  row.className = 'hrow';
+
+  // --- photo
+  if (entry.imageUrl) {
+    const img = document.createElement('img');
+    img.className = 'hthumb';
+    img.src = entry.imageUrl;
+    img.alt = '';
+    img.loading = 'lazy';
+    // A shop CDN that 404s or blocks hotlinking must not leave a broken icon.
+    img.addEventListener('error', () => {
+      const ph = document.createElement('div');
+      ph.className = 'hthumb-empty';
+      img.replaceWith(ph);
+    });
+    row.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'hthumb-empty';
+    row.appendChild(ph);
+  }
+
+  // --- middle column
+  const mid = document.createElement('div');
+  mid.className = 'hmid';
+
+  if (entry.roasterName) {
+    const r = document.createElement('div');
+    r.className = 'hroaster';
+    r.textContent = entry.roasterName;
+    mid.appendChild(r);
+  }
+
+  // The title IS the link — "save url so if i click any of these coffees i go
+  // to that page".
+  const link = document.createElement('a');
+  link.className = 'htitle';
+  link.href = entry.url;
+  link.target = '_blank';
+  link.rel = 'noreferrer noopener';
+  link.textContent = entry.title || entry.url;
+  link.title = entry.url;
+  mid.appendChild(link);
+
+  const bits = [entry.originName, entry.profileId ? String(entry.profileId).replace(/_/g, ' ') : null]
+    .filter(Boolean)
+    .join(' · ');
+  if (bits) {
+    const o = document.createElement('div');
+    o.className = 'horigin';
+    o.textContent = bits;
+    mid.appendChild(o);
+  }
+
+  // Roast age (colour-coded) and when I looked at it, on one line.
+  const meta = document.createElement('div');
+  meta.className = 'hmeta';
+  if (entry.roastDays != null) {
+    const roast = document.createElement('span');
+    roast.className = 'hroast';
+    roast.textContent = roastLabel(entry.roastDays);
+    roast.style.color = roastColor(entry.roastDays);
+    if (entry.roastStale) roast.title = 'Over 40 days at the time — the score was penalised';
+    meta.appendChild(roast);
+  }
+  const seen = document.createElement('span');
+  seen.className = 'hseen';
+  // The age shown is the age AT THE VISIT, so the visit time is what makes it
+  // readable — "roasted 30d ago, seen 5d ago" is a different bag today.
+  seen.textContent = `seen ${relativeTime(entry.savedAt)}`;
+  seen.title = new Date(entry.savedAt).toLocaleString();
+  meta.appendChild(seen);
+  mid.appendChild(meta);
+
+  if (entry.ownedTitle) {
+    const owned = document.createElement('div');
+    owned.className = 'howned';
+    owned.textContent = 'IN YOUR LIBRARY';
+    mid.appendChild(owned);
+  }
+
+  row.appendChild(mid);
+
+  // --- right column: score in the rating's slot, then price, then the pills
+  const right = document.createElement('div');
+  right.className = 'hright';
+
+  const score = document.createElement('div');
+  score.className = entry.score >= 60 ? 'hscore high' : 'hscore';
+  score.textContent = entry.score == null ? '—' : String(entry.score);
+  right.appendChild(score);
+
+  if (entry.pricePer100gEur != null) {
+    const p = document.createElement('div');
+    p.className = 'hprice';
+    p.textContent = `€${entry.pricePer100gEur.toFixed(2)}/100g`;
+    right.appendChild(p);
+  } else if (entry.priceAmount != null && entry.priceCurrency) {
+    const p = document.createElement('div');
+    p.className = 'hprice';
+    p.textContent = `${entry.priceAmount} ${entry.priceCurrency}`;
+    right.appendChild(p);
+  }
+
+  if (entry.valuePills != null) {
+    const pills = document.createElement('div');
+    pills.className = 'hpills';
+    for (let i = 0; i < 5; i++) {
+      const pill = document.createElement('span');
+      pill.className = i < entry.valuePills ? 'hpill on' : 'hpill';
+      pills.appendChild(pill);
+    }
+    right.appendChild(pills);
+  }
+
+  row.appendChild(right);
+
+  // --- evaluator note, collapsed
+  if (entry.explanation) {
+    const toggle = document.createElement('button');
+    toggle.className = 'hnote-toggle';
+    toggle.textContent = 'Why?';
+    const note = document.createElement('div');
+    note.className = 'hnote';
+    note.textContent = entry.explanation;
+    note.hidden = true;
+    toggle.addEventListener('click', () => {
+      note.hidden = !note.hidden;
+      toggle.textContent = note.hidden ? 'Why?' : 'Hide';
+    });
+    row.append(toggle, note);
+  }
+
+  return row;
+}
+
+async function renderHistory() {
+  const section = $('history');
+  const list = $('history-list');
+  const entries = await loadHistory();
+  const { top, unscoredCount, total } = rank(entries);
+
+  section.classList.remove('hidden');
+  $('history-meta').textContent = total === 0 ? 'nothing yet' : `${top.length} of ${total} · ${RETENTION_DAYS}d`;
+
+  list.replaceChildren();
+  if (top.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent =
+      total === 0
+        ? `Coffees you evaluate are saved here for ${RETENTION_DAYS} days, ranked by score.`
+        : `${total} saved, but none has a headline score yet — a page needs a price for that.`;
+    list.appendChild(empty);
+  } else {
+    for (const entry of top) list.appendChild(historyRow(entry));
+  }
+
+  const foot = document.createElement('div');
+  foot.className = 'history-foot';
+  const note = document.createElement('span');
+  note.textContent = unscoredCount > 0 ? `${unscoredCount} more without a score` : '';
+  const clear = document.createElement('button');
+  clear.className = 'btn ghost small';
+  clear.textContent = 'Clear';
+  clear.addEventListener('click', async () => {
+    const { clearHistory } = await import('./history.js');
+    await clearHistory();
+    renderHistory();
+  });
+  foot.append(note, clear);
+  list.appendChild(foot);
+}
+
+async function initHistory() {
+  const stored = await chrome.storage.local.get(HISTORY_OPEN_KEY);
+  let open = Boolean(stored?.[HISTORY_OPEN_KEY]);
+
+  const apply = () => {
+    $('history-list').classList.toggle('hidden', !open);
+    $('history-caret').textContent = open ? '▾' : '▸';
+    $('history-toggle').setAttribute('aria-expanded', String(open));
+  };
+
+  $('history-toggle').addEventListener('click', async () => {
+    open = !open;
+    apply();
+    await chrome.storage.local.set({ [HISTORY_OPEN_KEY]: open });
+  });
+
+  apply();
+  await renderHistory();
+}
+
 async function run() {
   show('loading');
   const res = await chrome.runtime.sendMessage({ type: 'score' });
-  if (!res || res.error) return renderError(res ?? { error: 'unexpected' });
-  const { writeToken } = await getSettings();
-  render(res.data, Boolean(writeToken));
+  if (!res || res.error) {
+    renderError(res ?? { error: 'unexpected' });
+  } else {
+    const { writeToken } = await getSettings();
+    render(res.data, Boolean(writeToken));
+  }
+  // Deliberately after BOTH branches: opening the popup on a non-coffee tab
+  // should still show the top 10. "Always show" means always.
+  await renderHistory();
 }
 
 $('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 $('err-settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 $('err-retry').addEventListener('click', run);
 
+initHistory();
 run();

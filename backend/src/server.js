@@ -21,6 +21,7 @@ import configRoutes from './routes/config.js';
 import photosRoutes from './routes/photos.js';
 import mediaRoutes from './routes/media.js';
 import coffeesRoutes from './routes/coffees.js';
+import brewRoutes from './routes/brew.js';
 import reviewRoutes from './routes/review.js';
 import adminRoutes from './routes/admin.js';
 import whatsnewRoutes from './routes/whatsnew.js';
@@ -73,6 +74,7 @@ export async function build() {
   await app.register(photosRoutes);
   await app.register(mediaRoutes);
   await app.register(coffeesRoutes);
+  await app.register(brewRoutes);
   await app.register(reviewRoutes);
   await app.register(adminRoutes);
   await app.register(whatsnewRoutes);

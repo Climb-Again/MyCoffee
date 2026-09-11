@@ -1,6 +1,6 @@
 # Roaster content checklist — logos + blurbs
 
-_Generated 2026-09-08 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
+_Generated 2026-09-10 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
 
 Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file by roaster; the `slug` below is the key I map it to). Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug.
 

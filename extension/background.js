@@ -9,6 +9,7 @@
 import { scrapePage } from './scrape.js';
 import { getSettings } from './settings.js';
 import { checkForUpdate, scheduleUpdateChecks, UPDATE_ALARM } from './update.js';
+import { recordVisit } from './history.js';
 
 async function scoreActiveTab() {
   const { baseUrl, token } = await getSettings();
@@ -61,6 +62,17 @@ async function scoreActiveTab() {
   }
 
   const data = await res.json();
+  // The page's own image never reaches the server -- scoring has no use for
+  // it -- so attach it here for the history list.
+  data.imageUrl = scraped.imageUrl ?? null;
+
+  // #187. Failing to save must never fail the score the user asked for.
+  try {
+    await recordVisit(data, { url: scraped.url, title: scraped.title });
+  } catch (e) {
+    console.warn('[mycoffee] could not save to history', e);
+  }
+
   return { ok: true, data, pageTitle: scraped.title };
 }
 
