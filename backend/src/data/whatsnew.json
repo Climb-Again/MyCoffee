@@ -183,19 +183,11 @@
       ],
       "ios": [
         {
-          "title": "Brew lab — coffee-page section + BrewLabSheet + Settings catalogue (the feature Radu asked for; PLAN.md §14)",
-          "detail": "Queued."
-        },
-        {
           "title": "Brew lab — filter-sheet group + Insights \"Brew winners\" card (optional follow-on; PLAN.md §14)",
-          "detail": "Queued behind earlier work."
+          "detail": "Queued."
         },
         {
           "title": "Sync hygiene: conditional GETs, one cold-start sync not two, a truly optimistic heart, and refreshed thumb…",
-          "detail": "Queued."
-        },
-        {
-          "title": "UNBLOCKED 2026-09-09 (audit): both needs are done (#109 2026-09-07, #112 2026-09-07), and the \"cross-lane…",
           "detail": "Queued."
         },
         {
@@ -211,32 +203,12 @@
           "detail": "Queued."
         },
         {
-          "title": "iPad: ship the same app as a universal binary and use the landscape width",
-          "detail": "Queued."
-        },
-        {
           "title": "But #106's ship gate still stands and it is a HUMAN step, not a lane's: no lane ships the headline number…",
           "detail": "Queued."
         },
         {
           "title": "Make the package's product name the default coffee title",
           "detail": "Queued behind earlier work."
-        },
-        {
-          "title": "(needs re-pointed 137 → 113 on 2026-09-09; #137 was a duplicate of #113.)",
-          "detail": "Queued behind earlier work."
-        },
-        {
-          "title": "Coffees list — filtered-state header: active filter glyph + a human-readable summary line under the search…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Coffees list — reduce header whitespace and row height so the list doesn't start below mid-screen (bullet 3)",
-          "detail": "Queued."
-        },
-        {
-          "title": "Coffees list — recompute \"N need review\" and the filter-chip counts against the active filter (bullet 4)",
-          "detail": "Queued."
         },
         {
           "title": "In-app nudge + editor to add a missing roaster logo/blurb (the feature Radu asked for)",
