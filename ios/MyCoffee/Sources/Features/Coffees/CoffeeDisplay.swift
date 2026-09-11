@@ -83,6 +83,7 @@ extension SortOption {
         case .rating: return "Rating"
         case .price: return "Price"
         case .pricePer100g: return "Price / 100 g"
+        case .value: return "Value"
         }
     }
 }
@@ -101,6 +102,7 @@ extension FilterDimension {
         case .priceBand: return "Price"
         case .pricePer100gBand: return "Price / 100 g"
         case .altitudeBand: return "Altitude"
+        case .valueBand: return "Value"
         case .year: return "Year bought"
         // Seam edit (CLAUDE.md §4, ios-shell #156): plain labels only, no
         // styling — the ios-ux lane restyles the Brew lab filter group in #158.
@@ -150,6 +152,9 @@ func facetLabel(_ key: FacetKey, dimension: FilterDimension, vocabulary: Vocabul
     case let .priceBand(band):
         return dimension == .pricePer100gBand ? band.label + " / 100 g" : band.label
     case let .altitudeBand(band): return band.label
+    // #113/#138: the same wording the row/detail value meters print, read
+    // straight off `ValueRating.Band` so the pill and the meter can't drift.
+    case let .valueBand(band): return band.label
     case let .year(year): return "\(year)"
     case .unknown: return "Unknown"
     }

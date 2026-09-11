@@ -243,15 +243,9 @@ struct CoffeeRowView: View {
     /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
     /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
     /// point is that you rated it low for what it cost, not that it was dear.
-    private func verdictLabel(_ band: ValueRating.Band) -> String {
-        switch band {
-        case .great: return "GREAT VALUE"
-        case .good: return "GOOD VALUE"
-        case .fair: return "FAIR VALUE"
-        case .poor: return "POOR VALUE"
-        case .overpaid: return "OVERPAID"
-        }
-    }
+    /// #113 moved the wording onto `ValueRating.Band` itself so the filter
+    /// pills and the `.value` sort headers print exactly what the meter does.
+    private func verdictLabel(_ band: ValueRating.Band) -> String { band.label }
 }
 
 enum PlainDateFormatting {

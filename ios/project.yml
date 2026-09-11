@@ -25,5 +25,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ro.climbagain.mycoffee
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MyCoffee/Info.plist
-        TARGETED_DEVICE_FAMILY: "1"   # iPhone only
+        # #114: universal — one app, iPhone + iPad (Radu: "For iPad make use
+        # of screen on landscape. Use same app"). "1,2" is what makes the app
+        # run natively on iPad instead of letterboxed in iPhone compatibility
+        # mode; without it no amount of layout work is visible there.
+        TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

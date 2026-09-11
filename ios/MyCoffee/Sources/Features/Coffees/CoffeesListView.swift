@@ -306,11 +306,10 @@ struct CoffeesListView: View {
         var currentCoffees: [Coffee] = []
 
         for coffee in coffees {
-            let header = store.sort.sectionLabel(
-                for: coffee,
-                priceWidthCents: index.priceWidthCents,
-                pricePer100gWidthCents: index.pricePer100gWidthCents
-            )
+            // #113: goes through the index, not `SortOption` directly — the
+            // `.value` sort's section header is the coffee's value band, which
+            // only the index knows.
+            let header = index.sectionLabel(for: coffee, sort: store.sort)
             if header != currentHeader {
                 if let currentHeader {
                     result.append(CoffeeListSection(header: currentHeader, coffees: currentCoffees))

@@ -40,6 +40,20 @@ struct ValueRating: Sendable, Hashable {
         /// Whether to tint the meter and label with the accent — the positive
         /// half of the scale.
         var isPositive: Bool { self == .good || self == .great }
+
+        /// The verdict wording. Lives here (#113) rather than in the two
+        /// hand-rolled `verdictLabel` copies in `CoffeeRowView`/
+        /// `CoffeeDetailView`, so the filter pills, the sort section headers
+        /// and the meters can never disagree about what a band is called.
+        var label: String {
+            switch self {
+            case .great: return "GREAT VALUE"
+            case .good: return "GOOD VALUE"
+            case .fair: return "FAIR VALUE"
+            case .poor: return "POOR VALUE"
+            case .overpaid: return "OVERPAID"
+            }
+        }
     }
 
     let band: Band?
@@ -96,6 +110,15 @@ struct CoffeeIndex: Sendable {
     /// instead of rescanning the library for every visible cell.
     let valueScoresSorted: [Double]
 
+    /// Each coffee's own cheap-for-quality score and resulting band, parallel
+    /// to `coffees` (#113). `nil` where the coffee is unrated or unpriced —
+    /// the same "no meter at all" case `valueBand(for:)` returns `nil` for.
+    /// Precomputed because `.valueBand` is now a filter dimension and a sort
+    /// order: the postings builder and the sort comparator would otherwise
+    /// each redo a binary search per row on every rebuild.
+    let valueScoreByRow: [Double?]
+    let valueBandByRow: [ValueRating.Band?]
+
     /// Rating sum/count per roaster id and per origin-country id, tallied
     /// **once** here (#112) rather than inside `topRoasterIDs`/
     /// `topOriginCountryIDs` — those are called from every visible row's
@@ -121,25 +144,40 @@ struct CoffeeIndex: Sendable {
         self.priceWidthCents = priceWidth
         self.pricePer100gWidthCents = ppgWidth
         let brewOptionKinds = vocabulary.brewOptions.mapValues(\.kind)
-        self.postings = Self.buildPostings(
-            coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth,
-            brewOptionKinds: brewOptionKinds
-        )
+
+        // #113 made the value band a filterable/sortable dimension, so the
+        // value scores must exist BEFORE `buildPostings` runs — they used to
+        // be computed after it. Order is the whole subtlety here: the band is
+        // a library-wide quintile, so every coffee's score has to be known
+        // before any single coffee's band can be.
         let ppgSorted = sorted.compactMap { $0.pricePer100gEur }.sorted()
         self.pricePer100gSorted = ppgSorted
         let ratedSorted = sorted.compactMap { $0.rating }.sorted()
         self.ratingsSorted = ratedSorted
 
-        var scores: [Double] = []
-        if !ppgSorted.isEmpty && !ratedSorted.isEmpty {
-            for coffee in sorted {
-                guard let price = coffee.pricePer100gEur, let rating = coffee.rating else { continue }
-                let ratingPct = Self.percentileRank(rating, in: ratedSorted)
-                let cheapPct = 1 - Self.percentileRank(price, in: ppgSorted)
-                scores.append(Self.cheapForQualityScore(ratingPct: ratingPct, cheapPct: cheapPct))
-            }
+        // Parallel to `sorted`: each coffee's own score, or nil when it is
+        // unrated or unpriced (no meter, no band, no facet).
+        let scoreByRow: [Double?] = sorted.map { coffee in
+            guard !ppgSorted.isEmpty, !ratedSorted.isEmpty,
+                  let price = coffee.pricePer100gEur, let rating = coffee.rating
+            else { return nil }
+            let ratingPct = Self.percentileRank(rating, in: ratedSorted)
+            let cheapPct = 1 - Self.percentileRank(price, in: ppgSorted)
+            return Self.cheapForQualityScore(ratingPct: ratingPct, cheapPct: cheapPct)
         }
-        self.valueScoresSorted = scores.sorted()
+        let sortedScores = scoreByRow.compactMap { $0 }.sorted()
+        self.valueScoresSorted = sortedScores
+        self.valueScoreByRow = scoreByRow
+        let bandByRow: [ValueRating.Band?] = scoreByRow.map { score in
+            guard let score, !sortedScores.isEmpty else { return nil }
+            return ValueRating.Band(rawValue: Self.quintileRank(score, in: sortedScores))!
+        }
+        self.valueBandByRow = bandByRow
+
+        self.postings = Self.buildPostings(
+            coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth,
+            brewOptionKinds: brewOptionKinds, valueBandByRow: bandByRow
+        )
 
         self.roasterRatingTally = Self.ratingTally(coffees: sorted) { $0.roasterId.map { [$0] } ?? [] }
         self.originCountryRatingTally = Self.ratingTally(coffees: sorted) { $0.originCountryIds }
@@ -234,6 +272,7 @@ struct CoffeeIndex: Sendable {
         intersectPostings(.priceBand, withUnknown(.priceBand, filter.priceBands.map { .priceBand($0) }))
         intersectPostings(.pricePer100gBand, withUnknown(.pricePer100gBand, filter.pricePer100gBands.map { .priceBand($0) }))
         intersectPostings(.altitudeBand, withUnknown(.altitudeBand, filter.altitudeBands.map { .altitudeBand($0) }))
+        intersectPostings(.valueBand, withUnknown(.valueBand, filter.valueBands.map { .valueBand($0) }))
         intersectPostings(.year, filter.years.map { .year($0) })
 
         intersectPostings(.brewDevice, filter.brewDeviceIDs.map { .vocabID($0) })
@@ -245,8 +284,44 @@ struct CoffeeIndex: Sendable {
     }
 
     /// Convenience for the listing: matching coffees in the requested sort order.
+    ///
+    /// `.value` is the one order that cannot be decided from two `Coffee`s
+    /// alone — the score is a library-wide percentile — so it is sorted here
+    /// from `valueScoreByRow` rather than through `SortOption.isOrderedBefore`
+    /// (#113). Unscored coffees (unrated or unpriced) sort last, matching every
+    /// other sort's nils-last rule.
     func coffees(matching filter: CoffeeFilter, sortedBy sort: SortOption) -> [Coffee] {
-        matches(filter).map { coffees[$0] }.sorted { sort.isOrderedBefore($0, $1) }
+        let matchedRows = matches(filter)
+        guard sort == .value else {
+            return matchedRows.map { coffees[$0] }.sorted { sort.isOrderedBefore($0, $1) }
+        }
+        return matchedRows
+            .sorted { lhs, rhs in
+                switch (valueScoreByRow[lhs], valueScoreByRow[rhs]) {
+                case let (.some(l), .some(r)):
+                    // Ties keep the canonical purchasedOn-desc order, which is
+                    // the order `matchedRows` is already in.
+                    return l == r ? lhs < rhs : l > r
+                case (.some, nil): return true
+                case (nil, .some): return false
+                case (nil, nil): return lhs < rhs
+                }
+            }
+            .map { coffees[$0] }
+    }
+
+    /// The section header for a coffee under the current sort. Wraps
+    /// `SortOption.sectionLabel` and supplies the one thing it cannot know on
+    /// its own — the coffee's value band (#113). Use this from the listing
+    /// rather than calling `SortOption.sectionLabel` directly, or `.value`
+    /// silently collapses every row into one "No value yet" section.
+    func sectionLabel(for coffee: Coffee, sort: SortOption) -> String {
+        sort.sectionLabel(
+            for: coffee,
+            priceWidthCents: priceWidthCents,
+            pricePer100gWidthCents: pricePer100gWidthCents,
+            valueBand: byID[coffee.id].flatMap { valueBandByRow[$0] }
+        )
     }
 
     // MARK: - Facets
@@ -421,6 +496,14 @@ struct CoffeeIndex: Sendable {
     ///
     /// `nil` — no meter at all — when the coffee is **unrated** or has no price.
     func valueBand(for coffee: Coffee) -> ValueRating? {
+        // #113 precomputes every row's band in `init`, so the common case —
+        // a coffee that is in this index, which is every call site — is a
+        // lookup rather than two binary searches. Called from every visible
+        // row's `body`, so this matters at scroll time.
+        if let row = byID[coffee.id] {
+            guard let band = valueBandByRow[row] else { return nil }
+            return ValueRating(band: band, pillCount: band.rawValue)
+        }
         guard let price = coffee.pricePer100gEur,
               let rating = coffee.rating,
               !pricePer100gSorted.isEmpty,
@@ -545,7 +628,8 @@ struct CoffeeIndex: Sendable {
         coffees: [Coffee],
         priceWidthCents: Int?,
         pricePer100gWidthCents: Int?,
-        brewOptionKinds: [Int: BrewKind]
+        brewOptionKinds: [Int: BrewKind],
+        valueBandByRow: [ValueRating.Band?]
     ) -> [FilterDimension: [FacetKey: IndexSet]] {
         var postings: [FilterDimension: [FacetKey: IndexSet]] = [:]
 
@@ -626,6 +710,16 @@ struct CoffeeIndex: Sendable {
             }
             if altitudeBands == [.unknown] {
                 add(.altitudeBand, .unknown, index)
+            }
+
+            // #113: the cheap-for-quality band, precomputed in `init` because
+            // it depends on the whole library rather than on `coffee` alone.
+            // An unrated/unpriced coffee gets the `.unknown` bucket, matching
+            // how the other band dimensions expose "no value here" (#117).
+            if let valueBand = valueBandByRow[index] {
+                add(.valueBand, .valueBand(valueBand), index)
+            } else {
+                add(.valueBand, .unknown, index)
             }
 
             add(.year, .year(coffee.purchasedYear), index)

@@ -454,7 +454,7 @@ struct InsightsView: View {
     /// already uses — rather than a second, parallel chip-copy scheme.
     private var chartsDimensions: [FilterDimension] {
         [.originCountry, .roaster, .profile, .roasterCountry, .farm, .decaf,
-         .ratingBand, .priceBand, .pricePer100gBand, .altitudeBand, .year]
+         .ratingBand, .priceBand, .pricePer100gBand, .valueBand, .altitudeBand, .year]
     }
 
     private var dimensionSwitcher: some View {

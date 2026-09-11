@@ -21,6 +21,9 @@ struct CoffeeFilter: Equatable, Sendable {
     var priceBands: Set<PriceBand> = []
     var pricePer100gBands: Set<PriceBand> = []
     var altitudeBands: Set<AltitudeBand> = []
+    /// Cheap-for-quality bands (#113). The band is library-derived rather than
+    /// a column on `Coffee`, but it filters exactly like the other bands.
+    var valueBands: Set<ValueRating.Band> = []
     var years: Set<Int> = []
     /// A relative-to-today purchase window (last 12/18 months) — kept
     /// distinct from `years`, which picks specific calendar years (#71).
@@ -48,6 +51,7 @@ struct CoffeeFilter: Equatable, Sendable {
             && priceBands.isEmpty
             && pricePer100gBands.isEmpty
             && altitudeBands.isEmpty
+            && valueBands.isEmpty
             && years.isEmpty
             && relativeWindow == nil
             && brewDeviceIDs.isEmpty
@@ -74,6 +78,7 @@ struct CoffeeFilter: Equatable, Sendable {
         case .priceBand: copy.priceBands = []
         case .pricePer100gBand: copy.pricePer100gBands = []
         case .altitudeBand: copy.altitudeBands = []
+        case .valueBand: copy.valueBands = []
         case .year: copy.years = []
         case .brewDevice: copy.brewDeviceIDs = []
         case .brewRecipe: copy.brewRecipeIDs = []

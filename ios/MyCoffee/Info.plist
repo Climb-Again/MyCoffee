@@ -29,9 +29,23 @@
 	<false/>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<!-- #114: the app was portrait-only on every device, so no landscape
+	     layout could ever be seen. iPhone gains both landscapes (but not
+	     upside-down, which no iPhone app wants); iPad declares all four,
+	     which is what iPadOS requires of an app that does not opt out of
+	     multitasking with UIRequiresFullScreen. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

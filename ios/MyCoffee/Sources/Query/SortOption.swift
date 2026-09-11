@@ -8,6 +8,13 @@ enum SortOption: CaseIterable, Hashable, Sendable {
     case rating
     case price
     case pricePer100g
+    /// Cheap-for-quality standing, best first (#113). Unlike the other four,
+    /// this one cannot be decided from two `Coffee`s alone — the score is a
+    /// library-wide percentile — so the real comparison lives in
+    /// `CoffeeIndex.coffees(matching:sortedBy:)`, which intercepts `.value`
+    /// before `isOrderedBefore` is ever reached. The arm below is only the
+    /// context-free fallback for a caller that sorts without an index.
+    case value
 
     /// Canonical descending order — most recent / highest first, nils last.
     func isOrderedBefore(_ lhs: Coffee, _ rhs: Coffee) -> Bool {
@@ -20,6 +27,10 @@ enum SortOption: CaseIterable, Hashable, Sendable {
             return orderedByOptional(lhs.priceEur, rhs.priceEur)
         case .pricePer100g:
             return orderedByOptional(lhs.pricePer100gEur, rhs.pricePer100gEur)
+        case .value:
+            // No index in scope — fall back to the default listing order so a
+            // stray caller still gets a stable, sensible sequence.
+            return rhs.purchasedOn < lhs.purchasedOn
         }
     }
 
@@ -35,7 +46,15 @@ enum SortOption: CaseIterable, Hashable, Sendable {
     /// The section header a coffee falls under when the listing is sorted by
     /// this option. `priceWidthCents`/`pricePer100gWidthCents` come from
     /// `CoffeeIndex`, which computes one shared bucket width per dataset.
-    func sectionLabel(for coffee: Coffee, priceWidthCents: Int?, pricePer100gWidthCents: Int?) -> String {
+    /// `valueBand` is only consulted by `.value` and defaults to `nil`, so the
+    /// four pre-#113 call sites compile unchanged. `CoffeeIndex.sectionLabel`
+    /// is the caller that actually supplies it.
+    func sectionLabel(
+        for coffee: Coffee,
+        priceWidthCents: Int?,
+        pricePer100gWidthCents: Int?,
+        valueBand: ValueRating.Band? = nil
+    ) -> String {
         switch self {
         case .dateBought:
             return Self.monthYearFormatter.string(from: coffee.purchasedOn.utcMidnight)
@@ -47,6 +66,8 @@ enum SortOption: CaseIterable, Hashable, Sendable {
         case .pricePer100g:
             guard let ppg = coffee.pricePer100gEur, let width = pricePer100gWidthCents else { return "No price" }
             return PriceBand.band(forEUR: ppg, widthCents: width).label + " / 100 g"
+        case .value:
+            return valueBand?.label ?? "No value yet"
         }
     }
 
