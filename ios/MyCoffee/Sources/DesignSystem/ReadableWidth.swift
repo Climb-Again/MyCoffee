@@ -8,9 +8,9 @@ extension View {
     /// multitasking split, the content stops stretching into an unreadable
     /// full-bleed column. `background` paints edge-to-edge behind the clamped
     /// column so the surface color still reaches the screen's actual edges
-    /// rather than stopping at the content's own width — pass `nil` for a
-    /// view (like `CoffeesListView`'s `List`) that already paints its own
-    /// background and only needs the width clamp.
+    /// rather than stopping at the content's own width — pass `nil` when the
+    /// content already paints its own full-bleed background (or needs none)
+    /// and only wants the width clamp.
     @ViewBuilder
     func readableWidth(maxWidth: CGFloat = 700, background: Color? = nil) -> some View {
         if let background {

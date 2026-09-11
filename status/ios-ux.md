@@ -6,13 +6,59 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-11 11:50 UTC] #191 iPad landscape width — max-width clamp on CoffeesListView/InsightsView/FilterSheetView/CoffeeDetailView's card content, RootTabView/sheet audit — branch `ios-staging`.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-11 (iOS UX lane routine) — #191 iPad landscape width,
+  `fad97d5` + `0d0ed24`, compile-green (runs #120, #121).** New
+  `DesignSystem/ReadableWidth.swift`: `View.readableWidth(maxWidth:
+  background:)` wraps a full-bleed `List`/`ScrollView` in
+  `Spacer / content.frame(maxWidth: 700) / Spacer`, with an optional
+  full-bleed `background` behind it so the surface color still reaches the
+  real screen edges. It's provably a no-op on iPhone: `maxWidth` (700) is
+  never reached below iPad landscape/wide-multitasking widths, so the
+  spacers stay at zero and the frame never actually constrains anything.
+  (a) Applied to `CoffeesListView`'s `List` — chose this over a two-column
+  `CoffeeRowView` grid because the row's own text explicitly prefers a
+  clamp over a bigger rewrite, and a grid would have meant restructuring
+  the month-sectioned `List` into something else entirely. Moved the
+  List's `.background(Theme.Colors.surface)` into the helper's
+  `background:` param since the List itself is now narrower than the
+  screen. (b) `CoffeeDetailView.card`'s inner content (not the card's own
+  background/shape) clamps to 700pt and centers — traced through carefully
+  first: the card's full-bleed white rounded-rect background, its
+  `.offset(y: -20)` hero-overlap, and the roaster medallion's
+  `.topLeading` overlay anchor are all attached to the OUTER frame (still
+  full width), so none of that visual language changes on iPad — only the
+  text/rows/rails inside stop stretching edge to edge. Did not attempt the
+  row's "consider hero-photo-beside-card in landscape" idea; it's floated
+  as optional in the row's own text and would be a materially bigger
+  layout change (hero and card side by side rather than stacked) than what
+  was actually asked for. (c) Same clamp on `InsightsView`'s three
+  ScrollViews (Insights/Charts/Data) — this is what actually satisfies
+  "charts benefit from the extra width for free," since the pie chart +
+  legend just read off whatever width their container gives them.
+  Deliberately did NOT touch `FilterSheetView`: it presents via `.sheet` +
+  `.presentationDetents([.large])`, and on iPadOS that combination still
+  renders as a form sheet (roughly 540-680pt), not a full-width surface —
+  the row's own note about this ("`.presentationDetents([.large])` on
+  iPad is a form sheet, not a full screen") is precisely why its pills
+  don't need my clamp; adding one would have double-constrained an
+  already-narrow container. (d) Verified in place of changing anything:
+  grepped `Brew`/`CoffeeEditSheet`/`AddCoffee`/`Evaluate` for `UIScreen`
+  usage (none) and fixed `.frame(width:)` calls that could look wrong in a
+  narrow iPad form sheet (only two 100pt text-field frames in
+  `CoffeeEditSheet`, harmless at any container width ≥ that). Same
+  reasoning extends to the newer Brew lab and Evaluate sheets, both built
+  with plain `List`/`Form`-style layout that adapts to whatever width it's
+  given. `RootTabView`'s `TabView` has no `.tabViewStyle(.sidebarAdaptable)`
+  or similar opt-in, so it renders the same bottom tab bar on iPad as on
+  iPhone — nothing there depends on screen width either.
 
 - **2026-09-11 (iOS UX lane routine) — #181 UX dedupe + dead-code batch,
   `1f609de` + `2bd8705`, compile-green (runs #118, #119); split (c)'s
