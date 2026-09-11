@@ -42,9 +42,14 @@ struct VocabDTO: Decodable {
     let roasters: [Roaster]
     let farms: [Farm]
     let profiles: [ProfileVocabDTO]
+    /// Brew lab catalogues (PLAN.md §14) — sent in full every sync. Lenient
+    /// and defaulted to `[]` when absent, same as `farms`: an older backend
+    /// (or, symmetrically, a build predating this field) must not blank the
+    /// rest of the snapshot over a block it doesn't know about yet.
+    let brewOptions: [BrewOptionDTO]
 
     private enum CodingKeys: String, CodingKey {
-        case countries, roasters, farms, profiles
+        case countries, roasters, farms, profiles, brewOptions
     }
 
     // Lenient element decoding: one bad vocab row (e.g. the null-`iso2` Blend
@@ -55,6 +60,8 @@ struct VocabDTO: Decodable {
         roasters = try c.decode([FailableDecodable<Roaster>].self, forKey: .roasters).compactMap(\.value)
         farms = try (c.decodeIfPresent([FailableDecodable<Farm>].self, forKey: .farms) ?? []).compactMap(\.value)
         profiles = try c.decode([FailableDecodable<ProfileVocabDTO>].self, forKey: .profiles).compactMap(\.value)
+        brewOptions = try (c.decodeIfPresent([FailableDecodable<BrewOptionDTO>].self, forKey: .brewOptions) ?? [])
+            .compactMap(\.value)
     }
 }
 
@@ -91,12 +98,16 @@ struct CompactCoffeeDTO: Decodable {
     let isFavorite: Bool
     let reviewState: String
     let rotationQuarterTurns: Int?
+    /// Brew lab (PLAN.md §14) — omitted by the backend (not `[]`) when a
+    /// coffee has no trials, to stay near the ~140 B/row budget.
+    let brewTried: [Int]?
+    let brewBest: [Int]?
 
     private enum CodingKeys: String, CodingKey {
         case id, thumbUrl, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
-        case rotationQuarterTurns
+        case rotationQuarterTurns, brewTried, brewBest
     }
 
     init(from decoder: Decoder) throws {
@@ -124,5 +135,7 @@ struct CompactCoffeeDTO: Decodable {
         isFavorite = try container.decode(Bool.self, forKey: .isFavorite)
         reviewState = try container.decode(String.self, forKey: .reviewState)
         rotationQuarterTurns = try container.decodeIfPresent(Int.self, forKey: .rotationQuarterTurns)
+        brewTried = try container.decodeIfPresent([Int].self, forKey: .brewTried)
+        brewBest = try container.decodeIfPresent([Int].self, forKey: .brewBest)
     }
 }

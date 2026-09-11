@@ -16,6 +16,13 @@ enum FilterDimension: Hashable, CaseIterable, Sendable {
     case pricePer100gBand
     case altitudeBand
     case year
+    /// Brew lab (PLAN.md §14, #156/#158) — one dimension per catalogue kind,
+    /// postings keyed `.vocabID(optionId)` over **tried** ids (best ⊆ tried,
+    /// so "coffees I made on the V60" is the natural read).
+    case brewDevice
+    case brewRecipe
+    case brewGrind
+    case brewTemp
 }
 
 /// A single facet value within a dimension. Heterogeneous by design — vocab

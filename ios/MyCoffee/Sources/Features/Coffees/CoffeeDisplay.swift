@@ -102,6 +102,12 @@ extension FilterDimension {
         case .pricePer100gBand: return "Price / 100 g"
         case .altitudeBand: return "Altitude"
         case .year: return "Year bought"
+        // Seam edit (CLAUDE.md §4, ios-shell #156): plain labels only, no
+        // styling — the ios-ux lane restyles the Brew lab filter group in #158.
+        case .brewDevice: return "Brew device"
+        case .brewRecipe: return "Brew recipe"
+        case .brewGrind: return "Grind size"
+        case .brewTemp: return "Water temp"
         }
     }
 
@@ -126,6 +132,11 @@ func facetLabel(_ key: FacetKey, dimension: FilterDimension, vocabulary: Vocabul
         case .roaster: return vocabulary.roasters[id]?.name ?? "Unknown"
         case .roasterCountry, .originCountry: return vocabulary.countries[id]?.name ?? "Unknown"
         case .farm: return vocabulary.farms[id]?.name ?? "Unknown"
+        // Seam edit (CLAUDE.md §4, ios-shell #156): resolves the brew option's
+        // real label rather than falling through to "Unknown" — a plain read,
+        // no styling.
+        case .brewDevice, .brewRecipe, .brewGrind, .brewTemp:
+            return vocabulary.brewOptions[id]?.label ?? "Unknown"
         default: return "Unknown"
         }
     case let .profile(profile): return profile.displayName

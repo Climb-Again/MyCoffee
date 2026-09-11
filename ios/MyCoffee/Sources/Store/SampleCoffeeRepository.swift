@@ -78,4 +78,46 @@ actor SampleCoffeeRepository: CoffeeRepository {
     func quickCreateCoffee(photoIds: [String]) async throws -> Coffee {
         throw APIClient.APIError.notConfigured
     }
+
+    // Real, local tri-state machine (mirrors `SyncEngine`'s optimistic path,
+    // minus the outbox) so Brew lab previews (#157) are actually tappable,
+    // not just a static fixture.
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) async -> CoffeeIndex {
+        guard let coffee = index.coffee(id: coffeeId), let option = index.vocabulary.brewOptions[optionId] else {
+            return index
+        }
+        var tried = Set(coffee.triedBrewOptionIds)
+        var best = Set(coffee.bestBrewOptionIds)
+        switch state {
+        case .untried:
+            tried.remove(option.id)
+            best.remove(option.id)
+        case .tried:
+            tried.insert(option.id)
+            best.remove(option.id)
+        case .best:
+            tried.insert(option.id)
+            for id in best where id != option.id && index.vocabulary.brewOptions[id]?.kind == option.kind {
+                best.remove(id)
+            }
+            best.insert(option.id)
+        }
+        let updated = index.coffees.map { c in
+            c.id == coffeeId ? c.withBrew(tried: tried.sorted(), best: best.sorted()) : c
+        }
+        index = CoffeeIndex(coffees: updated, vocabulary: index.vocabulary, searchTexts: index.searchTexts)
+        return index
+    }
+
+    // No live backend to create/rename a catalogue option against in
+    // previews — same reasoning as `editField`.
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?
+    ) async throws -> BrewOption {
+        throw APIClient.APIError.notConfigured
+    }
+
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOption {
+        throw APIClient.APIError.notConfigured
+    }
 }

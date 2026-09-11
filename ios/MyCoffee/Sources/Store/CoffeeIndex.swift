@@ -120,7 +120,11 @@ struct CoffeeIndex: Sendable {
         let ppgWidth = PriceBand.widthCents(forEUR: sorted.compactMap { $0.pricePer100gEur })
         self.priceWidthCents = priceWidth
         self.pricePer100gWidthCents = ppgWidth
-        self.postings = Self.buildPostings(coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth)
+        let brewOptionKinds = vocabulary.brewOptions.mapValues(\.kind)
+        self.postings = Self.buildPostings(
+            coffees: sorted, priceWidthCents: priceWidth, pricePer100gWidthCents: ppgWidth,
+            brewOptionKinds: brewOptionKinds
+        )
         let ppgSorted = sorted.compactMap { $0.pricePer100gEur }.sorted()
         self.pricePer100gSorted = ppgSorted
         let ratedSorted = sorted.compactMap { $0.rating }.sorted()
@@ -232,6 +236,11 @@ struct CoffeeIndex: Sendable {
         intersectPostings(.altitudeBand, withUnknown(.altitudeBand, filter.altitudeBands.map { .altitudeBand($0) }))
         intersectPostings(.year, filter.years.map { .year($0) })
 
+        intersectPostings(.brewDevice, filter.brewDeviceIDs.map { .vocabID($0) })
+        intersectPostings(.brewRecipe, filter.brewRecipeIDs.map { .vocabID($0) })
+        intersectPostings(.brewGrind, filter.brewGrindIDs.map { .vocabID($0) })
+        intersectPostings(.brewTemp, filter.brewTempIDs.map { .vocabID($0) })
+
         return result
     }
 
@@ -338,6 +347,58 @@ struct CoffeeIndex: Sendable {
         }
 
         return Array(deduped.prefix(limit))
+    }
+
+    // MARK: - Brew lab (PLAN.md §14, #156)
+
+    /// The coffee's winning option of `kind`, if any — `nil` when nothing of
+    /// that kind has been marked best yet.
+    func bestBrewOption(for coffee: Coffee, kind: BrewKind) -> BrewOption? {
+        for id in coffee.bestBrewOptionIds {
+            if let option = vocabulary.brewOptions[id], option.kind == kind {
+                return option
+            }
+        }
+        return nil
+    }
+
+    /// Every option of `kind` the coffee has tried (best ⊆ tried), sorted the
+    /// same way `Vocabulary.brewOptions(of:)` orders the catalogue.
+    func triedBrewOptions(for coffee: Coffee, kind: BrewKind) -> [BrewOption] {
+        let triedIDs = Set(coffee.triedBrewOptionIds)
+        return vocabulary.brewOptions(of: kind, includeArchived: true).filter { triedIDs.contains($0.id) }
+    }
+
+    /// The tri-state of one (coffee, option) pair.
+    func brewState(for coffee: Coffee, option: BrewOption) -> BrewTrialState {
+        if coffee.bestBrewOptionIds.contains(option.id) { return .best }
+        if coffee.triedBrewOptionIds.contains(option.id) { return .tried }
+        return .untried
+    }
+
+    /// Per-option win rates for one kind — "V60 won 7 of 12 coffees it was
+    /// tried on" (#158's Insights card input). Sorted by `won` descending;
+    /// only options with at least one trial appear.
+    func brewWinRates(kind: BrewKind) -> [(option: BrewOption, tried: Int, won: Int)] {
+        var tried: [Int: Int] = [:]
+        var won: [Int: Int] = [:]
+        for coffee in coffees {
+            for id in coffee.triedBrewOptionIds where vocabulary.brewOptions[id]?.kind == kind {
+                tried[id, default: 0] += 1
+            }
+            for id in coffee.bestBrewOptionIds where vocabulary.brewOptions[id]?.kind == kind {
+                won[id, default: 0] += 1
+            }
+        }
+        return tried.compactMap { id, triedCount -> (option: BrewOption, tried: Int, won: Int)? in
+            guard let option = vocabulary.brewOptions[id] else { return nil }
+            return (option: option, tried: triedCount, won: won[id] ?? 0)
+        }
+        .sorted { lhs, rhs in
+            if lhs.won != rhs.won { return lhs.won > rhs.won }
+            if lhs.tried != rhs.tried { return lhs.tried > rhs.tried }
+            return lhs.option.label < rhs.option.label
+        }
     }
 
     // MARK: - Redesign derived values (#84)
@@ -483,7 +544,8 @@ struct CoffeeIndex: Sendable {
     private static func buildPostings(
         coffees: [Coffee],
         priceWidthCents: Int?,
-        pricePer100gWidthCents: Int?
+        pricePer100gWidthCents: Int?,
+        brewOptionKinds: [Int: BrewKind]
     ) -> [FilterDimension: [FacetKey: IndexSet]] {
         var postings: [FilterDimension: [FacetKey: IndexSet]] = [:]
 
@@ -567,6 +629,21 @@ struct CoffeeIndex: Sendable {
             }
 
             add(.year, .year(coffee.purchasedYear), index)
+
+            // Brew lab (PLAN.md §14, #156/#158) — postings over TRIED ids, not
+            // best-only, so "coffees I made on the V60" includes ones that
+            // didn't win. `brewOptionKinds` (a coffee-independent id->kind
+            // lookup built once in `init`, not per coffee) says which of the
+            // four dimensions a given option id belongs to.
+            for optionId in coffee.triedBrewOptionIds {
+                switch brewOptionKinds[optionId] {
+                case .device: add(.brewDevice, .vocabID(optionId), index)
+                case .recipe: add(.brewRecipe, .vocabID(optionId), index)
+                case .grind: add(.brewGrind, .vocabID(optionId), index)
+                case .temp: add(.brewTemp, .vocabID(optionId), index)
+                case nil: break // option unknown to this build's vocabulary
+                }
+            }
         }
 
         return postings

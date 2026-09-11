@@ -274,6 +274,59 @@ final class CoffeeStore: ObservableObject {
         reviewQueueCount = count
     }
 
+    /// Human-readable reason the last brew-lab write failed, for a
+    /// non-blocking toast (PLAN.md §14) — same pattern as `editErrorText`.
+    /// `setBrewState` itself is fire-and-forget optimistic (below) and
+    /// doesn't set this; it's for `createBrewOption`/`updateBrewOption`,
+    /// which are confirmed + throwing.
+    @Published var brewErrorText: String?
+
+    /// Tap a brew-lab checkbox/trophy -> mutate in memory and publish
+    /// immediately, enqueue, flush when online (PLAN.md §14) — same
+    /// fire-and-forget shape as `toggleFavorite`; a spinner per tap on a
+    /// tap-tap-tap checklist would kill it.
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) {
+        Task {
+            index = await repository.setBrewState(coffeeId: coffeeId, optionId: optionId, state: state)
+        }
+    }
+
+    /// Creates (or get-or-creates) a Brew lab catalogue option (PLAN.md §14)
+    /// and merges it into the index's vocabulary immediately. Throws rather
+    /// than swallowing into `brewErrorText` itself — the caller (a
+    /// `RecipeFormSheet`/inline add row) needs the new option's id to
+    /// immediately tick it as tried.
+    func createBrewOption(
+        kind: BrewKind, label: String? = nil, detail: String? = nil, valueNum: Double? = nil,
+        recipe: BrewRecipeSpec? = nil
+    ) async throws -> BrewOption {
+        do {
+            let option = try await repository.createBrewOption(
+                kind: kind, label: label, detail: detail, valueNum: valueNum, recipe: recipe
+            )
+            index = await repository.currentIndex()
+            brewErrorText = nil
+            return option
+        } catch {
+            brewErrorText = error.localizedDescription
+            throw error
+        }
+    }
+
+    /// Renames/re-values/archives a catalogue option (PLAN.md §14) — same
+    /// confirmed + throwing shape as `createBrewOption`.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOption {
+        do {
+            let option = try await repository.updateBrewOption(id: id, patch: patch)
+            index = await repository.currentIndex()
+            brewErrorText = nil
+            return option
+        } catch {
+            brewErrorText = error.localizedDescription
+            throw error
+        }
+    }
+
     var filteredCoffees: [Coffee] {
         index.coffees(matching: filter, sortedBy: sort)
     }

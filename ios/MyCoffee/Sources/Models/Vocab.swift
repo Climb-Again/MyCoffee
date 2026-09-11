@@ -85,25 +85,36 @@ struct Vocabulary: Codable, Sendable {
     let countries: [Int: Country]
     let roasters: [Int: Roaster]
     let farms: [Int: Farm]
+    /// Brew lab catalogues (PLAN.md §14, #155/#156) — recipes/devices/grinds/
+    /// temps, all four kinds in one dictionary keyed by `BrewOption.id`.
+    let brewOptions: [Int: BrewOption]
 
-    static let empty = Vocabulary(countries: [:], roasters: [:], farms: [:])
+    static let empty = Vocabulary(countries: [:], roasters: [:], farms: [:], brewOptions: [:])
 
-    init(countries: [Int: Country], roasters: [Int: Roaster], farms: [Int: Farm]) {
+    init(
+        countries: [Int: Country], roasters: [Int: Roaster], farms: [Int: Farm],
+        brewOptions: [Int: BrewOption] = [:]
+    ) {
         self.countries = countries
         self.roasters = roasters
         self.farms = farms
+        self.brewOptions = brewOptions
     }
 
-    init(countryList: [Country], roasterList: [Roaster], farmList: [Farm]) {
+    init(
+        countryList: [Country], roasterList: [Roaster], farmList: [Farm],
+        brewOptionList: [BrewOption] = []
+    ) {
         countries = Dictionary(uniqueKeysWithValues: countryList.map { ($0.id, $0) })
         roasters = Dictionary(uniqueKeysWithValues: roasterList.map { ($0.id, $0) })
         farms = Dictionary(uniqueKeysWithValues: farmList.map { ($0.id, $0) })
+        brewOptions = Dictionary(uniqueKeysWithValues: brewOptionList.map { ($0.id, $0) })
     }
 
     // Snapshot payload transmits vocab as arrays; keyed dictionaries are a
     // client-side convenience, not the wire format.
     private enum CodingKeys: String, CodingKey {
-        case countries, roasters, farms
+        case countries, roasters, farms, brewOptions
     }
 
     init(from decoder: Decoder) throws {
@@ -111,7 +122,10 @@ struct Vocabulary: Codable, Sendable {
         let countryList = try container.decode([Country].self, forKey: .countries)
         let roasterList = try container.decode([Roaster].self, forKey: .roasters)
         let farmList = try container.decode([Farm].self, forKey: .farms)
-        self.init(countryList: countryList, roasterList: roasterList, farmList: farmList)
+        // No schema bump (PLAN.md §14): an on-disk snapshot written before the
+        // brew lab shipped simply has no `brewOptions` key at all.
+        let brewOptionList = try container.decodeIfPresent([BrewOption].self, forKey: .brewOptions) ?? []
+        self.init(countryList: countryList, roasterList: roasterList, farmList: farmList, brewOptionList: brewOptionList)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -119,5 +133,43 @@ struct Vocabulary: Codable, Sendable {
         try container.encode(Array(countries.values), forKey: .countries)
         try container.encode(Array(roasters.values), forKey: .roasters)
         try container.encode(Array(farms.values), forKey: .farms)
+        try container.encode(Array(brewOptions.values), forKey: .brewOptions)
+    }
+
+    /// Every live option of one kind, sorted `sortOrder` → `valueNum` →
+    /// `label`. Archived rows are excluded unless `includeArchived` is set, in
+    /// which case they sort after every live one — used by `BrewLabSheet`
+    /// (#157) to still render an archived option a coffee already tried.
+    func brewOptions(of kind: BrewKind, includeArchived: Bool = false) -> [BrewOption] {
+        brewOptions.values
+            .filter { $0.kind == kind && (includeArchived || !$0.archived) }
+            .sorted { lhs, rhs in
+                if lhs.archived != rhs.archived { return !lhs.archived }
+                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
+                switch (lhs.valueNum, rhs.valueNum) {
+                case let (.some(l), .some(r)) where l != r: return l < r
+                case (.some, nil): return true
+                case (nil, .some): return false
+                default: break
+                }
+                return lhs.label < rhs.label
+            }
+    }
+
+    /// Looks up a `.grind`/`.temp` option by its numeric value — the client-side
+    /// mirror of the server's recipe auto-tick (`getOrCreateNumericOption` in
+    /// `routes/brew.js`), used to optimistically tick a recipe's nominal grind
+    /// and temperature locally before the flush response confirms it.
+    func brewOption(kind: BrewKind, value: Double) -> BrewOption? {
+        brewOptions.values.first { $0.kind == kind && $0.valueNum == value }
+    }
+
+    /// A copy with one option inserted/replaced — used right after
+    /// `createBrewOption`/`updateBrewOption` round-trips, so the new/renamed
+    /// row is visible immediately rather than waiting for the next sync.
+    func insertingBrewOption(_ option: BrewOption) -> Vocabulary {
+        var updated = brewOptions
+        updated[option.id] = option
+        return Vocabulary(countries: countries, roasters: roasters, farms: farms, brewOptions: updated)
     }
 }

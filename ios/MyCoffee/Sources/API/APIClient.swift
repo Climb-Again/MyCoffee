@@ -228,6 +228,79 @@ struct APIClient: Sendable {
         }
     }
 
+    // GET /api/brew-options — the whole Brew lab catalogue, including
+    // archived rows (PLAN.md §14) — `Vocabulary.brewOptions` is normally kept
+    // current by the snapshot's `vocab.brewOptions` block; this exists for a
+    // standalone refresh (e.g. `BrewCatalogueView`, #157) without a full sync.
+    func brewOptions() async throws -> [BrewOptionDTO] {
+        let req = try makeRequest(path: "/api/brew-options", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionListResponseDTO.self, from: data).options
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/brew-options — get-or-create a catalogue option (PLAN.md
+    // §14): `label` is required for `.device`/`.recipe` and server-generated
+    // for `.grind`/`.temp` (omit it, send `valueNum` instead); `recipe` is
+    // required for `.recipe` and otherwise omitted. A dup label/value get the
+    // existing row back (200), a new one 201 — both decode the same way.
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?
+    ) async throws -> BrewOptionDTO {
+        var dict: [String: Any] = ["kind": kind.rawValue]
+        if let label { dict["label"] = label }
+        if let detail { dict["detail"] = detail }
+        if let valueNum { dict["valueNum"] = valueNum }
+        if let recipe { dict["recipe"] = recipe.wireDictionary }
+        let body = try JSONSerialization.data(withJSONObject: dict)
+        let req = try makeRequest(path: "/api/brew-options", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // PATCH /api/brew-options/:id — rename/re-value/archive (PLAN.md §14).
+    // Only the fields `patch` sets are sent, so an omitted field is left
+    // unchanged server-side.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOptionDTO {
+        var dict: [String: Any] = [:]
+        if let label = patch.label { dict["label"] = label }
+        if let detail = patch.detail { dict["detail"] = detail }
+        if let valueNum = patch.valueNum { dict["valueNum"] = valueNum }
+        if let recipe = patch.recipe { dict["recipe"] = recipe.wireDictionary }
+        if let sortOrder = patch.sortOrder { dict["sortOrder"] = sortOrder }
+        if let archived = patch.archived { dict["archived"] = archived }
+        let body = try JSONSerialization.data(withJSONObject: dict)
+        let req = try makeRequest(path: "/api/brew-options/\(id)", method: "PATCH", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/coffees/:publicId/brew — sets the tri-state for one (coffee,
+    // option) pair (PLAN.md §14). Responds with the coffee's WHOLE brew state
+    // (the server's recipe auto-tick can change more than the one pair sent),
+    // so the caller replaces rather than reconciles.
+    func setBrewState(publicId: String, optionId: Int, state: BrewTrialState) async throws -> BrewStateResponseDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["optionId": optionId, "state": state.rawValue])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/brew", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewStateResponseDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // GET /api/whatsnew — curated "what's live / what's planned" content for
     // the What's New screen (PLAN.md §13, #45/#46). No `since`/pagination —
     // the whole payload is a handful of short cards; the caller decides
@@ -373,4 +446,16 @@ struct StatusResponse: Codable {
 struct CoffeeFieldEdit: Codable, Sendable, Equatable {
     let field: String
     let value: String
+}
+
+/// `PATCH /api/brew-options/:id`'s optional fields (PLAN.md §14) — every
+/// field is omitted from the request unless set here, so a catalogue rename
+/// doesn't accidentally touch `sortOrder`/`archived`, and vice versa.
+struct BrewOptionPatch: Sendable {
+    var label: String?
+    var detail: String?
+    var valueNum: Double?
+    var recipe: BrewRecipeSpec?
+    var sortOrder: Int?
+    var archived: Bool?
 }

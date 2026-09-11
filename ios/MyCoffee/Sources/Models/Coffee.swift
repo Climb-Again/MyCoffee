@@ -87,8 +87,22 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
 
     let images: CoffeeImageURLs?
 
+    /// Brew lab (PLAN.md §14, #155/#156): every `BrewOption.id` this coffee has
+    /// tried / marked best, by kind. Optional, same reasoning as
+    /// `rotationQuarterTurns` — an older on-disk `PersistedSnapshot` and a
+    /// compact/detail row with no trials both omit the key entirely, and
+    /// decoding that as a required `[Int]` would drop the whole coffee (or the
+    /// whole snapshot) rather than just reading as "nothing tried yet".
+    let brewTriedIds: [Int]?
+    let brewBestIds: [Int]?
+
     /// nil-safe view of `rotationQuarterTurns`, normalized to 0–3.
     var rotationTurns: Int { ((rotationQuarterTurns ?? 0) % 4 + 4) % 4 }
+
+    /// nil-safe views of `brewTriedIds`/`brewBestIds` — every call site should
+    /// read through these rather than the raw optionals.
+    var triedBrewOptionIds: [Int] { brewTriedIds ?? [] }
+    var bestBrewOptionIds: [Int] { brewBestIds ?? [] }
 
     var purchasedYear: Int { purchasedOn.year }
     var purchasedMonth: Int { purchasedOn.month }
@@ -130,7 +144,8 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             farmLotNote: nil, brewGuideNote: nil, roasterCopyNote: nil, flavorNotes: nil,
             rawTitle: nil, rawCaption: nil, rawDescription: nil,
             reviewState: reviewState, minFieldConfidence: nil,
-            rotationQuarterTurns: nil, images: nil
+            rotationQuarterTurns: nil, images: nil,
+            brewTriedIds: nil, brewBestIds: nil
         )
     }
 
@@ -153,7 +168,8 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             flavorNotes: flavorNotes,
             rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
             reviewState: reviewState, minFieldConfidence: minFieldConfidence,
-            rotationQuarterTurns: rotationQuarterTurns, images: images
+            rotationQuarterTurns: rotationQuarterTurns, images: images,
+            brewTriedIds: brewTriedIds, brewBestIds: brewBestIds
         )
     }
 
@@ -173,7 +189,31 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
             flavorNotes: flavorNotes,
             rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
             reviewState: reviewState, minFieldConfidence: minFieldConfidence,
-            rotationQuarterTurns: ((turns % 4) + 4) % 4, images: images
+            rotationQuarterTurns: ((turns % 4) + 4) % 4, images: images,
+            brewTriedIds: brewTriedIds, brewBestIds: brewBestIds
+        )
+    }
+
+    /// A copy with the brew lab's tried/best id sets replaced (PLAN.md §14) —
+    /// same immutable-value, optimistic-update pattern as `withFavorite`.
+    /// `SyncEngine` is the only caller: it computes the new sets (locally for
+    /// an optimistic tap, or from the server's whole-state response after a
+    /// flush) and passes them straight through.
+    func withBrew(tried: [Int], best: [Int]) -> Coffee {
+        Coffee(
+            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
+            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
+            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
+            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
+            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
+            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
+            rating: rating, isFavorite: isFavorite, favoriteSetBy: favoriteSetBy,
+            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
+            flavorNotes: flavorNotes,
+            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
+            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
+            rotationQuarterTurns: rotationQuarterTurns, images: images,
+            brewTriedIds: tried, brewBestIds: best
         )
     }
 }
