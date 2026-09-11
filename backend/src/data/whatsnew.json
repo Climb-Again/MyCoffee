@@ -233,6 +233,10 @@
         {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
           "detail": "Queued."
+        },
+        {
+          "title": "Use the landscape width — the layout half of #114, split out 2026-09-11 so the row that is done is done",
+          "detail": "Queued."
         }
       ]
     },
