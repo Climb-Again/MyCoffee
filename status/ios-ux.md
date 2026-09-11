@@ -14,6 +14,44 @@ _none_
 
 ## Session notes
 
+- **2026-09-11 (interactive session, Radu: "analyse all lanes… already
+  implement some of the features and solve any blockers") — #138, #149, #150,
+  #151 and #157 done; runs #112/#113/#114 all compile-green.**
+
+  **#138** (`ae61f7e`): Value section in the filter sheet, Value in the sort
+  menu, and — beyond the row — a Value donut in Insights → Charts, which cost
+  one array entry because `pieSlices` is generic over dimensions. Worth noting
+  for the next seam: `isFacetSelected`/`toggleFacet` both end in `default:`,
+  so a new dimension **compiles fine without its arms and silently does
+  nothing**. The compile check cannot catch that class; only reading those two
+  switches can.
+
+  **#149/#150/#151** (`4a51ee1`), all from Radu's 2026-09-07 screenshot pass:
+  the filter glyph's "active" state was `Theme.Colors.accent` against an idle
+  `Color.accentColor` — the same blue, so it had never actually shown anything;
+  `FilterSummary` now says *what* is filtered, naming values rather than
+  dimensions; the stats line is replaced by (not stacked above) the filter
+  line while filtering; and `CoffeeRowView`'s thumb went 88→74, which is the
+  only lever that actually shortens a row since the thumb is its height floor.
+  #151's counts: the review nudge cross-references `ReviewFeedCache` and fails
+  open to the library-wide total, and chip counts scope to the current results
+  while **which** chips exist stays whole-corpus — gating selection too would
+  make chips appear and vanish as you filter.
+
+  **#157** (`1be0dae`): the Brew lab, consuming #156's shell surface from the
+  same morning. Two shapes on purpose — recipe/device as rows, grind/temp as
+  `WrapLayout` chip grids, because 21 Comandante clicks and ~16 temperatures
+  rendered as rows is a 37-row scroll to find one number. `BrewCatalogueView`
+  in Settings deliberately has **no delete** (every coffee that tried an option
+  references it) and **no rename for grind/temp** (there the value IS the
+  identity). One deviation recorded in the row: the winner marker is an SF
+  Symbol trophy, not a Lucide SVG — the Lucide set is vendored from Radu's own
+  files and inventing a lookalike would put a foreign glyph in it.
+
+  **Seam edits received** from the shell side this session (CLAUDE.md §4):
+  `CoffeeDisplay.swift` gained `.valueBand`/`.value` arms. They are not stubs —
+  #138 restyled them in the same session.
+
 - **2026-09-11 — seam edit from ios-shell #156 (Brew lab), not a UX-lane
   claim.** ios-shell added `FilterDimension.brewDevice/.brewRecipe/
   .brewGrind/.brewTemp` (`Query/FilterDimension.swift`), which broke two

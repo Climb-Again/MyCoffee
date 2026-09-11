@@ -14,6 +14,40 @@ _none_
 
 ## Session notes
 
+- **2026-09-11 (interactive session, Radu: "analyse all lanes… already implement
+  some of the features and solve any blockers") — #113 and #114's shell half
+  done; `ios-staging@ae61f7e`, compile-green at run #112.**
+
+  **#114** was two config blockers the row itself flagged as coming first, and
+  both were real: `project.yml` had `TARGETED_DEVICE_FAMILY: "1"`, so the app
+  ran letterboxed in iPhone compatibility mode on iPad and **no amount of
+  layout work would have been visible**; and `Info.plist` declared portrait
+  only, so it never rotated on any device. Now `"1,2"` plus landscape on
+  iPhone and a `~ipad` variant with all four (iPadOS requires all four of an
+  app that doesn't opt out of multitasking via `UIRequiresFullScreen`). The
+  AppIcon needed nothing — it is a single `universal`/`platform: ios` 1024²,
+  which already covers iPad. The layout ramp is `Features/**`, so it is now
+  **#191** on ios-ux rather than an implied remainder of a "done" row.
+
+  **#113** looked like "add an enum case" and wasn't. The value band is a
+  **library-wide quintile**, so every coffee's score must exist before any one
+  coffee's band can — and `CoffeeIndex.init` computed the value scores *after*
+  `buildPostings`. Moving them before it is the whole change; `valueScoreByRow`
+  / `valueBandByRow` then fall out as parallel arrays, and `valueBand(for:)`
+  becomes a lookup instead of two binary searches per visible row.
+  `SortOption.value` has the same shape of problem: it cannot be decided from
+  two `Coffee`s, so `coffees(matching:sortedBy:)` intercepts it and a new
+  `CoffeeIndex.sectionLabel(for:sort:)` supplies the band. The new
+  `valueBand:` parameter on `SortOption.sectionLabel` **defaults to nil**
+  specifically so no pre-existing call site changed signature.
+
+  Seam edits into UX files per CLAUDE.md §4 (`CoffeeDisplay.swift`'s
+  `FilterDimension.title` / `facetLabel` / `SortOption.displayName`) — but not
+  left as stubs: **#138 shipped in the same session**, so the pills toggle and
+  the sort headers read properly. Also moved the verdict wording onto
+  `ValueRating.Band.label`, which deletes the two hand-rolled `verdictLabel`
+  copies #181 had flagged.
+
 - **2026-09-11 — #156 done this session (Brew lab shell surface: models,
   wire, store, outbox, query).** `Models/BrewOption.swift` (`BrewKind`,
   `BrewOption`, `BrewRecipeSpec` incl. `ratio`/`summary`, `BrewTrialState`);
