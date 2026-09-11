@@ -133,6 +133,18 @@ export const config = {
       // failing photo is re-claimed forever (its lease is released on failure),
       // so runWorker never terminates and holds the advisory lock (#64).
       maxFailures: int('EXTRACTION_MAX_FAILURES', 3),
+      // #167: vertex.js's own generateContent() already retries 429/500/503 up
+      // to 7 attempts with up to 65s backoff each (worst case ~27.5 min for a
+      // single voter call) -- well past the 10-minute lease below on its own.
+      // photoDeadlineMs bounds total time spent on one photo's voters; once
+      // passed, processPhoto bails rather than let the batch hang indefinitely.
+      // Kept below leaseMinutes so a photo that hits it fails out (and its
+      // lease is released) before the reaper would have reclaimed it anyway.
+      photoDeadlineMs: int('EXTRACTION_PHOTO_DEADLINE_MS', 8 * 60 * 1000),
+      // Bounds the synchronous wizard paths (POST /api/coffees/extract and
+      // /evaluate), which run runLightExtraction() inline on the request and
+      // had no deadline at all (CLAUDE.md/#167: "requestTimeout 0").
+      lightExtractionDeadlineMs: int('EXTRACTION_LIGHT_DEADLINE_MS', 90 * 1000),
     },
   },
 };
