@@ -6,7 +6,71 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-09-11 07:27 UTC] #167 Retry storm: drop the double retry (worker.js's `withBackoff` wrapping vertex.js's own retry loop), add a per-photo deadline + lease heartbeat, bound the two synchronous routes — branch `main`
+(none)
+
+## 2026-09-11 07:27 UTC: #167 Retry storm — DONE, `9e45344`
+
+Audit (2026-09-09) found `worker.js`'s `withBackoff` wrapping every
+`voter.run()` call retried **any** error, including a `Gemini 4xx` that
+`vertex.js` had already thrown after exhausting its own retry budget (429) or
+never attempting one at all (400/401/403/404 aren't in `vertex.js`'s
+`RETRYABLE_STATUS`). Stacked on `vertex.js`'s own worst case for a single
+voter call (7 attempts × up to 180s timeout + 65s backoff ≈ 27.5 min), the
+outer 6-attempt backoff could push one voter call to ~2.7h against a
+**10-minute** photo lease — long enough for `claimBatch`'s reaper to
+re-claim and double-process the same photo mid-flight.
+
+**Fix, matching the row's own four-part list:**
+1. `withBackoff` now rethrows immediately on `/^Gemini 4\d\d/` instead of
+   retrying — vertex.js already decided that error wasn't (or was no longer)
+   worth another attempt; retrying it again here can't change the outcome,
+   only the wall-clock cost. Exported for direct unit testing.
+2. `processPhoto()` now enforces a per-photo deadline
+   (`config.extraction.worker.photoDeadlineMs`, default 8 min — below the
+   10-min `leaseMinutes`) and throws before starting a voter once exceeded;
+   the existing `runWorker` catch already counts the failure and releases
+   the lease, so this fits the existing failure path with no new plumbing.
+3. `processPhoto()` renews the photo's lease after every voter call
+   (heartbeat) — a legitimately slow-but-still-running photo (vertex.js's
+   own retry loop can genuinely take several minutes) no longer risks being
+   reaped out from under itself.
+4. `runLightExtraction()` — shared by the two synchronous wizard routes,
+   `POST /api/coffees/extract` and `/evaluate` — takes an optional
+   `deadlineMs` and now gets one from each route
+   (`config.extraction.worker.lightExtractionDeadlineMs`, default 90s); a
+   route that used to have no bound at all on how long it could hold the
+   connection open now fails out with a clear error instead of hanging.
+
+**Tests** (the row's own test plan: "the bail-on-4xx and deadline paths as
+pure functions"): `withBackoff` bails on a `Gemini 429` message with zero
+retries, still retries a plain non-Gemini error through all delays, and
+doesn't retry at all when the first call succeeds; `runLightExtraction`
+rejects with a "deadline exceeded" error when `deadlineMs` is already
+expired before the first voter, and runs normally to completion under a
+generous one. `cd backend && npm ci && npm test` — **442/442 green**
+(up from 437; the 5 new tests are the ones above).
+
+Live-verified pre-push: `GET /api/admin/jobs` → last 3 jobs `done`, none
+`running` — safe to push `backend/**` per the hard rule. Pushed to
+`origin/main` (`9e45344`), watched `railway-deploy.yml` run `34574657676`
+to completion (`test` + `deploy` jobs both green). Post-deploy:
+`GET /health` → `{"ok":true,"db":true,"service":"mycoffee-api"}`;
+`GET /api/status` → `{"ok":true,"service":"mycoffee-api","db":true,
+"vertex":true,"ingestEvents":0}`; re-checked `GET /api/admin/jobs` —
+still none `running`.
+
+Flipped `#167` → `done` in `BACKLOG.md`; no row's `needs` names `167`, so
+nothing else unblocks. Re-ran `ops/gen-whatsnew-plan.mjs` (the Plan tab's
+`plan` half is derived from the backlog) and `status/check-backlog.sh` —
+both clean — before pushing.
+
+Also audited & dismissed one stranded branch this session (not a code
+change): `claude/plan-scheduling-optimization-txdrl5` (525 commits, no
+merge-base with `main`) — its tip files the v2 redesign brief for #93-#97,
+`main`'s `design/coffees_redesign/UPDATE_BRIEF.md` is already a v3 that
+supersedes v2, and #93-#97 are already in `BACKLOG.md`. Recorded with
+reasoning in `status/stranded-ok.txt` per the "integrate before you start"
+rule rather than silently ignored.
 
 ## 2026-09-07 07:23 UTC: #121 Add Coffee wizard drops a new (not-in-vocab) roaster — DONE, `a345d1b`
 

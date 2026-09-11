@@ -115,10 +115,6 @@
     "byLane": {
       "backend": [
         {
-          "title": "Retry storm: up to 42 HTTP attempts / ~2.7 h per voter call, 400s retried, 10-min lease not renewed —…",
-          "detail": "Queued."
-        },
-        {
           "title": "Add Coffee wizard drops a roaster that isn't already in the vocab",
           "detail": "Queued."
         },
