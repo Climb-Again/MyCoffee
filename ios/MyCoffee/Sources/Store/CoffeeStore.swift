@@ -45,6 +45,13 @@ final class CoffeeStore: ObservableObject {
 
     private let repository: CoffeeRepository
 
+    /// #175(b): two separate `.task { if store.index.coffees.isEmpty { await
+    /// store.load() } }` sites (`RootTabView`, `CoffeesListView`) both read
+    /// the still-empty index on cold start and can both fire before either
+    /// completes, so `load()` guards its own re-entrancy rather than relying
+    /// on that check alone — the ~300 KB text blob was being fetched twice.
+    private var isLoading = false
+
     init(repository: CoffeeRepository = RemoteCoffeeRepository()) {
         self.repository = repository
     }
@@ -52,8 +59,12 @@ final class CoffeeStore: ObservableObject {
     /// Loads the initial index. Call once, e.g. from a root view's `.task`.
     /// Publishes whatever's persisted from a prior sync immediately (never
     /// blank), then kicks off a background delta sync (PLAN.md §5) rather
-    /// than blocking on the network.
+    /// than blocking on the network. Idempotent (#175(b)): a second call that
+    /// arrives while the first is still between its two steps is a no-op.
     func load() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
         index = await repository.currentIndex()
         Task { await self.refresh() }
     }

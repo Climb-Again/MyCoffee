@@ -114,7 +114,8 @@ actor ImageStore {
     /// Purges files untouched for 30+ days and, if still over the 30 MB budget,
     /// the oldest-touched files until it's under (PLAN.md §5 / the CLAUDE.md
     /// 50 MB rule). Cheap — a single directory scan — so it runs at launch
-    /// (`RootView`), not only from a BGTask that may never fire.
+    /// (`RootView`); there is no BGTask to run it in the background (#175(e):
+    /// the placeholder identifier was removed rather than wired up).
     func evictStaleEntries() {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(

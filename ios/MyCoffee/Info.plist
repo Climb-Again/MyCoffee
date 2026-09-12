@@ -47,14 +47,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>processing</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>ro.climbagain.mycoffee.refresh</string>
-	</array>
+	<!-- #175(e): no BGTaskScheduler task is registered anywhere in the app —
+	     `ro.climbagain.mycoffee.refresh` was declared here and mentioned only
+	     in comments, never wired to a handler. Removed rather than built: the
+	     30 MB image-cache eviction already runs cheaply at every launch
+	     (`RootView`/`ImageStore.evictStaleEntries`), so there's nothing this
+	     app currently needs woken up in the background to do. -->
 </dict>
 </plist>

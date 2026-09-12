@@ -6,13 +6,70 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-12 04:18 UTC] #175 sync hygiene: conditional GETs, one cold-start sync, optimistic favorite, stale thumbUrl refresh, BGTask decision — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-12 — #175 done this session (sync hygiene, all five sub-items).**
+  **(a)** `/api/snapshot/text` (~95% of sync bytes, no `since` of its own) now
+  sends `If-None-Match`; `APIClient.snapshotText(ifNoneMatch:)` returns
+  `(texts: [String: String]?, etag: String?)`, `texts` `nil` on a 304 so
+  `SyncEngine.sync` skips the ~300 KB decode and keeps its current
+  `searchTexts`. New `APIClient.sendRaw`/`sendConditional` (private) accept
+  304 alongside 2xx and surface the response `ETag`; `/api/snapshot` itself is
+  untouched — its `since` param changes every call, so a stable conditional
+  GET against it needs the server half (#168), same as the row's own note.
+  New `PersistedSnapshot.searchTextsETag: String?` persists it (schema-safe:
+  `Optional`, decodes `nil` from an old file with no such key). **(b)**
+  `CoffeeStore.load()` now guards its own re-entrancy with a private
+  `isLoading` flag instead of relying solely on the two UX call sites'
+  `index.coffees.isEmpty` check — both can fire before either completes on
+  cold start, so that check alone let two `refresh()`s (and two
+  `snapshotText` fetches, pre-(a)) run serially through the actor. Left
+  `RootTabView`/`CoffeesListView`'s `.task`s untouched: this isn't the
+  enum-case seam rule (nothing there stops compiling), and the idempotency
+  guard alone removes the double fetch. **(c)** `SyncEngine.setFavorite` now
+  awaits only `outbox.enqueueFavorite` (in-memory, fast) before returning the
+  already-mutated `currentIndex()`; the actual `flushOutbox` network call
+  runs in a detached `Task` instead of being awaited, so offline the heart
+  flips immediately instead of waiting up to the outbox's ~60 s timeout.
+  Confirmed this is safe for favorites specifically: `flushOutbox`'s only
+  side effect beyond removing the queued mutation is reconciling a flushed
+  *brew*-state response into `coffees` (`FlushedBrewState`), which a
+  favorite-only flush never produces. Left `setBrewState`'s identical
+  await-before-return shape alone — same latency smell, but out of this
+  row's scope (only "the favorite toggle" is named) and detaching it would
+  drop the brew reconciliation's publish, which needs its own care. **(d)**
+  New `SyncEngine.lastFullSyncAt` (persisted, `Optional`/schema-safe) forces
+  `sync` to fetch `since: nil` at least every 14 days, covering the
+  schema-mismatch-forced-refetch case too (both now flow through one
+  `requestedSince == nil` check) — keeps every coffee's signed `thumbUrl`
+  (30-day expiry, `coffees.js:62`) renewed well before `ImageStore`'s 30-day
+  eviction can turn a 403 into a permanent placeholder, even for a coffee a
+  delta sync would otherwise never re-send. **(e)** Decided: **deleted the
+  ghost**, did not register a real BGTask. `BGTaskSchedulerPermittedIdentifiers`
+  (and `UIBackgroundModes`, equally vestigial — grepped: no
+  `BGTaskScheduler`/`BGAppRefreshTask`/`BGProcessingTask`/background-fetch API
+  is called anywhere in the app) removed from `Info.plist`; the two comments
+  in `MyCoffeeApp.swift`/`ImageStore.swift` that referred to "a BGTask that
+  may never fire" reworded to state plainly that eviction only runs at
+  launch. Rationale: building actual background refresh is a materially
+  bigger feature (registration, a launch handler, battery/network
+  considerations) than this hygiene row's scope, and isn't testable without
+  local Xcode/Simulator (`ios/project.yml` has no test target) — if Radu
+  wants real background sync, that's a fresh backlog row, not a default this
+  lane should assume. No unit test target exists to add coverage to (same
+  gap noted in #178's session entry); reasoned through each change instead —
+  the ETag/304 path was checked against `sendRaw`'s explicit 304 allowance,
+  the idempotency guard against the actor-hop timing (the guard-then-await
+  split has no suspension point before `isLoading = true` lands), and the
+  detached-flush safety against reading `MutationOutbox.flush`'s actual
+  reconciliation logic rather than assuming. `ios/MyCoffee/Info.plist`,
+  `Sources/{App,API,Store}/**`.
 
 - **2026-09-11 (interactive session, Radu: "analyse all lanes… already implement
   some of the features and solve any blockers") — #113 and #114's shell half

@@ -20,6 +20,14 @@ actor SyncEngine {
     private var profilesByID: [Int: Profile] = [:]
     private var lastSyncAt: Date?
     private var schemaVersion: Int?
+    private var lastFullSyncAt: Date?
+    private var searchTextsETag: String?
+
+    /// #175(d): force a full (`since: nil`) resync at least this often, even
+    /// when a delta would otherwise suffice, so every coffee's signed
+    /// `thumbUrl` — which a delta sync only re-sends for rows that changed —
+    /// gets renewed well inside its 30-day expiry (`coffees.js:62`).
+    private static let fullSyncMaxAge: TimeInterval = 14 * 24 * 60 * 60
 
     private let outbox = MutationOutbox()
 
@@ -31,6 +39,8 @@ actor SyncEngine {
         profilesByID = persisted.profilesByID
         lastSyncAt = persisted.lastSyncAt
         schemaVersion = persisted.schemaVersion
+        lastFullSyncAt = persisted.lastFullSyncAt
+        searchTextsETag = persisted.searchTextsETag
     }
 
     /// The most recently loaded index — from disk if this is a cold start and
@@ -44,11 +54,13 @@ actor SyncEngine {
     /// schema-version mismatch drops the local cache and forces one full
     /// refetch rather than trying to merge two shapes.
     func sync(using client: APIClient) async throws -> CoffeeIndex {
-        let requestedSince = (schemaVersion != nil) ? lastSyncAt?.addingTimeInterval(-60) : nil
+        let isStale = lastFullSyncAt.map { Date().timeIntervalSince($0) >= Self.fullSyncMaxAge } ?? true
+        var requestedSince = (schemaVersion != nil && !isStale) ? lastSyncAt?.addingTimeInterval(-60) : nil
         var response = try await client.snapshot(since: requestedSince)
 
         if let schemaVersion, schemaVersion != response.version {
             coffees = [:]
+            requestedSince = nil
             response = try await client.snapshot(since: nil)
         }
 
@@ -72,9 +84,18 @@ actor SyncEngine {
         }
         schemaVersion = response.version
         lastSyncAt = response.generatedAt
+        if requestedSince == nil {
+            lastFullSyncAt = response.generatedAt
+        }
 
-        if let textResponse = try? await client.snapshotText() {
-            searchTexts = textResponse
+        // #175(a): ~95% of sync bytes and unchanged far more often than the
+        // coffees themselves — send the last ETag and skip the ~300 KB decode
+        // on a 304 rather than fetching and replacing `searchTexts` every time.
+        if let (texts, etag) = try? await client.snapshotText(ifNoneMatch: searchTextsETag) {
+            if let texts {
+                searchTexts = texts
+            }
+            searchTextsETag = etag ?? searchTextsETag
         }
 
         await flushOutbox(using: client)
@@ -114,17 +135,22 @@ actor SyncEngine {
     }
 
     /// Optimistic local favorite toggle (PLAN.md §5: "tap heart -> mutate in
-    /// memory and publish immediately, enqueue, flush when online").
+    /// memory and publish immediately, enqueue, flush when online"). #175(c):
+    /// the flush itself is detached rather than awaited — awaiting it here
+    /// held the returned (already-mutated) index hostage behind the outbox's
+    /// full network round trip, so offline the heart didn't visibly flip
+    /// until that call's ~60 s timeout elapsed.
     func setFavorite(coffeeId: String, isFavorite: Bool, client: APIClient?) async -> CoffeeIndex {
         if let coffee = coffees[coffeeId] {
             coffees[coffeeId] = coffee.withFavorite(isFavorite, setBy: "human")
             persist()
         }
         await outbox.enqueueFavorite(coffeeId: coffeeId, isFavorite: isFavorite)
+        let result = currentIndex()
         if let client {
-            await flushOutbox(using: client)
+            Task { await self.flushOutbox(using: client) }
         }
-        return currentIndex()
+        return result
     }
 
     /// Optimistic local brew-state toggle (PLAN.md §14) — same shape as
@@ -379,7 +405,9 @@ actor SyncEngine {
             coffees: Array(coffees.values),
             vocabulary: vocabulary,
             searchTexts: searchTexts,
-            profilesByID: profilesByID
+            profilesByID: profilesByID,
+            lastFullSyncAt: lastFullSyncAt,
+            searchTextsETag: searchTextsETag
         ).save()
     }
 }
