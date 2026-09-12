@@ -10,7 +10,6 @@ import { scrapePage } from './scrape.js';
 import { getSettings } from './settings.js';
 import { checkForUpdate, scheduleUpdateChecks, UPDATE_ALARM } from './update.js';
 import { recordVisit } from './history.js';
-import { fetchFeed, loadSeen, unseenLiveCount } from './whatsnew.js';
 
 async function scoreActiveTab() {
   const { baseUrl, token } = await getSettings();
@@ -113,52 +112,19 @@ async function acceptEnrich({ coffeeId, field, value }) {
   return { ok: true };
 }
 
-// #200: paint the toolbar with the count of unseen LIVE items so a new ship
-// is visible without opening anything. Plan items are excluded (Radu already
-// knows what he asked for) and a network failure is a silent no-op -- the
-// existing badge stays put rather than being cleared to zero on a hiccup.
-async function refreshWhatsNewBadge() {
-  try {
-    const { baseUrl, token } = await getSettings();
-    if (!token) return;
-    const feed = await fetchFeed(baseUrl, token);
-    const seen = await loadSeen();
-    const n = unseenLiveCount(feed, seen);
-    await chrome.action.setBadgeText({ text: n > 0 ? String(n) : '' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#0078ff' });
-  } catch (e) {
-    console.warn('[mycoffee] whatsnew badge refresh failed', e);
-  }
-}
-
 // Auto-update (see update.js). The alarm survives the service worker being
 // torn down, which a setInterval would not -- an MV3 worker is evicted after
 // ~30s idle, so a timer-based check would simply never fire.
 chrome.runtime.onInstalled.addListener(() => {
   scheduleUpdateChecks();
   checkForUpdate();
-  refreshWhatsNewBadge();
 });
 chrome.runtime.onStartup.addListener(() => {
   scheduleUpdateChecks();
   checkForUpdate();
-  refreshWhatsNewBadge();
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === UPDATE_ALARM) {
-    checkForUpdate();
-    // Piggyback on the hourly update alarm so we don't need a second one; the
-    // badge stays fresh without a dedicated timer that would sleep with the
-    // worker.
-    refreshWhatsNewBadge();
-  }
-});
-// Repainting when seen state changes lets Mark all seen clear the badge
-// without a round-trip through the message channel.
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && ('whatsnew:seen' in changes || 'whatsnew:feed' in changes)) {
-    refreshWhatsNewBadge();
-  }
+  if (alarm.name === UPDATE_ALARM) checkForUpdate();
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
