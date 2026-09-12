@@ -169,6 +169,22 @@
         {
           "title": "Sync shortlist between browsers using the extension (Radu, 2026-09-11: verbatim, \"Sync shortlist between…",
           "detail": "Queued."
+        },
+        {
+          "title": "Extension: manual ±10p score adjustment per coffee (Radu, 2026-09-12: verbatim, 'add a manual +10p / -10p…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Extension: 30d shortlist retention, from add time (Radu, 2026-09-12: verbatim, 'discard after 30d from being…",
+          "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "Extension: pipe new roasters + countries + roaster logos to the vocab tables from browsing (never to…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Extension: recompute both roasted N days ago and the fit score against today (Radu, 2026-09-12: verbatim,…",
+          "detail": "Queued."
         }
       ],
       "data": [
@@ -221,6 +237,10 @@
         {
           "title": "Split from #181(c) (2026-09-11) -- the toggle-pill family the safer half of #181 left alone",
           "detail": "Queued."
+        },
+        {
+          "title": "Nav bar: add Shop + Recipes tabs, reorder to Coffees · Recipes · + · Shop · Insights (Radu, 2026-09-12:…",
+          "detail": "Queued behind earlier work."
         }
       ]
     },
