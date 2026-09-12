@@ -179,10 +179,6 @@
       ],
       "ios": [
         {
-          "title": "Brew lab — filter-sheet group + Insights \"Brew winners\" card (optional follow-on; PLAN.md §14)",
-          "detail": "Queued."
-        },
-        {
           "title": "Sync hygiene: conditional GETs, one cold-start sync not two, a truly optimistic heart, and refreshed thumb…",
           "detail": "Queued."
         },
@@ -195,12 +191,8 @@
           "detail": "Queued."
         },
         {
-          "title": "UX correctness batch (Audit 2026-09-09)",
-          "detail": "Queued."
-        },
-        {
-          "title": "But #106's ship gate still stands and it is a HUMAN step, not a lane's: no lane ships the headline number…",
-          "detail": "Queued."
+          "title": "Split from #179(f) (2026-09-11) — #179's (a)-(e) shipped ios-staging@14f6257, this is just the part gated on…",
+          "detail": "Queued behind earlier work."
         },
         {
           "title": "Make the package's product name the default coffee title",
@@ -223,15 +215,11 @@
           "detail": "Queued behind earlier work."
         },
         {
-          "title": "UX dedupe + dead-code batch (Audit 2026-09-09)",
-          "detail": "Queued."
-        },
-        {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
           "detail": "Queued."
         },
         {
-          "title": "Use the landscape width — the layout half of #114, split out 2026-09-11 so the row that is done is done",
+          "title": "Split from #181(c) (2026-09-11) -- the toggle-pill family the safer half of #181 left alone",
           "detail": "Queued."
         }
       ]
