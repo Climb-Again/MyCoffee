@@ -13,16 +13,29 @@ struct WhatsNewView: View {
     }
 
     @EnvironmentObject private var config: AppConfig
+    @ObservedObject private var seenStore = WhatsNewSeenStore.shared
     @State private var segment: Segment = .live
     @State private var response: WhatsNewResponseDTO?
     @State private var loadError: String?
     @State private var isLoading = true
 
+    private var liveUnseen: Int {
+        guard let response else { return 0 }
+        return seenStore.unseenCount(in: response.live)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("Section", selection: $segment) {
                 ForEach(Segment.allCases) { segment in
-                    Text(segment.rawValue).tag(segment)
+                    // Show the unseen count next to Live so opening the sheet
+                    // doesn't require reading the whole list to see if there's
+                    // anything new — matches the badge on the Settings row.
+                    if segment == .live, liveUnseen > 0 {
+                        Text("Live · \(liveUnseen) new").tag(segment)
+                    } else {
+                        Text(segment.rawValue).tag(segment)
+                    }
                 }
             }
             .pickerStyle(.segmented)
@@ -33,6 +46,15 @@ struct WhatsNewView: View {
         }
         .navigationTitle("What's New")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let response, liveUnseen > 0 {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Mark all seen") {
+                        seenStore.markSeen(response.live)
+                    }
+                }
+            }
+        }
         .task { await load() }
     }
 
@@ -120,22 +142,44 @@ struct WhatsNewView: View {
 /// One feature card: title + one-line detail + an optional area chip. `area`
 /// is only ever sent on `live` items (`WhatsNewItemDTO`'s own doc comment) —
 /// the plan side is already grouped by lane via `byLane`'s section titles.
+/// The leading circle is a check-off toggle (#200): tap marks the entry seen
+/// so the badge on the Settings row drops. Seen title dims + strikes through
+/// so the eye can skip to what's new without hunting for the empty circle.
 private struct WhatsNewCard: View {
     let item: WhatsNewItemDTO
+    @ObservedObject private var seenStore = WhatsNewSeenStore.shared
+
+    private var isSeen: Bool { seenStore.isSeen(item) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top) {
-                Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                Spacer(minLength: 8)
-                if let area = item.area {
-                    AreaChip(area: area)
-                }
+        HStack(alignment: .top, spacing: 10) {
+            Button {
+                seenStore.toggle(item)
+            } label: {
+                Image(systemName: isSeen ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSeen ? Color.accentColor : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
-            Text(item.detail)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .accessibilityLabel(isSeen ? "Mark unseen" : "Mark seen")
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSeen ? .secondary : .primary)
+                        .strikethrough(isSeen, color: .secondary)
+                    Spacer(minLength: 8)
+                    if let area = item.area {
+                        AreaChip(area: area)
+                    }
+                }
+                Text(item.detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 4)
     }

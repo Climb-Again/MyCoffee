@@ -5,9 +5,15 @@ import SwiftUI
 struct SettingsSheet: View {
     @EnvironmentObject private var config: AppConfig
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var seenStore = WhatsNewSeenStore.shared
 
     @State private var statusText = "Checking…"
     @State private var isHealthy = false
+    // Fetched here so the badge count is visible without opening the sheet
+    // (that's the whole point of a badge). WhatsNewView refetches on its own
+    // task — small, cached, and independent of this — so a stale count here
+    // is worth strictly less than a round-trip we'd otherwise pay for.
+    @State private var whatsnewLive: [WhatsNewItemDTO] = []
 
     var body: some View {
         NavigationStack {
@@ -36,6 +42,7 @@ struct SettingsSheet: View {
                     } label: {
                         Label("What's New", systemImage: Symbols.whatsNew)
                     }
+                    .badge(seenStore.unseenCount(in: whatsnewLive))
                 }
                 Section {
                     Button("Disconnect", role: .destructive) {
@@ -52,6 +59,7 @@ struct SettingsSheet: View {
                 }
             }
             .task { await refreshStatus() }
+            .task { await refreshWhatsNewBadge() }
         }
     }
 
@@ -64,6 +72,17 @@ struct SettingsSheet: View {
         } catch {
             isHealthy = false
             statusText = "Offline"
+        }
+    }
+
+    private func refreshWhatsNewBadge() async {
+        // Non-blocking: a fetch failure leaves the badge at 0, which is honest
+        // (we don't know how many are new) rather than showing a stale count.
+        do {
+            let client = try APIClient(config: config)
+            whatsnewLive = try await client.whatsNew().live
+        } catch {
+            whatsnewLive = []
         }
     }
 }
