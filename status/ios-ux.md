@@ -6,7 +6,8 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- **#193** — shared `TogglePill` for `CoffeesListView.filterChip` /
+  `InsightsView.equalPill` / `InsightsView.chip`. In progress.
 
 ## Abandoned
 
