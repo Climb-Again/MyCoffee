@@ -148,33 +148,17 @@ struct InsightsView: View {
 
     /// One of the three equal-width pills shared by the section control and
     /// the time-window control (§Screen 3: same `min-height 44`, radius 999
-    /// treatment, selected = accent fill).
+    /// treatment, selected = accent fill). #193: thin wrapper over the shared
+    /// `TogglePill` — defaults already match this shape (stretch width).
     private func equalPill(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                // §9: 44pt tall, 13pt semibold (was rendering ~56pt/15pt).
-                .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
-                .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+        TogglePill(title: title, isSelected: isSelected, width: .stretch, action: action)
     }
 
     /// A natural-width chip — the dimension switcher and the year picker
     /// (horizontally scrolling, so pills shouldn't stretch to fill the row).
+    /// #193: thin wrapper over the shared `TogglePill` — all defaults match.
     private func chip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                .padding(.horizontal, 14)
-                .frame(minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
-                .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+        TogglePill(title: title, isSelected: isSelected, action: action)
     }
 
     // MARK: - Insights section

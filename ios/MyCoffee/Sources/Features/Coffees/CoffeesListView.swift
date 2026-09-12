@@ -267,34 +267,19 @@ struct CoffeesListView: View {
 
     private func filterChip(_ card: TopFilterCard) -> some View {
         let isActive = store.filter == card.filter
-        return Button {
+        // §12: unselected chips are frosted glass; selected is solid blue —
+        // the glass-vs-solid contrast is what shows selection.
+        return TogglePill(
+            title: card.title,
+            count: card.count,
+            isSelected: isActive,
+            unselectedFill: .material,
+            titleFont: .system(size: 12),
+            minHeight: 40,          // #150: was 44
+            verticalPadding: 6      // #150: was 7
+        ) {
             store.filter = isActive ? CoffeeFilter() : card.filter
-        } label: {
-            HStack(spacing: 7) {
-                Text(card.title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                Text("\(card.count)")
-                    .font(.system(size: 12, weight: Theme.Weight.semibold))
-                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral700)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)          // #150: was 7
-            .frame(minHeight: 40)           // #150: was 44
-            // §12: unselected chips are frosted glass; selected is solid blue —
-            // the glass-vs-solid contrast is what shows selection.
-            .background {
-                if isActive {
-                    Capsule().fill(Theme.Colors.accent)
-                } else {
-                    Capsule().fill(.thinMaterial)
-                }
-            }
-            .overlay(
-                Capsule().strokeBorder(isActive ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Filter state line

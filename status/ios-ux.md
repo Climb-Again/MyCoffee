@@ -6,14 +6,30 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- **#193** — shared `TogglePill` for `CoffeesListView.filterChip` /
-  `InsightsView.equalPill` / `InsightsView.chip`. In progress.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-12 (iOS UX lane routine) — #193 shared `TogglePill`.** New
+  `DesignSystem/TogglePill.swift` unifies `CoffeesListView.filterChip`,
+  `InsightsView.equalPill` and `InsightsView.chip` — one selectable capsule
+  parameterized on width (`.natural`/`.stretch`), an optional trailing count,
+  the unselected fill (`.thinMaterial` for the list's floating chips vs a
+  flat `Theme.Colors.surface` for Insights' pills, since the three call
+  sites genuinely differed there — not something the row's "differ mainly
+  in width/count" line called out, but pixel parity required keeping it),
+  title font, min-height and vertical padding (so filterChip's #150 40pt/6pt
+  overrides carry over unchanged). `equalPill`/`chip` are now one-line
+  wrappers using the shared defaults; `filterChip` passes its four
+  overrides explicitly. No behaviour change intended at any of the three
+  sites — verified the parameter defaults against each call site's original
+  modifiers line by line (frame/padding/font/color) since no Xcode is
+  available in-session to compare pixels directly. Compile check pending on
+  this push.
 
 - **2026-09-11 (iOS UX lane routine) — #191 iPad landscape width,
   `fad97d5` + `0d0ed24`, compile-green (runs #120, #121).** New
