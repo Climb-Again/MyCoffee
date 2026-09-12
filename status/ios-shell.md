@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-12 04:18 UTC] #175 sync hygiene: conditional GETs, one cold-start sync, optimistic favorite, stale thumbUrl refresh, BGTask decision — branch `ios-staging`
 
 ## Abandoned
 
