@@ -28,8 +28,12 @@ _none_
   overrides explicitly. No behaviour change intended at any of the three
   sites — verified the parameter defaults against each call site's original
   modifiers line by line (frame/padding/font/color) since no Xcode is
-  available in-session to compare pixels directly. Compile check pending on
-  this push.
+  available in-session to compare pixels directly. `9aeaea0` regenerates
+  `backend/src/data/whatsnew.json` (dropped on the first #193 commit —
+  `sync-backlog-rows.sh` regenerates it on `main`, not on `ios-staging`,
+  so the drift check needs its own commit here too). Compile-green run
+  **#125**; backlog-check green on `9aeaea0`. Synced to `main` as #193
+  `done`.
 
 - **2026-09-11 (iOS UX lane routine) — #191 iPad landscape width,
   `fad97d5` + `0d0ed24`, compile-green (runs #120, #121).** New
