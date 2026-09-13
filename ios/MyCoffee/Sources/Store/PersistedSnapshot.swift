@@ -10,6 +10,17 @@ struct PersistedSnapshot: Codable {
     let vocabulary: Vocabulary
     let searchTexts: [String: String]
     let profilesByID: [Int: Profile]
+    /// When `sync` last fetched with `since: nil` (a full snapshot, not a
+    /// delta). `Optional` so an old persisted file with no such key decodes
+    /// fine — `nil` reads as "force one now" (#175(d)). Forces a fresh full
+    /// sync every 14 days so every coffee's signed `thumbUrl` (which expires
+    /// after 30 days, `coffees.js:62`) gets renewed before it goes stale, even
+    /// for a coffee a delta sync would otherwise never re-send.
+    let lastFullSyncAt: Date?
+    /// The `ETag` `/api/snapshot/text` returned last time, so `sync` can send
+    /// `If-None-Match` and skip re-decoding the ~300 KB text blob when nothing
+    /// changed (#175(a)). `Optional`/schema-safe the same way.
+    let searchTextsETag: String?
 
     private static var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

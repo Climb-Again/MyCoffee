@@ -20,6 +20,7 @@ struct CoffeeDetailView: View {
     @State private var showEdit = false
     @State private var showFullPhoto = false
     @State private var showFullTextSheet = false
+    @State private var showBrewLab = false
 
     init(coffee: Coffee) {
         self.initialCoffee = coffee
@@ -73,12 +74,16 @@ struct CoffeeDetailView: View {
                 urlString: coffee.images?.display,
                 initialRotationQuarterTurns: coffee.rotationTurns,
                 onRotate: { turns in
-                    Task { await store.setRotation(coffeeId: coffee.id, quarterTurns: turns) }
+                    await store.setRotation(coffeeId: coffee.id, quarterTurns: turns)
                 }
             )
         }
         .sheet(isPresented: $showEdit) {
             CoffeeEditSheet(coffee: coffee)
+        }
+        .sheet(isPresented: $showBrewLab) {
+            BrewLabSheet(coffeeId: coffee.id)
+                .presentationDetents([.large])
         }
         .sheet(isPresented: $showFullTextSheet) {
             fullTextSheet
@@ -226,6 +231,7 @@ struct CoffeeDetailView: View {
             if !factRows.isEmpty {
                 FactRowsList(rows: factRows)
             }
+            brewLabSection
             notesSection
             fromTheRoasterSection
             railsSection
@@ -237,7 +243,14 @@ struct CoffeeDetailView: View {
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // #191: the text content clamps to a readable width and centers
+        // within the card on iPad landscape — a no-op on iPhone, where
+        // 700pt is never reached. The card's own full-bleed white
+        // background (below) is untouched, so the hero-overlap illusion
+        // (`.offset(y: -20)`) and the medallion's `.topLeading` anchor
+        // still read off the card's actual full width, not this clamp.
+        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         .background(
             UnevenRoundedRectangle(
                 topLeadingRadius: Theme.Radius.card, bottomLeadingRadius: 0,
@@ -363,16 +376,12 @@ struct CoffeeDetailView: View {
     private var roasterHeaderRow: some View {
         if let roaster = coffee.roaster(vocabulary: vocabulary) {
             let roasterCountry = coffee.roasterCountry(vocabulary: vocabulary)
-            if FeatureFlags.tapNavigatesToEntityPages {
-                NavigationLink {
-                    RoasterPageView(roasterID: roaster.id)
-                } label: {
-                    roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
-                }
-                .buttonStyle(.plain)
-            } else {
+            NavigationLink {
+                RoasterPageView(roasterID: roaster.id)
+            } label: {
                 roasterHeaderContent(roaster: roaster, roasterCountry: roasterCountry)
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -383,10 +392,8 @@ struct CoffeeDetailView: View {
                 Text(roaster.name)
                     .font(.system(size: 13, weight: Theme.Weight.semibold))
                     .foregroundStyle(Theme.Colors.accent)
-                if FeatureFlags.tapNavigatesToEntityPages {
-                    AppIcon(name: Lucide.chevronRight, size: 15)
-                        .foregroundStyle(Theme.Colors.neutral700)
-                }
+                AppIcon(name: Lucide.chevronRight, size: 15)
+                    .foregroundStyle(Theme.Colors.neutral700)
                 Spacer(minLength: 0)
             }
             // "Your best roaster" only for the single #1 roaster
@@ -423,7 +430,7 @@ struct CoffeeDetailView: View {
             // Blend/decaf pills keep their pre-redesign styling (handoff
             // §Screen 2: "Blend/decaf pills as today").
             if coffee.isBlend {
-                InfoPill(icon: nil, text: "🏳️ Blend")
+                Pill(text: "🏳️ Blend", font: .caption.weight(.medium), foreground: .primary, background: Color.secondary.opacity(0.1), fixedWidth: false)
             }
             if !origins.isEmpty {
                 ForEach(origins) { country in
@@ -436,13 +443,13 @@ struct CoffeeDetailView: View {
             // neutral pill, and omitted entirely when the profile is unknown
             // rather than rendering "Unknown" (missing fields omit their row).
             if let profile = coffee.profile {
-                DetailPill(text: profile.displayName)
+                Pill(text: profile.displayName)
             }
             if let altitude = coffee.altitudeLabel {
-                DetailPill(text: altitude)
+                Pill(text: altitude)
             }
             if let weight = coffee.weightLabel {
-                DetailPill(text: weight)
+                Pill(text: weight)
             }
             if coffee.isDecaf {
                 DecafBadge()
@@ -457,16 +464,17 @@ struct CoffeeDetailView: View {
             + (average.map { " " + String(format: "%.1f", $0) } ?? "")
         // Pushback #7: the origin flag (folded into this pill's text) opens the
         // origin-country page.
-        if FeatureFlags.tapNavigatesToEntityPages {
-            NavigationLink {
-                CountryPageView(countryID: country.id, role: .origin)
-            } label: {
-                DetailPill(text: text, isAccent: average != nil)
-            }
-            .buttonStyle(.plain)
-        } else {
-            DetailPill(text: text, isAccent: average != nil)
+        NavigationLink {
+            CountryPageView(countryID: country.id, role: .origin)
+        } label: {
+            let isAccent = average != nil
+            Pill(
+                text: text,
+                foreground: isAccent ? Theme.Colors.accent700 : Theme.Colors.text,
+                background: isAccent ? Theme.Colors.accent100 : Theme.Colors.neutral100
+            )
         }
+        .buttonStyle(.plain)
     }
 
     /// `nil` unless this country is in the user's top-origin set (design
@@ -493,15 +501,9 @@ struct CoffeeDetailView: View {
                 }
                 Spacer(minLength: 12)
                 if let valueRating = store.index.valueBand(for: coffee) {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        valueMeter(valueRating)
-                        if let band = valueRating.band {
-                            Text(verdictLabel(band))
-                                .font(.system(size: 10, weight: band == .great ? Theme.Weight.bold : Theme.Weight.semibold))
-                                .tracking(0.8)
-                                .foregroundStyle(bandColor(band))
-                        }
-                    }
+                    // #181: shared `ValueMeterView` (was verbatim-duplicated
+                    // here and in `CoffeeRowView`).
+                    ValueMeterView(rating: valueRating)
                 }
             }
         }
@@ -509,53 +511,10 @@ struct CoffeeDetailView: View {
 
     private func priceStat(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(0.6)
-                .foregroundStyle(Theme.Colors.neutral700)
+            EyebrowLabel(text: label, tracking: 0.6)
             Text(value)
                 .font(.system(size: 22, weight: Theme.Weight.heavy))
                 .foregroundStyle(Theme.Colors.text)
-        }
-    }
-
-    private func valueMeter(_ rating: ValueRating) -> some View {
-        let tone = bandColor(rating.band)
-        return HStack(spacing: 3) {
-            ForEach(0..<5, id: \.self) { pip in
-                RoundedRectangle(cornerRadius: Theme.Radius.pill)
-                    .fill(pip < rating.pillCount ? tone : tone.opacity(0.15))
-                    .frame(width: 8, height: 4)
-            }
-        }
-    }
-
-    /// One shared depth tone per band (#186, `VALUE_BAND_UPDATE.md`) — the
-    /// lit pills, the unlit track (this colour at 15%) and the verdict text
-    /// all read off this. Verbatim-copied at `CoffeeRowView.bandColor` until
-    /// #181 dedupes `valueMeter`/`verdictLabel` into one view.
-    private func bandColor(_ band: ValueRating.Band?) -> Color {
-        switch band {
-        case .overpaid: return Theme.Colors.valueOverpaid
-        case .poor: return Theme.Colors.valuePoor
-        case .fair: return Theme.Colors.valueFair
-        case .good: return Theme.Colors.valueGood
-        case .great: return Theme.Colors.valueGreat
-        case nil: return Theme.Colors.neutral700
-        }
-    }
-
-    /// One word per pill (#105) — the label and the meter are the same five-step
-    /// scale, so they cannot disagree the way 4-pills-FAIR and 2-pills-FAIR did.
-    /// `.overpaid` also replaces the old `.pricey` (`UPDATE_BRIEF.md` §B): the
-    /// point is that you rated it low for what it cost, not that it was dear.
-    private func verdictLabel(_ band: ValueRating.Band) -> String {
-        switch band {
-        case .great: return "GREAT VALUE"
-        case .good: return "GOOD VALUE"
-        case .fair: return "FAIR VALUE"
-        case .poor: return "POOR VALUE"
-        case .overpaid: return "OVERPAID"
         }
     }
 
@@ -577,18 +536,16 @@ struct CoffeeDetailView: View {
     private var flavourProfileSection: some View {
         if let chips = flavourChips {
             VStack(alignment: .leading, spacing: 8) {
-                Text("FLAVOUR PROFILE")
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: "FLAVOUR PROFILE", tracking: 1.2)
                 WrapLayout() {
                     ForEach(chips, id: \.self) { note in
-                        Text(note)
-                            .font(.system(size: 11, weight: Theme.Weight.semibold))
-                            .foregroundStyle(Theme.Colors.accent800)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Theme.Colors.accent100, in: Capsule())
+                        Pill(
+                            text: note,
+                            font: .system(size: 11, weight: Theme.Weight.semibold),
+                            foreground: Theme.Colors.accent800,
+                            background: Theme.Colors.accent100,
+                            fixedWidth: false
+                        )
                     }
                 }
                 Text("Read from the roaster's own copy on the bag.")
@@ -608,6 +565,80 @@ struct CoffeeDetailView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         return chips.isEmpty ? nil : chips
+    }
+
+    // MARK: - Brew lab (#157, PLAN.md §14)
+
+    /// A four-cell glance: what won for recipe / device / grind / temp. The
+    /// point of the whole feature is that the answer to "how do I brew this
+    /// one" is on the coffee's own page, not in a note you have to read.
+    ///
+    /// Hidden entirely on an `unextracted` placeholder — a coffee that is
+    /// still being read off its bag has nothing to brew against yet, and the
+    /// quick-create flow (#131) leaves those on screen for a while.
+    @ViewBuilder
+    private var brewLabSection: some View {
+        if coffee.reviewState != "unextracted" {
+            VStack(alignment: .leading, spacing: 12) {
+                EyebrowLabel(text: "BREW LAB", tracking: 1.2)
+
+                if brewHasAnyTrial {
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)],
+                        alignment: .leading,
+                        spacing: 12
+                    ) {
+                        ForEach(BrewKind.allCases, id: \.self) { kind in
+                            brewCell(kind)
+                        }
+                    }
+                } else {
+                    Text("Log what you brewed with →")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { showBrewLab = true }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Open the brew lab for this coffee")
+        }
+    }
+
+    private var brewHasAnyTrial: Bool { !coffee.triedBrewOptionIds.isEmpty }
+
+    /// Winner's label if there is one, else "n tried", else an em dash — the
+    /// omit-not-"N/A" rule, but a 2×2 grid needs all four cells present or
+    /// the kinds stop being comparable at a glance.
+    @ViewBuilder
+    private func brewCell(_ kind: BrewKind) -> some View {
+        let winner = store.index.bestBrewOption(for: coffee, kind: kind)
+        let triedCount = store.index.triedBrewOptions(for: coffee, kind: kind).count
+        VStack(alignment: .leading, spacing: 2) {
+            EyebrowLabel(text: kind.displayName.uppercased(), tracking: 0.6)
+            if let winner {
+                HStack(spacing: 4) {
+                    Image(systemName: Symbols.trophyFill)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.Colors.accent)
+                    Text(winner.chipLabel)
+                        .font(.system(size: 13, weight: Theme.Weight.semibold))
+                        .foregroundStyle(Theme.Colors.text)
+                        .lineLimit(1)
+                }
+            } else if triedCount > 0 {
+                Text("\(triedCount) tried")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            } else {
+                Text("—")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Colors.neutral700)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var notesSection: some View {
@@ -656,10 +687,7 @@ struct CoffeeDetailView: View {
     private var fromTheRoasterSection: some View {
         if !rawTextBlocks.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                Text("FROM THE ROASTER")
-                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Theme.Colors.neutral700)
+                EyebrowLabel(text: "FROM THE ROASTER", tracking: 1.2)
 
                 if roasterFacts.count >= 2 {
                     LazyVGrid(
@@ -668,10 +696,7 @@ struct CoffeeDetailView: View {
                     ) {
                         ForEach(roasterFacts) { fact in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(fact.key)
-                                    .font(.system(size: 10, weight: Theme.Weight.semibold))
-                                    .tracking(0.6)
-                                    .foregroundStyle(Theme.Colors.neutral700)
+                                EyebrowLabel(text: fact.key, tracking: 0.6)
                                 Text(fact.value)
                                     .font(.system(size: 13, weight: Theme.Weight.semibold))
                                     .foregroundStyle(Theme.Colors.text)
@@ -754,35 +779,14 @@ struct CoffeeDetailView: View {
     }
 }
 
-private struct InfoPill: View {
-    let icon: String?
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if let icon {
-                Image(systemName: icon)
-            }
-            Text(text)
-        }
-        .font(.caption.weight(.medium))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color.secondary.opacity(0.1), in: Capsule())
-    }
-}
-
 private struct NoteBlock: View {
     let title: String
     let text: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            EyebrowLabel(text: title, tracking: 1.2)
                 .textCase(.uppercase)
-                .font(.system(size: 10, weight: Theme.Weight.semibold))
-                .tracking(1.2)
-                .foregroundStyle(Theme.Colors.neutral700)
             Text(text)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.Colors.text)
@@ -790,22 +794,4 @@ private struct NoteBlock: View {
     }
 }
 
-/// The redesigned pill row's plain (non-tinted) pill — process/altitude/
-/// weight always, origin only when it isn't a top-preference country
-/// (`originPill(for:)`'s own `isAccent` branch covers that case).
-private struct DetailPill: View {
-    let text: String
-    var isAccent: Bool = false
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .foregroundStyle(isAccent ? Theme.Colors.accent700 : Theme.Colors.text)
-            .background(isAccent ? Theme.Colors.accent100 : Theme.Colors.neutral100, in: Capsule())
-    }
-}
 

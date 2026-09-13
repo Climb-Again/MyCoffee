@@ -50,7 +50,7 @@ final class ReviewQueueEngine: ObservableObject {
     var onAccept: ((ReviewTask, String) async -> Bool)?
     var onDismiss: ((ReviewTask) async -> Bool)?
 
-    init(tasks: [ReviewTask] = ReviewSampleData.tasks) {
+    init(tasks: [ReviewTask]) {
         self.openTasks = tasks
         self.initialTotal = tasks.count
     }

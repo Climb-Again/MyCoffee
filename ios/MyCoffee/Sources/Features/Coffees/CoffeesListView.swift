@@ -17,18 +17,38 @@ import SwiftUI
 /// `List` + `.listStyle(.plain)` gives sticky headers and real cell reuse.
 struct CoffeesListView: View {
     @EnvironmentObject private var store: CoffeeStore
+    /// #151: the review nudge counts the *filtered* subset while a filter is
+    /// active, which needs the per-coffee reviewable set, not just the total.
+    @ObservedObject private var reviewCache = ReviewFeedCache.shared
 
     @State private var showFilterSheet = false
     @State private var showSettings = false
     @State private var showReviewQueue = false
 
     var body: some View {
-        NavigationStack {
+        // #179c: `filteredCoffees` re-runs `CoffeeIndex.coffees(matching:sortedBy:)`
+        // over the whole library on every access; the body used to call it
+        // three separate times (the empty check, the review count, the
+        // section grouping) on every render. Bound once here and threaded
+        // through instead.
+        let coffees = store.filteredCoffees
+        return NavigationStack {
             List {
-                statsLine
+                // #150 (Radu, 2026-09-07: "reduce white space — now coffees
+                // start below mid screen"): the header used to stack a stats
+                // line AND a filter-state line. They say the same kind of
+                // thing, so while a filter is active the stats line becomes
+                // the filter-state line instead of sitting above it — one row
+                // back, and the count is where the eye already was.
+                if store.filter.isEmpty {
+                    statsLine
+                } else {
+                    filterStateLine(coffees: coffees)
+                }
 
-                if store.reviewQueueCount > 0 {
-                    reviewNudge
+                let reviewCount = visibleReviewCount(in: coffees)
+                if reviewCount > 0 {
+                    reviewNudge(count: reviewCount)
                 }
 
                 let cards = store.topFilterCards
@@ -36,24 +56,18 @@ struct CoffeesListView: View {
                     filterChipsSection(cards)
                 }
 
-                if !store.filter.isEmpty {
-                    filterStateLine
-                }
-
-                ForEach(sections) { section in
+                ForEach(sections(for: coffees)) { section in
                     Section {
                         ForEach(section.coffees) { coffee in
                             coffeeRow(coffee)
                         }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                        .plainListRow()
                     } header: {
                         monthHeader(section.header)
                     }
                 }
 
-                if store.filteredCoffees.isEmpty {
+                if coffees.isEmpty {
                     ContentUnavailableView(
                         "No coffees match",
                         systemImage: Symbols.emptyCup,
@@ -70,7 +84,6 @@ struct CoffeesListView: View {
             // #100: 2a assumes a `surface` ground everywhere; without these the
             // system supplies black under adaptive ink in dark mode.
             .scrollContentBackground(.hidden)
-            .background(Theme.Colors.surface)
             .navigationTitle("Coffees")
             .navigationBarTitleDisplayMode(.large)
             // §2: native search — system placement and appearance, no custom pill.
@@ -87,12 +100,24 @@ struct CoffeesListView: View {
                     Button {
                         showFilterSheet = true
                     } label: {
-                        // §11: Lucide list-filter (Radu supplied it 2026-09-07);
-                        // tinted accent while a filter is active.
-                        AppIcon(name: Lucide.listFilter, size: 22)
-                            .foregroundStyle(store.filter.isEmpty ? Color.accentColor : Theme.Colors.accent)
+                        // #149a (Radu, 2026-09-07: "blue on white… to see
+                        // activated"). The two states used to be
+                        // `Color.accentColor` vs `Theme.Colors.accent` —
+                        // visually the same blue, so nothing changed when a
+                        // filter was on. Now: outline glyph when idle, a
+                        // solid blue disc behind a white glyph when active.
+                        AppIcon(name: Lucide.listFilter, size: 20)
+                            .foregroundStyle(
+                                store.filter.isEmpty ? Theme.Colors.accent : Theme.Colors.onAccent
+                            )
+                            .frame(width: 32, height: 32)
+                            .background {
+                                if !store.filter.isEmpty {
+                                    Circle().fill(Theme.Colors.accent)
+                                }
+                            }
                     }
-                    .accessibilityLabel("Filter")
+                    .accessibilityLabel(store.filter.isEmpty ? "Filter" : "Filter, active")
                 }
                 // §1/§11: Sort — Lucide sliders-horizontal, opens the sort menu.
                 ToolbarItem(placement: .topBarTrailing) {
@@ -134,6 +159,17 @@ struct CoffeesListView: View {
                     await store.load()
                 }
             }
+            .task {
+                // #151 needs the per-coffee reviewable set to scope the nudge
+                // to the filtered subset. Fails open: until this resolves,
+                // `visibleReviewCount` is the library-wide count as before.
+                await reviewCache.ensureLoaded()
+            }
+            // #191: clamps to a readable column on iPad landscape/wide
+            // multitasking — a no-op on iPhone. Carries the surface
+            // background the List used to paint itself (still scrolls edge
+            // to edge, but the visible content stops stretching full-width).
+            .readableWidth(background: Theme.Colors.surface)
         }
     }
 
@@ -165,6 +201,23 @@ struct CoffeesListView: View {
         return "\(bagCount) BAGS · \(roasterCount) ROASTERS"
     }
 
+    /// #151 (Radu, 2026-09-07: "when filtered — update x need review"). The
+    /// nudge used to print `store.reviewQueueCount`, which is library-wide and
+    /// did not move when you filtered — so a filtered list of 12 could claim
+    /// "41 bags need review" while showing none of them.
+    ///
+    /// Fails open exactly like `ReviewFeedCache` itself: with no resolved feed
+    /// (sample builds, offline, first launch) this is the old library-wide
+    /// count, never a spurious 0.
+    private func visibleReviewCount(in coffees: [Coffee]) -> Int {
+        guard !store.filter.isEmpty, let reviewable = reviewCache.reviewableCoffeeIds else {
+            return store.reviewQueueCount
+        }
+        return coffees.reduce(into: 0) { total, coffee in
+            if reviewable.contains(coffee.id) { total += 1 }
+        }
+    }
+
     private var statsLine: some View {
         Text(headerStats)
             .font(.system(size: 10, weight: Theme.Weight.semibold))
@@ -172,31 +225,29 @@ struct CoffeesListView: View {
             .foregroundStyle(Theme.Colors.accent)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 22)
-            .padding(.vertical, 10)
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .padding(.vertical, 6)          // #150: was 10
+            .plainListRow()
     }
 
     // MARK: - Review nudge
 
-    private var reviewNudge: some View {
+    private func reviewNudge(count: Int) -> some View {
         Button {
             showReviewQueue = true
         } label: {
             HStack(spacing: 6) {
-                Text("\(store.reviewQueueCount) bag\(store.reviewQueueCount == 1 ? "" : "s") need review")
+                Text("\(count) bag\(count == 1 ? "" : "s") need review")
                     .font(.system(size: 12, weight: Theme.Weight.semibold))
                 AppIcon(name: Lucide.chevronRight, size: 12)
             }
             .foregroundStyle(Theme.Colors.accent700)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            // #150: 44 -> 38. Still a comfortable tap target for a row that
+            // spans the full width; 44 was buying vertical space for nothing.
+            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
             .padding(.horizontal, 22)
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .plainListRow()
     }
 
     // MARK: - Filter chips (§4, §12)
@@ -209,53 +260,51 @@ struct CoffeesListView: View {
                 }
             }
             .padding(.horizontal, 22)
-            .padding(.vertical, 4)
+            .padding(.vertical, 2)          // #150: was 4
         }
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .plainListRow()
     }
 
     private func filterChip(_ card: TopFilterCard) -> some View {
         let isActive = store.filter == card.filter
-        return Button {
+        // §12: unselected chips are frosted glass; selected is solid blue —
+        // the glass-vs-solid contrast is what shows selection.
+        return TogglePill(
+            title: card.title,
+            count: card.count,
+            isSelected: isActive,
+            unselectedFill: .material,
+            titleFont: .system(size: 12),
+            minHeight: 40,          // #150: was 44
+            verticalPadding: 6      // #150: was 7
+        ) {
             store.filter = isActive ? CoffeeFilter() : card.filter
-        } label: {
-            HStack(spacing: 7) {
-                Text(card.title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                Text("\(card.count)")
-                    .font(.system(size: 12, weight: Theme.Weight.semibold))
-                    .foregroundStyle(isActive ? Theme.Colors.onAccent : Theme.Colors.neutral700)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 7)
-            .frame(minHeight: 44)
-            // §12: unselected chips are frosted glass; selected is solid blue —
-            // the glass-vs-solid contrast is what shows selection.
-            .background {
-                if isActive {
-                    Capsule().fill(Theme.Colors.accent)
-                } else {
-                    Capsule().fill(.thinMaterial)
-                }
-            }
-            .overlay(
-                Capsule().strokeBorder(isActive ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Filter state line
 
-    private var filterStateLine: some View {
-        HStack {
-            Text("\(store.filteredCoffees.count) of \(store.index.coffees.count) bags")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.Colors.neutral700)
-            Spacer()
+    /// #149b: the count **and** what is actually being filtered on. The chips
+    /// only cover the ≤7 top-filter shortcuts, so a filter assembled in the
+    /// sheet showed no trace of itself here before `FilterSummary`.
+    private func filterStateLine(coffees: [Coffee]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(coffees.count) of \(store.index.coffees.count) bags")
+                    .font(.system(size: 11, weight: Theme.Weight.semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                if let summary = FilterSummary.text(
+                    for: store.filter,
+                    vocabulary: store.index.vocabulary
+                ) {
+                    Text(summary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.Colors.neutral700)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            Spacer(minLength: 0)
             Button("CLEAR") {
                 store.filter = CoffeeFilter()
             }
@@ -263,27 +312,25 @@ struct CoffeesListView: View {
             .foregroundStyle(Theme.Colors.accent)
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 4)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .padding(.vertical, 6)
+        .plainListRow()
     }
 
     // MARK: - Month headers (§5)
 
     private func monthHeader(_ title: String) -> some View {
-        Text(title)
+        EyebrowLabel(text: title, tracking: 1.4)
             .textCase(.uppercase)
-            .font(.system(size: 10, weight: Theme.Weight.semibold))
-            .tracking(1.4)
-            .foregroundStyle(Theme.Colors.neutral700)
             .frame(maxWidth: .infinity, alignment: .leading)
             // §5: plain grey text on the surface — no black band, no rule. The
             // 20pt top inset is the only separation between sections.
             // DEVIATION from the brief's literal `Color.white`: `surface` is the
             // same white in light mode and avoids re-introducing #100's
             // literal-on-token dark-mode bug (a sticky white label over dark rows).
-            .listRowInsets(EdgeInsets(top: 20, leading: 22, bottom: 10, trailing: 22))
+            // #150: 20/10 -> 14/6. §5's "~20pt separation" was measured
+            // before the header stack grew; the list now starts high enough
+            // that the month gap can be tighter without sections running together.
+            .listRowInsets(EdgeInsets(top: 14, leading: 22, bottom: 6, trailing: 22))
             .background(Theme.Colors.surface)
     }
 
@@ -298,19 +345,17 @@ struct CoffeesListView: View {
     /// Coffees arrive from `CoffeeIndex.coffees(matching:sortedBy:)` already
     /// ordered, and every sort's section key is monotonic along that order,
     /// so a single contiguous-run pass is enough.
-    private var sections: [CoffeeListSection] {
-        let coffees = store.filteredCoffees
+    private func sections(for coffees: [Coffee]) -> [CoffeeListSection] {
         let index = store.index
         var result: [CoffeeListSection] = []
         var currentHeader: String?
         var currentCoffees: [Coffee] = []
 
         for coffee in coffees {
-            let header = store.sort.sectionLabel(
-                for: coffee,
-                priceWidthCents: index.priceWidthCents,
-                pricePer100gWidthCents: index.pricePer100gWidthCents
-            )
+            // #113: goes through the index, not `SortOption` directly — the
+            // `.value` sort's section header is the coffee's value band, which
+            // only the index knows.
+            let header = index.sectionLabel(for: coffee, sort: store.sort)
             if header != currentHeader {
                 if let currentHeader {
                     result.append(CoffeeListSection(header: currentHeader, coffees: currentCoffees))

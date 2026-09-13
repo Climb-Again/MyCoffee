@@ -45,6 +45,13 @@ final class CoffeeStore: ObservableObject {
 
     private let repository: CoffeeRepository
 
+    /// #175(b): two separate `.task { if store.index.coffees.isEmpty { await
+    /// store.load() } }` sites (`RootTabView`, `CoffeesListView`) both read
+    /// the still-empty index on cold start and can both fire before either
+    /// completes, so `load()` guards its own re-entrancy rather than relying
+    /// on that check alone — the ~300 KB text blob was being fetched twice.
+    private var isLoading = false
+
     init(repository: CoffeeRepository = RemoteCoffeeRepository()) {
         self.repository = repository
     }
@@ -52,8 +59,12 @@ final class CoffeeStore: ObservableObject {
     /// Loads the initial index. Call once, e.g. from a root view's `.task`.
     /// Publishes whatever's persisted from a prior sync immediately (never
     /// blank), then kicks off a background delta sync (PLAN.md §5) rather
-    /// than blocking on the network.
+    /// than blocking on the network. Idempotent (#175(b)): a second call that
+    /// arrives while the first is still between its two steps is a no-op.
     func load() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
         index = await repository.currentIndex()
         Task { await self.refresh() }
     }
@@ -274,6 +285,59 @@ final class CoffeeStore: ObservableObject {
         reviewQueueCount = count
     }
 
+    /// Human-readable reason the last brew-lab write failed, for a
+    /// non-blocking toast (PLAN.md §14) — same pattern as `editErrorText`.
+    /// `setBrewState` itself is fire-and-forget optimistic (below) and
+    /// doesn't set this; it's for `createBrewOption`/`updateBrewOption`,
+    /// which are confirmed + throwing.
+    @Published var brewErrorText: String?
+
+    /// Tap a brew-lab checkbox/trophy -> mutate in memory and publish
+    /// immediately, enqueue, flush when online (PLAN.md §14) — same
+    /// fire-and-forget shape as `toggleFavorite`; a spinner per tap on a
+    /// tap-tap-tap checklist would kill it.
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) {
+        Task {
+            index = await repository.setBrewState(coffeeId: coffeeId, optionId: optionId, state: state)
+        }
+    }
+
+    /// Creates (or get-or-creates) a Brew lab catalogue option (PLAN.md §14)
+    /// and merges it into the index's vocabulary immediately. Throws rather
+    /// than swallowing into `brewErrorText` itself — the caller (a
+    /// `RecipeFormSheet`/inline add row) needs the new option's id to
+    /// immediately tick it as tried.
+    func createBrewOption(
+        kind: BrewKind, label: String? = nil, detail: String? = nil, valueNum: Double? = nil,
+        recipe: BrewRecipeSpec? = nil
+    ) async throws -> BrewOption {
+        do {
+            let option = try await repository.createBrewOption(
+                kind: kind, label: label, detail: detail, valueNum: valueNum, recipe: recipe
+            )
+            index = await repository.currentIndex()
+            brewErrorText = nil
+            return option
+        } catch {
+            brewErrorText = error.localizedDescription
+            throw error
+        }
+    }
+
+    /// Renames/re-values/archives a catalogue option (PLAN.md §14) — same
+    /// confirmed + throwing shape as `createBrewOption`.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOption {
+        do {
+            let option = try await repository.updateBrewOption(id: id, patch: patch)
+            index = await repository.currentIndex()
+            brewErrorText = nil
+            return option
+        } catch {
+            brewErrorText = error.localizedDescription
+            throw error
+        }
+    }
+
     var filteredCoffees: [Coffee] {
         index.coffees(matching: filter, sortedBy: sort)
     }
@@ -283,6 +347,10 @@ final class CoffeeStore: ObservableObject {
     }
 
     var topFilterCards: [TopFilterCard] {
-        index.topFilterCards()
+        // #151: while a filter is active the chip counts describe the current
+        // results, not the whole library. Unfiltered, this is identical to
+        // the pre-#151 call.
+        guard !filter.isEmpty else { return index.topFilterCards() }
+        return index.topFilterCards(countedWithin: index.matches(filter))
     }
 }

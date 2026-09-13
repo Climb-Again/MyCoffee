@@ -29,6 +29,9 @@ struct CoffeeDetailDTO: Decodable {
     let isFavorite: Bool
     let reviewState: String
     let rotationQuarterTurns: Int?
+    /// Brew lab (PLAN.md §14) — omitted (not `[]`) when a coffee has no trials.
+    let brewTried: [Int]?
+    let brewBest: [Int]?
 
     let descFarmLot: String?
     let descBrewGuide: String?
@@ -45,7 +48,7 @@ struct CoffeeDetailDTO: Decodable {
         case id, roasterId, roasterCountryId, originCountryIds, originCountryId, isBlend, originFarmId
         case altitudeMinM, altitudeMaxM, profileId, profileDetail, isDecaf, roastedOn, purchasedOn
         case priceOriginalAmount, priceOriginalCurrency, priceEur, weightG, rating, isFavorite, reviewState
-        case rotationQuarterTurns
+        case rotationQuarterTurns, brewTried, brewBest
         case descFarmLot, descBrewGuide, descRoasterCopy, flavorNotes, rawTitle, rawCaption, rawDescription
         case minFieldConfidence, thumbUrl, displayUrl
     }
@@ -74,6 +77,8 @@ struct CoffeeDetailDTO: Decodable {
         isFavorite = try container.decode(Bool.self, forKey: .isFavorite)
         reviewState = try container.decode(String.self, forKey: .reviewState)
         rotationQuarterTurns = try container.decodeIfPresent(Int.self, forKey: .rotationQuarterTurns)
+        brewTried = try container.decodeIfPresent([Int].self, forKey: .brewTried)
+        brewBest = try container.decodeIfPresent([Int].self, forKey: .brewBest)
 
         descFarmLot = try container.decodeIfPresent(String.self, forKey: .descFarmLot)
         descBrewGuide = try container.decodeIfPresent(String.self, forKey: .descBrewGuide)

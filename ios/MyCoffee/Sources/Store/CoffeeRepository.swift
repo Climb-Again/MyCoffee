@@ -81,4 +81,20 @@ protocol CoffeeRepository: Sendable {
     /// merged into the index; the real fields land via the next normal delta
     /// sync once the backend's background pass finishes.
     func quickCreateCoffee(photoIds: [String]) async throws -> Coffee
+
+    /// Optimistic local brew-state toggle (PLAN.md §14), published
+    /// immediately; the remote conformer enqueues it for the outbox to flush
+    /// when online — same shape as `setFavorite`.
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) async -> CoffeeIndex
+
+    /// Creates (or get-or-creates) a Brew lab catalogue option. Confirmed +
+    /// throwing (like `editField`), not routed through the outbox — a trial
+    /// needs a real server id right away.
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?
+    ) async throws -> BrewOption
+
+    /// Renames/re-values/archives a catalogue option. Same confirmed +
+    /// throwing shape as `createBrewOption`.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOption
 }

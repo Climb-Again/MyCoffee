@@ -14,6 +14,280 @@ _none_
 
 ## Session notes
 
+- **2026-09-12 (iOS UX lane routine) — #193 shared `TogglePill`.** New
+  `DesignSystem/TogglePill.swift` unifies `CoffeesListView.filterChip`,
+  `InsightsView.equalPill` and `InsightsView.chip` — one selectable capsule
+  parameterized on width (`.natural`/`.stretch`), an optional trailing count,
+  the unselected fill (`.thinMaterial` for the list's floating chips vs a
+  flat `Theme.Colors.surface` for Insights' pills, since the three call
+  sites genuinely differed there — not something the row's "differ mainly
+  in width/count" line called out, but pixel parity required keeping it),
+  title font, min-height and vertical padding (so filterChip's #150 40pt/6pt
+  overrides carry over unchanged). `equalPill`/`chip` are now one-line
+  wrappers using the shared defaults; `filterChip` passes its four
+  overrides explicitly. No behaviour change intended at any of the three
+  sites — verified the parameter defaults against each call site's original
+  modifiers line by line (frame/padding/font/color) since no Xcode is
+  available in-session to compare pixels directly. `9aeaea0` regenerates
+  `backend/src/data/whatsnew.json` (dropped on the first #193 commit —
+  `sync-backlog-rows.sh` regenerates it on `main`, not on `ios-staging`,
+  so the drift check needs its own commit here too). Compile-green run
+  **#125**; backlog-check green on `9aeaea0`. Synced to `main` as #193
+  `done`.
+
+- **2026-09-11 (iOS UX lane routine) — #191 iPad landscape width,
+  `fad97d5` + `0d0ed24`, compile-green (runs #120, #121).** New
+  `DesignSystem/ReadableWidth.swift`: `View.readableWidth(maxWidth:
+  background:)` wraps a full-bleed `List`/`ScrollView` in
+  `Spacer / content.frame(maxWidth: 700) / Spacer`, with an optional
+  full-bleed `background` behind it so the surface color still reaches the
+  real screen edges. It's provably a no-op on iPhone: `maxWidth` (700) is
+  never reached below iPad landscape/wide-multitasking widths, so the
+  spacers stay at zero and the frame never actually constrains anything.
+  (a) Applied to `CoffeesListView`'s `List` — chose this over a two-column
+  `CoffeeRowView` grid because the row's own text explicitly prefers a
+  clamp over a bigger rewrite, and a grid would have meant restructuring
+  the month-sectioned `List` into something else entirely. Moved the
+  List's `.background(Theme.Colors.surface)` into the helper's
+  `background:` param since the List itself is now narrower than the
+  screen. (b) `CoffeeDetailView.card`'s inner content (not the card's own
+  background/shape) clamps to 700pt and centers — traced through carefully
+  first: the card's full-bleed white rounded-rect background, its
+  `.offset(y: -20)` hero-overlap, and the roaster medallion's
+  `.topLeading` overlay anchor are all attached to the OUTER frame (still
+  full width), so none of that visual language changes on iPad — only the
+  text/rows/rails inside stop stretching edge to edge. Did not attempt the
+  row's "consider hero-photo-beside-card in landscape" idea; it's floated
+  as optional in the row's own text and would be a materially bigger
+  layout change (hero and card side by side rather than stacked) than what
+  was actually asked for. (c) Same clamp on `InsightsView`'s three
+  ScrollViews (Insights/Charts/Data) — this is what actually satisfies
+  "charts benefit from the extra width for free," since the pie chart +
+  legend just read off whatever width their container gives them.
+  Deliberately did NOT touch `FilterSheetView`: it presents via `.sheet` +
+  `.presentationDetents([.large])`, and on iPadOS that combination still
+  renders as a form sheet (roughly 540-680pt), not a full-width surface —
+  the row's own note about this ("`.presentationDetents([.large])` on
+  iPad is a form sheet, not a full screen") is precisely why its pills
+  don't need my clamp; adding one would have double-constrained an
+  already-narrow container. (d) Verified in place of changing anything:
+  grepped `Brew`/`CoffeeEditSheet`/`AddCoffee`/`Evaluate` for `UIScreen`
+  usage (none) and fixed `.frame(width:)` calls that could look wrong in a
+  narrow iPad form sheet (only two 100pt text-field frames in
+  `CoffeeEditSheet`, harmless at any container width ≥ that). Same
+  reasoning extends to the newer Brew lab and Evaluate sheets, both built
+  with plain `List`/`Form`-style layout that adapts to whatever width it's
+  given. `RootTabView`'s `TabView` has no `.tabViewStyle(.sidebarAdaptable)`
+  or similar opt-in, so it renders the same bottom tab bar on iPad as on
+  iPhone — nothing there depends on screen width either.
+
+- **2026-09-11 (iOS UX lane routine) — #181 UX dedupe + dead-code batch,
+  `1f609de` + `2bd8705`, compile-green (runs #118, #119); split (c)'s
+  harder half into #193.** (a) `DesignSystem/ValueMeterView.swift` folds in
+  the verbatim `valueMeter`/`bandColor`/`verdictLabel` trio duplicated in
+  `CoffeeRowView`/`CoffeeDetailView` — parameterized on `spacing` so the
+  row's tighter gap (2pt, from an old `.padding(.top, 2)` plus the outer
+  VStack's own spacing) and the detail page's original nested-VStack gap
+  (4pt) both come out pixel-identical to before. (b) `EyebrowLabel.swift`
+  replaces 9 of the exact "10pt semibold, `.tracking(_)`, neutral700"
+  copies; deliberately left two families alone — `CoffeeRowView`'s
+  roaster-name label (conditionally accent-colored, not a plain neutral700
+  copy) and the three accent/accent700 stat-line labels (a different
+  semantic role, "headline stat" vs "section eyebrow"). (c) `Pill.swift`
+  only takes the safer half: `DetailPill`, `InfoPill` and the inline
+  flavour-note chip were three near-identical flat, non-interactive
+  capsules differing just in font/color. The other three
+  (`CoffeesListView.filterChip`, `InsightsView.equalPill`/`chip`) carry
+  `isSelected` state, a fill-vs-border pair, and (for `filterChip`) a
+  second count `Text` — genuinely more load-bearing UI (the primary
+  filter/section-switcher affordance) where a rushed one-size-fits-all
+  component risked more than it saved. Split that half out as **#193**
+  rather than force it through under session pressure. (d)
+  `Array<Coffee>.averageRating` (`CoffeeDisplay.swift`) replaces the same
+  "guard on empty, else reduce/count" block hand-rolled in
+  `RoasterPageView`, `CountryPageView`, and twice in `InsightsView`. (e)
+  `DesignSystem/EntityHeader.swift` replaces `RoasterPageView`'s and
+  `CountryPageView`'s near-identical header blocks — found while merging
+  them that they'd actually drifted: the star was `Theme.Colors.accent` on
+  the roaster page but `.orange` on the country page. Accent wins (#148),
+  fixed as part of the dedupe rather than filed as a separate bug. Uses
+  `Group` (not `VStack`) internally so it still expands into two
+  independent `List` rows inside each page's `Section`, matching prior
+  behaviour exactly. (f) `View.plainListRow()` replaces the same
+  `listRowInsets`/`listRowSeparator`/`listRowBackground` triple repeated
+  5× in `CoffeesListView`. (g) `Int.normalizedQuarterTurns` replaces
+  `((x % 4) + 4) % 4` in `Thumbnail.swift`/`ZoomableImageView.swift`;
+  `Models/Coffee.swift:91,176` has the identical expression but is
+  shell-owned, so I didn't touch it — flagging here for `ios-shell` to
+  adopt in a seam edit, not filing a full row since it's not
+  compile-coupled (nothing breaks if it's never adopted, it's just a
+  missed dedupe). Deletions, each double-checked for zero remaining
+  references first: `FeatureFlags.swift` (both flags had been `true`
+  since #28) and its three dead `else` branches
+  (`CoffeeDetailView.roasterHeaderRow`/`roasterHeaderContent`/`originPill`,
+  `RailView.moreDestination`); `YearlyStackedChart` +
+  `InsightsAggregation.yearlyTopCategories` (and the two structs,
+  `CategoryYearPoint`/`CategoryYearChartData`, that existed only to feed
+  it) + `ChartPalette.scale`/`.rotation` (same story); `ProcessTag` (kept
+  `DecafBadge`, trimmed `ProcessStyles` down to just the `.decaf` case
+  since `.style(for:)` and the five per-profile styles had no other
+  caller); `ReviewSampleData.swift`, whose only consumer was
+  `ReviewQueueEngine`'s init default — verified both real call sites
+  (`CoffeeReviewSheet`, `ReviewQueueView`) already pass `tasks: []`
+  explicitly, so nothing ever read the default.
+
+- **2026-09-11 (iOS UX lane routine) — #125 "Evaluate this coffee" screen,
+  `6c757e9`, compile-green (run #117).** Both `needs` (#106, #136) were
+  already `done`; #163 (the human decision on the headline gate) resolved
+  "ship with a flag" as standing guidance, so this was buildable outright.
+  New `Features/Evaluate/{EvaluateCoffeeView,EvaluateResultViews}.swift`: a
+  3-step flow mirroring the Add Coffee wizard (photo(s) → paste the listing
+  text → result), reusing `CoffeeStore.uploadWizardPhotos` verbatim per the
+  row's instruction and calling the already-shipped
+  `CoffeeStore.evaluateCoffee` (#136) — nothing persists, same ephemeral
+  shape as `extractWizardDraft`. Result screen has four pieces:
+  `EvaluateFactsRow` (roaster/origin/process/roaster country, omitting
+  missing fields per the app-wide rule rather than "Unknown"),
+  `EvaluateHeadlineBlock` (the single "fit" number gated behind
+  `EvaluateCoffeeView.showHeadline == false` — the literal one-word flip
+  #163 asked for; the low-confidence badge is independent of that flag and
+  shows on its own since it was never gated), `EvaluateComponentsRow`
+  (affinity/value/novelty at equal visual weight per the row's own spec,
+  value reusing `ValueRating.Band`'s existing wording and tone colors rather
+  than inventing new ones), and `EvaluatePriceBanner`. One deviation from
+  the row's price-plumbing prose worth flagging: it describes three
+  conditions (amount, currency, `weightG > 0`) as worth surfacing
+  separately, but the client-side `EvaluateFields` DTO only carries
+  `pricePer100gEur` — no raw price, currency, or weight reach the app — so
+  I could only distinguish two cases client-side ("no price recognised at
+  all" vs "price recognised but too few peers in that band"), not the finer
+  three-way split. If Radu wants the finer breakdown, `fields` needs more
+  from the backend/shell side first.
+  Entry point: the row didn't specify one, and I didn't want to reopen #87's
+  decided three-tab structure for a single new screen, so `RootTabView`'s
+  `+` now opens a `confirmationDialog` ("Add a coffee I own" / "Evaluate a
+  coffee") instead of jumping straight into the wizard. Three new
+  `Symbols.swift` entries (`evaluateEntry`/`evaluateAffinity`/
+  `evaluateNovelty`); reused `wizardPhotos`/`wizardCamera`/`eurosign`/
+  `needsReview` rather than duplicating them. Couldn't visually verify
+  against `BundledSampleRepository` — `SampleCoffeeRepository.evaluateCoffee`
+  throws `.notConfigured` by design (no live backend in previews), same
+  limitation #131 hit for the wizard's save button — compile-green is the
+  only verification available this session.
+
+- **2026-09-11 (iOS UX lane routine) — #179 UX correctness batch (a)-(e),
+  `14f6257`; (f) split out as #192, `blocked` on `ios-shell`'s #178.**
+  (a) `InsightsFinding.id` derived from `text` instead of a stored `UUID()` —
+  the computed `findings` property rebuilds on every access, so the old
+  random id never matched between the render that built a deep-link URL and
+  the `OpenURLAction` handler looking it up in a freshly-rebuilt array; the
+  link now carries the id as a `URLComponents` query item. (b)
+  `ZoomableImageView.onRotate` is now `(Int) async -> Bool`, awaited in
+  `CoffeeDetailView`; a `false` reverts the local flip and shows a toast —
+  previously the `Task { await ... }` wrapper discarded the result entirely.
+  Left `reviewErrorText` alone: checked `ReviewQueueEngine.confirmSave`/
+  `restore` and it already reverts + toasts a failed resolve/dismiss with a
+  more specific per-field message, so the store field is genuinely dead, not
+  a live gap — and it's `CoffeeStore.swift`, shell-owned, not mine to remove
+  either way. (c) `CoffeesListView.body` binds `store.filteredCoffees` once,
+  threaded through `sections(for:)`/`filterStateLine(coffees:)`/
+  `visibleReviewCount(in:)`/`reviewNudge(count:)` instead of each
+  independently re-running `CoffeeIndex.coffees(matching:sortedBy:)`. (d)
+  Insights Charts caches its windowed `CoffeeIndex` in `@State`, rebuilt via
+  `.task(id:)` keyed on `(window, years, coffee count)` — tapping between
+  dimension chips no longer rebuilds the index just to read a different
+  facet off the same data. (e) `RoasterLogoTile` downsamples via `ImageIO`'s
+  `CGImageSourceCreateThumbnailAtIndex` at `size × displayScale` pixels
+  instead of decoding full-resolution WebP; kept the existing full-decode
+  path as a fallback for whatever sources made `source.cgImage` nil before
+  (the 2026-09-10 "text but no logo" fix), so that resilience isn't lost.
+  `RoasterMarkCache` now backs onto `NSCache` instead of a bare dictionary,
+  so a few hundred roasters' logos evict under memory pressure instead of
+  living for the rest of the process. (f) needs #178's
+  `lastSyncError`/`lastSyncedAt` fields, which `ios-shell` hasn't shipped yet
+  — split into its own row (#192, blocked on 178) rather than leaving it
+  attached to an otherwise-done row.
+
+- **2026-09-11 (iOS UX lane routine) — #158 Brew lab filter-sheet group +
+  Insights "Brew winners" card, `029b0c1`.** Both `needs` (#156, #157) were
+  already `done`. Filter sheet: the four brew dimensions
+  (`.brewDevice/.brewRecipe/.brewGrind/.brewTemp`) come out of the generic
+  per-dimension `ForEach` and into one "Brew lab" section, sub-labeled,
+  ordered recipe → device → grind → temp per Radu's own sentence in
+  PLAN.md §14. Found and fixed a real bug while restyling the seam stub:
+  `isFacetSelected`/`toggleFacet` in `FilterSheetView.swift` had no cases for
+  the four brew dimensions (the shell lane's #156 seam edit only touched
+  `title`/`facetLabel`, per CLAUDE.md §4's "plain label, no styling" rule), so
+  every brew pill rendered with a correct label and count but tapping it did
+  nothing — added the four cases each. No "winners only" toggle: #156 shipped
+  only tried-id postings (`CoffeeFilter.brewDeviceIDs` etc.), no separate
+  best-id key set, so the row's own fallback applies. Insights: new
+  `BrewWinnersCard.swift`, styled like `DataQualityCard` (no card background,
+  plain rows) since it's the same "tap a row to filter" shape, not
+  `BriefCard`'s boxed one. Per kind (recipe/device/grind/temp), shows the top
+  option by `CoffeeIndex.brewWinRates(kind:)`, gated at ≥3 tried (the #28
+  statistical-gate spirit) **and** ≥1 win — added the win>0 gate myself since
+  `brewWinRates` sorts by wins descending and a kind where nobody has ever
+  won anything would otherwise show "won 0 of N" as if it were a verdict.
+  Tap deep-links via the existing `selectInCoffees`, through a new
+  `BrewKind.filterDimension` mapping in `CoffeeDisplay.swift`. Card renders
+  nothing when no kind clears the gate, matching `DataQualityCard`'s
+  `!fields.isEmpty` pattern. No trophy added to `CoffeeRowView` (#150 density
+  rule stands, unchanged). Compile check pending on this push.
+
+- **2026-09-11 (interactive session, Radu: "analyse all lanes… already
+  implement some of the features and solve any blockers") — #138, #149, #150,
+  #151 and #157 done; runs #112/#113/#114 all compile-green.**
+
+  **#138** (`ae61f7e`): Value section in the filter sheet, Value in the sort
+  menu, and — beyond the row — a Value donut in Insights → Charts, which cost
+  one array entry because `pieSlices` is generic over dimensions. Worth noting
+  for the next seam: `isFacetSelected`/`toggleFacet` both end in `default:`,
+  so a new dimension **compiles fine without its arms and silently does
+  nothing**. The compile check cannot catch that class; only reading those two
+  switches can.
+
+  **#149/#150/#151** (`4a51ee1`), all from Radu's 2026-09-07 screenshot pass:
+  the filter glyph's "active" state was `Theme.Colors.accent` against an idle
+  `Color.accentColor` — the same blue, so it had never actually shown anything;
+  `FilterSummary` now says *what* is filtered, naming values rather than
+  dimensions; the stats line is replaced by (not stacked above) the filter
+  line while filtering; and `CoffeeRowView`'s thumb went 88→74, which is the
+  only lever that actually shortens a row since the thumb is its height floor.
+  #151's counts: the review nudge cross-references `ReviewFeedCache` and fails
+  open to the library-wide total, and chip counts scope to the current results
+  while **which** chips exist stays whole-corpus — gating selection too would
+  make chips appear and vanish as you filter.
+
+  **#157** (`1be0dae`): the Brew lab, consuming #156's shell surface from the
+  same morning. Two shapes on purpose — recipe/device as rows, grind/temp as
+  `WrapLayout` chip grids, because 21 Comandante clicks and ~16 temperatures
+  rendered as rows is a 37-row scroll to find one number. `BrewCatalogueView`
+  in Settings deliberately has **no delete** (every coffee that tried an option
+  references it) and **no rename for grind/temp** (there the value IS the
+  identity). One deviation recorded in the row: the winner marker is an SF
+  Symbol trophy, not a Lucide SVG — the Lucide set is vendored from Radu's own
+  files and inventing a lookalike would put a foreign glyph in it.
+
+  **Seam edits received** from the shell side this session (CLAUDE.md §4):
+  `CoffeeDisplay.swift` gained `.valueBand`/`.value` arms. They are not stubs —
+  #138 restyled them in the same session.
+
+- **2026-09-11 — seam edit from ios-shell #156 (Brew lab), not a UX-lane
+  claim.** ios-shell added `FilterDimension.brewDevice/.brewRecipe/
+  .brewGrind/.brewTemp` (`Query/FilterDimension.swift`), which broke two
+  ux-owned exhaustive switches in `Features/Coffees/CoffeeDisplay.swift`
+  (`FilterDimension.title`, `facetLabel`'s nested `.vocabID` switch — no
+  `default` arm on either). Per CLAUDE.md §4's seam rule, ios-shell added the
+  minimal plain-label arms in the same commit (`ios-staging@9aa21a1`): `title`
+  gets "Brew device"/"Brew recipe"/"Grind size"/"Water temp"; `facetLabel`
+  resolves `vocabulary.brewOptions[id]?.label` instead of falling through to
+  "Unknown". `FilterSheetView.swift`'s `toggleFacet`/`isFacetSelected` were
+  **not** touched (both already have a `default:` arm, so they compiled
+  as-is) — a tappable "Brew lab" filter group with real chip UI is still
+  #158's work to do, this seam edit only kept the plain-label switches green.
+  #157 (the Brew lab feature itself) is now `ready`.
+
 - **2026-09-09 — #186 value band depth ramp, off-cycle fire (Radu asked for
   this run specifically to catch the 2026-09-10 20:00 UTC publish).**
   `VALUE_BAND_UPDATE.md`'s blue table, exactly: `Theme.Colors` gained five new

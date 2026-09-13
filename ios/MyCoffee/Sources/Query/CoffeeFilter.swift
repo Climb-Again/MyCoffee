@@ -21,10 +21,21 @@ struct CoffeeFilter: Equatable, Sendable {
     var priceBands: Set<PriceBand> = []
     var pricePer100gBands: Set<PriceBand> = []
     var altitudeBands: Set<AltitudeBand> = []
+    /// Cheap-for-quality bands (#113). The band is library-derived rather than
+    /// a column on `Coffee`, but it filters exactly like the other bands.
+    var valueBands: Set<ValueRating.Band> = []
     var years: Set<Int> = []
     /// A relative-to-today purchase window (last 12/18 months) — kept
     /// distinct from `years`, which picks specific calendar years (#71).
     var relativeWindow: RelativeWindow?
+
+    /// Brew lab (PLAN.md §14, #156/#158) — each holds `BrewOption.id`s of that
+    /// kind; a coffee matches if it TRIED any selected option (not "best
+    /// only" — see `FilterDimension.brewDevice` etc.).
+    var brewDeviceIDs: Set<Int> = []
+    var brewRecipeIDs: Set<Int> = []
+    var brewGrindIDs: Set<Int> = []
+    var brewTempIDs: Set<Int> = []
 
     var isEmpty: Bool {
         query.isEmpty
@@ -40,8 +51,13 @@ struct CoffeeFilter: Equatable, Sendable {
             && priceBands.isEmpty
             && pricePer100gBands.isEmpty
             && altitudeBands.isEmpty
+            && valueBands.isEmpty
             && years.isEmpty
             && relativeWindow == nil
+            && brewDeviceIDs.isEmpty
+            && brewRecipeIDs.isEmpty
+            && brewGrindIDs.isEmpty
+            && brewTempIDs.isEmpty
     }
 
     /// Returns a copy with exactly one dimension's constraint removed — used
@@ -62,7 +78,12 @@ struct CoffeeFilter: Equatable, Sendable {
         case .priceBand: copy.priceBands = []
         case .pricePer100gBand: copy.pricePer100gBands = []
         case .altitudeBand: copy.altitudeBands = []
+        case .valueBand: copy.valueBands = []
         case .year: copy.years = []
+        case .brewDevice: copy.brewDeviceIDs = []
+        case .brewRecipe: copy.brewRecipeIDs = []
+        case .brewGrind: copy.brewGrindIDs = []
+        case .brewTemp: copy.brewTempIDs = []
         }
         // The "Unknown" selection is per-dimension too — clear it alongside.
         copy.unknownDimensions.remove(dimension)

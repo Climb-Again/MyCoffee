@@ -37,6 +37,22 @@ struct InsightsView: View {
     @State private var selectedYears: Set<Int> = []
     @State private var chartsDimension: FilterDimension = .originCountry
 
+    /// #179d: `chartsSection` used to build a throwaway `CoffeeIndex` over the
+    /// windowed coffees on every render — including re-renders that only
+    /// change `chartsDimension` (tapping between dimension chips), which
+    /// doesn't need a new index at all, just a different facet read off the
+    /// same one. Rebuilt only when `window`/`selectedYears`/the coffee count
+    /// actually change, via `.task(id:)` below.
+    @State private var chartsIndex: CoffeeIndex = .empty
+    private struct ChartsIndexKey: Equatable {
+        let window: ChartWindow
+        let years: Set<Int>
+        let coffeeCount: Int
+    }
+    private var chartsIndexKey: ChartsIndexKey {
+        ChartsIndexKey(window: window, years: selectedYears, coffeeCount: windowedCoffees.count)
+    }
+
     private var coffees: [Coffee] { store.index.coffees }
     private var vocabulary: Vocabulary { store.index.vocabulary }
 
@@ -100,7 +116,9 @@ struct InsightsView: View {
                     }
                 }
             }
-            .background(Theme.Colors.surface)
+            // #191: clamps to a readable column on iPad landscape/wide
+            // multitasking — a no-op on iPhone.
+            .readableWidth(background: Theme.Colors.surface)
             // §9: native large title, one bar, no blue band, no dead space.
             .navigationTitle("Insights")
             .navigationBarTitleDisplayMode(.large)
@@ -130,33 +148,17 @@ struct InsightsView: View {
 
     /// One of the three equal-width pills shared by the section control and
     /// the time-window control (§Screen 3: same `min-height 44`, radius 999
-    /// treatment, selected = accent fill).
+    /// treatment, selected = accent fill). #193: thin wrapper over the shared
+    /// `TogglePill` — defaults already match this shape (stretch width).
     private func equalPill(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                // §9: 44pt tall, 13pt semibold (was rendering ~56pt/15pt).
-                .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                .frame(maxWidth: .infinity, minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
-                .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+        TogglePill(title: title, isSelected: isSelected, width: .stretch, action: action)
     }
 
     /// A natural-width chip — the dimension switcher and the year picker
     /// (horizontally scrolling, so pills shouldn't stretch to fill the row).
+    /// #193: thin wrapper over the shared `TogglePill` — all defaults match.
     private func chip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: Theme.Weight.semibold))
-                .foregroundStyle(isSelected ? Theme.Colors.onAccent : Theme.Colors.neutral900)
-                .padding(.horizontal, 14)
-                .frame(minHeight: Theme.minHitTarget)
-                .background(Capsule().fill(isSelected ? Theme.Colors.accent : Theme.Colors.surface))
-                .overlay(Capsule().strokeBorder(isSelected ? Theme.Colors.accent : Theme.Colors.neutral300, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+        TogglePill(title: title, isSelected: isSelected, action: action)
     }
 
     // MARK: - Insights section
@@ -166,6 +168,10 @@ struct InsightsView: View {
             headlineStats
             BriefCard(brief: brief)
             findingsSection
+            BrewWinnersCard(
+                winners: BrewWinnersCard.Winner.build(index: store.index),
+                onSelect: { dimension, key in selectInCoffees(dimension: dimension, key: key) }
+            )
         }
     }
 
@@ -227,8 +233,9 @@ struct InsightsView: View {
         }
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == Self.findingLinkScheme,
-                  let uuid = UUID(uuidString: url.host ?? ""),
-                  let finding = findings.first(where: { $0.id == uuid }),
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let id = components.queryItems?.first(where: { $0.name == "id" })?.value,
+                  let finding = findings.first(where: { $0.id == id }),
                   let subject = finding.subject
             else { return .discarded }
             selectInCoffees(dimension: subject.dimension, key: subject.key)
@@ -263,7 +270,11 @@ struct InsightsView: View {
            let range = attributed.range(of: subjectText) {
             attributed[range].foregroundColor = Theme.Colors.accent
             attributed[range].font = .system(size: 14, weight: Theme.Weight.semibold)
-            attributed[range].link = URL(string: "\(Self.findingLinkScheme)://\(finding.id.uuidString)")
+            var components = URLComponents()
+            components.scheme = Self.findingLinkScheme
+            components.host = "finding"
+            components.queryItems = [URLQueryItem(name: "id", value: finding.id)]
+            attributed[range].link = components.url
         }
         if let parenStart = finding.text.lastIndex(of: "("),
            let range = attributed.range(of: String(finding.text[parenStart...])) {
@@ -295,12 +306,12 @@ struct InsightsView: View {
     // MARK: - Charts section
 
     /// One `CategoryPieChart` for the switcher's currently-picked dimension,
-    /// sourced from facet counts computed over the *windowed* subset (a
-    /// throwaway `CoffeeIndex` over the date-filtered coffees) so the
+    /// sourced from facet counts computed over the *windowed* subset — an
+    /// index cached on `(window, years, coffee count)`, per #179d — so the
     /// breakdown always agrees with what filtering to that window would show.
     private var chartsSection: some View {
         let windowed = windowedCoffees
-        let facets = CoffeeIndex(coffees: windowed, vocabulary: vocabulary).facets(for: CoffeeFilter())
+        let facets = chartsIndex.facets(for: CoffeeFilter())
         return VStack(alignment: .leading, spacing: 20) {
             windowControls
             windowSummary(for: windowed)
@@ -321,6 +332,9 @@ struct InsightsView: View {
                     onSelect: { key in selectInCoffees(dimension: chartsDimension, key: key) }
                 )
             }
+        }
+        .task(id: chartsIndexKey) {
+            chartsIndex = CoffeeIndex(coffees: windowed, vocabulary: vocabulary)
         }
     }
 
@@ -434,8 +448,7 @@ struct InsightsView: View {
     }
 
     private func windowSummary(for windowed: [Coffee]) -> some View {
-        let ratings = windowed.compactMap(\.rating)
-        let mean = ratings.isEmpty ? nil : ratings.reduce(0, +) / Double(ratings.count)
+        let mean = windowed.averageRating
         return HStack(spacing: 6) {
             Text("\(windowed.count) " + (windowed.count == 1 ? "coffee" : "coffees"))
             if let mean {
@@ -454,7 +467,7 @@ struct InsightsView: View {
     /// already uses — rather than a second, parallel chip-copy scheme.
     private var chartsDimensions: [FilterDimension] {
         [.originCountry, .roaster, .profile, .roasterCountry, .farm, .decaf,
-         .ratingBand, .priceBand, .pricePer100gBand, .altitudeBand, .year]
+         .ratingBand, .priceBand, .pricePer100gBand, .valueBand, .altitudeBand, .year]
     }
 
     private var dimensionSwitcher: some View {
@@ -526,9 +539,5 @@ struct InsightsView: View {
         Dictionary(coffees.map { ($0.purchasedYear, 1) }, uniquingKeysWith: +)
     }
 
-    private var overallAverageRating: Double? {
-        let ratings = coffees.compactMap(\.rating)
-        guard !ratings.isEmpty else { return nil }
-        return ratings.reduce(0, +) / Double(ratings.count)
-    }
+    private var overallAverageRating: Double? { coffees.averageRating }
 }

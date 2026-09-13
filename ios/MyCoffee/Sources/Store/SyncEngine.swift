@@ -20,6 +20,14 @@ actor SyncEngine {
     private var profilesByID: [Int: Profile] = [:]
     private var lastSyncAt: Date?
     private var schemaVersion: Int?
+    private var lastFullSyncAt: Date?
+    private var searchTextsETag: String?
+
+    /// #175(d): force a full (`since: nil`) resync at least this often, even
+    /// when a delta would otherwise suffice, so every coffee's signed
+    /// `thumbUrl` — which a delta sync only re-sends for rows that changed —
+    /// gets renewed well inside its 30-day expiry (`coffees.js:62`).
+    private static let fullSyncMaxAge: TimeInterval = 14 * 24 * 60 * 60
 
     private let outbox = MutationOutbox()
 
@@ -31,6 +39,8 @@ actor SyncEngine {
         profilesByID = persisted.profilesByID
         lastSyncAt = persisted.lastSyncAt
         schemaVersion = persisted.schemaVersion
+        lastFullSyncAt = persisted.lastFullSyncAt
+        searchTextsETag = persisted.searchTextsETag
     }
 
     /// The most recently loaded index — from disk if this is a cold start and
@@ -44,38 +54,51 @@ actor SyncEngine {
     /// schema-version mismatch drops the local cache and forces one full
     /// refetch rather than trying to merge two shapes.
     func sync(using client: APIClient) async throws -> CoffeeIndex {
-        let requestedSince = (schemaVersion != nil) ? lastSyncAt?.addingTimeInterval(-60) : nil
+        let isStale = lastFullSyncAt.map { Date().timeIntervalSince($0) >= Self.fullSyncMaxAge } ?? true
+        var requestedSince = (schemaVersion != nil && !isStale) ? lastSyncAt?.addingTimeInterval(-60) : nil
         var response = try await client.snapshot(since: requestedSince)
 
         if let schemaVersion, schemaVersion != response.version {
             coffees = [:]
+            requestedSince = nil
             response = try await client.snapshot(since: nil)
         }
 
         profilesByID = profileMap(from: response.vocab.profiles)
+        vocabulary = Vocabulary(
+            countryList: response.vocab.countries,
+            roasterList: response.vocab.roasters,
+            farmList: response.vocab.farms,
+            brewOptionList: response.vocab.brewOptions.compactMap { BrewOption(dto: $0) }
+        )
         for dto in response.coffees {
             var coffee = dto.makeCoffee(profilesByID: profilesByID)
             if let pending = await outbox.pendingFavorite(for: dto.id) {
                 coffee = coffee.withFavorite(pending, setBy: "human")
             }
+            coffee = applyPendingBrewStates(to: coffee, pending: await outbox.pendingBrewStates(for: dto.id))
             coffees[dto.id] = coffee
         }
         for deletedID in response.deleted {
             coffees.removeValue(forKey: deletedID)
         }
-        vocabulary = Vocabulary(
-            countryList: response.vocab.countries,
-            roasterList: response.vocab.roasters,
-            farmList: response.vocab.farms
-        )
         schemaVersion = response.version
         lastSyncAt = response.generatedAt
-
-        if let textResponse = try? await client.snapshotText() {
-            searchTexts = textResponse
+        if requestedSince == nil {
+            lastFullSyncAt = response.generatedAt
         }
 
-        await outbox.flush(using: client)
+        // #175(a): ~95% of sync bytes and unchanged far more often than the
+        // coffees themselves — send the last ETag and skip the ~300 KB decode
+        // on a 304 rather than fetching and replacing `searchTexts` every time.
+        if let (texts, etag) = try? await client.snapshotText(ifNoneMatch: searchTextsETag) {
+            if let texts {
+                searchTexts = texts
+            }
+            searchTextsETag = etag ?? searchTextsETag
+        }
+
+        await flushOutbox(using: client)
         persist()
         return currentIndex()
     }
@@ -88,23 +111,133 @@ actor SyncEngine {
         if let pending = await outbox.pendingFavorite(for: coffeeId) {
             coffee = coffee.withFavorite(pending, setBy: "human")
         }
+        coffee = applyPendingBrewStates(to: coffee, pending: await outbox.pendingBrewStates(for: coffeeId))
         coffees[coffeeId] = coffee
         persist()
         return coffee
     }
 
+    /// Applies every un-flushed brew-state mutation queued for `coffee`
+    /// (PLAN.md §14's "pending mutation wins" rule, same as the favorite
+    /// merge above) over a freshly-fetched server row, so a sync or detail
+    /// fetch racing an un-acked tap never clobbers it. `pending` is keyed by
+    /// optionId; each is applied through the same optimistic state machine
+    /// `setBrewState` uses, including the recipe → grind/temp auto-tick
+    /// mirror, so re-applying it here can't drift from a live tap's result.
+    private func applyPendingBrewStates(to coffee: Coffee, pending: [Int: BrewTrialState]) -> Coffee {
+        guard !pending.isEmpty else { return coffee }
+        var result = coffee
+        for (optionId, state) in pending {
+            guard let option = vocabulary.brewOptions[optionId] else { continue }
+            result = applyOptimisticBrewState(to: result, option: option, state: state)
+        }
+        return result
+    }
+
     /// Optimistic local favorite toggle (PLAN.md §5: "tap heart -> mutate in
-    /// memory and publish immediately, enqueue, flush when online").
+    /// memory and publish immediately, enqueue, flush when online"). #175(c):
+    /// the flush itself is detached rather than awaited — awaiting it here
+    /// held the returned (already-mutated) index hostage behind the outbox's
+    /// full network round trip, so offline the heart didn't visibly flip
+    /// until that call's ~60 s timeout elapsed.
     func setFavorite(coffeeId: String, isFavorite: Bool, client: APIClient?) async -> CoffeeIndex {
         if let coffee = coffees[coffeeId] {
             coffees[coffeeId] = coffee.withFavorite(isFavorite, setBy: "human")
             persist()
         }
         await outbox.enqueueFavorite(coffeeId: coffeeId, isFavorite: isFavorite)
+        let result = currentIndex()
         if let client {
-            await outbox.flush(using: client)
+            Task { await self.flushOutbox(using: client) }
+        }
+        return result
+    }
+
+    /// Optimistic local brew-state toggle (PLAN.md §14) — same shape as
+    /// `setFavorite`: mutate + publish immediately, enqueue, flush when
+    /// online. This is a tap-tap-tap surface (check tried, tap the trophy for
+    /// best), so a spinner per tap would kill it.
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState, client: APIClient?) async -> CoffeeIndex {
+        if let coffee = coffees[coffeeId], let option = vocabulary.brewOptions[optionId] {
+            coffees[coffeeId] = applyOptimisticBrewState(to: coffee, option: option, state: state)
+            persist()
+        }
+        await outbox.enqueueBrewState(coffeeId: coffeeId, optionId: optionId, state: state)
+        if let client {
+            await flushOutbox(using: client)
         }
         return currentIndex()
+    }
+
+    /// Creates (or get-or-creates, per the backend's dedup rule) a catalogue
+    /// option and inserts it into the vocabulary immediately, rather than
+    /// waiting for the next sync — a trial needs a real server id right away,
+    /// and a catalogue add is rare, so this is confirmed + throwing like
+    /// `editField`, not routed through the outbox.
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?,
+        client: APIClient?
+    ) async throws -> BrewOption {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        let dto = try await client.createBrewOption(kind: kind, label: label, detail: detail, valueNum: valueNum, recipe: recipe)
+        guard let option = BrewOption(dto: dto) else {
+            throw APIClient.APIError.http(status: -1, body: "unrecognized brew kind \(dto.kind)")
+        }
+        vocabulary = vocabulary.insertingBrewOption(option)
+        persist()
+        return option
+    }
+
+    /// Renames/re-values/archives a catalogue option — same confirmed +
+    /// throwing shape as `createBrewOption`.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch, client: APIClient?) async throws -> BrewOption {
+        guard let client else { throw APIClient.APIError.notConfigured }
+        let dto = try await client.updateBrewOption(id: id, patch: patch)
+        guard let option = BrewOption(dto: dto) else {
+            throw APIClient.APIError.http(status: -1, body: "unrecognized brew kind \(dto.kind)")
+        }
+        vocabulary = vocabulary.insertingBrewOption(option)
+        persist()
+        return option
+    }
+
+    /// The optimistic state machine for one (coffee, option) tap — mirrors the
+    /// server's `nextTrialRows`/`impliedTrials` (`backend/src/lib/brewState.js`):
+    /// `.best` demotes any other best of the same kind, and setting a
+    /// **recipe** tried/best also optimistically ticks its nominal grind/temp
+    /// options as `tried` (never demoting an existing best of THOSE kinds),
+    /// one-way, so the UI doesn't flicker before the flush response confirms
+    /// it. Skips the grind/temp tick when that numeric option isn't known
+    /// locally yet — the flush response (or next sync) will add it.
+    private func applyOptimisticBrewState(to coffee: Coffee, option: BrewOption, state: BrewTrialState) -> Coffee {
+        var tried = Set(coffee.triedBrewOptionIds)
+        var best = Set(coffee.bestBrewOptionIds)
+
+        switch state {
+        case .untried:
+            tried.remove(option.id)
+            best.remove(option.id)
+        case .tried:
+            tried.insert(option.id)
+            best.remove(option.id)
+        case .best:
+            tried.insert(option.id)
+            for id in best where id != option.id && vocabulary.brewOptions[id]?.kind == option.kind {
+                best.remove(id)
+            }
+            best.insert(option.id)
+        }
+
+        if option.kind == .recipe, state != .untried, let recipe = option.recipe {
+            if let grindOption = vocabulary.brewOption(kind: .grind, value: Double(recipe.grindClicks)) {
+                tried.insert(grindOption.id)
+            }
+            if let tempOption = vocabulary.brewOption(kind: .temp, value: Double(recipe.waterTempC)) {
+                tried.insert(tempOption.id)
+            }
+        }
+
+        return coffee.withBrew(tried: tried.sorted(), best: best.sorted())
     }
 
     /// Queues a review-task resolution and flushes immediately if online —
@@ -121,13 +254,13 @@ actor SyncEngine {
     func resolveReview(taskId: Int, value: String, client: APIClient?) async throws {
         guard let client else { throw APIClient.APIError.notConfigured }
         _ = try await client.resolveReview(id: String(taskId), value: value)
-        await outbox.flush(using: client)
+        await flushOutbox(using: client)
     }
 
     func dismissReview(taskId: Int, client: APIClient?) async throws {
         guard let client else { throw APIClient.APIError.notConfigured }
         _ = try await client.dismissReview(id: String(taskId))
-        await outbox.flush(using: client)
+        await flushOutbox(using: client)
     }
 
     /// Persisted photo rotation (#57/#73). Confirmed then applied: the local
@@ -248,6 +381,23 @@ actor SyncEngine {
         return placeholder
     }
 
+    /// Drains the outbox and reconciles any brew-state responses into
+    /// `coffees` — a brew POST's response carries the coffee's WHOLE brew
+    /// state (PLAN.md §14), which may include auto-ticked grind/temp ids the
+    /// optimistic local update couldn't have known about, so every call site
+    /// that used to call `outbox.flush(using:)` directly now goes through
+    /// this instead of duplicating the reconciliation per call site.
+    private func flushOutbox(using client: APIClient) async {
+        let flushedBrewStates = await outbox.flush(using: client)
+        guard !flushedBrewStates.isEmpty else { return }
+        for flushed in flushedBrewStates {
+            if let coffee = coffees[flushed.coffeeId] {
+                coffees[flushed.coffeeId] = coffee.withBrew(tried: flushed.response.brewTried, best: flushed.response.brewBest)
+            }
+        }
+        persist()
+    }
+
     private func persist() {
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,
@@ -255,7 +405,9 @@ actor SyncEngine {
             coffees: Array(coffees.values),
             vocabulary: vocabulary,
             searchTexts: searchTexts,
-            profilesByID: profilesByID
+            profilesByID: profilesByID,
+            lastFullSyncAt: lastFullSyncAt,
+            searchTextsETag: searchTextsETag
         ).save()
     }
 }

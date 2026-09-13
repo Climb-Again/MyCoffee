@@ -26,11 +26,7 @@ struct CountryPageView: View {
         return store.index.coffees(matching: filter, sortedBy: .rating)
     }
 
-    private var averageRating: Double? {
-        let ratings = coffees.compactMap(\.rating)
-        guard !ratings.isEmpty else { return nil }
-        return ratings.reduce(0, +) / Double(ratings.count)
-    }
+    private var averageRating: Double? { coffees.averageRating }
 
     private var navigationTitleText: String {
         let name = country?.name ?? "Unknown"
@@ -40,28 +36,17 @@ struct CountryPageView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 16) {
-                    FlagView(isoCode: country?.isoCode)
-                        .font(.system(size: 40))
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(country?.name ?? "Unknown country")
-                            .font(.title3.weight(.bold))
+                EntityHeader(
+                    icon: { FlagView(isoCode: country?.isoCode).font(.system(size: 40)) },
+                    title: country?.name ?? "Unknown country",
+                    subtitle: {
                         Text(role == .origin ? "Origin country" : "Roaster country")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-
-                HStack {
-                    Text("\(coffees.count) coffee\(coffees.count == 1 ? "" : "s")")
-                    if let averageRating {
-                        Spacer()
-                        Label(String(format: "%.2f", averageRating), systemImage: Symbols.starFill)
-                            .foregroundStyle(.orange)
-                    }
-                }
-                .font(.subheadline)
+                    },
+                    coffeeCount: coffees.count,
+                    averageRating: averageRating
+                )
             }
             .listRowSeparator(.hidden)
 

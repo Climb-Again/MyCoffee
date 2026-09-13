@@ -76,6 +76,17 @@ extension Coffee {
     }
 }
 
+extension Array where Element == Coffee {
+    /// Mean `rating` across the rated subset — `nil` when none are rated.
+    /// #181: same "guard on empty, else reduce/count" shape was duplicated
+    /// in `RoasterPageView`, `CountryPageView` and twice in `InsightsView`.
+    var averageRating: Double? {
+        let ratings = compactMap(\.rating)
+        guard !ratings.isEmpty else { return nil }
+        return ratings.reduce(0, +) / Double(ratings.count)
+    }
+}
+
 extension SortOption {
     var displayName: String {
         switch self {
@@ -83,6 +94,20 @@ extension SortOption {
         case .rating: return "Rating"
         case .price: return "Price"
         case .pricePer100g: return "Price / 100 g"
+        case .value: return "Value"
+        }
+    }
+}
+
+extension BrewKind {
+    /// The filter dimension a win-rate for this kind deep-links into
+    /// (Insights "Brew winners" card, #158).
+    var filterDimension: FilterDimension {
+        switch self {
+        case .recipe: return .brewRecipe
+        case .device: return .brewDevice
+        case .grind: return .brewGrind
+        case .temp: return .brewTemp
         }
     }
 }
@@ -101,7 +126,14 @@ extension FilterDimension {
         case .priceBand: return "Price"
         case .pricePer100gBand: return "Price / 100 g"
         case .altitudeBand: return "Altitude"
+        case .valueBand: return "Value"
         case .year: return "Year bought"
+        // Seam edit (CLAUDE.md §4, ios-shell #156): plain labels only, no
+        // styling — the ios-ux lane restyles the Brew lab filter group in #158.
+        case .brewDevice: return "Brew device"
+        case .brewRecipe: return "Brew recipe"
+        case .brewGrind: return "Grind size"
+        case .brewTemp: return "Water temp"
         }
     }
 
@@ -113,6 +145,18 @@ extension FilterDimension {
         case .roaster, .farm: return true
         default: return false
         }
+    }
+
+    /// The four brew-lab dimensions, in Radu's own sentence order (recipe →
+    /// device → grind → temp, PLAN.md §14) — grouped under one "Brew lab"
+    /// filter-sheet section (#158) rather than rendered inline with the rest
+    /// of `allCases`.
+    static let brewCases: [FilterDimension] = [.brewRecipe, .brewDevice, .brewGrind, .brewTemp]
+
+    /// Every dimension the filter sheet renders as its own top-level section
+    /// — everything except the brew-lab group, which gets one shared section.
+    static var nonBrewCases: [FilterDimension] {
+        allCases.filter { !brewCases.contains($0) }
     }
 }
 
@@ -126,6 +170,11 @@ func facetLabel(_ key: FacetKey, dimension: FilterDimension, vocabulary: Vocabul
         case .roaster: return vocabulary.roasters[id]?.name ?? "Unknown"
         case .roasterCountry, .originCountry: return vocabulary.countries[id]?.name ?? "Unknown"
         case .farm: return vocabulary.farms[id]?.name ?? "Unknown"
+        // Seam edit (CLAUDE.md §4, ios-shell #156): resolves the brew option's
+        // real label rather than falling through to "Unknown" — a plain read,
+        // no styling.
+        case .brewDevice, .brewRecipe, .brewGrind, .brewTemp:
+            return vocabulary.brewOptions[id]?.label ?? "Unknown"
         default: return "Unknown"
         }
     case let .profile(profile): return profile.displayName
@@ -139,6 +188,9 @@ func facetLabel(_ key: FacetKey, dimension: FilterDimension, vocabulary: Vocabul
     case let .priceBand(band):
         return dimension == .pricePer100gBand ? band.label + " / 100 g" : band.label
     case let .altitudeBand(band): return band.label
+    // #113/#138: the same wording the row/detail value meters print, read
+    // straight off `ValueRating.Band` so the pill and the meter can't drift.
+    case let .valueBand(band): return band.label
     case let .year(year): return "\(year)"
     case .unknown: return "Unknown"
     }

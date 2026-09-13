@@ -15,6 +15,30 @@ func profileMap(from entries: [ProfileVocabDTO]) -> [Int: Profile] {
     return result
 }
 
+extension BrewOption {
+    /// `nil` when `dto.kind` isn't one of the four the client's build
+    /// recognizes — same "unknown vocab maps to absent, never crashes"
+    /// stance as `profileMap`.
+    init?(dto: BrewOptionDTO) {
+        guard let kind = BrewKind(rawValue: dto.kind) else { return nil }
+        self.init(
+            id: dto.id,
+            kind: kind,
+            label: dto.label,
+            detail: dto.detail,
+            valueNum: dto.valueNum,
+            recipe: dto.recipe.map {
+                BrewRecipeSpec(
+                    doseG: $0.doseG, pours: $0.pours, mlPerPour: $0.mlPerPour,
+                    totalWaterMl: $0.totalWaterMl, grindClicks: $0.grindClicks, waterTempC: $0.waterTempC
+                )
+            },
+            sortOrder: dto.sortOrder,
+            archived: dto.archived
+        )
+    }
+}
+
 extension CompactCoffeeDTO {
     /// Builds the app's canonical `Coffee` from a compact snapshot row.
     /// Fields the compact shape doesn't carry (notes, raw text, images,
@@ -59,7 +83,9 @@ extension CompactCoffeeDTO {
             // shows photos (and a re-sync doesn't wipe a detail-loaded thumb).
             // `display` is seeded from the same URL as a reasonable hero
             // placeholder until a detail fetch supplies the full-size one.
-            images: thumbUrl.map { CoffeeImageURLs(thumb: $0, display: $0, ocr: nil) }
+            images: thumbUrl.map { CoffeeImageURLs(thumb: $0, display: $0, ocr: nil) },
+            brewTriedIds: brewTried,
+            brewBestIds: brewBest
         )
     }
 }
@@ -105,7 +131,9 @@ extension CoffeeDetailDTO {
             rotationQuarterTurns: rotationQuarterTurns,
             images: (thumbUrl != nil || displayUrl != nil)
                 ? CoffeeImageURLs(thumb: thumbUrl ?? "", display: displayUrl ?? "", ocr: nil)
-                : nil
+                : nil,
+            brewTriedIds: brewTried,
+            brewBestIds: brewBest
         )
     }
 }

@@ -24,8 +24,9 @@ struct RootView: View {
             }
         }
         // Keep the on-device image cache under its 30 MB ceiling (CLAUDE.md's
-        // 50 MB app+data rule) — a cheap directory scan on each launch, since no
-        // BGTask is wired to do it.
+        // 50 MB app+data rule) — a cheap directory scan on each launch. No
+        // BGTask is registered (#175(e): removed rather than built), so this
+        // launch-time sweep is the only place eviction runs.
         .task {
             await ImageStore.shared.evictStaleEntries()
         }

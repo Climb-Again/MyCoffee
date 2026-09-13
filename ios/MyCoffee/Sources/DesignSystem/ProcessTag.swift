@@ -31,53 +31,11 @@ struct ProcessStyle {
     }
 }
 
+/// #181: only `DecafBadge` uses this now — `ProcessTag` (which needed
+/// `.style(for:)` and the five per-profile styles) was deleted as dead code,
+/// so those went with it.
 enum ProcessStyles {
-    static func style(for profile: Profile) -> ProcessStyle {
-        switch profile {
-        case .washed: return washed
-        case .natural: return natural
-        case .anaerobic: return anaerobic
-        case .coFermented: return coFermented
-        case .experimental: return experimental
-        }
-    }
-
-    static let unknown = ProcessStyle(symbol: Symbols.processUnknown, light: "6B7280", dark: "9CA3AF")
     static let decaf = ProcessStyle(symbol: Symbols.processDecaf, light: "4A5568", dark: "A7B4C4")
-
-    private static let natural = ProcessStyle(symbol: Symbols.processNatural, light: "B23A1E", dark: "FF9E7D")
-    private static let washed = ProcessStyle(symbol: Symbols.processWashed, light: "0B6BB5", dark: "7CC4FF")
-    private static let anaerobic = ProcessStyle(symbol: Symbols.processAnaerobic, light: "6B3FA0", dark: "C6A7F0")
-    private static let coFermented = ProcessStyle(symbol: Symbols.processCoFermented, light: "0E7C6B", dark: "6FD9C4")
-    private static let experimental = ProcessStyle(symbol: Symbols.processExperimental, light: "A8145A", dark: "FF9BC4")
-}
-
-/// A tinted capsule for a coffee's process/profile. `nil` renders as the
-/// "Unknown" facet — never defaulted to Washed (PLAN.md pushback #4).
-struct ProcessTag: View {
-    let profile: Profile?
-
-    private var style: ProcessStyle { profile.map(ProcessStyles.style) ?? ProcessStyles.unknown }
-    private var title: String { profile?.displayName ?? "Unknown" }
-
-    var body: some View {
-        // Explicit icon + text rather than `Label`: a `Label` under
-        // `fixedSize` in a width-constrained row collapsed to icon-only (the
-        // title vanished). An HStack of Image+Text always renders both, and
-        // `lineLimit(1)` + `fixedSize` keeps it a single-line pill (no
-        // character-per-line vertical wrap).
-        HStack(spacing: 4) {
-            Image(systemName: style.symbol)
-            Text(title)
-        }
-        .font(.caption.weight(.semibold))
-        .lineLimit(1)
-        .fixedSize(horizontal: true, vertical: false)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(style.color.opacity(0.18), in: Capsule())
-        .foregroundStyle(style.color)
-    }
 }
 
 /// A small badge for `is_decaf`, tracked orthogonally to `profile` — a decaf

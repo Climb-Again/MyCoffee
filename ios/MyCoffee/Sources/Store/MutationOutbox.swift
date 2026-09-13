@@ -13,6 +13,11 @@ enum PendingMutation: Codable, Sendable {
     case reviewDismiss(taskId: Int)
     case edit(coffeeId: String, field: String, value: String)
     case editBatch(coffeeId: String, edits: [CoffeeFieldEdit])
+    /// Brew lab (PLAN.md §14, #156) — a tri-state tap for one (coffee, option)
+    /// pair. Unlike `favorite`, more than one can be pending for the same
+    /// coffee at once (different options), so this is keyed by (coffeeId,
+    /// optionId), not just coffeeId.
+    case brewState(coffeeId: String, optionId: Int, state: BrewTrialState)
 }
 
 /// Persisted queue of writes the server hasn't confirmed yet. `SyncEngine`
@@ -69,7 +74,7 @@ actor MutationOutbox {
         switch mutation {
         case let .reviewResolve(id, _): return id == taskId
         case let .reviewDismiss(id): return id == taskId
-        case .favorite, .edit, .editBatch: return false
+        case .favorite, .edit, .editBatch, .brewState: return false
         }
     }
 
@@ -118,29 +123,84 @@ actor MutationOutbox {
         persist()
     }
 
+    /// The most recent un-acked brew state for every (coffeeId, optionId) pair
+    /// still queued for `coffeeId` — same purpose as `pendingFavorite`, but
+    /// keyed by optionId since several can be pending for one coffee at once.
+    /// Forward iteration (not `.reversed()`, unlike `pendingFavorite`) so a
+    /// later mutation for the same optionId simply overwrites the dictionary
+    /// entry an earlier one set.
+    func pendingBrewStates(for coffeeId: String) -> [Int: BrewTrialState] {
+        var result: [Int: BrewTrialState] = [:]
+        for mutation in pending {
+            if case let .brewState(id, optionId, state) = mutation, id == coffeeId {
+                result[optionId] = state
+            }
+        }
+        return result
+    }
+
+    /// One outstanding mutation per (coffeeId, optionId) at a time — same
+    /// replace-not-accumulate rule `enqueueFavorite` uses.
+    func enqueueBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) {
+        pending.removeAll {
+            if case let .brewState(id, oid, _) = $0 { return id == coffeeId && oid == optionId } else { return false }
+        }
+        pending.append(.brewState(coffeeId: coffeeId, optionId: optionId, state: state))
+        persist()
+    }
+
+    /// One brew POST's response, flushed successfully — `SyncEngine` applies
+    /// this to replace the coffee's local `brewTriedIds`/`brewBestIds` with
+    /// the server's authoritative whole-state, which may include extra
+    /// auto-ticked grind/temp ids the optimistic local update didn't know
+    /// about (PLAN.md §14's recipe auto-tick).
+    struct FlushedBrewState: Sendable {
+        let coffeeId: String
+        let response: BrewStateResponseDTO
+    }
+
+    /// Applying one mutation either finishes it (terminal — success or a 4xx
+    /// rejection) or leaves it queued (transient failure); a finished brew
+    /// state additionally carries the server's response for the caller to
+    /// reconcile.
+    private enum MutationOutcome {
+        case keep
+        case done
+        case doneWithBrewState(FlushedBrewState)
+    }
+
     /// Drains the queue against the server. A mutation that fails (network
     /// down, token revoked, …) stays queued for the next flush; one that
-    /// succeeds is removed so `pendingFavorite` stops overriding the
-    /// server's row on the following sync.
-    func flush(using client: APIClient) async {
-        guard !pending.isEmpty else { return }
+    /// succeeds is removed so `pendingFavorite`/`pendingBrewStates` stop
+    /// overriding the server's row on the following sync. Returns every brew
+    /// state that flushed successfully, for the caller to reconcile.
+    @discardableResult
+    func flush(using client: APIClient) async -> [FlushedBrewState] {
+        guard !pending.isEmpty else { return [] }
         var remaining: [PendingMutation] = []
+        var flushedBrewStates: [FlushedBrewState] = []
         for mutation in pending {
-            if await shouldKeep(mutation, using: client) {
+            switch await applyMutation(mutation, using: client) {
+            case .keep:
                 remaining.append(mutation)
+            case .done:
+                break
+            case let .doneWithBrewState(flushed):
+                flushedBrewStates.append(flushed)
             }
         }
         pending = remaining
         persist()
+        return flushedBrewStates
     }
 
-    /// Applies one mutation; returns whether it should stay queued. A 4xx
-    /// response (e.g. `resolveReview`'s 422 for a value the backend can't
-    /// canonicalize) is a terminal rejection, not a transient failure — same
-    /// as the fire-and-forget behavior this replaces, the item just stays
-    /// open server-side for the next review-feed load rather than being
-    /// retried forever. Anything else (offline, 5xx) keeps it queued.
-    private func shouldKeep(_ mutation: PendingMutation, using client: APIClient) async -> Bool {
+    /// Applies one mutation against the server. A 4xx response (e.g.
+    /// `resolveReview`'s 422 for a value the backend can't canonicalize) is a
+    /// terminal rejection, not a transient failure — same as the
+    /// fire-and-forget behavior this replaces, the item just stays open
+    /// server-side for the next review-feed load rather than being retried
+    /// forever. Anything else (offline, 5xx) keeps it queued.
+    private func applyMutation(_ mutation: PendingMutation, using client: APIClient) async -> MutationOutcome {
         do {
             switch mutation {
             case let .favorite(coffeeId, isFavorite):
@@ -153,12 +213,15 @@ actor MutationOutbox {
                 _ = try await client.editCoffeeField(publicId: coffeeId, field: field, value: value)
             case let .editBatch(coffeeId, edits):
                 _ = try await client.editCoffeeFields(publicId: coffeeId, edits: edits)
+            case let .brewState(coffeeId, optionId, state):
+                let response = try await client.setBrewState(publicId: coffeeId, optionId: optionId, state: state)
+                return .doneWithBrewState(FlushedBrewState(coffeeId: coffeeId, response: response))
             }
-            return false
+            return .done
         } catch let APIClient.APIError.http(status, _) where (400..<500).contains(status) {
-            return false
+            return .done
         } catch {
-            return true
+            return .keep
         }
     }
 

@@ -32,25 +32,50 @@ struct APIClient: Sendable {
         self.token = token
     }
 
-    private func makeRequest(path: String, method: String, body: Data?) throws -> URLRequest {
+    private func makeRequest(path: String, method: String, body: Data?, ifNoneMatch: String? = nil) throws -> URLRequest {
         guard let url = URL(string: baseURL + path) else { throw APIError.badURL }
         var req = URLRequest(url: url, timeoutInterval: 60)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let ifNoneMatch {
+            req.setValue(ifNoneMatch, forHTTPHeaderField: "If-None-Match")
+        }
         req.httpBody = body
         return req
     }
 
-    private func send(_ req: URLRequest) async throws -> Data {
+    private struct RawResponse {
+        let data: Data
+        let status: Int
+        let etag: String?
+    }
+
+    /// `304` is accepted alongside `2xx` here (unlike the plain `send` below)
+    /// so a conditional GET's caller can read `status`/`etag` off a
+    /// not-modified response instead of it becoming a thrown `APIError`.
+    private func sendRaw(_ req: URLRequest) async throws -> RawResponse {
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.http(status: -1, body: "No HTTP response")
         }
-        guard (200..<300).contains(http.statusCode) else {
+        let etag = http.value(forHTTPHeaderField: "ETag")
+        guard (200..<300).contains(http.statusCode) || http.statusCode == 304 else {
             throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
         }
-        return data
+        return RawResponse(data: data, status: http.statusCode, etag: etag)
+    }
+
+    private func send(_ req: URLRequest) async throws -> Data {
+        try await sendRaw(req).data
+    }
+
+    /// A GET that may carry `If-None-Match` (#175(a)): `data` is `nil` on a
+    /// `304`, meaning the caller's cached copy is still current; `etag` is
+    /// returned either way so the caller can persist it for next time.
+    private func sendConditional(_ req: URLRequest) async throws -> (data: Data?, etag: String?) {
+        let raw = try await sendRaw(req)
+        return (raw.status == 304 ? nil : raw.data, raw.etag)
     }
 
     // GET /api/status — quick connectivity check.
@@ -98,11 +123,17 @@ struct APIClient: Sendable {
     }
 
     // GET /api/snapshot/text — folded search blobs, keyed by coffee public id.
-    func snapshotText() async throws -> [String: String] {
-        let req = try makeRequest(path: "/api/snapshot/text", method: "GET", body: nil)
-        let data = try await send(req)
+    // ~95% of all sync bytes (#175(a)), and unlike `/api/snapshot` it has no
+    // `since` — the whole blob only actually changes when a coffee's text
+    // does, so `ifNoneMatch` lets a sync skip decoding it entirely on a 304.
+    // `texts` comes back `nil` on a 304 ("nothing changed, keep what you
+    // have"); `etag` is returned either way for the caller to persist.
+    func snapshotText(ifNoneMatch: String? = nil) async throws -> (texts: [String: String]?, etag: String?) {
+        let req = try makeRequest(path: "/api/snapshot/text", method: "GET", body: nil, ifNoneMatch: ifNoneMatch)
+        let (data, etag) = try await sendConditional(req)
+        guard let data else { return (nil, etag) }
         do {
-            return try JSONDecoder.coffeeAPI.decode(SnapshotTextResponseDTO.self, from: data).texts
+            return (try JSONDecoder.coffeeAPI.decode(SnapshotTextResponseDTO.self, from: data).texts, etag)
         } catch {
             throw APIError.decoding(error)
         }
@@ -223,6 +254,79 @@ struct APIClient: Sendable {
         let data = try await send(req)
         do {
             return try JSONDecoder.coffeeAPI.decode(BriefResponseDTO.self, from: data).brief
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // GET /api/brew-options — the whole Brew lab catalogue, including
+    // archived rows (PLAN.md §14) — `Vocabulary.brewOptions` is normally kept
+    // current by the snapshot's `vocab.brewOptions` block; this exists for a
+    // standalone refresh (e.g. `BrewCatalogueView`, #157) without a full sync.
+    func brewOptions() async throws -> [BrewOptionDTO] {
+        let req = try makeRequest(path: "/api/brew-options", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionListResponseDTO.self, from: data).options
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/brew-options — get-or-create a catalogue option (PLAN.md
+    // §14): `label` is required for `.device`/`.recipe` and server-generated
+    // for `.grind`/`.temp` (omit it, send `valueNum` instead); `recipe` is
+    // required for `.recipe` and otherwise omitted. A dup label/value get the
+    // existing row back (200), a new one 201 — both decode the same way.
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?
+    ) async throws -> BrewOptionDTO {
+        var dict: [String: Any] = ["kind": kind.rawValue]
+        if let label { dict["label"] = label }
+        if let detail { dict["detail"] = detail }
+        if let valueNum { dict["valueNum"] = valueNum }
+        if let recipe { dict["recipe"] = recipe.wireDictionary }
+        let body = try JSONSerialization.data(withJSONObject: dict)
+        let req = try makeRequest(path: "/api/brew-options", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // PATCH /api/brew-options/:id — rename/re-value/archive (PLAN.md §14).
+    // Only the fields `patch` sets are sent, so an omitted field is left
+    // unchanged server-side.
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOptionDTO {
+        var dict: [String: Any] = [:]
+        if let label = patch.label { dict["label"] = label }
+        if let detail = patch.detail { dict["detail"] = detail }
+        if let valueNum = patch.valueNum { dict["valueNum"] = valueNum }
+        if let recipe = patch.recipe { dict["recipe"] = recipe.wireDictionary }
+        if let sortOrder = patch.sortOrder { dict["sortOrder"] = sortOrder }
+        if let archived = patch.archived { dict["archived"] = archived }
+        let body = try JSONSerialization.data(withJSONObject: dict)
+        let req = try makeRequest(path: "/api/brew-options/\(id)", method: "PATCH", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewOptionDTO.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/coffees/:publicId/brew — sets the tri-state for one (coffee,
+    // option) pair (PLAN.md §14). Responds with the coffee's WHOLE brew state
+    // (the server's recipe auto-tick can change more than the one pair sent),
+    // so the caller replaces rather than reconciles.
+    func setBrewState(publicId: String, optionId: Int, state: BrewTrialState) async throws -> BrewStateResponseDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["optionId": optionId, "state": state.rawValue])
+        let req = try makeRequest(path: "/api/coffees/\(publicId)/brew", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(BrewStateResponseDTO.self, from: data)
         } catch {
             throw APIError.decoding(error)
         }
@@ -373,4 +477,16 @@ struct StatusResponse: Codable {
 struct CoffeeFieldEdit: Codable, Sendable, Equatable {
     let field: String
     let value: String
+}
+
+/// `PATCH /api/brew-options/:id`'s optional fields (PLAN.md §14) — every
+/// field is omitted from the request unless set here, so a catalogue rename
+/// doesn't accidentally touch `sortOrder`/`archived`, and vice versa.
+struct BrewOptionPatch: Sendable {
+    var label: String?
+    var detail: String?
+    var valueNum: Double?
+    var recipe: BrewRecipeSpec?
+    var sortOrder: Int?
+    var archived: Bool?
 }

@@ -7,7 +7,9 @@ import Foundation
 /// (e.g. a country with only a couple of coffees) so empty/thin states are
 /// exercised, not just the happy path.
 enum SampleData {
-    static let vocabulary = Vocabulary(countryList: countries, roasterList: roasters, farmList: farms)
+    static let vocabulary = Vocabulary(
+        countryList: countries, roasterList: roasters, farmList: farms, brewOptionList: brewOptions
+    )
 
     static let coffees: [Coffee] = [
         make(id: "sample-001", purchased: (2026, 7, 15), roasterId: 1, roasterCountryId: 7,
@@ -19,13 +21,19 @@ enum SampleData {
              brewGuideNote: "V60, 92°C, 1:16, 3 pours.",
              roasterCopyNote: "Bright, floral, bergamot and jasmine.",
              flavorNotes: "bergamot, jasmine, black tea",
-             rawTitle: "Ethiopia Nekisse", rawCaption: "Etiopia Nekisse, spalat"),
+             rawTitle: "Ethiopia Nekisse", rawCaption: "Etiopia Nekisse, spalat",
+             // Brew lab (PLAN.md §14): tried the V60 recipe (which implies its
+             // nominal grind/temp, ids 21/26) and the AeroPress; V60 is best.
+             brewTriedIds: [101, 21, 26, 102], brewBestIds: [101]),
 
         make(id: "sample-002", purchased: (2026, 6, 2), roasterId: 2, roasterCountryId: 8,
              originCountryIds: [2], originCountryId: 2, originFarmId: 2,
              altitudeMinM: 1650, altitudeMaxM: 1650, profile: .natural,
              priceOriginalAmount: 420, priceOriginalCurrency: "CZK", priceEur: 16.4, fxRate: 0.039, fxRatePeriod: "2026-06",
-             weightG: 250, rating: 4.3, rawTitle: "Colombia La Palma y El Tucán"),
+             weightG: 250, rating: 4.3, rawTitle: "Colombia La Palma y El Tucán",
+             // Tried 4:6 (implies grind 28 / temp 92, ids 22/23) and Chemex;
+             // nothing marked best yet.
+             brewTriedIds: [103, 22, 23, 104]),
 
         make(id: "sample-003", purchased: (2025, 11, 20), roasterId: 3, roasterCountryId: 9,
              originCountryIds: [6], originCountryId: 6,
@@ -185,6 +193,39 @@ enum SampleData {
         Farm(id: 5, name: "Nekisse"),
     ]
 
+    /// A representative slice of the Brew lab catalogues (PLAN.md §14) — not
+    /// the full 52-row backend seed, just enough of each kind for UX previews
+    /// (#157) to render every state: an untried option, a tried one, and a
+    /// winner. Ids are deliberately non-contiguous across kinds (one global
+    /// sequence server-side) so a preview can't mistake an id range for a kind.
+    private static let brewOptions: [BrewOption] = [
+        BrewOption(
+            id: 101, kind: .recipe, label: "V60 1-cup (Hoffmann)", detail: nil, valueNum: nil,
+            recipe: BrewRecipeSpec(doseG: 15, pours: 3, mlPerPour: nil, totalWaterMl: 250, grindClicks: 24, waterTempC: 95),
+            sortOrder: 0, archived: false
+        ),
+        BrewOption(
+            id: 103, kind: .recipe, label: "4:6 (Kasuya)", detail: nil, valueNum: nil,
+            recipe: BrewRecipeSpec(doseG: 20, pours: 5, mlPerPour: 60, totalWaterMl: 300, grindClicks: 28, waterTempC: 92),
+            sortOrder: 1, archived: false
+        ),
+        BrewOption(
+            id: 107, kind: .recipe, label: "AeroPress single pour", detail: nil, valueNum: nil,
+            recipe: BrewRecipeSpec(doseG: 15, pours: 1, mlPerPour: 200, totalWaterMl: 200, grindClicks: 20, waterTempC: 85),
+            sortOrder: 2, archived: false
+        ),
+        BrewOption(id: 102, kind: .device, label: "AeroPress", detail: nil, valueNum: nil, recipe: nil, sortOrder: 0, archived: false),
+        BrewOption(id: 104, kind: .device, label: "Chemex", detail: nil, valueNum: nil, recipe: nil, sortOrder: 1, archived: false),
+        BrewOption(id: 108, kind: .device, label: "V60", detail: nil, valueNum: nil, recipe: nil, sortOrder: 2, archived: false),
+        BrewOption(id: 109, kind: .device, label: "French press", detail: nil, valueNum: nil, recipe: nil, sortOrder: 3, archived: false),
+        BrewOption(id: 20, kind: .grind, label: "20 clicks", detail: nil, valueNum: 20, recipe: nil, sortOrder: 0, archived: false),
+        BrewOption(id: 21, kind: .grind, label: "24 clicks", detail: nil, valueNum: 24, recipe: nil, sortOrder: 1, archived: false),
+        BrewOption(id: 22, kind: .grind, label: "28 clicks", detail: nil, valueNum: 28, recipe: nil, sortOrder: 2, archived: false),
+        BrewOption(id: 24, kind: .temp, label: "85 °C", detail: nil, valueNum: 85, recipe: nil, sortOrder: 0, archived: false),
+        BrewOption(id: 23, kind: .temp, label: "92 °C", detail: nil, valueNum: 92, recipe: nil, sortOrder: 1, archived: false),
+        BrewOption(id: 26, kind: .temp, label: "95 °C", detail: nil, valueNum: 95, recipe: nil, sortOrder: 2, archived: false),
+    ]
+
     // MARK: - Factory
 
     private static func make(
@@ -219,7 +260,9 @@ enum SampleData {
         rawCaption: String? = nil,
         rawDescription: String? = nil,
         reviewState: String = "clean",
-        minFieldConfidence: Double? = nil
+        minFieldConfidence: Double? = nil,
+        brewTriedIds: [Int]? = nil,
+        brewBestIds: [Int]? = nil
     ) -> Coffee {
         Coffee(
             id: id,
@@ -255,7 +298,9 @@ enum SampleData {
             reviewState: reviewState,
             minFieldConfidence: minFieldConfidence,
             rotationQuarterTurns: nil,
-            images: nil
+            images: nil,
+            brewTriedIds: brewTriedIds,
+            brewBestIds: brewBestIds
         )
     }
 }

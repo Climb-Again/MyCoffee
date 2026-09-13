@@ -25,7 +25,7 @@ struct Thumbnail: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .rotationEffect(.degrees(Double(((rotationQuarterTurns % 4) + 4) % 4) * 90))
+                        .rotationEffect(.degrees(Double(rotationQuarterTurns.normalizedQuarterTurns) * 90))
                 } else {
                     placeholder
                 }

@@ -30,9 +30,9 @@ struct ReviewTask: Identifiable, Hashable {
     let rawCaption: String?
     let rawDescription: String?
 
-    /// The four raw/thumb fields default to nil so the sample-data fixtures
-    /// (`ReviewSampleData`) — written before the real feed carried them — keep
-    /// compiling unchanged; the real feed populates them via `init(dto:)`.
+    /// The four raw/thumb fields default to nil — older backends and any
+    /// caller that doesn't have them yet still compile; the real feed
+    /// populates them via `init(dto:)`.
     init(
         id: Int, coffeeId: String?, photoId: String, field: ReviewField,
         rawValue: String, reason: String?, rawSnippet: String?,

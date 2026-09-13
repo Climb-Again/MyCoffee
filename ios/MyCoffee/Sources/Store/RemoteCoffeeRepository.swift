@@ -80,4 +80,21 @@ actor RemoteCoffeeRepository: CoffeeRepository {
         let client = try await APIClient(config: AppConfig.shared)
         return try await engine.quickCreateCoffee(photoIds: photoIds, client: client)
     }
+
+    func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState) async -> CoffeeIndex {
+        let client = try? await APIClient(config: AppConfig.shared)
+        return await engine.setBrewState(coffeeId: coffeeId, optionId: optionId, state: state, client: client)
+    }
+
+    func createBrewOption(
+        kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?
+    ) async throws -> BrewOption {
+        let client = try await APIClient(config: AppConfig.shared)
+        return try await engine.createBrewOption(kind: kind, label: label, detail: detail, valueNum: valueNum, recipe: recipe, client: client)
+    }
+
+    func updateBrewOption(id: Int, patch: BrewOptionPatch) async throws -> BrewOption {
+        let client = try await APIClient(config: AppConfig.shared)
+        return try await engine.updateBrewOption(id: id, patch: patch, client: client)
+    }
 }

@@ -14,6 +14,160 @@ _none_
 
 ## Session notes
 
+- **2026-09-12 — #175 done this session (sync hygiene, all five sub-items).**
+  **(a)** `/api/snapshot/text` (~95% of sync bytes, no `since` of its own) now
+  sends `If-None-Match`; `APIClient.snapshotText(ifNoneMatch:)` returns
+  `(texts: [String: String]?, etag: String?)`, `texts` `nil` on a 304 so
+  `SyncEngine.sync` skips the ~300 KB decode and keeps its current
+  `searchTexts`. New `APIClient.sendRaw`/`sendConditional` (private) accept
+  304 alongside 2xx and surface the response `ETag`; `/api/snapshot` itself is
+  untouched — its `since` param changes every call, so a stable conditional
+  GET against it needs the server half (#168), same as the row's own note.
+  New `PersistedSnapshot.searchTextsETag: String?` persists it (schema-safe:
+  `Optional`, decodes `nil` from an old file with no such key). **(b)**
+  `CoffeeStore.load()` now guards its own re-entrancy with a private
+  `isLoading` flag instead of relying solely on the two UX call sites'
+  `index.coffees.isEmpty` check — both can fire before either completes on
+  cold start, so that check alone let two `refresh()`s (and two
+  `snapshotText` fetches, pre-(a)) run serially through the actor. Left
+  `RootTabView`/`CoffeesListView`'s `.task`s untouched: this isn't the
+  enum-case seam rule (nothing there stops compiling), and the idempotency
+  guard alone removes the double fetch. **(c)** `SyncEngine.setFavorite` now
+  awaits only `outbox.enqueueFavorite` (in-memory, fast) before returning the
+  already-mutated `currentIndex()`; the actual `flushOutbox` network call
+  runs in a detached `Task` instead of being awaited, so offline the heart
+  flips immediately instead of waiting up to the outbox's ~60 s timeout.
+  Confirmed this is safe for favorites specifically: `flushOutbox`'s only
+  side effect beyond removing the queued mutation is reconciling a flushed
+  *brew*-state response into `coffees` (`FlushedBrewState`), which a
+  favorite-only flush never produces. Left `setBrewState`'s identical
+  await-before-return shape alone — same latency smell, but out of this
+  row's scope (only "the favorite toggle" is named) and detaching it would
+  drop the brew reconciliation's publish, which needs its own care. **(d)**
+  New `SyncEngine.lastFullSyncAt` (persisted, `Optional`/schema-safe) forces
+  `sync` to fetch `since: nil` at least every 14 days, covering the
+  schema-mismatch-forced-refetch case too (both now flow through one
+  `requestedSince == nil` check) — keeps every coffee's signed `thumbUrl`
+  (30-day expiry, `coffees.js:62`) renewed well before `ImageStore`'s 30-day
+  eviction can turn a 403 into a permanent placeholder, even for a coffee a
+  delta sync would otherwise never re-send. **(e)** Decided: **deleted the
+  ghost**, did not register a real BGTask. `BGTaskSchedulerPermittedIdentifiers`
+  (and `UIBackgroundModes`, equally vestigial — grepped: no
+  `BGTaskScheduler`/`BGAppRefreshTask`/`BGProcessingTask`/background-fetch API
+  is called anywhere in the app) removed from `Info.plist`; the two comments
+  in `MyCoffeeApp.swift`/`ImageStore.swift` that referred to "a BGTask that
+  may never fire" reworded to state plainly that eviction only runs at
+  launch. Rationale: building actual background refresh is a materially
+  bigger feature (registration, a launch handler, battery/network
+  considerations) than this hygiene row's scope, and isn't testable without
+  local Xcode/Simulator (`ios/project.yml` has no test target) — if Radu
+  wants real background sync, that's a fresh backlog row, not a default this
+  lane should assume. No unit test target exists to add coverage to (same
+  gap noted in #178's session entry); reasoned through each change instead —
+  the ETag/304 path was checked against `sendRaw`'s explicit 304 allowance,
+  the idempotency guard against the actor-hop timing (the guard-then-await
+  split has no suspension point before `isLoading = true` lands), and the
+  detached-flush safety against reading `MutationOutbox.flush`'s actual
+  reconciliation logic rather than assuming. `ios/MyCoffee/Info.plist`,
+  `Sources/{App,API,Store}/**`.
+
+- **2026-09-11 (interactive session, Radu: "analyse all lanes… already implement
+  some of the features and solve any blockers") — #113 and #114's shell half
+  done; `ios-staging@ae61f7e`, compile-green at run #112.**
+
+  **#114** was two config blockers the row itself flagged as coming first, and
+  both were real: `project.yml` had `TARGETED_DEVICE_FAMILY: "1"`, so the app
+  ran letterboxed in iPhone compatibility mode on iPad and **no amount of
+  layout work would have been visible**; and `Info.plist` declared portrait
+  only, so it never rotated on any device. Now `"1,2"` plus landscape on
+  iPhone and a `~ipad` variant with all four (iPadOS requires all four of an
+  app that doesn't opt out of multitasking via `UIRequiresFullScreen`). The
+  AppIcon needed nothing — it is a single `universal`/`platform: ios` 1024²,
+  which already covers iPad. The layout ramp is `Features/**`, so it is now
+  **#191** on ios-ux rather than an implied remainder of a "done" row.
+
+  **#113** looked like "add an enum case" and wasn't. The value band is a
+  **library-wide quintile**, so every coffee's score must exist before any one
+  coffee's band can — and `CoffeeIndex.init` computed the value scores *after*
+  `buildPostings`. Moving them before it is the whole change; `valueScoreByRow`
+  / `valueBandByRow` then fall out as parallel arrays, and `valueBand(for:)`
+  becomes a lookup instead of two binary searches per visible row.
+  `SortOption.value` has the same shape of problem: it cannot be decided from
+  two `Coffee`s, so `coffees(matching:sortedBy:)` intercepts it and a new
+  `CoffeeIndex.sectionLabel(for:sort:)` supplies the band. The new
+  `valueBand:` parameter on `SortOption.sectionLabel` **defaults to nil**
+  specifically so no pre-existing call site changed signature.
+
+  Seam edits into UX files per CLAUDE.md §4 (`CoffeeDisplay.swift`'s
+  `FilterDimension.title` / `facetLabel` / `SortOption.displayName`) — but not
+  left as stubs: **#138 shipped in the same session**, so the pills toggle and
+  the sort headers read properly. Also moved the verdict wording onto
+  `ValueRating.Band.label`, which deletes the two hand-rolled `verdictLabel`
+  copies #181 had flagged.
+
+- **2026-09-11 — #156 done this session (Brew lab shell surface: models,
+  wire, store, outbox, query).** `Models/BrewOption.swift` (`BrewKind`,
+  `BrewOption`, `BrewRecipeSpec` incl. `ratio`/`summary`, `BrewTrialState`);
+  `API/Wire/BrewWire.swift` (`BrewOptionDTO`, `BrewRecipeSpecDTO`,
+  `BrewStateResponseDTO`); `VocabDTO.brewOptions` (lenient, `[]` default) and
+  `CompactCoffeeDTO`/`CoffeeDetailDTO.brewTried`/`brewBest` (both `[Int]?`).
+  `Coffee.brewTriedIds`/`brewBestIds` are `[Int]?` (not the spec's literal
+  non-optional `[Int]`) with `triedBrewOptionIds`/`bestBrewOptionIds`
+  nil-coalescing accessors — same pattern as `rotationQuarterTurns`/
+  `rotationTurns`, chosen over a hand-written `CodingKeys`/`init(from:)` for
+  `Coffee` (which has ~30 fields and explicitly avoids a parallel
+  `CodingKeys` enum per its own doc comment) purely because the synthesized
+  decoder already does `decodeIfPresent` for `Optional` properties for free;
+  behavior is identical (missing key -> reads as "nothing tried"). `Coffee.withBrew(tried:best:)`.
+  `Vocabulary.brewOptions: [Int: BrewOption]` + `brewOptions(of:includeArchived:)`
+  + `brewOption(kind:value:)` + `insertingBrewOption(_:)`; no `PersistedSnapshot`
+  schema bump (`decodeIfPresent … ?? []`, same class of fix as `Coffee`'s fields).
+  `APIClient.brewOptions/createBrewOption/updateBrewOption/setBrewState`.
+  `SyncEngine`: `setBrewState` optimistic+outbox (mirrors the server's
+  `nextTrialRows`/`impliedTrials` state machine locally, including the recipe
+  auto-tick), `createBrewOption`/`updateBrewOption` confirmed+throwing;
+  `pendingBrewStates(for:)` applied over both `sync` and `loadDetail`.
+  `MutationOutbox.flush` now returns `[FlushedBrewState]` (was `Void`) so a
+  successful brew POST's whole-state response can replace the coffee's local
+  arrays — every other call site (`setFavorite`/`resolveReview`/
+  `dismissReview`/`sync`) now goes through a new private `SyncEngine.flushOutbox`
+  wrapper instead of calling `outbox.flush` directly, so the reconciliation
+  isn't duplicated per call site. `CoffeeIndex.bestBrewOption/triedBrewOptions/
+  brewState/brewWinRates`. `CoffeeStore.setBrewState/createBrewOption/
+  updateBrewOption` + `brewErrorText`. `SampleCoffeeRepository`/`SampleData`
+  got a small real fixture (3 recipes, 4 devices, a few grind/temp rows, two
+  sample coffees ticked) — `createBrewOption`/`updateBrewOption` still throw
+  `.notConfigured` in the sample repo (no fixture logic to fake a rename),
+  same stance as `editField`.
+
+  **Query half for #158, shipped in the same row per the spec:**
+  `FilterDimension.brewDevice/.brewRecipe/.brewGrind/.brewTemp`, postings over
+  **tried** ids, `CoffeeFilter.brew{Device,Recipe,Grind,Temp}IDs` +
+  `isEmpty`/`clearing`.
+
+  **Seam edit (CLAUDE.md §4) in `Features/Coffees/CoffeeDisplay.swift`
+  (ux-owned) — recorded here and in `status/ios-ux.md`:** added the 4 new
+  cases to `FilterDimension.title`'s exhaustive switch (plain labels: "Brew
+  device"/"Brew recipe"/"Grind size"/"Water temp") and to `facetLabel`'s
+  nested `.vocabID` switch (resolves `vocabulary.brewOptions[id]?.label`
+  instead of falling through to "Unknown" — trivial and correctness-only, no
+  styling). Deliberately did **not** touch `FilterSheetView.swift`'s
+  `toggleFacet`/`isFacetSelected` — both already have a `default:` arm so
+  they compile untouched; wiring an actual tappable "Brew lab" filter group
+  is #158's UX work, not required for `ios-staging` to stay green.
+
+  **No unit test target exists in this project** (`ios/project.yml` only
+  defines the `MyCoffee` application target — no local Xcode/Simulator
+  either), so the spec's ask to "prove [no schema bump] with a pre-change
+  fixture test" isn't mechanically checkable here; verified instead by
+  reasoning through the decode path (every new/changed field is
+  `Optional`-typed or defaults via `decodeIfPresent`) the same way every
+  other backward-compat fix in this file has been.
+
+  Not done: #157 (the UX feature — coffee-page section, `BrewLabSheet`,
+  Settings catalogue) and #158 (filter UI + Insights card) — both ios-ux,
+  now unblocked (#157 flipped `blocked` → `ready`).
+
 - **2026-09-09 — #117(a)/#136/#139 done this session** — see `BACKLOG.md`'s own
   DONE notes for implementation summaries (unknown-postings fix for the four
   band filter dimensions, the `POST /api/coffees/evaluate` client surface, and

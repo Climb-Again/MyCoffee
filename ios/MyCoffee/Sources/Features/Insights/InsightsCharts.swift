@@ -5,38 +5,6 @@ import Charts
 /// `.chartForegroundStyleScale` only — never iOS 18's `BarPlot`/`LinePlot` or
 /// iOS 26's `Chart3D` (PLAN.md §6.4).
 enum ChartPalette {
-    /// A balanced categorical palette (the Tableau-10 hues) — kept only for
-    /// `YearlyStackedChart`'s origin-country/roaster series, which need many
-    /// distinguishable categories at once. The single-dimension pie
-    /// (`CategoryPieChart`) uses `blueRamp` instead (`#99`) — see there for why
-    /// the two charts don't share a palette. `Color.gray` is reserved for the
-    /// "Other" bucket on both so it reads the same way everywhere.
-    static let rotation: [Color] = [
-        Color(red: 0.31, green: 0.48, blue: 0.65),  // blue
-        Color(red: 0.95, green: 0.56, blue: 0.17),  // orange
-        Color(red: 0.35, green: 0.63, blue: 0.31),  // green
-        Color(red: 0.88, green: 0.34, blue: 0.35),  // red
-        Color(red: 0.69, green: 0.48, blue: 0.63),  // purple
-        Color(red: 0.46, green: 0.72, blue: 0.70),  // teal
-        Color(red: 0.93, green: 0.79, blue: 0.28),  // yellow
-        Color(red: 1.00, green: 0.62, blue: 0.65),  // pink
-        Color(red: 0.61, green: 0.46, blue: 0.37),  // brown
-    ]
-
-    static func scale(for categories: [String]) -> (domain: [String], range: [Color]) {
-        var range: [Color] = []
-        var next = 0
-        for category in categories {
-            if category == "Other" {
-                range.append(.gray)
-            } else {
-                range.append(rotation[next % rotation.count])
-                next += 1
-            }
-        }
-        return (categories, range)
-    }
-
     /// Single-hue blue ramp anchored on the brand blue, replacing the
     /// Tableau-10 rotation for the Charts pie (`#99`, Radu: "replace, use
     /// blue palette") — Insights now reads as the same system as the rest of
@@ -189,43 +157,4 @@ struct CategoryPieChart: View {
     }
 }
 
-/// One yearly-stacked-count chart. Colors are pinned via
-/// `.chartForegroundStyleScale(domain:range:)` (PLAN.md §6.4) so a series
-/// never shifts hue between charts; `overrideColors` lets the process chart
-/// reuse `ProcessTag`'s exact hues instead of the generic rotation, so a
-/// color in the chart means the same profile it means in the listing.
-struct YearlyStackedChart: View {
-    let title: String
-    let data: InsightsAggregation.CategoryYearChartData
-    var overrideColors: [String: Color]?
-
-    private var scale: (domain: [String], range: [Color]) {
-        if let overrideColors {
-            return (data.categories, data.categories.map { overrideColors[$0] ?? .gray })
-        }
-        return ChartPalette.scale(for: data.categories)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
-            if data.points.isEmpty {
-                Text("Not enough data yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(height: 80)
-            } else {
-                Chart(data.points) { point in
-                    BarMark(
-                        x: .value("Year", String(point.year)),
-                        y: .value("Coffees", point.count)
-                    )
-                    .foregroundStyle(by: .value("Category", point.category))
-                }
-                .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
-                .frame(height: 200)
-            }
-        }
-    }
-}
 
