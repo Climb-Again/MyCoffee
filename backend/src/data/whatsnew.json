@@ -195,6 +195,10 @@
         {
           "title": "ops/start-extraction-batch.sh exits 0 without POSTing when pending is 0, and the ingest routine says so in…",
           "detail": "Queued behind earlier work."
+        },
+        {
+          "title": "Backfill the missing roaster blurbs — 95 of 110 roasters have none (Radu, 2026-09-13: \"Sophia has no blurb\",…",
+          "detail": "Queued."
         }
       ],
       "ios": [
