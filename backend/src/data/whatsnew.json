@@ -167,10 +167,6 @@
           "detail": "Queued."
         },
         {
-          "title": "Sync shortlist between browsers using the extension (Radu, 2026-09-11: verbatim, \"Sync shortlist between…",
-          "detail": "Queued."
-        },
-        {
           "title": "Extension: manual ±10p score adjustment per coffee (Radu, 2026-09-12: verbatim, 'add a manual +10p / -10p…",
           "detail": "Queued."
         },
@@ -252,6 +248,10 @@
         },
         {
           "title": "Latent: Roaster.countryId always decodes nil — its CodingKey fights .convertFromSnakeCase (found while…",
+          "detail": "Queued."
+        },
+        {
+          "title": "What's New was not built to the full brief — add the Done segment, the seen-state filter row, and…",
           "detail": "Queued."
         }
       ]
