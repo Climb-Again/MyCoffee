@@ -241,6 +241,18 @@
         {
           "title": "Cross-device sync for What's New seen state, phone ↔ iPad (Radu, 2026-09-12: verbatim, 'Well I want exactly…",
           "detail": "Queued."
+        },
+        {
+          "title": "Filter sheet: the \"Unknown\" price pill is drawn but permanently disabled — you can't filter to coffees with…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Roaster logo medallion renders a permanent empty tile — logos never appear on the coffee page or roaster…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Latent: Roaster.countryId always decodes nil — its CodingKey fights .convertFromSnakeCase (found while…",
+          "detail": "Queued."
         }
       ]
     },
