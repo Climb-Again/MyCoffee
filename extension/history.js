@@ -110,7 +110,53 @@ export function entryFromScore(data, { url, title }) {
   };
 }
 
+// ---- remote sync (#194) ----
+//
+// The shortlist moved from per-browser chrome.storage.local to a backend list
+// keyed on the token (`/api/history`), so Chrome, Brave and Firefox — and iOS
+// later (#195) — all see the same rows. chrome.storage.local stays as an
+// OFFLINE CACHE, not the source of truth: reads race the network and fall back
+// to it, writes update it immediately so a row shows before the round-trip
+// finishes. The server owns pruning (#187) — a browser closed for 10 days must
+// not un-prune a row on next sync — so a remote result REPLACES the cache
+// wholesale rather than being merged into it.
+//
+// A dynamic import keeps settings.js out of this module's top half, whose pure
+// functions are unit-tested by evaluating the source text directly (a static
+// `import` there would break that harness).
+async function remoteHistory(method, body) {
+  const { getSettings } = await import('./settings.js');
+  const { baseUrl, writeToken } = await getSettings();
+  // No write token → local-only, exactly as before #194. Syncing is a write
+  // (it stores under that token) and reuses the same INGEST_TOKEN #161 does.
+  if (!writeToken) return null;
+  const res = await fetch(`${baseUrl}/api/history`, {
+    method,
+    headers: {
+      authorization: `Bearer ${writeToken}`,
+      ...(body ? { 'content-type': 'application/json' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return Array.isArray(data?.entries) ? data.entries : null;
+}
+
 export async function loadHistory(now = Date.now()) {
+  // Remote first: the backend list is the shared truth. Prune client-side too
+  // (belt and braces — the server already did) and adopt it as the cache.
+  try {
+    const remote = await remoteHistory('GET');
+    if (remote) {
+      const live = prune(remote, now);
+      await chrome.storage.local.set({ [KEY]: live });
+      return live;
+    }
+  } catch (e) {
+    console.warn('[mycoffee] history sync (read) failed; using local cache', e);
+  }
+  // Fallback: local cache (no write token, or the network is down).
   const stored = await chrome.storage.local.get(KEY);
   const live = prune(stored?.[KEY], now);
   // Write back only when pruning actually removed something, so a plain read
@@ -123,13 +169,36 @@ export async function loadHistory(now = Date.now()) {
 
 export async function recordVisit(data, { url, title }, now = Date.now()) {
   if (!url) return null;
+  const entry = entryFromScore(data, { url, title });
+  // Update the local cache immediately so the row is present offline and
+  // before the round-trip returns.
   const stored = await chrome.storage.local.get(KEY);
-  const next = upsert(stored?.[KEY], entryFromScore(data, { url, title }), now);
-  await chrome.storage.local.set({ [KEY]: next });
-  return next;
+  const local = upsert(stored?.[KEY], entry, now);
+  await chrome.storage.local.set({ [KEY]: local });
+  // Then sync. The server upserts, prunes and returns the merged list, so a
+  // row saved on another browser appears here too; adopt it as the cache.
+  try {
+    const remote = await remoteHistory('POST', entry);
+    if (remote) {
+      const live = prune(remote, now);
+      await chrome.storage.local.set({ [KEY]: live });
+      return live;
+    }
+  } catch (e) {
+    console.warn('[mycoffee] history sync (write) failed; kept locally', e);
+  }
+  return local;
 }
 
 export async function clearHistory() {
+  // Clear the shared list too, or the next loadHistory would pull it straight
+  // back from the server. Best-effort: if the remote clear fails, the local
+  // wipe still happens and the next successful sync reconciles.
+  try {
+    await remoteHistory('DELETE');
+  } catch (e) {
+    console.warn('[mycoffee] history clear (remote) failed; cleared locally', e);
+  }
   await chrome.storage.local.set({ [KEY]: [] });
 }
 
