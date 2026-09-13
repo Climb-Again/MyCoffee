@@ -374,3 +374,74 @@ no further code changes.
   and nobody else will pick it up** — archive the 123 `done`/`dropped` rows and the
   52 KB of post-table prose out of the 321 KB `status/BACKLOG.md`. This routine's
   prompt is the ship cycle only, so it was not claimed here.
+
+- **2026-09-13 (autopilot session, Sun cron) — routine ship, clean merge, green on
+  the first dispatch: run #127 (`f616cc7`).** Nothing needed fixing; this entry
+  exists mostly to confirm two traps the last two sessions paid for are now cheap
+  to step around.
+  Step 0: `origin/main..origin/ios-staging` = **43 commits** — a plausible number
+  this time, but the shallow clone is still there (`.git/shallow` present), so the
+  check that actually decided it was the tree: merge base `a99fb20`,
+  `git diff --stat origin/main..origin/ios-staging` = **70 files, +4125/−954**.
+  Real work, 43 commits' worth.
+  Step 1: dispatch via the session's **GitHub MCP connector**
+  (`mcp__github__actions_run_trigger`), `204`, as established 2026-08-27 — all six
+  env PAT candidates return `403` on `POST .../dispatches`, so none were retried.
+  `$GH_TOKEN` handled every read (run + job polling via `curl`); the repo is public.
+  Step 2: `ios-staging` tip `61f4567` was compile-green — strictly, run **#125**
+  was green at `1271351`, and the two commits after it (`9aeaea0`, `61f4567`)
+  touch only `backend/src/data/whatsnew.json` and `status/ios-ux.md`, so no
+  `ios/**` change went unchecked.
+  **The merge was conflict-free and the scary hunk was again a phantom.** The
+  base-relative diff showed `backend/migrations/036_whatsnew_seen.sql` **−14**,
+  `backend/test/whatsnew-seen.test.js` **−80** and `backend/src/routes/whatsnew.js`
+  **−43** — i.e. it read as if merging would revert #201's backend half, shipped to
+  `main` the day before. It would not, and the one-line proof is the same one the
+  2026-09-10 entry used for `extension/`: `git log a99fb20..origin/ios-staging --
+  backend/ extension/` lists exactly one commit (the generated whatsnew regen), so
+  the iOS lanes never touched that code and those minus signs are main's *newer*
+  work seen from the base. Confirmed on the merge result rather than assumed:
+  `git diff --stat origin/main HEAD -- backend/ extension/` → **empty**, migration
+  036 still on disk, `routes/whatsnew.js` still carries the seen endpoints (14
+  hits), extension manifest still 1.4.1.
+  `status/BACKLOG.md` needed no reconciliation: the only difference was that
+  `ios-staging` predates row **#201**, so main's copy is a strict superset and the
+  merge result is byte-identical to `git show origin/main:status/BACKLOG.md`.
+  `check-backlog.sh` green, **189 rows**. `ops/gen-whatsnew-plan.mjs` was one item
+  stale (#201 missing from the plan half) and was regenerated in the same commit —
+  the push therefore touches exactly one file under `backend/`, the generated one
+  the railway-deploy path filter negates, so **no redeploy and no SIGTERM risk to a
+  running extraction job**. Pushed `86ca72e..f616cc7`.
+  **Heeded the 2026-09-10 warning and it held:** after `git merge origin/ios-staging`,
+  do **not** `git pull --rebase` (it tries to replay the merge across the shallow
+  boundary and dies on `92b6109`). Used `git fetch origin main` +
+  `git merge-base --is-ancestor origin/main HEAD` instead — fast-forward confirmed,
+  push clean, no detached-HEAD confusion.
+  Step 3: the push queued compile run **#126** on `main` (green). Waited for it
+  rather than dispatching straight away — belt and braces, since main carried **no
+  independent `ios/**` commits since the merge base (`git log a99fb20..86ca72e --
+  ios/` is empty), so the merged iOS tree is byte-identical to the one run #125
+  already compiled. Publish dispatch **#127** then ran 15:03:39→15:05:48 UTC,
+  **success**; job steps confirm `Build & upload to TestFlight` **actually ran**
+  (129 s) and `Compile check (no upload)` was skipped, as expected for
+  `publish=true`. No fix-and-retry loop entered.
+  Shipped, in rough order: #156/#157 (Brew lab — models/store/outbox/query shell
+  surface, then the coffee-page section, logging sheet and Settings catalogue),
+  #158 (Brew filter group + Insights "Brew winners" card), the WebP roaster-logo
+  render fix (`UIImage` with a nil `cgImage`), #113/#114/#138 (iPad + rotation,
+  value band as filter and sort), #149/#150/#151 (Coffees list header), #167
+  (extraction retry storm — Gemini 4xx bail, deadline + lease heartbeat),
+  #179(a)–(e) (UX correctness batch), #125 (Evaluate this coffee screen),
+  #181 + #193 (dedupe: `ValueMeterView`, `EyebrowLabel`, `EntityHeader`, `Pill`,
+  `TogglePill`, `.plainListRow()`, `Int.normalizedQuarterTurns`, plus dead-code
+  deletions incl. `FeatureFlags`, `ProcessTag`, `ReviewSampleData`), #191 (iPad
+  landscape readable-width clamp), #175 (sync hygiene — conditional snapshot/text
+  GET, idempotent cold-start load, detached favorite flush, 14-day full-sync
+  refresh, BGTask ghost removed) and #200 (What's New per-entry seen state, Mark
+  all seen, Settings badge). 70 files, +4125/−954.
+  Processing (~20 min, async, `skip_waiting_for_build_processing: true`)
+  **unconfirmed** — CI green is an upload receipt, not an acceptance.
+  **Still open for a future publish session: backlog #182 is `publish`-lane and
+  `ready`** — archive the `done`/`dropped` rows and the post-table prose out of
+  `status/BACKLOG.md`. Not claimed here; this routine's prompt is the ship cycle
+  only. It has now been carried for two sessions.
