@@ -26,6 +26,7 @@ import reviewRoutes from './routes/review.js';
 import adminRoutes from './routes/admin.js';
 import whatsnewRoutes from './routes/whatsnew.js';
 import scoreRoutes from './routes/score.js';
+import historyRoutes from './routes/history.js';
 
 export async function build() {
   const app = Fastify({
@@ -79,6 +80,7 @@ export async function build() {
   await app.register(adminRoutes);
   await app.register(whatsnewRoutes);
   await app.register(scoreRoutes);
+  await app.register(historyRoutes);
 
   return app;
 }

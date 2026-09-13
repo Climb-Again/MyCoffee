@@ -221,9 +221,14 @@ Coffees with no headline score (no price on the page) are still saved but can't
 be ranked, so they're counted at the bottom rather than sorted as if they were
 zero.
 
-**This lives in the browser, not the backend** — it needs no token and no
-round-trip, and it stays on this machine. The tradeoff is that it doesn't reach
-the iOS app; say so if you'd rather it did.
+**The shortlist syncs across browsers (#194).** As of v1.5.0 it lives on the
+backend, keyed by your token, so Chrome, Brave and Firefox that hold the same
+write token all show the same list (and the iOS app will read it later, #195).
+`chrome.storage.local` stays as an offline cache: reads race the network and
+fall back to the cache, writes update it immediately, and the server owns the
+10-day pruning so a browser closed for a week can't un-prune a row on sync. A
+browser with **no write token set** keeps the old browser-only behaviour —
+nothing syncs, and that's fine for read-only use.
 
 ## Limits
 
