@@ -111,7 +111,7 @@ final class WhatsNewSeenStore: ObservableObject {
         self.config = config
         Task { [weak self] in
             guard let self else { return }
-            guard let client = try? await APIClient(config: config),
+            guard let client = try? APIClient(config: config),
                   let remote = try? await client.whatsNewSeen() else { return }
             self.seen = Set(remote)
             self.persist()
@@ -124,7 +124,7 @@ final class WhatsNewSeenStore: ObservableObject {
     private func push(key: String, seen isSeen: Bool) {
         guard let config else { return }
         Task {
-            guard let client = try? await APIClient(config: config) else { return }
+            guard let client = try? APIClient(config: config) else { return }
             _ = try? await client.setWhatsNewSeen(key: key, seen: isSeen)
         }
     }

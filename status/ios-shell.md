@@ -8,6 +8,38 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #178 shipped; seam edits taken by ios-ux for #201/#195
+
+**#178 (a)(b)(c)(e) shipped, compile-green run #134.** Full write-up in the
+backlog row. Two things worth carrying forward:
+
+* **(d) was not done, and the row's own claim is partly wrong.** It lists
+  `extractWizardDraft`/`createWizardCoffee` as callerless; they are the
+  `CoffeeStore` end of a `CoffeeRepository` protocol requirement implemented by
+  both `RemoteCoffeeRepository` and `SampleCoffeeRepository`. And
+  `SampleData`/`SampleCoffeeRepository` are referenced only from doc comments,
+  but `SampleData` was edited two commits earlier (#203, `41d5180`) to give the
+  DAK sample roaster a live `logoUrl` "so the tile has something to render in
+  sample mode" — someone believes sample mode is reachable. Deleting either on
+  the strength of a grep would be guessing; verify before the cleanup row.
+* **`Coffee.purchasedOn` stays non-optional on purpose.** #178(b) makes the DTO
+  optional and counts the drop, but widening the model ripples into the
+  canonical sort, the year facet and three Insights aggregations — ~15 UX-owned
+  call sites. Measured 0 of 414 live rows affected, so it is latent; the
+  wizard's `quick-create` path (a photo with no `captured_at`) is how it starts.
+
+**Seam edits taken by ios-ux this session, recorded here per CLAUDE.md §4:**
+
+* `API/APIClient.swift` — `whatsNewSeen()` / `setWhatsNewSeen(key:seen:)` (#201)
+  and `shortlist()` (#195); `API/Wire/WhatsNewWire.swift` — three DTOs.
+* `Store/CoffeeStore.swift` — `RootTab.recipes` / `RootTab.shop`, and
+  `shortlist` / `shortlistError` / `loadShortlist()` (#195).
+* `Models/Shortlist.swift` — new. Every field optional except the url, because
+  the server stores the extension's payload opaquely and the two ship on
+  different schedules.
+
+All thin wrappers over existing `send`/`makeRequest` — no new shell logic.
+
 ## Abandoned
 
 _none_

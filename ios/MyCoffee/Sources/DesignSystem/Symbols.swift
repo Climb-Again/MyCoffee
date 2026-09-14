@@ -21,14 +21,6 @@ enum Lucide {
     static let pencil = "lucide-pencil"
     static let search = "lucide-search"
 
-    // #195's two new tabs have NO Lucide asset in Assets.xcassets — there are
-    // only 13 imagesets and none of them is a flask or a storefront. Redesign
-    // v3 §11 wants Lucide outlines on the tab bar, so these two SF Symbols are
-    // a deliberate, visible placeholder rather than an oversight: adding an
-    // asset means art, and art is Radu's call. Swap `tabRecipesFallback` /
-    // `tabShopFallback` for `lucide-*` the moment the glyphs land.
-    static let tabRecipesFallback = "flask"
-    static let tabShopFallback = "bag"
 }
 
 /// A Lucide (or any template) asset image sized explicitly — asset images
@@ -58,6 +50,14 @@ enum Symbols {
     static let tabInsights = "chart.bar"
     static let tabAdd = "plus.circle.fill"
     static let tabReview = "checklist"
+    // #195's two new tabs have NO Lucide asset in Assets.xcassets — there are
+    // only 13 imagesets and none of them is a flask or a storefront. Redesign
+    // v3 §11 wants Lucide outlines on the tab bar, so these two SF Symbols are
+    // a deliberate, visible placeholder rather than an oversight: adding an
+    // asset means art, and art is Radu's call. Swap `tabRecipesFallback` /
+    // `tabShopFallback` for `lucide-*` the moment the glyphs land.
+    static let tabRecipesFallback = "flask"
+    static let tabShopFallback = "bag"
 
     // Listing
     static let filter = "line.3.horizontal.decrease.circle"

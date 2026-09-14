@@ -8,6 +8,35 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #205, #201, #192, #195
+
+Four rows, two compile-green runs (#135 for #205/#201; #136 for #192/#195).
+Full write-ups in the backlog rows. What is worth carrying forward:
+
+* **#205's `Done` segment is derived, not fetched.** `/api/whatsnew` has `live`
+  and `plan` and nothing else; "done" is a per-person fact the server has no
+  opinion about. Live and Done partition `response.live`, so nothing can hide
+  between them, and there is still exactly one definition of the tick.
+* **#205(c)'s swipe needed a new store method, not `toggle`.** Swiping an
+  already-unchecked card would have *re-checked* it. `markNotSeen` is
+  idempotent.
+* **#201 REPLACES the local seen set on a successful GET.** A union looks
+  safer and is wrong: it can never un-check anything, so un-ticking on the iPad
+  would be silently undone by the phone's next sync.
+* **#195's Shop tab renders the server's order as-is.** Re-ranking on the phone
+  would be a second definition of one list, and the phone and the browser would
+  disagree about which bag is top with no way to tell which was right.
+* **⚠ Open for Radu — the two new tabs use SF Symbols, not Lucide.**
+  Redesign v3 §11 wants Lucide outlines on the tab bar; `Assets.xcassets` has
+  13 imagesets and none is a flask or a storefront. Adding one means art.
+  Named `tabRecipesFallback` / `tabShopFallback` in `Symbols.swift` so the
+  placeholder cannot be mistaken for a decision.
+
+**Seam edits made into ios-shell-owned files** (also recorded in
+`status/ios-shell.md`): `APIClient.whatsNewSeen`/`setWhatsNewSeen`/`shortlist`,
+three wire DTOs, `RootTab.recipes`/`.shop`, `CoffeeStore.shortlist`/
+`shortlistError`/`loadShortlist()`, and a new `Models/Shortlist.swift`.
+
 ## Abandoned
 
 _none_

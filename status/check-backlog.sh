@@ -7,25 +7,36 @@
 # next number" from a stale read. A lane greps `^| 109 |` to claim work and
 # would have got two unrelated rows — Indonesia/Thailand and a value-meter
 # redefinition. Radu: "always ensure no duplicates."
+#
+# #182: rows are archived to status/archive/BACKLOG-done.md once nothing open
+# depends on them, so BOTH files are read here. Row numbers are NEVER reused —
+# a duplicate across the two files is the same hazard as a duplicate within one
+# (a lane greps only the live file and would silently get the wrong history),
+# and a `needs` pointing at an archived row is perfectly valid.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 F=status/BACKLOG.md
+A=status/archive/BACKLOG-done.md
 [ -f "$F" ] || { echo "check-backlog: $F not found"; exit 1; }
+# The archive is optional: a fresh checkout before #182's split has no such
+# file, and this check must not start failing because of that.
+FILES=("$F")
+[ -f "$A" ] && FILES+=("$A")
 
 fail=0
 
-dupes=$(grep -oE '^\| *[0-9]{1,3} *\|' "$F" | tr -d '| ' | sort -n | uniq -d)
+dupes=$(grep -hoE '^\| *[0-9]{1,3} *\|' "${FILES[@]}" | tr -d '| ' | sort -n | uniq -d)
 if [ -n "$dupes" ]; then
   echo "FAIL duplicate row numbers:"
   for n in $dupes; do
-    echo "  #$n appears $(grep -cE "^\| *$n *\|" "$F") times:"
-    grep -E "^\| *$n *\|" "$F" | cut -c1-110 | sed 's/^/      /'
+    echo "  #$n appears $(grep -hcE "^\| *$n *\|" "${FILES[@]}" | paste -sd+ | bc) times across $(printf '%s ' "${FILES[@]}"):"
+    grep -hE "^\| *$n *\|" "${FILES[@]}" | cut -c1-110 | sed 's/^/      /'
   done
   fail=1
 fi
 
 # every `needs` must point at a row that exists
-known=$(grep -oE '^\| *[0-9]{1,3} *\|' "$F" | tr -d '| ' | sort -n | uniq)
+known=$(grep -hoE '^\| *[0-9]{1,3} *\|' "${FILES[@]}" | tr -d '| ' | sort -n | uniq)
 missing=""
 while IFS= read -r line; do
   row=$(echo "$line" | awk -F'|' '{gsub(/ /,"",$2); print $2}')
@@ -38,6 +49,8 @@ if [ -n "$missing" ]; then
 fi
 
 if [ "$fail" = 0 ]; then
-  echo "check-backlog: OK — $(echo "$known" | wc -l | tr -d ' ') rows, no duplicates, no dangling needs"
+  live=$(grep -cE '^\| *[0-9]{1,3} *\|' "$F")
+  total=$(echo "$known" | wc -l | tr -d ' ')
+  echo "check-backlog: OK — $live live + $((total - live)) archived = $total rows, no duplicates, no dangling needs"
 fi
 exit $fail

@@ -51,6 +51,31 @@ is invisible in the green CI run — check ASC / email.
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #182: the backlog is 58 KB, not 435 KB
+
+`status/BACKLOG.md` **435 KB → 58 KB** (197 rows → 21 live). Every lane past
+the step-0 gate, and every interactive session, was reading all of it.
+
+**Read the row's two criteria as it writes them** — "phase < the lowest open
+phase, **and** any `done` row no open row `needs`". The phase clause alone left
+243 KB, because the lowest open phase is 8 and every phase-8/9/10 `done` row
+would have stayed — which are exactly the rows nothing depends on any more. A
+`done` row an open row still `needs` stays live, so a lane checking its
+dependencies never has to open two files.
+
+`check-backlog.sh` now reads **both** files for the duplicate check and for
+resolving `needs`; verified by injecting an archived row number into the live
+file (fails across files) and by a `needs` pointing at an archived row (passes).
+The archive is optional, so a checkout predating the split still passes.
+`status/README.md`'s numbering rule greps both — max over the live file alone
+would hand out a number an archived row already owns — and
+`sync-backlog-rows.sh` now distinguishes "already archived on main" from "does
+not exist on main", which used to be the same misleading message.
+
+**`status/backend.md` only went 128 KB → 121 KB.** Its one section older than
+30 days is #49 (2026-08-14); everything else genuinely falls inside the window
+the row specifies. Said plainly rather than stretching the rule to hit a number.
+
 ## Done
 
 ### 2026-09-06 UTC (Sun cron): nothing to ship — but found and fixed why the iOS lanes went quiet

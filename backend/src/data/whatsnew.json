@@ -134,10 +134,6 @@
       "data": [],
       "ios": [
         {
-          "title": "Split from #179(f) (2026-09-11) — #179's (a)-(e) shipped ios-staging@14f6257, this is just the part gated on…",
-          "detail": "Queued behind earlier work."
-        },
-        {
           "title": "Make the package's product name the default coffee title",
           "detail": "Queued behind earlier work."
         },
@@ -148,26 +144,6 @@
         {
           "title": "Push notification when a new roaster lands with no logo/blurb (Radu wants a real push, not just the in-app…",
           "detail": "Queued behind earlier work."
-        },
-        {
-          "title": "Shell hygiene batch (Audit 2026-09-09)",
-          "detail": "Queued."
-        },
-        {
-          "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
-          "detail": "Queued."
-        },
-        {
-          "title": "Nav bar: add Shop + Recipes tabs, reorder to Coffees · Recipes · + · Shop · Insights (Radu, 2026-09-12:…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Cross-device sync for What's New seen state, phone ↔ iPad (Radu, 2026-09-12: verbatim, 'Well I want exactly…",
-          "detail": "Queued."
-        },
-        {
-          "title": "What's New was not built to the full brief — add the Done segment, the seen-state filter row, and…",
-          "detail": "Queued."
         }
       ]
     },

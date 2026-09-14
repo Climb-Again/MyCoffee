@@ -19,35 +19,43 @@ struct ShopTabView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let error = store.shortlistError, store.shortlist.isEmpty {
-                    ContentUnavailableView {
-                        Label("Couldn't load your shortlist", systemImage: Symbols.syncFailed)
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("Try again") { Task { await store.loadShortlist() } }
-                    }
-                } else if store.shortlist.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing shortlisted",
-                        systemImage: Symbols.tabShopFallback,
-                        description: Text("Coffees you evaluate with the browser extension show up here for 30 days.")
-                    )
-                } else {
-                    List(store.shortlist) { entry in
-                        ShortlistRow(entry: entry)
-                            .plainListRow()
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                }
-            }
-            .navigationTitle("Shop")
-            .navigationBarTitleDisplayMode(.large)
-            .refreshable { await store.loadShortlist() }
+            content
+                .navigationTitle("Shop")
+                .navigationBarTitleDisplayMode(.large)
+                .refreshable { await store.loadShortlist() }
         }
         .task { await store.loadShortlist() }
+    }
+
+    /// A `@ViewBuilder` property, deliberately NOT a `Group { … }`: a bare
+    /// `Group` wrapping these three branches made Swift pick the
+    /// `TableColumnBuilder` overload of `Group.init` and fail with "generic
+    /// parameter 'R' could not be inferred" (run #136). `@ViewBuilder` pins the
+    /// result-builder, so there is nothing to guess.
+    @ViewBuilder
+    private var content: some View {
+        if let error = store.shortlistError, store.shortlist.isEmpty {
+            ContentUnavailableView {
+                Label("Couldn't load your shortlist", systemImage: Symbols.syncFailed)
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Try again") { Task { await store.loadShortlist() } }
+            }
+        } else if store.shortlist.isEmpty {
+            ContentUnavailableView(
+                "Nothing shortlisted",
+                systemImage: Symbols.tabShopFallback,
+                description: Text("Coffees you evaluate with the browser extension show up here for 30 days.")
+            )
+        } else {
+            List(store.shortlist) { entry in
+                ShortlistRow(entry: entry)
+                    .plainListRow()
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
     }
 }
 

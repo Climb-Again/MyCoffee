@@ -54,7 +54,14 @@ for n in "$@"; do
     continue
   fi
   if ! grep -qE "^\| *$n *\|" status/BACKLOG.md; then
-    echo "sync-backlog-rows: #$n does not exist on main — file the row on main first, don't sync it in" >&2
+    # #182: a row that is only in the archive is already `done` and nothing
+    # open depends on it, so a sync attempt means the ios-staging copy is
+    # behind — say which, rather than the misleading "does not exist".
+    if [ -f status/archive/BACKLOG-done.md ] && grep -qE "^\| *$n *\|" status/archive/BACKLOG-done.md; then
+      echo "sync-backlog-rows: #$n is already archived on main (done, nothing open needs it) — nothing to sync" >&2
+    else
+      echo "sync-backlog-rows: #$n does not exist on main — file the row on main first, don't sync it in" >&2
+    fi
     continue
   fi
   ROW_N="$n" SRC="$SOURCE" python3 - <<'PY'
