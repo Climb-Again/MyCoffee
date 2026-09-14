@@ -43,6 +43,7 @@ import {
   backfillFlavorNotes,
   backfillRoastDates,
   countPendingPhotos,
+  queueImagePass,
 } from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
@@ -238,6 +239,23 @@ export default async function adminRoutes(app) {
     // model, or after a photo is re-uploaded. Off by default.
     const retryExhausted = req.body?.retryExhausted === true;
     return backfillOcrText({ limit, spendCapUsd, includeCaptioned, retryExhausted });
+  });
+
+  // #126(a/b): mark photos for their one image pass, so the next job actually
+  // re-reads the bag. Every photo is `processed`, so without this a job claims
+  // nothing — there is no "extract it again" in the worker, only #126(c)'s
+  // escalation flag, which this sets. $0 on the free tier; the real bound is
+  // the per-minute/per-day quota, so queue in batches and let the daily job
+  // (or an explicit POST /api/admin/jobs) drain them.
+  app.post('/api/admin/queue-image-pass', { preHandler: requireIngestToken }, async (req) => {
+    const limit = req.body?.limit != null ? Math.max(1, Math.min(2000, Number(req.body.limit))) : 500;
+    // Default true: queue only coffees still missing a core field. `false`
+    // queues every photo with an image — that is the full corpus re-read.
+    const onlyMissingCore = req.body?.onlyMissingCore !== false;
+    // The only way past `image_pass_at`, i.e. to re-do a photo that has already
+    // had its one pass. Off by default so a repeated call cannot loop.
+    const force = req.body?.force === true;
+    return queueImagePass({ limit, onlyMissingCore, force });
   });
 
   // #79/#80: extract flavour notes for coffees that predate the feature. Reads

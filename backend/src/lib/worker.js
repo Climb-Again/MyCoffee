@@ -425,6 +425,50 @@ export function claimableWhereSql({ failuresParam = '$1' } = {}) {
       AND extraction_leased_until IS NULL`;
 }
 
+// #126(a/b): queue photos for their one image pass.
+//
+// Radu approved the full re-extraction ("all"). The obstacle: every one of the
+// 413 photos is already `processed`, so a normal job claims nothing — the
+// worker has no notion of "do it again". #126(c) added exactly the flag that
+// does, so this reuses it rather than inventing a second path: set
+// `needs_image_pass`, and the next job sends each photo's image whatever its
+// own `includeImages` says.
+//
+// `onlyMissingCore` (the default) queues only photos whose coffee is still
+// missing one of REQUIRED_FIELDS — the 187 thin records #126 measured, not the
+// 226 that already carry the whole bag card verbatim. `force` re-queues even
+// photos that have had a pass, and is the only way past `image_pass_at`.
+//
+// Idempotent: re-running queues the same set and the flag is already true.
+export async function queueImagePass({ limit = 500, onlyMissingCore = true, force = false } = {}) {
+  const cap = Math.max(1, Math.min(2000, Number(limit) || 500));
+  const { rows } = await query(
+    `WITH candidate AS (
+       SELECT p.id
+         FROM photos p
+         JOIN coffees c ON c.photo_id = p.id AND c.deleted_at IS NULL
+        WHERE p.has_image
+          ${force ? '' : 'AND p.image_pass_at IS NULL'}
+          ${onlyMissingCore ? `AND EXISTS (
+                SELECT 1 FROM unnest($2::text[]) AS f(field)
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM field_resolutions fr
+                    WHERE fr.photo_id = p.id AND fr.field = f.field AND fr.value IS NOT NULL
+                 )
+              )` : ''}
+        ORDER BY p.id
+        LIMIT $1
+     )
+     UPDATE photos p
+        SET needs_image_pass = true${force ? ', image_pass_at = NULL' : ''}
+       FROM candidate
+      WHERE p.id = candidate.id
+      RETURNING p.id`,
+    onlyMissingCore ? [cap, REQUIRED_FIELDS] : [cap],
+  );
+  return { queued: rows.length, pending: await countPendingPhotos() };
+}
+
 // #170: how many photos a worker started right now would actually find.
 //
 // Jobs 42-54 (13 straight days) returned `photosDone: 0, spentUsd: 0`: each
