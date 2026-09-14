@@ -6,13 +6,30 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-14 10:47 UTC] #180 route hero/zoom/review `display` images through `ImageStore`, fix thumb-as-hero flash; seam edit to `CoffeeMapping.swift:62` (compact mapping no longer seeds `display` from `thumbUrl`) recorded in `status/ios-shell.md` too — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — #180 route hero/zoom/review `display` images through
+  `ImageStore`, fix the thumb-as-hero flash.** New `DesignSystem/CachedImage.swift`
+  mirrors `AsyncImage`'s phase-based API (`.empty`/`.success`/`.failure`) but
+  decodes via `ImageStore.shared.thumbnail(for:maxPixelSize:)`, at the #177
+  `displayMaxPixelSize` (1080) tier. Swapped in at all three sites named in the
+  row: `CoffeeDetailView.heroImage`, `ZoomableImageView.content`,
+  `ReviewCardView.ReviewPhoto`. **Seam edit** (recorded in `status/ios-shell.md`
+  too): `CoffeeMapping.swift`'s compact-snapshot mapping no longer seeds
+  `images.display` from `thumbUrl` — it now uses the empty-string "no URL yet"
+  sentinel `CoffeeDetailDTO.makeCoffee` already uses for a missing URL, so a
+  detail-less coffee page shows the hero placeholder instead of a blown-up
+  320px thumbnail until the detail fetch supplies the real photo.
+  `CoffeeDetailView.hasPhoto` and `CachedImage`'s own guard both treat an empty
+  string the same as `nil`. Landed `30889bb`. Couldn't verify on-device (no
+  Xcode in a session) — compile-check is the only verification available this
+  session.
 
 - **2026-09-12 (iOS UX lane routine) — #193 shared `TogglePill`.** New
   `DesignSystem/TogglePill.swift` unifies `CoffeesListView.filterChip`,
