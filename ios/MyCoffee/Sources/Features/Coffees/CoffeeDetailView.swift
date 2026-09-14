@@ -125,7 +125,7 @@ struct CoffeeDetailView: View {
     }
 
     private var hasPhoto: Bool {
-        (coffee.images?.display).flatMap(URL.init(string:)) != nil
+        !(coffee.images?.display.isEmpty ?? true)
     }
 
     /// §1: bare white heart, no chip/circle behind it. Favourited vs not
@@ -153,17 +153,13 @@ struct CoffeeDetailView: View {
 
     private var heroImage: some View {
         ZStack {
-            if let url = (coffee.images?.display).flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    if case let .success(image) = phase {
-                        image.resizable().scaledToFill()
-                            .rotationEffect(.degrees(Double(coffee.rotationTurns) * 90))
-                    } else {
-                        heroPlaceholder
-                    }
+            CachedImage(urlString: coffee.images?.display) { phase in
+                if case let .success(image) = phase {
+                    image.resizable().scaledToFill()
+                        .rotationEffect(.degrees(Double(coffee.rotationTurns) * 90))
+                } else {
+                    heroPlaceholder
                 }
-            } else {
-                heroPlaceholder
             }
         }
         .frame(height: 300)

@@ -199,19 +199,15 @@ private struct ReviewPhoto: View {
     var body: some View {
         ZStack {
             Rectangle().fill(Color.black.opacity(0.85))
-            if let url = urlString.flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image.resizable().scaledToFit()
-                    case .failure:
-                        placeholderContent
-                    default:
-                        ProgressView().tint(.white)
-                    }
+            CachedImage(urlString: urlString) { phase in
+                switch phase {
+                case let .success(image):
+                    image.resizable().scaledToFit()
+                case .failure:
+                    placeholderContent
+                case .empty:
+                    ProgressView().tint(.white)
                 }
-            } else {
-                placeholderContent
             }
         }
         .frame(height: 260)

@@ -81,9 +81,12 @@ extension CompactCoffeeDTO {
             rotationQuarterTurns: rotationQuarterTurns,
             // The compact snapshot now carries a signed thumbnail so the listing
             // shows photos (and a re-sync doesn't wipe a detail-loaded thumb).
-            // `display` is seeded from the same URL as a reasonable hero
-            // placeholder until a detail fetch supplies the full-size one.
-            images: thumbUrl.map { CoffeeImageURLs(thumb: $0, display: $0, ocr: nil) },
+            // `display` is left as the empty-string "no URL yet" sentinel
+            // (matching `CoffeeDetailDTO.makeCoffee`'s `?? ""` below) rather
+            // than seeded from the thumb URL — seeding it produced a 320-px
+            // thumb blown up to the hero's 300pt frame that then swapped to
+            // the real photo once a detail fetch landed (#180, iOS UX).
+            images: thumbUrl.map { CoffeeImageURLs(thumb: $0, display: "", ocr: nil) },
             brewTriedIds: brewTried,
             brewBestIds: brewBest
         )

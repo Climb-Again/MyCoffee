@@ -112,31 +112,23 @@ struct ZoomableImageView: View {
     }
 
     private var content: some View {
-        Group {
-            if let url = urlString.flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .rotationEffect(.degrees(Double(rotationTurns) * 90))
-                            .scaleEffect(displayScale)
-                            .offset(displayOffset)
-                            .gesture(SimultaneousGesture(pinchGesture, dragGesture))
-                            .onTapGesture(count: 2, perform: toggleZoom)
-                    case .failure:
-                        Image(systemName: Symbols.reviewPhotoMissing)
-                            .font(.system(size: 56))
-                            .foregroundStyle(.white.opacity(0.5))
-                    default:
-                        ProgressView().tint(.white)
-                    }
-                }
-            } else {
+        CachedImage(urlString: urlString) { phase in
+            switch phase {
+            case let .success(image):
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .rotationEffect(.degrees(Double(rotationTurns) * 90))
+                    .scaleEffect(displayScale)
+                    .offset(displayOffset)
+                    .gesture(SimultaneousGesture(pinchGesture, dragGesture))
+                    .onTapGesture(count: 2, perform: toggleZoom)
+            case .failure:
                 Image(systemName: Symbols.reviewPhotoMissing)
                     .font(.system(size: 56))
                     .foregroundStyle(.white.opacity(0.5))
+            case .empty:
+                ProgressView().tint(.white)
             }
         }
     }
