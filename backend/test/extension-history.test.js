@@ -327,3 +327,77 @@ test('#199: ranking uses the recomputed score, not the stored one', () => {
   const { top } = rank([stale, fresh], { now: NOW });
   assert.equal(top[0].url, fresh.url, 'a 200-day-old bag still outranked a fresh one');
 });
+
+
+// ---- #214: empty server response must not wipe local unsynced writes ----
+//
+// The "shortlist" bug Radu hit right after the dynamic-import fix (#213):
+// GET returned `{entries: []}` for a token whose POSTs had all silently
+// failed pre-1.6.1, and `if (remote)` treated the empty array as truthy —
+// `Boolean([])` is `true` in JS — so the local cache was overwritten with
+// `[]` on every popup open. The fix pins the semantic: adopt a remote list
+// only when it is BOTH an array AND non-empty. Locking that in with a test
+// so the shape can't drift back.
+
+import { loadHistory } from '../../extension/history.js';
+
+// Minimal chrome.storage.local + fetch stubs. history.js's `remoteHistory`
+// reads baseUrl/token/writeToken via settings.js's `chrome.storage.local.get`,
+// so the stub must return the whole backing dict for any array-of-keys or
+// undefined arg, not only when the caller asks for exactly 'history'.
+function installStubs({ initial = [], gotEntries = null } = {}) {
+  const backing = { history: initial.slice(), baseUrl: 'https://server.test', token: 'r', writeToken: 'w' };
+  const posted = [];
+  globalThis.chrome = {
+    storage: {
+      local: {
+        get: async (keys) => {
+          if (keys == null) return { ...backing };
+          if (typeof keys === 'string') return keys in backing ? { [keys]: backing[keys] } : {};
+          if (Array.isArray(keys)) {
+            const out = {};
+            for (const k of keys) if (k in backing) out[k] = backing[k];
+            return out;
+          }
+          return { ...backing };
+        },
+        set: async (obj) => Object.assign(backing, obj),
+      },
+    },
+  };
+  globalThis.fetch = async (_url, init = {}) => {
+    if (init.method === 'POST') posted.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ entries: gotEntries ?? [] }) };
+  };
+  return { backing, posted };
+}
+
+test('loadHistory preserves the local cache when the server returns 0 entries', async () => {
+  const localA = { url: 'https://shop.test/a', title: 'A', score: 50, savedAt: NOW };
+  const { backing } = installStubs({ initial: [localA], gotEntries: [] });
+  const live = await loadHistory(NOW);
+  assert.equal(live.length, 1, 'empty remote must not wipe unsynced local');
+  assert.equal(live[0].url, localA.url);
+  assert.equal(backing.history.length, 1);
+});
+
+test('loadHistory adopts the server list when it is non-empty', async () => {
+  const localA = { url: 'https://shop.test/a', title: 'A', score: 50, savedAt: NOW };
+  const remoteB = { url: 'https://shop.test/b', title: 'B', score: 80, savedAt: NOW };
+  const { backing } = installStubs({ initial: [localA], gotEntries: [remoteB] });
+  const live = await loadHistory(NOW);
+  assert.equal(live.length, 1);
+  assert.equal(live[0].url, remoteB.url, 'server is authoritative when it has entries');
+  assert.equal(backing.history[0].url, remoteB.url);
+});
+
+test('loadHistory triggers a reconcile POST for unsynced local rows when server is empty', async () => {
+  const localA = { url: 'https://shop.test/a', title: 'A', score: 50, savedAt: NOW };
+  const stub = installStubs({ initial: [localA], gotEntries: [] });
+  await loadHistory(NOW);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.ok(
+    stub.posted.some((p) => p.url === localA.url),
+    'expected reconcile to POST the local entry after an empty GET',
+  );
+});

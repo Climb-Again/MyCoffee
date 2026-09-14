@@ -294,9 +294,20 @@ async function remoteHistory(method, body) {
 export async function loadHistory(now = Date.now()) {
   // Remote first: the backend list is the shared truth. Prune client-side too
   // (belt and braces — the server already did) and adopt it as the cache.
+  //
+  // #214 trap: `if (remote)` treated an empty array as authoritative because
+  // `Boolean([])` is `true` in JS. When the server had 0 rows for the token
+  // (a POST that silently failed leaves it that way — #213's dynamic-import
+  // bug was one of those), a GET would overwrite the local cache with `[]`
+  // and any unsynced local write vanished on the next popup open. Now the
+  // rule is explicit: only adopt the remote list when it is BOTH an array
+  // AND non-empty; an empty server response falls through to the local
+  // cache path below, so unsynced writes survive the round-trip. A genuine
+  // "user cleared the list" doesn't go through here — it goes through
+  // `clearHistory`, which resets local storage directly.
   try {
     const remote = await remoteHistory('GET');
-    if (remote) {
+    if (Array.isArray(remote) && remote.length > 0) {
       const live = prune(remote, now);
       await chrome.storage.local.set({ [KEY]: live });
       return live;
@@ -304,15 +315,33 @@ export async function loadHistory(now = Date.now()) {
   } catch (e) {
     console.warn('[mycoffee] history sync (read) failed; using local cache', e);
   }
-  // Fallback: local cache (no write token, or the network is down).
+  // Fallback: local cache (no write token, or the network is down, or server
+  // is empty). If the local cache has unsynced entries, hand them back and
+  // give reconcileToServer a shot at posting them, so the next open sees the
+  // authoritative list on both sides.
   const stored = await chrome.storage.local.get(KEY);
   const live = prune(stored?.[KEY], now);
-  // Write back only when pruning actually removed something, so a plain read
-  // does not churn storage on every popup open.
   if ((stored?.[KEY]?.length ?? 0) !== live.length) {
     await chrome.storage.local.set({ [KEY]: live });
   }
+  if (live.length > 0) reconcileToServer(live, now);
   return live;
+}
+
+// Fire-and-forget best-effort push of local rows the server does not have.
+// Runs on popup open when GET came back empty but the cache is not — the
+// exact shape #213's write bug left every install in. Idempotent: the server
+// upserts by (token_hash, url_key), so a re-post of the same row is a no-op.
+async function reconcileToServer(entries, now) {
+  try {
+    for (const entry of entries) {
+      // Server response is ignored on purpose: we just want the rows to land.
+      // A repeated call after they already exist is a no-op server-side.
+      await remoteHistory('POST', entry);
+    }
+  } catch (e) {
+    console.warn('[mycoffee] history reconcile failed; will retry next open', e);
+  }
 }
 
 export async function recordVisit(data, { url, title }, now = Date.now()) {
