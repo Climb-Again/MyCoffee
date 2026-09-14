@@ -41,3 +41,16 @@ struct WhatsNewItemDTO: Decodable {
     let detail: String
     let area: String?
 }
+
+/// #201 — `GET|POST /api/whatsnew/seen`. The server treats keys as opaque
+/// strings (migration 036: `whatsnew_seen (entry_key PK, seen_at)`, no
+/// `user_id` — MyCoffee has one shared INGEST_TOKEN and therefore one seen
+/// set), so there is nothing to decode but the array itself.
+struct WhatsNewSeenResponseDTO: Decodable {
+    let seen: [String]
+}
+
+struct WhatsNewSeenRequestDTO: Encodable {
+    let key: String
+    let seen: Bool
+}

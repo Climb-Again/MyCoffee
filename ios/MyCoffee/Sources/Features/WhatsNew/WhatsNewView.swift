@@ -6,15 +6,51 @@ import SwiftUI
 /// (`GET /api/whatsnew`, #45/#46) so the content updates without a TestFlight
 /// build.
 struct WhatsNewView: View {
+    /// #205(a): Live · Done · Plan, matching Radu's reference screenshot.
+    ///
+    /// `Done` lists the Live entries he has already checked off — the same
+    /// items, the other side of the tick. It is NOT a fourth backend section:
+    /// `/api/whatsnew` has `live` and `plan` and nothing else, and "done" is a
+    /// per-person fact the server has no opinion about (it lives in
+    /// `WhatsNewSeenStore`). Deriving it keeps one source of truth for the
+    /// tick, which is the whole reason #200 built a store rather than a flag
+    /// per view.
     private enum Segment: String, CaseIterable, Identifiable {
         case live = "Live"
+        case done = "Done"
         case plan = "Plan"
         var id: String { rawValue }
+    }
+
+    /// #205(b): the second control row — All · ✓ · ☐ — filtering the current
+    /// segment by seen state.
+    private enum SeenFilter: String, CaseIterable, Identifiable {
+        case all
+        case checked
+        case unchecked
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .all: return "All"
+            case .checked: return "✓"
+            case .unchecked: return "☐"
+            }
+        }
+
+        func keep(_ isSeen: Bool) -> Bool {
+            switch self {
+            case .all: return true
+            case .checked: return isSeen
+            case .unchecked: return !isSeen
+            }
+        }
     }
 
     @EnvironmentObject private var config: AppConfig
     @ObservedObject private var seenStore = WhatsNewSeenStore.shared
     @State private var segment: Segment = .live
+    @State private var seenFilter: SeenFilter = .all
     @State private var response: WhatsNewResponseDTO?
     @State private var loadError: String?
     @State private var isLoading = true
@@ -42,6 +78,21 @@ struct WhatsNewView: View {
             .padding(.horizontal)
             .padding(.top, 12)
 
+            // #205(b): the seen-state row. Hidden on Done, where every card is
+            // checked by construction — a filter whose only non-empty option is
+            // "checked" is a control that cannot do anything.
+            if segment != .done {
+                Picker("Seen", selection: $seenFilter) {
+                    ForEach(SeenFilter.allCases) { f in
+                        Text(f.label).tag(f)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .accessibilityLabel("Filter by checked state")
+            }
+
             content
         }
         .navigationTitle("What's New")
@@ -56,6 +107,11 @@ struct WhatsNewView: View {
             }
         }
         .task { await load() }
+        // #201: hydrate the tick state from the server so the phone reflects
+        // what was checked on the iPad. Separate from `load()` on purpose —
+        // the content and the seen set fail independently, and a backend that
+        // is down for one must not blank the other.
+        .task { seenStore.startSync(config: config) }
     }
 
     @ViewBuilder
@@ -65,8 +121,15 @@ struct WhatsNewView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let response {
             switch segment {
-            case .live: liveList(response.live)
-            case .plan: planList(response.plan)
+            case .live:
+                // Live shows what is NOT done, plus whatever the seen filter
+                // asks for; Done is the checked complement. Together they
+                // partition `response.live`, so nothing can hide in a gap.
+                liveList(filtered(response.live, unseenOnly: true), emptyTitle: "Nothing live yet")
+            case .done:
+                liveList(response.live.filter { seenStore.isSeen($0) }, emptyTitle: "Nothing checked off yet")
+            case .plan:
+                planList(response.plan)
             }
         } else {
             ContentUnavailableView {
@@ -91,14 +154,41 @@ struct WhatsNewView: View {
         isLoading = false
     }
 
+    /// Applies the seen-state filter. `unseenOnly` is the Live segment's own
+    /// rule (a checked item belongs under Done), applied BEFORE the filter so
+    /// picking ✓ on Live shows nothing rather than duplicating Done.
+    private func filtered(_ items: [WhatsNewItemDTO], unseenOnly: Bool) -> [WhatsNewItemDTO] {
+        items.filter { item in
+            let isSeen = seenStore.isSeen(item)
+            if unseenOnly && isSeen && seenFilter != .checked { return false }
+            return seenFilter.keep(isSeen)
+        }
+    }
+
     @ViewBuilder
-    private func liveList(_ items: [WhatsNewItemDTO]) -> some View {
+    private func liveList(_ items: [WhatsNewItemDTO], emptyTitle: String) -> some View {
         if items.isEmpty {
-            ContentUnavailableView("Nothing live yet", systemImage: Symbols.whatsNewEmpty)
+            ContentUnavailableView(emptyTitle, systemImage: Symbols.whatsNewEmpty)
         } else {
             List(items, id: \.title) { item in
                 WhatsNewCard(item: item)
                     .listRowSeparator(.hidden)
+                    // #205(c): the screenshot's orange trailing swipe. The
+                    // inverse of tapping the circle, routed through the SAME
+                    // store (`markNotSeen`, idempotent) so there is still one
+                    // definition of "done" — a second path that wrote its own
+                    // state is exactly how the checkbox and the badge would
+                    // start disagreeing.
+                    .swipeActions(edge: .trailing) {
+                        if seenStore.isSeen(item) {
+                            Button {
+                                seenStore.markNotSeen(item)
+                            } label: {
+                                Label("Not done", systemImage: Symbols.whatsNewNotDone)
+                            }
+                            .tint(.orange)
+                        }
+                    }
             }
             .listStyle(.plain)
         }

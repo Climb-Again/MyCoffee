@@ -60,6 +60,11 @@ struct SettingsSheet: View {
             }
             .task { await refreshStatus() }
             .task { await refreshWhatsNewBadge() }
+            // #201: pull the seen set here too, not only inside the What's New
+            // sheet — otherwise the badge would count entries already ticked
+            // off on the iPad as new until you opened the sheet, which is the
+            // one moment the badge exists to save you.
+            .task { seenStore.startSync(config: config) }
         }
     }
 

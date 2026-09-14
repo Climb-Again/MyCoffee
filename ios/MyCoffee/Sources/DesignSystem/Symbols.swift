@@ -112,6 +112,8 @@ enum Symbols {
     static let whatsNew = "sparkles"
     static let whatsNewEmpty = "tray"
     static let whatsNewUnavailable = "wifi.exclamationmark"
+    /// #205(c): the trailing "Not done" swipe — the screenshot's orange flag.
+    static let whatsNewNotDone = "flag.slash"
 
     // Brew lab (PLAN.md §14, #157). DEVIATION from the row's "add a Lucide
     // trophy SVG": the Lucide set here is vendored from files Radu supplied,
