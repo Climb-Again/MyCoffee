@@ -6,7 +6,61 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-09-14 18:00 UTC] #126 full re-extraction (Radu: "all") — code shipped, backfills running — branch `main`
+
+## 2026-09-14 (interactive, Radu's decisions) — #140 implemented at 65:35, #126 code + the lever it needed, and a clobber that went green
+
+**#140 was closed as superseded earlier in this same session, and Radu
+overruled it.** The close was defensible — #189 had already put affinity:value
+at 77:23, *further* rating-over-price than the 65:35 the row asked for, so
+implementing it literally *lowers* the rating weight. Told that, he said "want
+65:35". So 65:35 it is.
+
+The edit worth explaining: `{affinity: 0.65, value: 0.35}` is the obvious one
+and it is wrong. Roast and novelty are his own #189 numbers and were not part of
+this instruction; writing the pair flat would silently demote roast recency from
+21% of the blend to 15%. So the affinity+value pair keeps its share of the whole
+(0.65 of 0.95) and only its internal split moves → affinity 0.4225, value
+0.2275, derived from two named constants.
+
+**A consequence he should know about, asserted in the test so nobody later
+"fixes" it:** value (0.2275) now outweighs roast recency (0.20), which #189 had
+the other way round. 65:35 forces it — holding roast above value at that ratio
+needs affinity below 0.371, demoting the one component #106 measured as a
+predictor.
+
+**#126 needed a lever that did not exist.** He approved "all", and the full
+re-extraction could not be run: all 413 photos are `processed`, so `claimBatch`
+returns nothing and a job with `includeImages: true` extracts zero. The worker
+has no "do it again". #126(c)'s escalation flag is exactly that mechanism, so
+`POST /api/admin/queue-image-pass` sets it rather than adding a second path —
+`onlyMissingCore` by default (the 187 thin records, not the 226 that already
+carry the bag card verbatim), `force` the only way past `image_pass_at`,
+idempotent either way. Verified all three behaviours against a real Postgres
+before shipping.
+
+**#126(c) itself** is the standing rule: `shouldUseImage` sent the image only
+for `awaiting_text` photos, so a captioned photo was extracted from its caption
+forever and its bag never read — 0 of 413 coffees carried an OCR block. A
+text-only pass that leaves core fields unresolved now flags the photo, the flag
+re-opens it for claiming even from `processed`, and `image_pass_at` caps it at
+one escalation per photo so a genuinely field-less bag cannot burn a vision call
+every run.
+
+**And a process failure worth more than any of the above.** Another session's
+commit (`b1842b0`, #213 — a real fix: a dynamic `import()` in the extension's
+service worker had silently broken shortlist sync for a week) **deleted rows
+#210, #211 and #212** from `status/BACKLOG.md` in the same commit that added
+#213. Full-file overwrite, exactly the clobber CLAUDE.md §10 documents from
+2026-08-29 (#102–#104 deleted, #92 reverted). **`check-backlog.sh` went green
+both times**, because it checks duplicates and dangling `needs` and never
+noticed a row *vanishing*.
+
+It does now: it diffs against the previous committed copy and fails if a row
+number that existed then is absent from both the live file and the archive
+(`BACKLOG_ALLOW_DELETIONS=1` for a deliberate one). `sync-backlog-rows.sh`
+already existed to prevent this; it only helps the sessions that use it, and a
+check helps the ones that don't. Verified red on a removed row, green otherwise.
 
 ## 2026-09-14 (interactive, same session) — extension batch: #196 #197 #198 #199, manifest 1.6.0
 
