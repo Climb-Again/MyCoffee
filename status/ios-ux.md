@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 11:15 UTC] #202 filter sheet: add `.priceBand` (+ the other band dimensions) to `unknownSelectableDimensions` so the Unknown-price pill is tappable — branch `ios-staging`
 
 ## Abandoned
 
