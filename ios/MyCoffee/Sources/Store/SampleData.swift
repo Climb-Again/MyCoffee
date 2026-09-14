@@ -173,7 +173,15 @@ enum SampleData {
     ]
 
     private static let roasters: [Roaster] = [
-        Roaster(id: 1, name: "DAK Coffee Roasters", countryId: 7),
+        // #203, iOS UX: gives `RoasterLogoTile` a real logo to render in
+        // previews/sample mode — no bundled sample roaster carried a
+        // `logoUrl` before, so the medallion was never actually visible
+        // outside a live backend. DAK's real, live production logo URL
+        // (`ops/roaster-assets/logos/dak-coffee-roasters.webp`).
+        Roaster(
+            id: 1, name: "DAK Coffee Roasters", countryId: 7,
+            logoUrl: "https://raw.githubusercontent.com/Climb-Again/MyCoffee/main/ops/roaster-assets/logos/dak-coffee-roasters.webp"
+        ),
         Roaster(id: 2, name: "Father's Coffee Roastery", countryId: 8),
         Roaster(id: 3, name: "Right Side", countryId: 9),
         Roaster(id: 4, name: "BOO Modern Coffee", countryId: 9),

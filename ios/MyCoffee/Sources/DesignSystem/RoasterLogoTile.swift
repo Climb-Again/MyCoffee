@@ -19,6 +19,11 @@ struct RoasterLogoTile: View {
     var cornerRadius: CGFloat = 22
 
     @State private var mark: UIImage?
+    /// #203: set when a load attempt exhausts every fallback (bad URL,
+    /// network failure, undecodable data) — distinguishes "still loading"
+    /// from "gave up", so a transient failure gets a neutral icon instead of
+    /// a permanent empty tile with no visible state at all.
+    @State private var didFail = false
     @Environment(\.displayScale) private var displayScale
 
     private var hasLogo: Bool {
@@ -33,6 +38,10 @@ struct RoasterLogoTile: View {
                         .resizable()
                         .scaledToFit()
                         .padding(size * 9 / 86)
+                } else if didFail {
+                    Image(systemName: Symbols.roasterMarkFallback)
+                        .font(.system(size: size * 0.32))
+                        .foregroundStyle(.secondary)
                 }
             }
             .frame(width: size, height: size)
@@ -57,13 +66,28 @@ struct RoasterLogoTile: View {
         }
     }
 
+    /// #203: `@MainActor` so every `mark`/`didFail` write below happens on
+    /// the actor that owns `@State`. Before this, the function was
+    /// nonisolated and every write followed an `await` (the `RoasterMarkCache`
+    /// actor hop, then the `URLSession` hop) — the continuation resumed off
+    /// the main actor each time, so SwiftUI silently dropped the mutation and
+    /// the tile stayed an empty cream medallion forever, even on a
+    /// successful fetch.
+    @MainActor
     private func loadMark() async {
-        guard let logoUrl, let url = URL(string: logoUrl) else { return }
+        didFail = false
+        guard let logoUrl, let url = URL(string: logoUrl) else {
+            didFail = true
+            return
+        }
         if let cached = await RoasterMarkCache.shared.get(logoUrl) {
             mark = cached
             return
         }
-        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else {
+            didFail = true
+            return
+        }
         // Downsample straight from the source bytes at ~this tile's pixel
         // size (#179e) — the previous full `UIImage(data:)` decode held one
         // full-resolution bitmap per roaster in memory, unbounded, for as
@@ -71,7 +95,10 @@ struct RoasterLogoTile: View {
         // ImageIO's thumbnail path can't handle the source, same as before.
         guard let result = Self.downsampledMark(data: data, maxPixelSize: size * displayScale)
             ?? Self.fullSizeMark(data: data)
-        else { return }
+        else {
+            didFail = true
+            return
+        }
         await RoasterMarkCache.shared.set(logoUrl, result)
         mark = result
     }

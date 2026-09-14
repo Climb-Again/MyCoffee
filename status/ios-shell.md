@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 11:30 UTC] Seam edit for #203 (ios-ux lane): `SampleData.swift` gives the DAK sample roaster a real, live `logoUrl` (production `ops/roaster-assets/logos/dak-coffee-roasters.webp`) so `RoasterLogoTile` has something to render in sample mode. One line, no new shell logic.
 
 ## Abandoned
 

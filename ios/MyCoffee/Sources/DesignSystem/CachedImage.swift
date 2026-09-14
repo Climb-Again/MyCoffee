@@ -14,10 +14,25 @@ struct CachedImage<Content: View>: View {
     }
 
     let urlString: String?
-    var maxPixelSize: CGFloat = ImageStore.displayMaxPixelSize
-    @ViewBuilder var content: (Phase) -> Content
+    var maxPixelSize: CGFloat
+    let content: (Phase) -> Content
 
     @State private var phase: Phase = .empty
+
+    /// A custom `init` is required here: the synthesized memberwise
+    /// initializer does not carry `@ViewBuilder` onto its parameter, so a
+    /// multi-statement trailing closure (the `switch phase { … }` every call
+    /// site uses) fails to type-check with "generic parameter 'Content'
+    /// could not be inferred".
+    init(
+        urlString: String?,
+        maxPixelSize: CGFloat = ImageStore.displayMaxPixelSize,
+        @ViewBuilder content: @escaping (Phase) -> Content
+    ) {
+        self.urlString = urlString
+        self.maxPixelSize = maxPixelSize
+        self.content = content
+    }
 
     var body: some View {
         content(phase)

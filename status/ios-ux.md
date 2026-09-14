@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 11:30 UTC] #203 roaster logo medallion: MainActor-isolate `RoasterLogoTile.loadMark()`, add a neutral fallback on a failed load; seam edit to `SampleData.swift` (adds a real `logoUrl` to the DAK sample roaster) recorded in `status/ios-shell.md` too — branch `ios-staging`
 
 ## Abandoned
 

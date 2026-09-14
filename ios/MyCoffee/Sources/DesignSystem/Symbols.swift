@@ -135,4 +135,9 @@ enum Symbols {
     static let evaluateEntry = "gauge"
     static let evaluateAffinity = "wand.and.stars"
     static let evaluateNovelty = "sparkle"
+
+    // Roaster medallion (#203) — neutral fallback once a logo load has
+    // failed, so a transient fetch/decode error doesn't leave a permanent
+    // empty tile with no visual distinction from "still loading".
+    static let roasterMarkFallback = "storefront"
 }
