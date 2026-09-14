@@ -6,13 +6,40 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-14 11:30 UTC] #203 roaster logo medallion: MainActor-isolate `RoasterLogoTile.loadMark()`, add a neutral fallback on a failed load; seam edit to `SampleData.swift` (adds a real `logoUrl` to the DAK sample roaster) recorded in `status/ios-shell.md` too — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — #180 follow-up: fixed the compile red from run #129.**
+  `CachedImage`'s `@ViewBuilder var content: (Phase) -> Content` stored
+  property doesn't get `@ViewBuilder` carried onto the synthesized
+  memberwise initializer's parameter, so every multi-statement trailing
+  closure at the three #180 call sites (`switch phase { … }` /
+  `if case … else …`) failed with "generic parameter 'Content' could not be
+  inferred," and every push built on top of that commit (#209, #202)
+  inherited the same red. Added an explicit `init` with the closure
+  parameter marked `@ViewBuilder`. Landed `41d5180`.
+
+- **2026-09-14 — #203 roaster logo medallion permanently empty.**
+  `RoasterLogoTile.loadMark()` was nonisolated, and every `mark` write
+  followed an `await` (the `RoasterMarkCache` actor hop, then the
+  `URLSession` hop) — the continuation resumed off the main actor each time,
+  so SwiftUI silently dropped the `@State` mutation and the tile stayed an
+  empty cream medallion even on a successful fetch. Marked `loadMark()`
+  `@MainActor`. Also added a `didFail` flag and a neutral
+  `Symbols.roasterMarkFallback` ("storefront") icon so a load that
+  genuinely fails (bad URL, network error, undecodable data) shows a
+  distinguishable fallback instead of the same permanent empty tile as
+  "still loading". **Seam edit** (recorded in `status/ios-shell.md` too):
+  `SampleData.swift`'s DAK sample roaster now carries its real, live
+  production `logoUrl`, so the tile has something to render in
+  previews/sample mode (previously no bundled sample roaster had one).
+  Landed `41d5180` — same commit that fixed the #180 compile red (run #129),
+  found while checking this session's own push.
 
 - **2026-09-14 — #202 filter sheet: make the Unknown-price pill tappable.**
   `unknownSelectableDimensions` (`FilterSheetView.swift`) omitted `.priceBand`

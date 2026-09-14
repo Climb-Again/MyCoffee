@@ -6,13 +6,19 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-14 11:30 UTC] Seam edit for #203 (ios-ux lane): `SampleData.swift` gives the DAK sample roaster a real, live `logoUrl` (production `ops/roaster-assets/logos/dak-coffee-roasters.webp`) so `RoasterLogoTile` has something to render in sample mode. One line, no new shell logic.
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — seam edit for #203 (ios-ux lane): `SampleData.swift` gives
+  the DAK sample roaster a real, live `logoUrl` (production
+  `ops/roaster-assets/logos/dak-coffee-roasters.webp`) so `RoasterLogoTile`
+  has something to render in sample mode. One line, no new shell logic.
+  Landed `41d5180` alongside ios-ux's `RoasterLogoTile`/`Symbols` changes.**
 
 - **2026-09-14 — seam edit for #180 (ios-ux lane): `CoffeeMapping.swift`'s
   compact mapping stops seeding `images.display` from `thumbUrl`, using the
