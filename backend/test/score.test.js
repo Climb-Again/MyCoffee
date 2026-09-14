@@ -223,17 +223,33 @@ const fixture = (over = {}) => ({
   ...over,
 });
 
-test('the weights are Radu\'s ratios (#189): affinity 50 / roast 20 / value 15 / novelty 10', () => {
-  assert.equal(FINAL_WEIGHTS.affinity, 0.5);
+test('#140: affinity:value is exactly 65:35, and roast/novelty are untouched', () => {
+  // Radu, 2026-09-14: "want 65:35" — rating over price, matching #139's
+  // on-device meter. This is the ONE thing the row changed.
+  const pair = FINAL_WEIGHTS.affinity + FINAL_WEIGHTS.value;
+  assert.ok(Math.abs(FINAL_WEIGHTS.affinity / pair - 0.65) < 1e-9, `affinity share was ${FINAL_WEIGHTS.affinity / pair}`);
+  assert.ok(Math.abs(FINAL_WEIGHTS.value / pair - 0.35) < 1e-9, `value share was ${FINAL_WEIGHTS.value / pair}`);
+
+  // #189's roast and novelty are NOT his 65:35 instruction and must not drift
+  // with it. Writing {affinity: 0.65, value: 0.35} flat would have demoted
+  // roast recency from 21% of the blend to 15% — a weight nobody asked about.
   assert.equal(FINAL_WEIGHTS.roast, 0.2);
-  assert.equal(FINAL_WEIGHTS.value, 0.15);
   assert.equal(FINAL_WEIGHTS.novelty, 0.1);
-  // They sum to 0.95 on purpose -- the blend renormalises, so the RATIO is
-  // what carries, and rounding to 1 would mean inventing a digit he didn't give.
+  assert.ok(Math.abs(pair - 0.65) < 1e-9, 'the affinity+value budget moved');
+
+  // Still 0.95 on purpose -- the blend renormalises, so the RATIO is what
+  // carries, and rounding to 1 would mean inventing a digit he didn't give.
   assert.ok(Math.abs(Object.values(FINAL_WEIGHTS).reduce((a, b) => a + b, 0) - 0.95) < 1e-9);
-  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.roast);
-  assert.ok(FINAL_WEIGHTS.roast > FINAL_WEIGHTS.value);
+
+  assert.ok(FINAL_WEIGHTS.affinity > FINAL_WEIGHTS.value);
   assert.ok(FINAL_WEIGHTS.value > FINAL_WEIGHTS.novelty);
+
+  // ⚠ A REAL CONSEQUENCE, asserted so it can't be mistaken for a slip: value
+  // (0.2275) now outweighs roast recency (0.20), which #189 had the other way
+  // round. 65:35 forces it — holding roast above value with that ratio would
+  // need affinity below 0.371, demoting the one component #106 actually
+  // measured as a predictor. Flagged to Radu rather than quietly re-split.
+  assert.ok(FINAL_WEIGHTS.value > FINAL_WEIGHTS.roast, 'expected 65:35 to put value above roast');
 });
 
 test('novelty is directional now: new scores higher than familiar', () => {

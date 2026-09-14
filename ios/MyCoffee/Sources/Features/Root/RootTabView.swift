@@ -60,12 +60,10 @@ struct RootTabView: View {
                     .navigationBarTitleDisplayMode(.large)
             }
             .tabItem {
-                // ⚠ SF Symbol, not Lucide (§11): there is no flask/storefront
-                // imageset in Assets.xcassets and adding one means art, which
-                // is Radu's call. Swap when the glyphs land — Symbols.swift
-                // names these `tabRecipesFallback`/`tabShopFallback` so the
-                // placeholder is impossible to mistake for a decision.
-                Label("Recipes", systemImage: Symbols.tabRecipesFallback)
+                // §11: Lucide outline, same as the other four. Supplied by Radu
+                // in the nav-bar brief v2 — `book-open`, his pick over
+                // `notebook-pen`/`beaker`/`chef-hat`.
+                Label("Recipes", image: Lucide.bookOpen)
             }
             .tag(RootTab.recipes)
 
@@ -81,7 +79,7 @@ struct RootTabView: View {
             // #195(b): the extension's shortlist (#187 → #194).
             ShopTabView()
                 .tabItem {
-                    Label("Shop", systemImage: Symbols.tabShopFallback)
+                    Label("Shop", image: Lucide.shoppingBag)
                 }
                 .tag(RootTab.shop)
 

@@ -20,6 +20,14 @@ enum Lucide {
     static let share = "lucide-share"
     static let pencil = "lucide-pencil"
     static let search = "lucide-search"
+    /// #195 — supplied by Radu in the nav-bar brief v2 (2026-09-14), not drawn
+    /// here. `book-open` for Recipes ("a catalogue you look things up in";
+    /// `notebook-pen` says diary, `beaker` says lab) and `shopping-bag` for
+    /// Shop ("the classic bag — reads 'shop' instantly next to a cup and a
+    /// chart"). Both vendored at the same 1.7 stroke as the other 13, with the
+    /// C2PA metadata block stripped to match them.
+    static let bookOpen = "lucide-book-open"
+    static let shoppingBag = "lucide-shopping-bag"
 
 }
 
@@ -50,14 +58,6 @@ enum Symbols {
     static let tabInsights = "chart.bar"
     static let tabAdd = "plus.circle.fill"
     static let tabReview = "checklist"
-    // #195's two new tabs have NO Lucide asset in Assets.xcassets — there are
-    // only 13 imagesets and none of them is a flask or a storefront. Redesign
-    // v3 §11 wants Lucide outlines on the tab bar, so these two SF Symbols are
-    // a deliberate, visible placeholder rather than an oversight: adding an
-    // asset means art, and art is Radu's call. Swap `tabRecipesFallback` /
-    // `tabShopFallback` for `lucide-*` the moment the glyphs land.
-    static let tabRecipesFallback = "flask"
-    static let tabShopFallback = "bag"
 
     // Listing
     static let filter = "line.3.horizontal.decrease.circle"

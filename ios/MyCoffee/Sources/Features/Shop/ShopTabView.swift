@@ -43,11 +43,22 @@ struct ShopTabView: View {
                 Button("Try again") { Task { await store.loadShortlist() } }
             }
         } else if store.shortlist.isEmpty {
-            ContentUnavailableView(
-                "Nothing shortlisted",
-                systemImage: Symbols.tabShopFallback,
-                description: Text("Coffees you evaluate with the browser extension show up here for 30 days.")
-            )
+            // Brief v2 §3 States, verbatim: "Nothing shortlisted yet." 17 pt,
+            // then 12 pt neutral-700, "No install button — the extension is
+            // live and installs from the browser, not from here." No
+            // illustration, so this is a plain VStack rather than a
+            // ContentUnavailableView (which always draws a glyph).
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Nothing shortlisted yet.")
+                    .font(.system(size: 17, weight: .semibold))
+                Text("Save coffees from roaster shops with the MyCoffee extension.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 22)
+            .padding(.top, 8)
         } else {
             List(store.shortlist) { entry in
                 ShortlistRow(entry: entry)
