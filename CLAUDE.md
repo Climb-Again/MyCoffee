@@ -497,3 +497,35 @@ failures, all already worked around in the committed workflow — don't reintrod
 | `Service not found` | Wrong `--service`. Railway auto-named the service **`MyCoffee`** after the repo, *not* `mycoffee-api` as planned. Use the canvas name. |
 | `Deploy failed` <1 s after "scheduling build" | Root-directory double-up. Run `railway up` from the **repo root**, not `backend/` — it honours the service's Root Directory (`backend`) itself, so running from inside `backend/` makes it look for `backend/backend`. |
 | Immediate "no linked project" | An *account* token was used without project context. Prefer a **project** token scoped to the environment. |
+
+### A red run with ZERO jobs is a broken workflow file, not a broken test
+
+Runs **115 and 116** (2026-09-14) both read `failure` in the run list and both
+had run *nothing*. The cause was a job-level
+`env: DATA_DIR: ${{ runner.temp }}/…` — the **`runner` context does not exist in
+`jobs.<id>.env`**, only inside steps — and an invalid context is a *workflow
+validation* error. GitHub creates the run, fails it instantly, and never
+schedules a job.
+
+This matters because it mimics a red test closely enough to send you hunting for
+a failing assertion that was never executed. Two tells, both in the run list
+before you open anything:
+
+| | Broken workflow file | Genuinely failing job |
+|---|---|---|
+| Run `name` | the **file path**, `.github/workflows/railway-deploy.yml` | the workflow's `name:`, "Deploy backend (Railway)" |
+| Timing | `created_at == updated_at == run_started_at`, zero duration | a real span |
+| `list_workflow_jobs` | `total_count: 0` | the jobs, with the red one named |
+
+GitHub shows the path because with an unparseable file there *is* no parsed
+`name:` to show. So: **check the job count before reading a single log.**
+
+And the blast radius is everyone's, not just yours — a broken workflow on `main`
+fails every subsequent push the same way. #214 was pushed by a parallel session
+on top of the break and died identically, through no fault of its own. When you
+break a shared workflow, assume you have also stalled whatever landed after you,
+and say so when you fix it.
+
+Contexts valid in a job-level `env:` are `github`, `needs`, `vars`, `inputs`,
+`secrets`, `strategy`, `matrix` — **not** `runner`, `steps`, `job`, or `env`
+itself. When a literal will do (`/tmp/mycoffee-ci-data`), use the literal.
