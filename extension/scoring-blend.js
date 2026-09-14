@@ -17,11 +17,24 @@
 // ⚠ Change these numbers in BOTH files, in the same commit.
 
 // Radu's weights, set 2026-09-10 (#189): "If affinity is the best predictor -
-// give it 50%. Than roast recency 20%, value 15%, novelty 10%". They sum to
-// 0.95, not 1, on purpose: the blend renormalises over whichever terms are
-// actually present, so only the RATIO matters, and rounding them up to 100
-// would mean inventing a fifth digit he did not give.
-export const WEIGHTS = { affinity: 0.5, roast: 0.2, value: 0.15, novelty: 0.1 };
+// give it 50%. Than roast recency 20%, value 15%, novelty 10%", then #140
+// (2026-09-14, "want 65:35") re-split the affinity:value pair to exactly 65:35.
+//
+// `roast` and `novelty` are untouched #189 numbers — the pair keeps the same
+// share of the whole (0.65 of 0.95) and only its internal split moved. Writing
+// `{affinity: 0.65, value: 0.35}` flat would have demoted roast recency from
+// 21% of the blend to 15%, changing a weight nobody asked about.
+//
+// They sum to 0.95, not 1, on purpose: the blend renormalises over whichever
+// terms are actually present, so only the RATIO matters.
+const AFFINITY_VALUE_BUDGET = 0.65;
+const AFFINITY_SHARE = 0.65;
+export const WEIGHTS = {
+  affinity: AFFINITY_VALUE_BUDGET * AFFINITY_SHARE,   // 0.4225
+  roast: 0.2,
+  value: AFFINITY_VALUE_BUDGET * (1 - AFFINITY_SHARE), // 0.2275
+  novelty: 0.1,
+};
 
 export const STALE_ROAST_DAYS = 40;
 export const STALE_ROAST_PENALTY = 10;

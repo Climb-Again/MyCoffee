@@ -417,3 +417,41 @@ test('#198: an empty observation is a 400, not a silent no-op', { skip: !HAS_DB 
   const res = await app.inject({ method: 'POST', url: '/api/vocab/observations', headers: ingestAuth(), payload: {} });
   assert.equal(res.statusCode, 400);
 });
+
+// ---- #126(c): a captioned photo gets ONE image pass, not zero ----
+
+test("#126c: a text-only pass that leaves core fields unresolved flags the photo, once", { skip: !HAS_DB }, async () => {
+  const { shouldUseImage, unresolvedCoreFields } = await import('../src/lib/worker.js');
+
+  // Our fixture photo is captioned (state was 'text_received' at some point),
+  // has an image, and has no field_resolutions at all.
+  const missing = await unresolvedCoreFields(ids.photoId);
+  assert.ok(missing.length > 0, 'fixture should have unresolved core fields');
+
+  // Not flagged yet -> a text-only job does NOT send its image.
+  assert.equal(shouldUseImage({ state: 'text_received', needs_image_pass: false }, false), false);
+  // Flagged -> it does, whatever the job's own flag says. That is the rule
+  // change: before this, a captioned photo's image was never sent, ever.
+  assert.equal(shouldUseImage({ state: 'text_received', needs_image_pass: true }, false), true);
+  // And an image-only photo still always sends its image (#69, unchanged).
+  assert.equal(shouldUseImage({ state: 'awaiting_text', needs_image_pass: false }, false), true);
+
+  // The escalation is claimable even from 'processed' — that is what re-opens
+  // the photo for its one pass — and is counted in `pending` so the ingest
+  // script (#171) does not exit early while one is outstanding.
+  await query(
+    `UPDATE photos SET state = 'processed', needs_image_pass = true, image_pass_at = NULL WHERE id = $1`,
+    [ids.photoId],
+  );
+  const pending = await countPendingPhotos();
+  assert.ok(pending.imageEscalation >= 1, `expected an escalation in pending, got ${JSON.stringify(pending)}`);
+  assert.ok(pending.total >= 1, 'an outstanding escalation must not read as "nothing pending"');
+
+  // Once the pass has run, image_pass_at closes it out permanently: a bag whose
+  // fields are genuinely absent cannot burn a vision call on every run.
+  await query(`UPDATE photos SET image_pass_at = now(), needs_image_pass = false WHERE id = $1`, [ids.photoId]);
+  const after = await countPendingPhotos();
+  assert.equal(after.imageEscalation, 0, 'a completed escalation is still being claimed');
+
+  await query(`UPDATE photos SET state = 'processed', image_pass_at = NULL WHERE id = $1`, [ids.photoId]);
+});

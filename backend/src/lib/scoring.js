@@ -45,11 +45,39 @@ const CONFIDENCE_MIN_N = 5;
 // comparison, never validated as a rating predictor. So putting the measured
 // predictor first is defensible, not a departure from the data.
 //
-// These sum to 0.95, not 1. Deliberate: the blend renormalises over whichever
-// terms are actually present (see `evaluateCoffee`), so what matters is the
-// RATIO between them, and these are his ratios untouched. Rounding them up to
-// 100 would have meant inventing a fifth digit he did not give.
-export const FINAL_WEIGHTS = { affinity: 0.50, roast: 0.20, value: 0.15, novelty: 0.10 };
+// ---- #140, 2026-09-14: rating over price, 65:35 ----
+//
+// Radu asked for the evaluator to match #139's on-device meter — "Use same algo
+// for evaluator", then confirmed "want 65:35" when told #189 had already put
+// the pair at 77:23. So the AFFINITY:VALUE ratio is now exactly 65:35.
+//
+// What deliberately did NOT change: `roast` and `novelty`. Those are his own
+// #189 numbers and he was not asked about them, so the pair keeps the same
+// share of the whole (0.65 of 0.95) and only its INTERNAL split moves. Writing
+// `{affinity: 0.65, value: 0.35}` flat would have been the obvious edit and the
+// wrong one — it would have quietly demoted roast recency from 21% of the blend
+// to 15%, changing a weight he never mentioned.
+//
+// Derived rather than hardcoded so the arithmetic is checkable: the exact
+// values are affinity 0.4225, value 0.2275.
+//
+// The four still sum to 0.95, not 1. Deliberate: the blend renormalises over
+// whichever terms are actually present (see `evaluateCoffee`), so what matters
+// is the RATIO between them, and rounding up to 100 would mean inventing a
+// digit he did not give.
+//
+// ⚠ Mirrored in `extension/scoring-blend.js` and pinned by
+// `backend/test/scoring-blend-contract.test.js` (#199). Change BOTH, same
+// commit, and bump `extension/manifest.json` — the backend redeploys on every
+// push to `main`, an installed extension does not (CLAUDE.md §12).
+const AFFINITY_VALUE_BUDGET = 0.65;  // affinity + value, unchanged from #189
+const AFFINITY_SHARE = 0.65;         // #140: rating over price
+export const FINAL_WEIGHTS = {
+  affinity: AFFINITY_VALUE_BUDGET * AFFINITY_SHARE,
+  roast: 0.20,
+  value: AFFINITY_VALUE_BUDGET * (1 - AFFINITY_SHARE),
+  novelty: 0.10,
+};
 
 // ⚠ Novelty is now DIRECTIONAL: new scores higher.
 //
