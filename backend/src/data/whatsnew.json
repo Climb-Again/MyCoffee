@@ -131,7 +131,7 @@
         },
         {
           "title": "In-app nudge + editor to add a missing roaster logo/blurb (the feature Radu asked for)",
-          "detail": "Queued behind earlier work."
+          "detail": "Queued."
         },
         {
           "title": "Push notification when a new roaster lands with no logo/blurb (Radu wants a real push, not just the in-app…",
@@ -148,10 +148,6 @@
       ]
     },
     "needsApproval": [
-      {
-        "title": "⚠ 2026-09-14 — Radu: \"explain better\". Rewritten, because this row's own framing of the decision was wrong",
-        "detail": "Waiting on your call."
-      },
       {
         "title": "Nothing here blocks the extension any more — both open questions were given working defaults on 2026-09-09.…",
         "detail": "Waiting on your call."

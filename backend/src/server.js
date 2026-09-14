@@ -27,6 +27,7 @@ import whatsnewRoutes from './routes/whatsnew.js';
 import scoreRoutes from './routes/score.js';
 import historyRoutes from './routes/history.js';
 import vocabRoutes from './routes/vocab.js';
+import roasterRoutes from './routes/roasters.js';
 
 export async function build() {
   const app = Fastify({
@@ -56,8 +57,11 @@ export async function build() {
   // PUT /api/photos/:sourceId/image sends a raw JPEG body (not multipart) so
   // the exporter script stays a one-line curl and the dedupe identity lives
   // in the URL.
+  // #152 added the logo types: a roaster logo arrives as PNG/WebP far more
+  // often than JPEG (all 64 already shipped are WebP), and without a parser for
+  // its content-type Fastify 415s before the route is reached.
   app.addContentTypeParser(
-    ['image/jpeg', 'application/octet-stream'],
+    ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'],
     { parseAs: 'buffer' },
     (req, body, done) => done(null, body),
   );
@@ -86,6 +90,7 @@ export async function build() {
   await app.register(scoreRoutes);
   await app.register(historyRoutes);
   await app.register(vocabRoutes);
+  await app.register(roasterRoutes);
 
   return app;
 }

@@ -455,3 +455,119 @@ test("#126c: a text-only pass that leaves core fields unresolved flags the photo
 
   await query(`UPDATE photos SET state = 'processed', image_pass_at = NULL WHERE id = $1`, [ids.photoId]);
 });
+
+// ---- #152 (option A): the roaster content write path ----
+
+test('#152: PATCH sets a blurb, clears it with "", 404s an unknown slug', { skip: !HAS_DB }, async () => {
+  const slug = `t-roaster-${Date.now().toString(36)}`;
+  const { rows } = await query(`INSERT INTO roasters (name, slug) VALUES ($1, $2) RETURNING id`, ['T Roaster', slug]);
+  const id = rows[0].id;
+
+  const set = await app.inject({
+    method: 'PATCH', url: `/api/roasters/${slug}`, headers: ingestAuth(),
+    payload: { blurb: '  A small roaster that exists only in this test.  ' },
+  });
+  assert.equal(set.statusCode, 200);
+  const after = await query(`SELECT blurb, content_source FROM roasters WHERE id = $1`, [id]);
+  assert.equal(after.rows[0].blurb, 'A small roaster that exists only in this test.', 'blurb not trimmed/stored');
+  assert.equal(after.rows[0].content_source, 'app', 'provenance not recorded');
+
+  // Empty string clears — the in-app editor (#153) needs an undo, and NULL is
+  // what "no blurb" means everywhere else (the checklist counts on it).
+  const cleared = await app.inject({
+    method: 'PATCH', url: `/api/roasters/${slug}`, headers: ingestAuth(), payload: { blurb: '' },
+  });
+  assert.equal(cleared.statusCode, 200);
+  assert.equal((await query(`SELECT blurb FROM roasters WHERE id = $1`, [id])).rows[0].blurb, null);
+
+  const missing = await app.inject({
+    method: 'PATCH', url: '/api/roasters/no-such-roaster-at-all', headers: ingestAuth(), payload: { blurb: 'x' },
+  });
+  assert.equal(missing.statusCode, 404);
+
+  const bad = await app.inject({
+    method: 'PATCH', url: `/api/roasters/${slug}`, headers: ingestAuth(), payload: {},
+  });
+  assert.equal(bad.statusCode, 400);
+
+  await query(`DELETE FROM roasters WHERE id = $1`, [id]);
+});
+
+test('#152: PUT a logo — normalized, content-addressed, served back, and the vocab points at us', { skip: !HAS_DB }, async () => {
+  const sharp = (await import('sharp')).default;
+  const slug = `t-logo-${Date.now().toString(36)}`;
+  const { rows } = await query(`INSERT INTO roasters (name, slug) VALUES ($1, $2) RETURNING id`, ['T Logo', slug]);
+  const id = rows[0].id;
+
+  // 900px: deliberately ABOVE the 512 cap, so the downscale is actually exercised.
+  const png = await sharp({
+    create: { width: 900, height: 600, channels: 3, background: { r: 10, g: 120, b: 255 } },
+  }).png().toBuffer();
+
+  const put = await app.inject({
+    method: 'PUT', url: `/api/roasters/${slug}/logo`,
+    headers: { ...ingestAuth(), 'content-type': 'image/png' },
+    payload: png,
+  });
+  assert.equal(put.statusCode, 201, put.body);
+  const body = put.json();
+  assert.equal(body.width, 512, 'longest side was not capped at 512');
+  assert.equal(body.height, 341);
+  assert.ok(body.bytes < png.length, 'WebP re-encode did not shrink a flat PNG');
+  assert.match(body.logoUrl, new RegExp(`/roaster-logos/${slug}\\.webp$`));
+
+  // The snapshot vocab must now point at OUR host, not raw.githubusercontent —
+  // that is #152's "in-app write is source of truth" decision, made real.
+  const row = await query(`SELECT logo_url, content_source FROM roasters WHERE id = $1`, [id]);
+  assert.equal(row.rows[0].logo_url, body.logoUrl);
+  assert.equal(row.rows[0].content_source, 'app');
+
+  // Served back, unsigned and with the right type — no token, because
+  // AsyncImage cannot attach one.
+  const get = await app.inject({ method: 'GET', url: `/roaster-logos/${slug}.webp` });
+  assert.equal(get.statusCode, 200);
+  assert.equal(get.headers['content-type'], 'image/webp');
+  assert.ok(Number(get.headers['content-length']) > 0);
+
+  // Content-addressed: the identical upload writes nothing new.
+  const again = await app.inject({
+    method: 'PUT', url: `/api/roasters/${slug}/logo`,
+    headers: { ...ingestAuth(), 'content-type': 'image/png' }, payload: png,
+  });
+  assert.equal(again.statusCode, 200);
+  assert.equal(again.json().deduped, true);
+
+  await query(`DELETE FROM roaster_logos WHERE roaster_id = $1`, [id]);
+  await query(`DELETE FROM roasters WHERE id = $1`, [id]);
+});
+
+test('#152: a non-image body is 400, not 500, and an unknown slug 404s', { skip: !HAS_DB }, async () => {
+  const slug = `t-bad-${Date.now().toString(36)}`;
+  const { rows } = await query(`INSERT INTO roasters (name, slug) VALUES ($1, $2) RETURNING id`, ['T Bad', slug]);
+
+  const notAnImage = await app.inject({
+    method: 'PUT', url: `/api/roasters/${slug}/logo`,
+    headers: { ...ingestAuth(), 'content-type': 'application/octet-stream' },
+    payload: Buffer.from('this is definitely not a picture'),
+  });
+  assert.equal(notAnImage.statusCode, 400, 'a bad upload is the caller\'s problem, not a server fault');
+
+  const unknown = await app.inject({
+    method: 'PUT', url: '/api/roasters/no-such-roaster-at-all/logo',
+    headers: { ...ingestAuth(), 'content-type': 'image/png' }, payload: Buffer.from('x'),
+  });
+  assert.equal(unknown.statusCode, 404);
+
+  const missingLogo = await app.inject({ method: 'GET', url: `/roaster-logos/${slug}.webp` });
+  assert.equal(missingLogo.statusCode, 404, 'a roaster with no logo row must 404, not 500');
+
+  await query(`DELETE FROM roasters WHERE id = $1`, [rows[0].id]);
+});
+
+test('#152: the logo route requires a write token', { skip: !HAS_DB }, async () => {
+  const res = await app.inject({
+    method: 'PUT', url: '/api/roasters/anything/logo',
+    headers: { ...appAuth(), 'content-type': 'image/png' }, payload: Buffer.from('x'),
+  });
+  assert.equal(res.statusCode, 401);
+});
