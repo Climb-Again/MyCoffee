@@ -6,13 +6,22 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-14 11:05 UTC] #209 restore the `profileDetail` bracket on `CoffeeDetailView`'s process pill — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — #209 restore the `profileDetail` bracket.** Re-files #110's
+  ios-ux half (the original spin-off, #138, was silently overwritten by a
+  2026-09-09 stranded-branch renumbering, so the restoration never actually
+  shipped). `CoffeeDetailView.pillRow`'s process pill now renders
+  `profilePillText(profile)` — `Washed (Honey)` when `profileDetail` is set
+  and differs from the profile label case-insensitively, else just the label
+  (so a plain "Washed" bag doesn't render "Washed (Washed)"). Landed
+  `f310adf`. No shell seam — pure UX-owned file.
 
 - **2026-09-14 — #180 route hero/zoom/review `display` images through
   `ImageStore`, fix the thumb-as-hero flash.** New `DesignSystem/CachedImage.swift`
