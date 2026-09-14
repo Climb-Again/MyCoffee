@@ -7,6 +7,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { historyKey, RETENTION_DAYS, MAX_ENTRIES } from '../src/lib/history.js';
+// Imported as a real module (#199 added a static import to it, which the old
+// slice-and-`new Function` harness could not survive). history.js touches
+// `chrome` only inside its async storage helpers, never at module top level.
+import * as client from '../../extension/history.js';
 
 test('historyKey ignores query strings, hashes and trailing slashes', () => {
   const a = historyKey('https://shop.test/coffee?variant=42&utm_source=x');
@@ -27,24 +31,19 @@ test('historyKey falls back to the raw string for an unparseable url', () => {
 // prune/rank; the server must agree, or "top 10 over 10 days" means two
 // different things on the two sides.
 test('retention + cap constants match the extension client', () => {
+  assert.equal(RETENTION_DAYS, client.RETENTION_DAYS, 'RETENTION_DAYS drifted from the extension');
+  // MAX_ENTRIES is module-private on the client, so read it from the source.
   const src = readFileSync(new URL('../../extension/history.js', import.meta.url), 'utf8');
-  const num = (name) => {
-    const m = new RegExp(`${name}\\s*=\\s*(\\d+)`).exec(src);
-    assert.ok(m, `${name} not found in extension/history.js`);
-    return Number(m[1]);
-  };
-  assert.equal(RETENTION_DAYS, num('RETENTION_DAYS'), 'RETENTION_DAYS drifted from the extension');
-  assert.equal(MAX_ENTRIES, num('MAX_ENTRIES'), 'MAX_ENTRIES drifted from the extension');
+  const m = /MAX_ENTRIES\s*=\s*(\d+)/.exec(src);
+  assert.ok(m, 'MAX_ENTRIES not found in extension/history.js');
+  assert.equal(MAX_ENTRIES, Number(m[1]), 'MAX_ENTRIES drifted from the extension');
 });
 
 // The extension's historyKey is the origin+pathname rule this mirrors; assert
 // the two implementations agree on a representative set rather than trusting
 // the prose.
 test('historyKey matches the extension implementation', () => {
-  const src = readFileSync(new URL('../../extension/history.js', import.meta.url), 'utf8');
-  const raw = src.slice(src.indexOf('export function historyKey'));
-  const oneFn = raw.slice(0, raw.indexOf('\nexport function prune')).replace(/^export /, '');
-  const clientKey = new Function(`${oneFn}; return historyKey;`)();
+  const clientKey = client.historyKey;
   for (const u of [
     'https://shop.test/coffee?variant=42#x',
     'https://roaster.example/beans/ethiopia/',

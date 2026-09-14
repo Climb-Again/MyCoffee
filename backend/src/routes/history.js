@@ -28,15 +28,20 @@ function tokenHash(req) {
 // Retention is filtered here too (not only deleted on write) so a row that has
 // just crossed the cutoff never surfaces, even before the next prune deletes it.
 async function liveEntries(hash) {
+  // #197: retention reads `added_at` (set once), the list still orders by
+  // `saved_at` (bumped per visit). `addedAt` is folded back into the returned
+  // payload from the column, not from whatever the client last sent — the
+  // server owns this timestamp, so a client that has been offline cannot
+  // resurrect a row by posting a fresher one.
   const { rows } = await query(
-    `SELECT payload FROM history
+    `SELECT payload, added_at FROM history
        WHERE token_hash = $1
-         AND saved_at > NOW() - ($2 || ' days')::interval
+         AND added_at > NOW() - ($2 || ' days')::interval
        ORDER BY saved_at DESC
        LIMIT $3`,
     [hash, String(RETENTION_DAYS), MAX_ENTRIES],
   );
-  return rows.map((r) => r.payload);
+  return rows.map((r) => ({ ...r.payload, addedAt: new Date(r.added_at).getTime() }));
 }
 
 // Prune-on-write (#187): drop rows past the retention window and any beyond the
@@ -45,7 +50,7 @@ async function pruneToken(hash) {
   await query(
     `DELETE FROM history
        WHERE token_hash = $1
-         AND saved_at <= NOW() - ($2 || ' days')::interval`,
+         AND added_at <= NOW() - ($2 || ' days')::interval`,
     [hash, String(RETENTION_DAYS)],
   );
   await query(
@@ -73,6 +78,9 @@ export default async function historyRoutes(app) {
   // and the client's savedAt agree on one authority), upserts by
   // (token_hash, url_key) — a revisit replaces, never duplicates — prunes, and
   // returns the fresh list so the client reconciles in one round-trip.
+  //
+  // The payload is stored opaquely, which is what lets a purely client-side
+  // field like #196's manual `adjustment` sync between browsers for free.
   app.post('/api/history', { preHandler: requireIngestToken }, async (req, reply) => {
     const entry = req.body;
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
@@ -91,9 +99,13 @@ export default async function historyRoutes(app) {
     }
 
     const hash = tokenHash(req);
+    // #197: `added_at` is written on INSERT and deliberately left out of the
+    // DO UPDATE set, so a revisit can never bump it. That is the whole ask —
+    // the shortlist clock starts when the coffee is added, and stays started.
     await query(
-      `INSERT INTO history (token_hash, url_key, saved_at, payload)
-         VALUES ($1, $2, to_timestamp($3::double precision / 1000.0), $4::jsonb)
+      `INSERT INTO history (token_hash, url_key, saved_at, added_at, payload)
+         VALUES ($1, $2, to_timestamp($3::double precision / 1000.0),
+                 to_timestamp($3::double precision / 1000.0), $4::jsonb)
          ON CONFLICT (token_hash, url_key)
          DO UPDATE SET saved_at = EXCLUDED.saved_at, payload = EXCLUDED.payload`,
       [hash, urlKey, now, JSON.stringify(payload)],

@@ -206,6 +206,9 @@ export default async function photosRoutes(app) {
     '/api/photos/:sourceId/image',
     {
       preHandler: requireIngestToken,
+      // #173(c): the ONLY route that needs the big body limit. It used to be
+      // global (server.js), which let any JSON endpoint buffer 100 MB.
+      bodyLimit: config.maxUploadBytes,
       config: { rateLimit: { max: config.ingestRateLimitMax, timeWindow: 60_000 } },
     },
     async (req, reply) => {

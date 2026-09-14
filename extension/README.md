@@ -60,6 +60,29 @@ launchctl bootout gui/$(id -u)/ro.climbagain.mycoffee.extension-update
 rm ~/Library/LaunchAgents/ro.climbagain.mycoffee.extension-update.plist
 ```
 
+## Second browser on the same Mac (Brave, Arc, Edge, Canary…)
+
+One clone, N browsers. The hourly `git pull` from `install-autoupdate.sh` you
+already ran keeps a single `extension/` folder fresh; every browser that Loads
+Unpacked from that folder picks up the manifest bump on its own reload cycle.
+Don't clone twice; don't install the launchd agent twice.
+
+1. In the new browser, open its extensions page — `brave://extensions`,
+   `edge://extensions`, `arc://extensions`, or `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. **Load unpacked** → point at the **same** `mycoffee-ext/extension/` folder
+   the first browser uses. (Wherever you cloned it — a typical path is
+   `~/mycoffee-ext/extension`.)
+4. Open its Options page, paste the same `APP_TOKEN` (and `INGEST_TOKEN` if you
+   want the shortlist to sync — that's what makes it a shared list rather than
+   a second browser's copy) and hit **Save** → **Test connection**.
+5. Open the popup once. The shortlist backfills from `/api/history` on first
+   read; you should see the same entries the first browser has.
+
+Each browser is a separate install with its own extension ID, so each one
+remembers its own tokens (§note above about `chrome.storage.local`). That's
+fine — same token typed in twice reaches the same server-side shortlist.
+
 > Use `APP_TOKEN`, **not** `INGEST_TOKEN`. Scoring never writes anything, so the
 > extension only needs read access — and whatever token it carries lives in the
 > browser profile, where anything that can read your disk can read it.
@@ -69,8 +92,18 @@ rm ~/Library/LaunchAgents/ro.climbagain.mycoffee.extension-update.plist
 > everything else still works.
 
 Chrome forgets an unpacked extension's service worker between uses but keeps
-your settings; you never need to re-enter the token, and an update never clears
-them.
+your settings; you never need to re-enter the token, and an **update** never
+clears them.
+
+> ⚠ **Reinstalling is not the same as updating.** `chrome.storage.local` is
+> scoped to the extension's install ID, and an unpacked extension loaded from
+> a folder gets a *new* ID every time you Remove it and Load Unpacked again —
+> even from the same folder, same profile. So a Remove + Load-Unpacked cycle
+> **clears your tokens and pre-#194 shortlist entries**, while a plain reload
+> (auto-update above, or the ↻ button on `chrome://extensions`) leaves them
+> intact. Post-#194 shortlist rows survive because they're on the server now,
+> keyed by your token — but you have to re-enter that token first for the
+> extension to fetch them back.
 
 ## What the number means
 
@@ -239,8 +272,11 @@ nothing syncs, and that's fine for read-only use.
   "cached result" when you're seeing one.
 - "Add as new" is not built and is not planned here — the iOS app stays how new
   bags are added.
-- History is per-browser and per-profile. Clearing Chrome's site data for the
-  extension clears it; it does not sync to another machine or to the app.
+- History syncs across browsers via `/api/history` when a write token is set
+  (#194) but stays per-machine when it isn't. Clearing Chrome's site data for
+  the extension wipes the local cache, and a Remove + Load-Unpacked clears both
+  the cache and your saved token (see the note above the token warning).
+  The iOS app doesn't yet surface the shortlist (#195).
 - Enrichment needs a page title and a recognised roaster. Without both, matching
   would be guesswork, so the popup just shows the score.
 - **Prices in RON, CZK or PLN are currently dropped** — the parser knows the

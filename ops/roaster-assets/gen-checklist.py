@@ -9,10 +9,20 @@ Live fetch needs APP_TOKEN (or INGEST_TOKEN) in the environment; the Railway
 host is on the cloud session's allow-list (CLAUDE.md §7). Tracks backlog
 #132-#134: the roaster logo + blurb content Radu supplies.
 
-Marks a roaster's Logo/Blurb ticked (checklist only — the real source of truth
-is the DB once #133 backfills it):
-  - Logo  = a file logos/<slug>.* exists in this folder.
-  - Blurb = the slug appears in blurbs.md as a "## <slug>" section with body text.
+Marks a roaster's Logo/Blurb ticked:
+  - Blurb = the roaster's `blurb` column is non-empty in the live snapshot (the
+    DB — the actual source of truth the app reads). Was previously keyed on a
+    "## <slug>" section existing in blurbs.md, which reported ✅ for text that had
+    been staged but never written to the DB (only migrations 029/030 had run),
+    hiding a 15-vs-64 gap until #207/038 backfilled the rest. Staging is not
+    delivery; this column now tracks delivery.
+  - Logo  = the roaster's `logoUrl` is non-empty in the live snapshot, i.e. the
+    app actually shows one. A file staged in logos/<slug>.* but not wired into
+    `roasters.logo_url` renders as ◐, not ✅ — the same staged-vs-delivered gap
+    the Blurb column shed in #207, closed here too (2026-09-14). The three
+    states are deliberate rather than a binary: ◐ says "the art exists, it just
+    needs a migration", which is a different job from ☐ "nobody has found a
+    logo yet".
 """
 import collections
 import datetime
@@ -40,26 +50,9 @@ def load_snapshot():
         return json.loads(r.read())
 
 
-def have_logo(slug):
+def staged_logo(slug):
+    """A logo file sitting in this folder — staged, not necessarily delivered."""
     return bool(glob.glob(os.path.join(HERE, "logos", slug + ".*")))
-
-
-def load_blurb_slugs():
-    path = os.path.join(HERE, "blurbs.md")
-    slugs = set()
-    if not os.path.exists(path):
-        return slugs
-    cur, body = None, ""
-    for line in open(path):
-        if line.startswith("## "):
-            if cur and body.strip():
-                slugs.add(cur)
-            cur, body = line[3:].strip(), ""
-        else:
-            body += line
-    if cur and body.strip():
-        slugs.add(cur)
-    return slugs
 
 
 def esc(s):
@@ -89,7 +82,6 @@ def main():
             continue
         rating_sum[rid] += rat
         rating_n[rid] += 1
-    blurb_slugs = load_blurb_slugs()
 
     rows = []
     for r in roasters:
@@ -102,8 +94,11 @@ def main():
                 "country": countries.get(r.get("country_id"), "") or "",
                 "n": counts.get(rid, 0),
                 "avg": avg,
-                "logo": have_logo(r["slug"]),
-                "blurb": r["slug"] in blurb_slugs,
+                # Delivered (in the DB, so the app shows it) vs merely staged
+                # (a file in logos/ that no migration has wired up).
+                "logo": bool((r.get("logoUrl") or "").strip()),
+                "logo_staged": staged_logo(r["slug"]),
+                "blurb": bool((r.get("blurb") or "").strip()),
             }
         )
 
@@ -121,7 +116,7 @@ def main():
     unused.sort(key=lambda r: r["name"].lower())
 
     def cell(r):
-        lg = "✅" if r["logo"] else "☐"
+        lg = "✅" if r["logo"] else ("◐" if r["logo_staged"] else "☐")
         bl = "✅" if r["blurb"] else "☐"
         avg = f"{r['avg']:.1f}" if r["avg"] is not None else "—"
         return (
@@ -130,6 +125,7 @@ def main():
         )
 
     done_ct = sum(1 for r in used if r["logo"] and r["blurb"])
+    staged_only_ct = sum(1 for r in rows if r["logo_staged"] and not r["logo"])
     out = []
     w = out.append
     w("# Roaster content checklist — logos + blurbs")
@@ -146,7 +142,17 @@ def main():
         "Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug."
     )
     w("")
-    w("- **Logo** / **Blurb**: ☐ = missing, ✅ = provided.")
+    w(
+        "- **Both columns now track DELIVERY, not staging.** ✅ = live in the DB, "
+        "so the app actually shows it. ☐ = missing. **Logo ◐** = the art is "
+        "staged in `logos/` but no migration has wired it into "
+        "`roasters.logo_url` yet — real work done, just not delivered."
+    )
+    w(
+        "- This distinction is the whole point of #207: the Blurb column used to "
+        "tick ✅ for text merely staged in `blurbs.md`, and reported everything "
+        "green while 95 of 110 roasters had no blurb in the DB at all."
+    )
     w(
         "- **★avg** = average rating across that roaster's rated coffees "
         "(— = none rated yet)."
@@ -179,7 +185,10 @@ def main():
 
     with open(os.path.join(HERE, "CHECKLIST.md"), "w") as f:
         f.write("\n".join(out) + "\n")
-    print(f"wrote CHECKLIST.md — {len(used)} in-library, {len(unused)} unused")
+    print(
+        f"wrote CHECKLIST.md — {len(used)} in-library, {len(unused)} unused, "
+        f"{staged_only_ct} logo(s) staged but not wired into roasters.logo_url"
+    )
 
 
 if __name__ == "__main__":

@@ -230,12 +230,17 @@ export function extractRuleFields(rawText, { roasterVocab, countryVocab } = {}) 
 
 // ---- DB-loading wrapper (the actual voter object agents.js picks up) ----
 //
-// Vocab is loaded once per process and reused for every `run()` call — the
-// same tradeoff `agents.js`'s module-level `_rulesVoterPromise` cache already
-// makes for the voter object itself. A newly-confirmed alias (`POST
-// /api/review/rules`) is picked up on the next deploy/restart, not mid-run;
-// acceptable for a Phase 0 pass that runs once over the corpus before any
-// vocab-version bump.
+// #173(b): the caller's per-run vocab wins. `worker.js` already loads the whole
+// vocab once per `runWorker`/request in `loadSharedContext()` and now passes it
+// through as `ctx.vocab`, so the rules voter sees an alias confirmed via
+// `POST /api/review/rules` on the very next pass.
+//
+// The module-level cache below is the fallback for callers that pass no vocab
+// (the wizard's light ensemble, tests). It used to be the ONLY path, and it is
+// loaded once per PROCESS: a newly-confirmed alias was then invisible until the
+// next deploy, which is not merely stale — the rules voter would keep voting
+// "unresolved" for a name the LLM voters now resolve, manufacturing a spurious
+// `split` and a review item for a question a human had already answered.
 let _vocabPromise;
 async function loadVocab() {
   if (!_vocabPromise) {
@@ -246,13 +251,20 @@ async function loadVocab() {
   return _vocabPromise;
 }
 
+// `sharedCtx.vocab` is `{ countries, roasters, farms }` (worker.js's
+// loadSharedContext); this voter wants `{ roasterVocab, countryVocab }`.
+function vocabFromCtx(ctxVocab) {
+  if (!ctxVocab?.roasters || !ctxVocab?.countries) return null;
+  return { roasterVocab: ctxVocab.roasters, countryVocab: ctxVocab.countries };
+}
+
 export const rulesVoter = {
   agent: 'rules',
   provider: 'rules',
   model: null,
   promptVersion: PROMPT_VERSION,
-  async run({ rawText } = {}) {
-    const vocab = await loadVocab();
+  async run({ rawText, vocab: ctxVocab } = {}) {
+    const vocab = vocabFromCtx(ctxVocab) ?? (await loadVocab());
     return {
       agent: 'rules',
       provider: 'rules',

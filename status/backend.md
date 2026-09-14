@@ -8,6 +8,121 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-14 (interactive, same session) — extension batch: #196 #197 #198 #199, manifest 1.6.0
+
+All four in one manifest bump, because they touch the same two files and
+shipping them separately would mean three auto-update rounds for one feature.
+
+**#199's shared module is a MIRROR, not an import, and the row's own shape had
+to change for that.** It asks for `extension/scoring-blend.js` "imported by both
+`backend/src/lib/scoring.js` and the extension". That cannot work: the Railway
+service's Root Directory is `backend`, so `extension/` is not even deployed —
+a backend import of `../../extension/` would resolve locally, pass CI, and
+throw on boot in production. A browser cannot import backend code either. So
+the constants are duplicated deliberately and pinned by
+`backend/test/scoring-blend-contract.test.js` (weights, stale rule, the whole
+recency curve at every edge, day arithmetic incl. a future-dated roast, and the
+blend on a fixed fixture) — exactly the arrangement #194 already uses for
+`history.js`/`lib/history.js`. Same guarantee, no deploy-time landmine.
+
+**#198's three rules are each a test, not a comment.** Nothing in
+`routes/vocab.js` writes `coffees` (asserted by row count across an
+observation); every write is `IS NULL`-guarded so a curated blurb/logo is never
+clobbered by a shop page; countries stay closed, with an unresolvable name
+creating nothing and a resolvable-but-differently-spelled one becoming an ALIAS
+on the existing row — browsing a page that says "DRC" must not mint a second
+Congo. A new roaster goes through #36's `getOrCreateVocabEntry`, which also
+writes the alias; a test asserts that, because a vocab row with no alias is
+invisible to extraction forever (CLAUDE.md §12) and fails *silently*.
+
+**#197 is two changes, and the second is the one that matters.** 30 days is
+easy; measuring from `added_at` rather than `saved_at` is the actual bug —
+`saved_at` is bumped by every revisit, so a coffee Radu kept checking in on
+reset its own clock and rode the list forever, while one he saw once fell off
+at exactly 10. `added_at` is written on INSERT and deliberately left OUT of the
+`ON CONFLICT DO UPDATE` set. `liveEntries` folds the column back into the
+payload rather than trusting the client's copy, so an offline browser cannot
+resurrect a row by posting a fresher one.
+
+**#196 ranks on the adjusted number.** Adjusting only the badge would have been
+cosmetic — the list he shops off has to reorder. Same reasoning applies to
+#199's recomputed score, so both go through one `displayScore(entry, now)` that
+`rank()` sorts on.
+
+**Test-harness change worth knowing about:** `extension-history.test.js` and
+`history-lib.test.js` used to read `extension/history.js` as TEXT, slice it and
+`new Function` it, specifically to keep `chrome` out of scope. #199 adds a
+static `import` to that file, which the slicing harness cannot survive. Both now
+import it as a real module — which works, because `history.js` touches `chrome`
+only inside its async storage helpers, never at module top level. The comment in
+`remoteHistory` warning that a static import "would break that harness" is now
+out of date in its reasoning but right in spirit; the harness is gone.
+
+Migrations `042`, `043`. 505/505 green with a DB.
+
+## 2026-09-14 (interactive, Radu: "run all lanes … up to publish") — backend batch: #208 #169 #170 #172 #168 #129 #173 #174 shipped; #124 found already-done; #140 closed as superseded
+
+Ten rows in one pass, all verified against a real Postgres 16 rather than
+against the suite alone — which turned out to matter.
+
+**#174 first, because everything else leaned on it.** CI ran 325 (then 471)
+green tests that executed no route handler body: with no `DATABASE_URL` /
+`INGEST_TOKEN` / `APP_TOKEN`, every route test asserted `[401, 503]` and only
+`auth.js`'s `auth_not_configured` branch ever ran. `railway-deploy.yml`'s test
+job now brings up a `postgres:16` service container with throwaway tokens (never
+the repo secrets — an empty container needs nothing real, and Actions logs are
+world-readable on a public repo), applies every migration as its own step, then
+runs the suite. `test/integration.test.js` skips itself without a DB, so the
+no-DB suite still runs anywhere.
+
+**It paid for itself inside the hour.** #168's new `generatedAt` cursor passed
+every unit test and was wrong: Postgres stores microseconds, a JS `Date`
+truncates to milliseconds and rounds DOWN, so `updated_at > cursor` handed the
+newest coffee back on every single sync. Then the fix for *that* (emit
+microseconds in SQL) was also wrong, for a reason no backend test could see —
+the iOS client decodes `generatedAt` into a `Date` and re-encodes `since` with a
+3-fractional-digit ISO formatter (`Utilities/CoffeeCoding.swift`), so the
+microseconds die on the way back regardless. Final shape: truncate to
+milliseconds **downward** in SQL, which re-sends the boundary row (a few hundred
+bytes, body stays byte-identical, still 304s) instead of skipping it. Rounding
+up would have overshot any row committed later inside that same millisecond and
+dropped it from every future sync — silently, forever.
+
+**#124 was already done; the row was never flipped.** `backfillRoastDates` +
+`POST /api/admin/backfill-roast-dates` are in `main` and have been run: DAK
+(`4dBosHoqKJ89ABPeZgGVEg`), this row's own acceptance case, returns
+`roastedOn: 2026-06-23`. Same lost-flip shape as #121's on 2026-09-07. Checked
+the live record rather than trusting either the row or the code.
+
+**#140 closed WITHOUT implementing it, deliberately.** It asks for evaluator
+affinity:value ≈ 65:35 to match #139. But it describes
+`{ value: 0.50, affinity: 0.35, novelty: 0.15 }`, and #189 replaced that three
+days later with Radu's own `{ affinity: 0.50, roast: 0.20, value: 0.15,
+novelty: 0.10 }` — affinity:value **77:23**, already further in the direction
+#140 wanted. Implementing the row literally would have *lowered* the rating
+weight against his more recent instruction. Flagged for him rather than picked
+silently; it is one line if he wants exactly 65:35.
+
+**#208** re-measured live before writing the migration, as the row insists:
+fetched all 25 honey-detail coffees, fed each one's real raw text through the
+current `parseProfile`, got exactly the 3 public_ids named. Migration `039`,
+explicit ids, idempotent, skips a locked human `profile` resolution.
+
+**#129** seeds the two known-untranscribable photos at the attempt cap — via a
+join on `coffees.public_id`, because the two ids in the row are COFFEE public
+ids (what `backfillOcrText`'s error list reports). Matching them against
+`photos.public_id` would have updated zero rows and looked fine.
+
+**#173** shipped (a)-(e). Not done, and deliberately: the unused *exports*
+(`releaseLease`, `isProd`, `loadCityVocab`/`resolveCity`, `monthlyRatesToEur`)
+and the unused `cities`/`briefs` tables — a bigger blast radius than this
+batch's "all S" framing; and `coffees.deleted_at` is never set because nothing
+deletes a coffee yet, so an empty `deleted[]` is correct.
+
+Migrations `039`, `040`, `041`. 484/484 green with a DB, 471 + 13 skipped
+without. No extraction job was `running` at push time (checked
+`GET /api/admin/jobs` first, per CLAUDE.md §12).
+
 ## 2026-09-14 07:23 UTC: #121 re-opened and closed for real — the actual live path, not the draft screen #131 deleted — DONE, `83778a3`
 
 `git show origin/main:status/BACKLOG.md` still showed #121 `ready`, phase 8,

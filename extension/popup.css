@@ -600,3 +600,50 @@ body {
 .hseen {
   color: var(--ink-dim);
 }
+
+
+/* #196: manual score adjustment, beside the headline number. */
+.adjust {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.adjust-btn,
+.adjust-reset {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 8px;
+  min-height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.adjust-btn:hover,
+.adjust-reset:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.adjust-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+  text-align: center;
+}
+
+/* The per-row echo in the top-10 list. */
+.hadjust {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}

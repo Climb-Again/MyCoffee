@@ -19,9 +19,9 @@ import { FIELD_TO_CLIENT, resolveField, slugify } from '../lib/resolveField.js';
 export { slugify };
 
 const ALIAS_TABLES = {
-  roaster: { table: 'roaster_aliases', fk: 'roaster_id' },
-  country: { table: 'country_aliases', fk: 'country_id' },
-  farm: { table: 'farm_aliases', fk: 'farm_id' },
+  roaster: { table: 'roaster_aliases', fk: 'roaster_id', canonicalTable: 'roasters' },
+  country: { table: 'country_aliases', fk: 'country_id', canonicalTable: 'countries' },
+  farm: { table: 'farm_aliases', fk: 'farm_id', canonicalTable: 'farms' },
 };
 
 // Signed review thumbnails are one-shot deep links the reviewer taps within a
@@ -217,12 +217,26 @@ export default async function reviewRoutes(app) {
     const aliasNorm = normalizeVocabString(alias);
     if (!aliasNorm) return reply.code(400).send({ error: 'invalid_rule' });
 
+    // #172: an unknown `canonicalId` used to reach Postgres as a foreign-key
+    // violation (23503) and surface as a bare 500 -- a client typo reported as
+    // a server fault, with the real cause only in the platform log. A
+    // non-integer id did the same via an invalid bigint bind. Both are bad
+    // requests about a row that does not exist, so check first and say which.
+    const canonicalIdNum = Number(canonicalId);
+    if (!Number.isInteger(canonicalIdNum) || canonicalIdNum <= 0) {
+      return reply.code(400).send({ error: 'invalid_canonical_id', canonicalId });
+    }
+    const { rows: canonicalRows } = await query(`SELECT 1 FROM ${spec.canonicalTable} WHERE id = $1`, [canonicalIdNum]);
+    if (canonicalRows.length === 0) {
+      return reply.code(404).send({ error: 'canonical_not_found', kind, canonicalId: canonicalIdNum });
+    }
+
     await query(
       `INSERT INTO ${spec.table} (${spec.fk}, alias, alias_norm) VALUES ($1, $2, $3)
        ON CONFLICT (alias_norm) DO UPDATE SET ${spec.fk} = EXCLUDED.${spec.fk}, alias = EXCLUDED.alias`,
-      [canonicalId, alias, aliasNorm],
+      [canonicalIdNum, alias, aliasNorm],
     );
 
-    return { ok: true, kind, canonicalId, aliasNorm };
+    return { ok: true, kind, canonicalId: canonicalIdNum, aliasNorm };
   });
 }

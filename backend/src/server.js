@@ -6,7 +6,6 @@
 import Fastify from 'fastify';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import multipart from '@fastify/multipart';
 import compress from '@fastify/compress';
 import etag from '@fastify/etag';
 
@@ -27,6 +26,7 @@ import adminRoutes from './routes/admin.js';
 import whatsnewRoutes from './routes/whatsnew.js';
 import scoreRoutes from './routes/score.js';
 import historyRoutes from './routes/history.js';
+import vocabRoutes from './routes/vocab.js';
 
 export async function build() {
   const app = Fastify({
@@ -34,7 +34,9 @@ export async function build() {
       level: config.env === 'production' ? 'info' : 'debug',
     },
     trustProxy: true,
-    bodyLimit: config.maxUploadBytes,
+    // #173(c): 1 MB globally; the one route that accepts a raw image raises its
+    // own limit per-route (routes/photos.js).
+    bodyLimit: config.maxJsonBodyBytes,
   });
 
   // Security headers. CSP is off — this is a JSON API, not a web page host.
@@ -45,9 +47,11 @@ export async function build() {
     timeWindow: config.rateLimitWindowMs,
   });
 
-  await app.register(multipart, {
-    limits: { fileSize: config.maxUploadBytes },
-  });
+  // #173(d): @fastify/multipart was registered but NO route ever read a
+  // multipart body — the one upload route takes a raw image/jpeg body. Removed
+  // along with the dependency. If #152's roaster-logo upload lands as
+  // multipart, re-register it there with a per-route limit rather than
+  // globally.
 
   // PUT /api/photos/:sourceId/image sends a raw JPEG body (not multipart) so
   // the exporter script stays a one-line curl and the dedupe identity lives
@@ -81,6 +85,7 @@ export async function build() {
   await app.register(whatsnewRoutes);
   await app.register(scoreRoutes);
   await app.register(historyRoutes);
+  await app.register(vocabRoutes);
 
   return app;
 }

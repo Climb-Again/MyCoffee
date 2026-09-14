@@ -123,7 +123,21 @@ export async function getOrCreateVocabEntry(field, rawName) {
 // own request shape (a review-item lookup vs. a coffee lookup). Returns
 // `{ value }` on success or `{ error }` when the value can't be resolved
 // (caller decides the HTTP status -- always 422 today).
-export async function resolveField(photoId, field, rawValue, ctx) {
+// #172: `dryRun` validates without writing anything -- no vocab row created, no
+// locked human resolution inserted. `POST /api/coffees/:publicId/edit` and the
+// wizard's create path resolve fields in a loop, and a 422 from a LATER field
+// used to return after the earlier ones had already INSERTed locked
+// `decided_by = 'human'` resolutions -- claims that Radu had confirmed values
+// the coffee row never reflected (nothing applies them until some future
+// adjudication pass). Both routes now dry-run every edit first and 422 before
+// the first real write.
+//
+// A dry run reports `unresolvable_value` for exactly the same inputs a real one
+// would: the only step it skips is `getOrCreateVocabEntry`, and that step never
+// fails a value -- it MAKES an unresolved roaster/farm name resolvable. So dry
+// mode treats a `VOCAB_GET_OR_CREATE` field with an unresolved name as valid,
+// which is what the real path will do a moment later.
+export async function resolveField(photoId, field, rawValue, ctx, { dryRun = false } = {}) {
   let value = rawValue;
   if (STRUCTURED_FIELDS.has(field)) {
     let canonical = canonicalize(field, value, ctx);
@@ -145,6 +159,7 @@ export async function resolveField(photoId, field, rawValue, ctx) {
     // the Sopacdi farm on #165's Congo coffee -- the edit reported success and
     // changed nothing.
     if (VOCAB_GET_OR_CREATE[field] && canonical?.id == null) {
+      if (dryRun) return { ok: true };
       const newId = await getOrCreateVocabEntry(field, String(canonical?.name ?? value));
       if (newId != null) canonical = { id: newId, confidenceFactor: 1 };
     }
@@ -159,6 +174,8 @@ export async function resolveField(photoId, field, rawValue, ctx) {
     if (!canonical) return { error: 'unresolvable_value' };
     value = denormalize(field, canonical);
   }
+
+  if (dryRun) return { ok: true };
 
   // `locked = true`, `decided_by = 'human'` -- PLAN.md §1's single most
   // important invariant: no later adjudication pass touches this field again.
