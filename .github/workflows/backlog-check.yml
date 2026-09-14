@@ -35,5 +35,14 @@ jobs:
       # had all shipped and ZERO backend/data items while 14 backend rows sat
       # ready. A stale plan serves 200 exactly like a fresh one, so only a
       # check catches it.
+      # main ONLY. `ios-staging`'s BACKLOG.md is a lagging mirror by design — the
+      # iOS lanes flip rows there and `sync-backlog-rows.sh` lands them on `main`,
+      # which is where whatsnew.json is regenerated (it is backend-owned, and a
+      # second copy on `ios-staging` would be a new divergence, not a fix). So on
+      # `ios-staging` this step can only ever be red, and was: every ios lane push
+      # touching the backlog failed this check (runs #132/#134/#136/#138 on
+      # 2026-09-14 alone). A check no lane can make green teaches lanes to ignore
+      # the check. The duplicate-row guard above still runs on both branches.
       - name: What's New plan matches the backlog
+        if: github.ref == 'refs/heads/main'
         run: node ops/gen-whatsnew-plan.mjs --check
