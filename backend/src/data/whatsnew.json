@@ -115,10 +115,6 @@
     "byLane": {
       "backend": [
         {
-          "title": "Add Coffee wizard drops a roaster that isn't already in the vocab",
-          "detail": "Queued."
-        },
-        {
           "title": "Roast-date backfill is incomplete: POST /api/admin/adjudicate does NOT re-run the deterministic rules voter,…",
           "detail": "Queued."
         },
@@ -203,14 +199,6 @@
       ],
       "ios": [
         {
-          "title": "Main-thread work on every navigation: lazy snapshot load, folded search text computed once, replacingCoffee…",
-          "detail": "Queued."
-        },
-        {
-          "title": "ImageStore: in-memory decoded cache, off-actor decode, one mtime touch per launch; route display through it.…",
-          "detail": "Queued."
-        },
-        {
           "title": "Split from #179(f) (2026-09-11) — #179's (a)-(e) shipped ios-staging@14f6257, this is just the part gated on…",
           "detail": "Queued behind earlier work."
         },
@@ -232,7 +220,7 @@
         },
         {
           "title": "Route the hero / zoom / review display images through ImageStore and fix the thumb-as-hero flash. (Audit…",
-          "detail": "Queued behind earlier work."
+          "detail": "Queued."
         },
         {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
@@ -256,10 +244,6 @@
         },
         {
           "title": "Roaster logo medallion renders a permanent empty tile — logos never appear on the coffee page or roaster…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Latent: Roaster.countryId always decodes nil — its CodingKey fights .convertFromSnakeCase (found while…",
           "detail": "Queued."
         },
         {

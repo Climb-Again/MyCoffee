@@ -39,6 +39,9 @@ const REVIEW_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 const REASON_LABELS = {
   split: 'voters disagreed',
   prose_spread: 'ambiguous text selection',
+  // #121: a roaster name was extracted but isn't in the vocab yet -- pick a
+  // candidate to create it, same as any other new roaster.
+  unresolved_roaster: 'possible new roaster',
   // Legacy — pre-#35 review items could carry these; a re-adjudication pass
   // closes them, but a stale open row from before that pass should still
   // render a sane label rather than the raw reason string.

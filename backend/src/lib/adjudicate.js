@@ -265,7 +265,34 @@ export function adjudicateField(field, rawCandidates, ctx = {}) {
     .filter(Boolean);
 
   if (candidates.length === 0) {
-    return { field, value: null, confidence: 0, agreement: 0, voters: [], decision: 'absent', reviewReason: null, pendingVocabName: null };
+    // #121 (Radu, 2026-09-03): a roaster string was extracted but doesn't
+    // resolve against the seeded vocab -- that's usually a genuinely new
+    // roaster (his own example, "Spojka"), not extraction noise. Unlike
+    // origin_farm_id (0-seeded, so an agreeing new name auto-creates via
+    // pendingVocabName below) roaster vocab is well-seeded, so silently
+    // auto-creating from one unresolved string is the wrong default -- but
+    // silently dropping it (the old behaviour) loses it just the same.
+    // Flag it for a human instead: a review item carrying the raw string,
+    // which `POST /api/review/:id` already resolves into a brand-new roaster
+    // via `getOrCreateVocabEntry` (`resolveField.js`) -- the exact
+    // "surface it as an editable draft, get-or-create on save" #121 asked
+    // for, just reached through the review queue rather than the wizard
+    // confirm screen #131 later removed. Only `roaster_id`: this does not
+    // relitigate the "unresolvable second candidate" test below, which is
+    // about not letting one bad candidate poison an otherwise-resolved
+    // field -- unaffected, since that case still has `candidates.length > 0`.
+    const hasRawRoasterCandidate =
+      field === 'roaster_id' && (rawCandidates ?? []).some((c) => c.value != null && String(c.value).trim() !== '');
+    return {
+      field,
+      value: null,
+      confidence: 0,
+      agreement: 0,
+      voters: [],
+      decision: 'absent',
+      reviewReason: hasRawRoasterCandidate ? 'unresolved_roaster' : null,
+      pendingVocabName: null,
+    };
   }
 
   const clusters = clusterCandidates(field, candidates).sort((a, b) => b.totalWeight - a.totalWeight);
@@ -365,7 +392,12 @@ export function adjudicateRecord(candidatesByField, ctx = {}) {
     if (ctx.locked?.has(field)) continue;
     const result = adjudicateField(field, candidates, ctx);
     resolutions[field] = result;
-    if (result.decision === 'split') {
+    // `reviewReason` is set exactly when a field needs a human look --
+    // 'split' (a real cluster disagreement) and, since #121, an unresolved
+    // roaster string too (`decision` stays 'absent' there, not 'split': the
+    // coffee's `roaster_id` still correctly retracts to NULL, this only adds
+    // the review item so it isn't silently lost).
+    if (result.reviewReason) {
       reviews.push({ field, reason: result.reviewReason, candidates });
     }
   }

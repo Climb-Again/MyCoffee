@@ -518,6 +518,15 @@ export default async function coffeesRoutes(app) {
   // written, since a draft the human hasn't confirmed yet has nothing worth
   // caching -- unlike the batch worker, this call is never repeated with an
   // unchanged input_sha.
+  //
+  // ⚠ Not currently called by the shipped app (checked 2026-09-14): #131
+  // (2026-09-07) deleted the wizard's confirm-draft screen in favour of
+  // `quick-create` + background full-ensemble extraction below, and nothing
+  // in `Features/AddCoffee/**` calls `CoffeeStore.extractDraft` any more.
+  // `buildExtractFields`'s #121 fix (an unresolved roaster surfaces as an
+  // editable `decision: 'draft'` field) is real and tested, but has no live
+  // caller today -- #121's actual production fix, for the flow the app now
+  // uses, is in `adjudicate.js`'s `unresolved_roaster` review reason instead.
   app.post('/api/coffees/extract', { preHandler: requireIngestToken }, async (req, reply) => {
     const photoIds = Array.isArray(req.body?.photoIds) ? req.body.photoIds : [];
     if (photoIds.length === 0) return reply.code(400).send({ error: 'missing_photo_ids' });

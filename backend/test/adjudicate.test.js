@@ -188,6 +188,32 @@ test('an unresolvable second candidate leaves a single resolvable one -- still a
   assert.equal(result.value, 1);
 });
 
+test('#121: a roaster string extracted but not in vocab is flagged for review, not silently dropped', () => {
+  const result = adjudicateField('roaster_id', [{ agent: 'extract_a', value: 'Spojka', confidence: 0.9 }], BASE_CTX);
+  // The coffee's roaster_id still correctly retracts to NULL (nothing
+  // resolved) -- 'absent', not 'accepted' or 'split' -- but a human now gets
+  // a chance to confirm it via the review queue instead of losing it.
+  assert.equal(result.decision, 'absent');
+  assert.equal(result.value, null);
+  assert.equal(result.reviewReason, 'unresolved_roaster');
+});
+
+test('#121: an entirely absent roaster (no raw candidate at all) is NOT flagged -- nothing to review', () => {
+  const result = adjudicateField('roaster_id', [], BASE_CTX);
+  assert.equal(result.decision, 'absent');
+  assert.equal(result.reviewReason, null);
+});
+
+test('#121: the unresolved-roaster review flag is roaster-only -- an unresolvable farm/altitude/etc. still just goes absent', () => {
+  // origin_farm_id already has its own carry-through (pendingVocabName); an
+  // unresolvable *rating* has no such mechanism and must not spuriously gain
+  // a review reason just because #121 touched the shared `candidates.length
+  // === 0` branch.
+  const result = adjudicateField('rating', [{ agent: 'extract_a', value: 'not a number', confidence: 0.9 }], BASE_CTX);
+  assert.equal(result.decision, 'absent');
+  assert.equal(result.reviewReason, null);
+});
+
 test('a genuine split -- two voters resolving to different real roasters -- goes to review, but still applies the top pick', () => {
   const result = adjudicateField(
     'roaster_id',
@@ -382,4 +408,20 @@ test('adjudicateRecord collects only genuinely split fields, with a reason', () 
   assert.equal(reviews.length, 1);
   assert.equal(reviews[0].field, 'roaster_id');
   assert.equal(reviews[0].reason, 'split');
+});
+
+test('#121: adjudicateRecord also collects an unresolved-roaster field, carrying the raw candidates for the review card', () => {
+  const candidatesByField = {
+    roaster_id: [{ agent: 'extract_a', value: 'Spojka', confidence: 0.9 }],
+  };
+  const { resolutions, reviews } = adjudicateRecord(candidatesByField, BASE_CTX);
+  assert.equal(resolutions.roaster_id.decision, 'absent');
+  assert.equal(resolutions.roaster_id.value, null);
+  assert.equal(reviews.length, 1);
+  assert.equal(reviews[0].field, 'roaster_id');
+  assert.equal(reviews[0].reason, 'unresolved_roaster');
+  // The raw (pre-canonicalize) candidates, not the empty canonicalized list --
+  // `storeReviews` (worker.js) persists these verbatim so the review card has
+  // "Spojka" to show and pick, not nothing.
+  assert.equal(reviews[0].candidates[0].value, 'Spojka');
 });

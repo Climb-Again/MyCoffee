@@ -8,6 +8,111 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-14 07:23 UTC: #121 re-opened and closed for real — the actual live path, not the draft screen #131 deleted — DONE, `83778a3`
+
+`git show origin/main:status/BACKLOG.md` still showed #121 `ready`, phase 8,
+lowest-numbered ready backend row with no unmet `needs` — picked it per the
+usual "lowest phase, then lowest number" rule.
+
+**First surprise: the described fix was already sitting in `main`.**
+`buildExtractFields` (`routes/coffees.js`) already has the exact `#121`
+draft carve-out (an unresolved `roaster_id` with a raw candidate string
+surfaces as `decision: 'draft'` instead of being dropped), with tests
+(`coffees-extract.test.js`) named for `#121` and passing. `status/backend.md`
+itself has a full write-up at "2026-09-07 07:23 UTC: #121 ... — DONE,
+`a345d1b`" describing exactly this fix and claiming it flipped the backlog
+row to `done`. **But the row was still `ready`**, and `a345d1b` doesn't
+resolve to any commit in this repo today (`git cat-file -t a345d1b` →
+`Not a valid object name`). I can't reconstruct exactly what happened to
+that push — the code is real and correct for what it targeted, so this
+reads as a lost backlog-flip, not phantom work — but the row was never
+actually closed, so I kept going rather than take "the code exists" as
+"the row's done."
+
+**Second, bigger surprise: that endpoint is dead code today.** Nothing in
+`Features/AddCoffee/**` calls `CoffeeStore.extractDraft` — grepped the whole
+iOS `Sources/` tree to be sure. `#131` (ios-ux, **the same day**, 10:47 UTC —
+three hours after the backend session's 07:23 slot) deleted the wizard's
+confirm-draft screen entirely in favour of `quickCreateCoffee` + a background
+full-ensemble extraction (`POST /api/coffees/quick-create` →
+`kickBackgroundExtraction` → `processPhoto` → the same `adjudicate.js`/
+`worker.js` pipeline the daily batch uses). The backend session had no way to
+know this — #131 hadn't happened yet when it ran — so this isn't anyone's
+mistake, just two same-day changes that quietly stopped talking to each
+other. Net effect: **the original Spojka bug is very likely still live in
+production today**, just reached through quick-create instead of the old
+confirm screen.
+
+**Confirmed by reading the actual live path:** `adjudicate.js`'s
+`canonicalize('roaster_id', …)` returns bare `null` when a name doesn't
+resolve against the vocab (unlike `origin_farm_id`, which carries `{id: null,
+name}` through, since farms start at 0 seeded — deliberately not extended to
+roasters, per that function's own comment and the "unresolvable second
+candidate" test). So a lone, agreeing "Spojka" candidate from every voter
+still canonicalizes to nothing → `candidates.length === 0` →
+`decision: 'absent'`. Critically, `adjudicateRecord` only ever pushed a
+review item for `decision === 'split'` — `'absent'` never did — so **no
+review item was created either**. The coffee saves with `roaster_id: NULL`
+and nothing anywhere flags it: not a confirm screen (gone), not the review
+queue (never opened one).
+
+**Fix, scoped to not touch the clustering logic the split-vs-noise design
+already has tests protecting:** `adjudicateField`'s `candidates.length === 0`
+branch now checks, for `roaster_id` only, whether at least one raw candidate
+string was actually extracted (as opposed to the field being genuinely
+absent from the source). If so, `reviewReason: 'unresolved_roaster'` —
+`decision` stays `'absent'` (the column still correctly retracts to `NULL`,
+same as before — no regression there) but `adjudicateRecord`'s review-push
+condition changed from `decision === 'split'` to `reviewReason` truthy, so a
+review item is now created. `POST /api/review/:id` already resolves a
+`roaster_id` review item's raw string via `resolveField` →
+`getOrCreateVocabEntry` — the exact get-or-create path the original bug
+report confirmed already exists for a manual edit — so accepting the card
+in the review queue creates the roaster with no new endpoint. Added a
+`REASON_LABELS` entry (`unresolved_roaster` → "possible new roaster") so the
+card doesn't render a raw reason string. Left a comment on the now-dead
+`/api/coffees/extract` route pointing future sessions at this instead of
+re-discovering the same dead-end.
+
+**Deliberately did NOT touch:** the clustering/canonicalize logic itself
+(`origin_farm_id`'s 0-seeded auto-create pattern was NOT extended to
+roasters — still true, still intentional per the "well-seeded, so an
+unresolvable second candidate is more likely noise" reasoning) and did NOT
+auto-create a roaster server-side without a human confirming — the review
+item is purely additive visibility, same "accept or dismiss" shape every
+other review card already has.
+
+**Verification:** `cd backend && npm ci && npm test` — **471/471 green**,
+including 5 new cases: an unresolved roaster gets `reviewReason:
+'unresolved_roaster'` (not `'accepted'`/`'split'`); a genuinely absent
+roaster (no raw candidate at all) is NOT flagged; the carve-out doesn't leak
+to other fields (`rating` with an unparseable value stays plain `absent`);
+`adjudicateRecord` collects the new reason into `reviews[]` carrying the raw
+candidates verbatim (what `storeReviews` persists, so the review card has
+something to show); the pre-existing "unresolvable second candidate leaves a
+single resolvable one — still accepted" test (the one the original
+`#121`-adjacent comment cited as the reason NOT to extend farm-style
+carry-through to roasters) still passes unmodified.
+
+Checked `GET /api/admin/jobs` before pushing — no job `running` (job 53,
+`done`, `photosDone: 0` — today's 08:13 ingest drain, already finished).
+Pushed to `main` (`83778a3`); `railway-deploy.yml` deploy verified, `GET
+/health` → `{"ok":true,"db":true,"service":"mycoffee-api"}` post-deploy.
+
+**Did not run `POST /api/admin/adjudicate` over the live corpus this
+session.** It's $0 and would surface every existing coffee whose roaster
+silently dropped to `NULL` the same way — genuinely useful — but re-running
+it also means every one of those becomes a fresh open review item at once,
+which is a product/volume call (how many, is that a good first impression
+of the review queue) rather than a backend mechanics one. Flagging it here
+rather than deciding it alone; a next session (or Radu) can run it once
+someone's looked at how many coffees that actually is.
+
+No backlog row's `needs` references `121`. Flipped `#121` → `done` in
+`BACKLOG.md` with a pointer back to this writeup (its stale first "done"
+claim corrected in place, not deleted, so the history stays honest about
+what actually happened).
+
 ## 2026-09-11 07:27 UTC: #167 Retry storm — DONE, `9e45344`
 
 Audit (2026-09-09) found `worker.js`'s `withBackoff` wrapping every
