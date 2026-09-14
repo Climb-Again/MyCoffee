@@ -167,6 +167,10 @@
           "detail": "Queued."
         },
         {
+          "title": "Re-bucket the handful of remaining honey-only coffees to Washed — #110's migration half",
+          "detail": "Queued."
+        },
+        {
           "title": "Extension: manual ±10p score adjustment per coffee (Radu, 2026-09-12: verbatim, 'add a manual +10p / -10p…",
           "detail": "Queued."
         },
@@ -188,10 +192,6 @@
         }
       ],
       "data": [
-        {
-          "title": "Normalise honey processing to Washed, and show the detail in brackets on the coffee page",
-          "detail": "Queued."
-        },
         {
           "title": "ops/start-extraction-batch.sh exits 0 without POSTing when pending is 0, and the ingest routine says so in…",
           "detail": "Queued behind earlier work."
@@ -236,6 +236,10 @@
         },
         {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
+          "detail": "Queued."
+        },
+        {
+          "title": "Restore the profileDetail bracket on the coffee page — #110's ios-ux half, still missing",
           "detail": "Queued."
         },
         {
