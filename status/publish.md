@@ -51,6 +51,70 @@ is invisible in the green CI run — check ASC / email.
 
 _none_
 
+## 2026-09-14 (interactive) — SHIPPED to TestFlight, build `202609141858`
+
+Radu's go-ahead was literally "152 A / than publish", so `#152` landed first and
+the ship went out on top of it.
+
+**Run [#141](https://github.com/Climb-Again/MyCoffee/actions/runs/34883982456)**
+— `workflow_dispatch`, `publish=true`, `main` @ `a01cf3f`. Green:
+
+| | |
+|---|---|
+| Build number | `202609141858` (the Fastfile's `%Y%m%d%H%M` stamp) |
+| `MARKETING_VERSION` | `1.0.0` — unchanged, per §12: the build number is the value TestFlight keys on |
+| `match` | 4 s | 
+| `build_app` | 172 s |
+| `upload_to_testflight` | 47 s |
+| Whole job | 18:58:01 → 19:02:25 (~4.5 min) |
+| `Compile check (no upload)` | correctly **skipped** — the tell that `publish=true` took |
+
+Whole job ran ~4.5 min against the ~90 s in §10. The difference is entirely
+`build_app` (172 s of the 265): this is a cold-cache archive, not the incremental
+compile those numbers were measured on. Not worth re-tuning the documented figure
+off one sample — noting it so the next session does not read 4.5 min as a
+regression.
+
+**⚠ This is an upload receipt, not an acceptance.** Per §12, App Store Connect
+validates asynchronously ~20 min later and `skip_waiting_for_build_processing`
+means CI never sees the verdict. Green here ≠ installable.
+
+### What shipped in it
+
+iOS was byte-identical to the last green compile (`f80e2c3`, run #140) — verified
+with `git diff f80e2c3 origin/main -- ios/`, empty — so the binary carries exactly
+the batch that was already compile-checked: **#178** (shell: sync state, dropped-row
+count), **#192** (sync-error surfacing), **#195** (Coffees · Recipes · + · Shop ·
+Insights nav with the real Lucide glyphs), **#201** (What's New cross-device sync),
+**#205** (What's New swipe actions).
+
+Backend rode along on deploy
+[#117](https://github.com/Climb-Again/MyCoffee/actions/runs/34883479719): **#152**
+(roaster blurb + logo write path) and **#214** (extension shortlist fix, from a
+parallel session).
+
+### Preconditions checked before dispatching, in order
+
+1. `ios-staging` fully merged into `main` — `git rev-list --count origin/main..origin/ios-staging` = **0**, so nothing to merge.
+2. `ios/**` unchanged since the green compile — empty diff against `f80e2c3`.
+3. No in-flight `ios-testflight` run — the concurrency group is serial with
+   `cancel-in-progress: false`, so a publish would have queued behind a compile.
+4. Backend green and verified live first, so the app did not ship against a
+   backend that had failed to deploy.
+
+Step 4 is the one that nearly went wrong, and it is worth keeping: the deploy had
+been red for three runs (see the CI note below) and the app would have shipped
+pointing at a backend missing `#152` entirely.
+
+### CI note — two red runs that were not red tests
+
+Deploys **115 and 116** both read `failure` having run *nothing*: a job-level
+`env: DATA_DIR: ${{ runner.temp }}/…` is an invalid context (the `runner` context
+exists only inside steps), which fails workflow **validation**. Zero jobs, zero
+duration, and the run list shows the workflow's file path instead of its `name:`.
+Written up as its own section in `CLAUDE.md` §12, because it mimics a failing test
+closely enough to send you reading logs that do not exist.
+
 ## 2026-09-14 (interactive, "run all lanes") — #182: the backlog is 58 KB, not 435 KB
 
 `status/BACKLOG.md` **435 KB → 58 KB** (197 rows → 21 live). Every lane past
