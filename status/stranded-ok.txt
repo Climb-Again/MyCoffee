@@ -41,3 +41,10 @@ claude/coffee-ocr-origin-extraction-bx49z9  extension spec -> #159-#162; Congo/S
 # unrelated histories touching all 239 files — so this is a documented dismiss,
 # not a silent one.
 claude/plan-scheduling-optimization-txdrl5   v2 redesign brief, superseded by main's v3 UPDATE_BRIEF.md; #93-#97 already filed
+
+# --- 1 branch: three BACKLOG.md-only commits (row syncs, no code), audited
+# 2026-09-14 by the data lane. Its unique commits touch only #141-#148,
+# #155-#158, #159-#164 — every one of those rows is already `done` on main's
+# current BACKLOG.md (verified by grep), so nothing on this branch is
+# unrecovered; it's a stale duplicate of syncs that landed by another route.
+claude/peaceful-hamilton-915e6f   BACKLOG.md row syncs (#141-#148, #155-#158, #159-#164) — all already done on main
