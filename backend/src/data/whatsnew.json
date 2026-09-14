@@ -219,10 +219,6 @@
           "detail": "Queued."
         },
         {
-          "title": "Route the hero / zoom / review display images through ImageStore and fix the thumb-as-hero flash. (Audit…",
-          "detail": "Queued."
-        },
-        {
           "title": "Archive done backlog rows so every session stops carrying 321 KB. (Audit 2026-09-09.)",
           "detail": "Queued."
         },
