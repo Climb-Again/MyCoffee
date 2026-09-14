@@ -73,6 +73,10 @@ jobs:
       PGSSL: disable
       INGEST_TOKEN: ci-throwaway-ingest-token
       APP_TOKEN: ci-throwaway-app-token
+      # #152: the roaster-logo tests write real bytes. DATA_DIR defaults to
+      # `/data` (the Railway volume mount), which is not a path a CI runner
+      # should be creating — point it at the runner's scratch space instead.
+      DATA_DIR: ${{ runner.temp }}/mycoffee-data
 
     steps:
       - name: Checkout

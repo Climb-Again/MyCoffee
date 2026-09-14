@@ -499,9 +499,25 @@ test('#152: PUT a logo — normalized, content-addressed, served back, and the v
   const { rows } = await query(`INSERT INTO roasters (name, slug) VALUES ($1, $2) RETURNING id`, ['T Logo', slug]);
   const id = rows[0].id;
 
-  // 900px: deliberately ABOVE the 512 cap, so the downscale is actually exercised.
+  // 900px: deliberately ABOVE the 512 cap, so the downscale is actually
+  // exercised. The colour is RANDOM per run, and that matters: logos are
+  // content-addressed, so a fixed fixture writes the same sha every time and
+  // the "first upload" is only a 201 on a machine that has never run this test.
+  // It returned 200/deduped on the second local run and would do the same on
+  // any re-used DATA_DIR — a test that passes once and then reports a false
+  // failure. A unique image makes both halves deterministic: genuinely new, then
+  // genuinely deduped.
   const png = await sharp({
-    create: { width: 900, height: 600, channels: 3, background: { r: 10, g: 120, b: 255 } },
+    create: {
+      width: 900,
+      height: 600,
+      channels: 3,
+      background: {
+        r: Math.floor(Math.random() * 256),
+        g: Math.floor(Math.random() * 256),
+        b: Math.floor(Math.random() * 256),
+      },
+    },
   }).png().toBuffer();
 
   const put = await app.inject({
