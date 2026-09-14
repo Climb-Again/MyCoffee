@@ -42,6 +42,38 @@ jobs:
     defaults:
       run:
         working-directory: backend
+
+    # #174: until this landed, CI ran 325 green tests that exercised no route
+    # handler body at all. With no DATABASE_URL/INGEST_TOKEN/APP_TOKEN, every
+    # route test asserted `[401, 503]` and only auth.js's `auth_not_configured`
+    # branch ever executed — #166's data-loss bug and #168's unstable ETag would
+    # each have been caught by one real request.
+    #
+    # The tokens below are THROWAWAY values that exist only inside this job's
+    # container. They are deliberately NOT the repo secrets: the real tokens
+    # must never be read by a test job (CLAUDE.md §12 — Actions logs on a public
+    # repo are world-readable), and nothing here needs them, because the
+    # database is a fresh empty service container.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mycoffee_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/mycoffee_test
+      PGSSL: disable
+      INGEST_TOKEN: ci-throwaway-ingest-token
+      APP_TOKEN: ci-throwaway-app-token
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,6 +87,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Also the only check that every migration still applies to an empty
+      # database in filename order — a broken migration used to be discovered
+      # by Railway, on production, after the deploy had already started.
+      - name: Apply migrations
+        run: node src/migrate.js
 
       - name: Run tests
         run: npm test

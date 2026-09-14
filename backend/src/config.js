@@ -59,6 +59,12 @@ export const config = {
 
   dataDir: str('DATA_DIR', '/data'),
   maxUploadBytes: int('MAX_UPLOAD_BYTES', 100 * 1024 * 1024),
+  // #173(c): the 100 MB upload ceiling used to be Fastify's GLOBAL bodyLimit,
+  // so every JSON route on a public API would happily buffer a 100 MB body
+  // before a handler ever looked at it. Only `PUT /api/photos/:sourceId/image`
+  // needs the big one; everything else gets Fastify's own 1 MB default, which
+  // is comfortably above the largest real JSON body here (a wizard save).
+  maxJsonBodyBytes: int('MAX_JSON_BODY_BYTES', 1024 * 1024),
 
   rateLimitMax: int('RATE_LIMIT_MAX', 300),
   rateLimitWindowMs: int('RATE_LIMIT_WINDOW_MS', 60_000),

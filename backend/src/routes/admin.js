@@ -34,7 +34,16 @@ import path from 'node:path';
 import { requireIngestToken } from '../auth.js';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { runWorker, defaultVoters, readjudicateAll, rebuildAllSearchBlobs, backfillOcrText, backfillFlavorNotes, backfillRoastDates } from '../lib/worker.js';
+import {
+  runWorker,
+  defaultVoters,
+  readjudicateAll,
+  rebuildAllSearchBlobs,
+  backfillOcrText,
+  backfillFlavorNotes,
+  backfillRoastDates,
+  countPendingPhotos,
+} from '../lib/worker.js';
 import { DISPLAY_DERIVATIVES, deriveAll } from '../lib/imageDerivatives.js';
 import { generateContent } from '../vertex.js';
 import { EXTRACT_RESPONSE_SCHEMA } from '../lib/agents.js';
@@ -51,7 +60,18 @@ function toJobJson(r) {
     pausedAt: r.paused_at,
     finishedAt: r.finished_at,
     lastError: r.last_error,
+    // #169: what the job was actually started with, so `resume` can replay it
+    // and `GET /api/admin/jobs` shows whether a run sent images.
+    includeImages: r.include_images === true,
+    photoLimit: r.photo_limit != null ? Number(r.photo_limit) : null,
   };
+}
+
+// #169: `Number.parseInt('abc')` is NaN, which reached the query as a bigint
+// bind and 500'd. A non-numeric :id is a bad request, not a server fault.
+function parseJobId(raw) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 async function markJobFailed(jobId, err) {
@@ -90,7 +110,10 @@ export default async function adminRoutes(app) {
         ok: false,
         ms: Date.now() - startedAt,
         model: config.vertex.model,
-        region: config.vertex.region,
+        // #173(d): `config.vertex.region` has never existed — the Gemini
+        // Developer API has no region — so this key serialized as undefined and
+        // vanished from the JSON, which looked like "no region reported"
+        // rather than "there is no such setting". Dropped.
         error: err?.message ?? String(err),
         code: err?.code ?? null,
         httpStatus: err?.response?.status ?? err?.status ?? null,
@@ -100,13 +123,18 @@ export default async function adminRoutes(app) {
     }
   });
 
-  app.get('/api/admin/jobs', { preHandler: requireIngestToken }, async (req) => {
-    const id = req.query?.id != null ? Number.parseInt(req.query.id, 10) : null;
+  app.get('/api/admin/jobs', { preHandler: requireIngestToken }, async (req, reply) => {
+    const id = req.query?.id != null ? parseJobId(req.query.id) : null;
+    if (req.query?.id != null && id == null) return reply.code(400).send({ error: 'invalid_job_id' });
     const { rows } = await query(
       id ? `SELECT * FROM extraction_jobs WHERE id = $1` : `SELECT * FROM extraction_jobs ORDER BY id DESC LIMIT 20`,
       id ? [id] : [],
     );
-    return { jobs: rows.map(toJobJson) };
+    // #170: `pending` is what a worker started right now would find, using
+    // exactly claimBatch's predicate. The daily ingest routine reads this to
+    // decide whether to POST a job at all (#171) — 13 consecutive days of
+    // `photosDone: 0` jobs is what this replaces.
+    return { jobs: rows.map(toJobJson), pending: await countPendingPhotos() };
   });
 
   app.post('/api/admin/jobs', { preHandler: requireIngestToken }, async (req, reply) => {
@@ -118,8 +146,11 @@ export default async function adminRoutes(app) {
     const includeImages = req.body?.includeImages === false ? false : true;
 
     const { rows } = await query(
-      `INSERT INTO extraction_jobs (status, voter_set, spend_cap_usd) VALUES ('running', $1, $2) RETURNING *`,
-      [voterSet, spendCapUsd],
+      // #169: persist includeImages + limit so resume replays the same job
+      // instead of silently promoting a text-only pass to an images-on one.
+      `INSERT INTO extraction_jobs (status, voter_set, spend_cap_usd, include_images, photo_limit)
+       VALUES ('running', $1, $2, $3, $4) RETURNING *`,
+      [voterSet, spendCapUsd, includeImages, limit],
     );
     const job = rows[0];
 
@@ -133,7 +164,8 @@ export default async function adminRoutes(app) {
   });
 
   app.post('/api/admin/jobs/:id/pause', { preHandler: requireIngestToken }, async (req, reply) => {
-    const id = Number.parseInt(req.params.id, 10);
+    const id = parseJobId(req.params.id);
+    if (id == null) return reply.code(400).send({ error: 'invalid_job_id' });
     const { rows } = await query(
       `UPDATE extraction_jobs SET status = 'paused', paused_at = now() WHERE id = $1 AND status = 'running' RETURNING *`,
       [id],
@@ -143,7 +175,8 @@ export default async function adminRoutes(app) {
   });
 
   app.post('/api/admin/jobs/:id/resume', { preHandler: requireIngestToken }, async (req, reply) => {
-    const id = Number.parseInt(req.params.id, 10);
+    const id = parseJobId(req.params.id);
+    if (id == null) return reply.code(400).send({ error: 'invalid_job_id' });
     const { rows } = await query(
       `UPDATE extraction_jobs SET status = 'running', paused_at = NULL WHERE id = $1 AND status = 'paused' RETURNING *`,
       [id],
@@ -152,7 +185,20 @@ export default async function adminRoutes(app) {
     if (!job) return reply.code(404).send({ error: 'job_not_found_or_not_paused' });
 
     const spendCapUsd = job.spend_cap_usd != null ? Number(job.spend_cap_usd) : null;
-    runWorker({ jobId: job.id, spendCapUsd, log: req.log }).catch((err) => markJobFailed(job.id, err));
+    // #169: replay the job's OWN settings. Omitting these let runWorker's
+    // defaults (includeImages: true, limit: 20) turn a resumed text-only job
+    // into an images-on one with a fresh 20-photo budget. `photo_limit` is
+    // NULL on rows written before migration 040 — fall back to the same
+    // default the create route uses rather than inventing a new one.
+    const voters = job.voter_set === 'rules_only' ? (await defaultVoters()).filter((v) => v.agent === 'rules') : undefined;
+    runWorker({
+      voters,
+      jobId: job.id,
+      spendCapUsd,
+      includeImages: job.include_images === true,
+      limit: job.photo_limit != null ? Number(job.photo_limit) : 20,
+      log: req.log,
+    }).catch((err) => markJobFailed(job.id, err));
 
     return toJobJson(job);
   });
@@ -187,7 +233,11 @@ export default async function adminRoutes(app) {
     // `includeCaptioned: true` OCRs captioned coffees too, not just image-only
     // ones (Radu 2026-08-25, "append OCR text to all coffees").
     const includeCaptioned = req.body?.includeCaptioned === true;
-    return backfillOcrText({ limit, spendCapUsd, includeCaptioned });
+    // #129: clears every photo's ocr_attempts counter first, so photos retired
+    // after 3 illegible transcriptions get one more chance -- for a better
+    // model, or after a photo is re-uploaded. Off by default.
+    const retryExhausted = req.body?.retryExhausted === true;
+    return backfillOcrText({ limit, spendCapUsd, includeCaptioned, retryExhausted });
   });
 
   // #79/#80: extract flavour notes for coffees that predate the feature. Reads

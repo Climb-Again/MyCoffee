@@ -43,8 +43,18 @@ export function verifyMediaSignature(publicId, variant, exp, sig) {
   return timingSafeEqual(a, b);
 }
 
-export function buildMediaUrl(baseUrl, publicId, variant, ttlSeconds = 3600) {
-  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+// #168: `quantizeSeconds` rounds the expiry DOWN to a bucket boundary so two
+// requests a second apart produce the byte-identical URL. `/api/snapshot`
+// embeds one of these per coffee, and an expiry taken from `Date.now()` made
+// every response body unique — so `@fastify/etag` computed a fresh ETag every
+// time and the route could never answer 304, which is the whole premise of
+// PLAN.md §4's "a no-op sync costs one 304". Quantizing to a day keeps the
+// effective TTL between (ttl - 1 day) and ttl; callers that want an exact
+// expiry (a one-shot deep link) simply leave it at 0.
+export function buildMediaUrl(baseUrl, publicId, variant, ttlSeconds = 3600, { quantizeSeconds = 0 } = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const anchor = quantizeSeconds > 0 ? Math.floor(now / quantizeSeconds) * quantizeSeconds : now;
+  const exp = anchor + ttlSeconds;
   const sig = signMediaUrl(publicId, variant, exp);
   return `${baseUrl}/media/${publicId}/${variant}.jpg?exp=${exp}&sig=${sig}`;
 }

@@ -8,6 +8,69 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-14 (interactive, Radu: "run all lanes … up to publish") — backend batch: #208 #169 #170 #172 #168 #129 #173 #174 shipped; #124 found already-done; #140 closed as superseded
+
+Ten rows in one pass, all verified against a real Postgres 16 rather than
+against the suite alone — which turned out to matter.
+
+**#174 first, because everything else leaned on it.** CI ran 325 (then 471)
+green tests that executed no route handler body: with no `DATABASE_URL` /
+`INGEST_TOKEN` / `APP_TOKEN`, every route test asserted `[401, 503]` and only
+`auth.js`'s `auth_not_configured` branch ever ran. `railway-deploy.yml`'s test
+job now brings up a `postgres:16` service container with throwaway tokens (never
+the repo secrets — an empty container needs nothing real, and Actions logs are
+world-readable on a public repo), applies every migration as its own step, then
+runs the suite. `test/integration.test.js` skips itself without a DB, so the
+no-DB suite still runs anywhere.
+
+**It paid for itself inside the hour.** #168's new `generatedAt` cursor passed
+every unit test and was wrong: Postgres stores microseconds, a JS `Date`
+truncates to milliseconds and rounds DOWN, so `updated_at > cursor` handed the
+newest coffee back on every single sync. Then the fix for *that* (emit
+microseconds in SQL) was also wrong, for a reason no backend test could see —
+the iOS client decodes `generatedAt` into a `Date` and re-encodes `since` with a
+3-fractional-digit ISO formatter (`Utilities/CoffeeCoding.swift`), so the
+microseconds die on the way back regardless. Final shape: truncate to
+milliseconds **downward** in SQL, which re-sends the boundary row (a few hundred
+bytes, body stays byte-identical, still 304s) instead of skipping it. Rounding
+up would have overshot any row committed later inside that same millisecond and
+dropped it from every future sync — silently, forever.
+
+**#124 was already done; the row was never flipped.** `backfillRoastDates` +
+`POST /api/admin/backfill-roast-dates` are in `main` and have been run: DAK
+(`4dBosHoqKJ89ABPeZgGVEg`), this row's own acceptance case, returns
+`roastedOn: 2026-06-23`. Same lost-flip shape as #121's on 2026-09-07. Checked
+the live record rather than trusting either the row or the code.
+
+**#140 closed WITHOUT implementing it, deliberately.** It asks for evaluator
+affinity:value ≈ 65:35 to match #139. But it describes
+`{ value: 0.50, affinity: 0.35, novelty: 0.15 }`, and #189 replaced that three
+days later with Radu's own `{ affinity: 0.50, roast: 0.20, value: 0.15,
+novelty: 0.10 }` — affinity:value **77:23**, already further in the direction
+#140 wanted. Implementing the row literally would have *lowered* the rating
+weight against his more recent instruction. Flagged for him rather than picked
+silently; it is one line if he wants exactly 65:35.
+
+**#208** re-measured live before writing the migration, as the row insists:
+fetched all 25 honey-detail coffees, fed each one's real raw text through the
+current `parseProfile`, got exactly the 3 public_ids named. Migration `039`,
+explicit ids, idempotent, skips a locked human `profile` resolution.
+
+**#129** seeds the two known-untranscribable photos at the attempt cap — via a
+join on `coffees.public_id`, because the two ids in the row are COFFEE public
+ids (what `backfillOcrText`'s error list reports). Matching them against
+`photos.public_id` would have updated zero rows and looked fine.
+
+**#173** shipped (a)-(e). Not done, and deliberately: the unused *exports*
+(`releaseLease`, `isProd`, `loadCityVocab`/`resolveCity`, `monthlyRatesToEur`)
+and the unused `cities`/`briefs` tables — a bigger blast radius than this
+batch's "all S" framing; and `coffees.deleted_at` is never set because nothing
+deletes a coffee yet, so an empty `deleted[]` is correct.
+
+Migrations `039`, `040`, `041`. 484/484 green with a DB, 471 + 13 skipped
+without. No extraction job was `running` at push time (checked
+`GET /api/admin/jobs` first, per CLAUDE.md §12).
+
 ## 2026-09-14 07:23 UTC: #121 re-opened and closed for real — the actual live path, not the draft screen #131 deleted — DONE, `83778a3`
 
 `git show origin/main:status/BACKLOG.md` still showed #121 `ready`, phase 8,

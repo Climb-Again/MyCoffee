@@ -115,10 +115,6 @@
     "byLane": {
       "backend": [
         {
-          "title": "Roast-date backfill is incomplete: POST /api/admin/adjudicate does NOT re-run the deterministic rules voter,…",
-          "detail": "Queued."
-        },
-        {
           "title": "Re-measure what (if anything) a captioned coffee is still missing from its bag photo before doing more —…",
           "detail": "Queued."
         },
@@ -127,43 +123,7 @@
           "detail": "Queued."
         },
         {
-          "title": "Stop retrying a photo whose OCR keeps coming back illegible — give up after 3 failures",
-          "detail": "Queued."
-        },
-        {
-          "title": "/api/snapshot can never 304 — its ETag changes every second; /api/snapshot/text has no since. (Audit…",
-          "detail": "Queued."
-        },
-        {
-          "title": "POST /api/admin/jobs/:id/resume silently turns a text-only job into an images-on job with a fresh limit.…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Daily ingest drain: expose a pending count and early-exit runWorker when it is 0. (Audit 2026-09-09; the…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Multi-field edit / wizard save can 422 half-way and leave locked human resolutions the coffee row never…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Apply the same rating-over-price reweight to the evaluator's value scoring — match #139",
-          "detail": "Queued."
-        },
-        {
           "title": "Roaster content WRITE path — let the app submit a blurb + logo for a roaster (enables the in-app \"missing…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Backend hygiene batch (Audit 2026-09-09) — all S, ship together",
-          "detail": "Queued."
-        },
-        {
-          "title": "CI never runs a single route handler body: make the backend test job exercise real success paths. (Audit…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Re-bucket the handful of remaining honey-only coffees to Washed — #110's migration half",
           "detail": "Queued."
         },
         {
@@ -190,7 +150,7 @@
       "data": [
         {
           "title": "ops/start-extraction-batch.sh exits 0 without POSTing when pending is 0, and the ingest routine says so in…",
-          "detail": "Queued behind earlier work."
+          "detail": "Queued."
         },
         {
           "title": "Backfill the missing roaster blurbs — 95 of 110 roasters have none (Radu, 2026-09-13: \"Sophia has no blurb\",…",

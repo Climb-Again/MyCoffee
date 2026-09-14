@@ -463,25 +463,49 @@ structured dataset is **~165 KB raw / ~35 KB gzipped**. So the app holds it all
 and does every filter, sort, facet count and search **on-device, instantly, and
 offline**.
 
+> **Corrected 2026-09-14 (#173(e)).** This list had drifted badly in both
+> directions: it advertised `/api/search`, `/api/insights`, `/api/roasters/:slug`,
+> `/api/origins/:slug` and `/api/admin/{reindex,sync,vocab}`, **none of which
+> exist** (search, insights, roaster and origin pages are all computed on-device
+> from the snapshot — that is the whole point of this section), while omitting
+> ~15 routes that do. Below is the real surface, generated from
+> `src/routes/**`. Fix the doc, not the code.
+
 ```
-GET  /api/snapshot            → { version, generatedAt, vocab{…}, coffees[~140 B ea], deleted[] }
-                                 ETag; 304 when unchanged
-GET  /api/snapshot/text       → { texts: { <pid>: "<folded search blob>" } }   ~230 KB gz
-GET  /api/coffees…            → paged/faceted parity route (debug + review tooling)
-GET  /api/coffees/:publicId   → detail + 3 rails + per-field provenance
+GET  /api/snapshot[?since=]   → { version, generatedAt, vocab{…}, coffees[~140 B ea], deleted[] }
+                                 ETag; 304 when unchanged. `generatedAt` is the
+                                 cursor for the NEXT sync (ms-truncated max
+                                 updated_at/deleted_at), NOT a wall clock (#168)
+GET  /api/snapshot/text[?since=] → { texts: { <pid>: "<blob>" }, partial }  ~337 KB gz
+GET  /api/coffees             → paged parity route (debug + review tooling)
+GET  /api/coffees/:publicId   → detail + per-field provenance
 GET  /api/coffees/top-filters → ≤7 server-ordered cards
-POST /api/coffees/:publicId/favorite
-GET  /api/search, /api/insights, /api/roasters/:slug, /api/origins/:slug
-GET  /api/review, POST /api/review/:id, POST /api/review/bulk
-GET  /api/config              → { tokenKind, capabilities, snapshotVersion, features }
-GET|POST /api/admin/{jobs,adjudicate,reindex,sync,vocab}
+POST /api/coffees             → wizard save
+POST /api/coffees/extract     → wizard's synchronous light-ensemble extraction
+POST /api/coffees/quick-create
+POST /api/coffees/evaluate    → fit score for a candidate (#106)
+POST /api/coffees/:publicId/{favorite,rotation,edit,brew}
+GET  /api/brew-options · POST /api/brew-options · PATCH /api/brew-options/:id
+GET  /api/review · POST /api/review/:id · POST /api/review/bulk · POST /api/review/rules
+POST /api/score               → deterministic browsing score (browser extension)
+GET|POST|DELETE /api/history  → the extension's server-backed shortlist (#194)
+GET  /api/whatsnew · GET|POST /api/whatsnew/seen
+GET  /api/brief · GET /api/status · GET /api/config
+POST /api/ingest · POST /api/photos/manifest · PUT /api/photos/:sourceId/image
+GET  /api/admin/jobs · POST /api/admin/jobs · POST /api/admin/jobs/:id/{pause,resume}
+POST /api/admin/{adjudicate,rebuild-search-blobs,rederive-photos}
+POST /api/admin/{backfill-ocr-text,backfill-flavor-notes,backfill-roast-dates}
+GET  /api/admin/vertex-check
 GET  /media/:publicId/:variant.jpg?exp=&sig=
 ```
 
-`@fastify/etag` and `@fastify/compress` are already registered, so a no-op sync
-costs **one 304**. Reads use `requireAnyToken` (fixing defect #1); writes keep
-`requireIngestToken`; `/api/config` lets the Connect screen self-diagnose instead
-of showing an opaque 401.
+`@fastify/etag` and `@fastify/compress` are registered, so a no-op sync costs
+**one 304** — true as of #168, and *not* true before it: `/api/snapshot` embedded
+a wall-clock `generatedAt` and a per-request thumbnail expiry, so every response
+hashed differently and no conditional GET could ever match. Reads use
+`requireAnyToken` (fixing defect #1); writes keep `requireIngestToken`;
+`/api/config` lets the Connect screen self-diagnose instead of showing an opaque
+401.
 
 **`POST /api/review/rules` is the highest-leverage endpoint in the system.** When
 Radu confirms `Etiopia → Ethiopia` once, the alias persists server-side, so every

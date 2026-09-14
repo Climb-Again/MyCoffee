@@ -64,6 +64,12 @@ export const SNAPSHOT_VERSION = 2;
 // the plan's own thumbnail-eviction window.
 const THUMB_URL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+// #168: snapshot thumb URLs quantize their `exp` to the day so a no-op sync
+// produces a byte-identical body and can actually 304. Effective TTL is
+// therefore 29-30 days rather than exactly 30; the client refreshes a URL well
+// before that either way.
+const THUMB_URL_QUANTIZE_SECONDS = 24 * 60 * 60;
+
 function baseUrlFor(req) {
   return `${req.protocol}://${req.hostname}`;
 }
@@ -103,7 +109,9 @@ function toCompactCoffee(row, baseUrl) {
   const compact = {
     id: row.public_id,
     photoId: row.photo_public_id,
-    thumbUrl: buildMediaUrl(baseUrl, row.photo_public_id, 'thumb', THUMB_URL_TTL_SECONDS),
+    thumbUrl: buildMediaUrl(baseUrl, row.photo_public_id, 'thumb', THUMB_URL_TTL_SECONDS, {
+      quantizeSeconds: THUMB_URL_QUANTIZE_SECONDS,
+    }),
     purchasedOn: row.purchased_on,
     purchasedYear: row.purchased_year,
     purchasedMonth: row.purchased_month,
@@ -196,11 +204,16 @@ async function loadVocabDictionary() {
 }
 
 export default async function coffeesRoutes(app) {
-  app.get('/api/snapshot', { preHandler: requireAnyToken }, async (req) => {
-    const since = typeof req.query?.since === 'string' ? new Date(req.query.since) : null;
-    const sinceValid = since && !Number.isNaN(since.getTime());
+  app.get('/api/snapshot', { preHandler: requireAnyToken }, async (req, reply) => {
+    // Kept as the RAW string the client sent, not a JS `Date`. Round-tripping
+    // it through `new Date(...).toISOString()` truncates Postgres's microsecond
+    // cursor to milliseconds — rounding DOWN — so the newest row would come
+    // back on every sync forever (#168/#174). `Date` is used only to validate.
+    const sinceRaw = typeof req.query?.since === 'string' ? req.query.since : null;
+    const since = sinceRaw ? new Date(sinceRaw) : null;
+    const sinceValid = Boolean(since) && !Number.isNaN(since.getTime());
 
-    const [vocab, coffeesResult, deletedResult] = await Promise.all([
+    const [vocab, coffeesResult, deletedResult, cursorResult] = await Promise.all([
       loadVocabDictionary(),
       query(
         `SELECT co.*, p.public_id AS photo_public_id,
@@ -213,29 +226,79 @@ export default async function coffeesRoutes(app) {
          ) bt ON true
          WHERE co.deleted_at IS NULL ${sinceValid ? 'AND co.updated_at > $1' : ''}
          ORDER BY co.purchased_on DESC NULLS LAST, co.id DESC`,
-        sinceValid ? [since.toISOString()] : [],
+        sinceValid ? [sinceRaw] : [],
       ),
       sinceValid
-        ? query(`SELECT public_id FROM coffees WHERE deleted_at IS NOT NULL AND deleted_at > $1`, [
-            since.toISOString(),
-          ])
+        ? query(`SELECT public_id FROM coffees WHERE deleted_at IS NOT NULL AND deleted_at > $1`, [sinceRaw])
         : { rows: [] },
+      // The `since` cursor for the NEXT sync (#168). Two things make this
+      // fiddly, and getting either wrong is silent:
+      //
+      //  * It must be DERIVED FROM THE DATA, not `new Date()`. A wall clock put
+      //    a different value in every response body, so `@fastify/etag` hashed a
+      //    different body every time and this route could never answer 304 —
+      //    PLAN.md §4's "a no-op sync costs one 304" was simply false.
+      //  * It is truncated to MILLISECONDS, on purpose, even though Postgres
+      //    stores microseconds. The iOS client decodes `generatedAt` into a
+      //    `Date` and re-encodes the `since` param with an ISO-8601 formatter
+      //    that emits exactly 3 fractional digits (Utilities/CoffeeCoding.swift),
+      //    so a microsecond cursor would be truncated on the way back anyway —
+      //    and `to_char`'s MS truncates DOWN, which is the safe direction: the
+      //    boundary row is re-sent on the next sync (a few hundred bytes, and
+      //    the body stays byte-identical so it still 304s) rather than skipped.
+      //    Rounding UP would make the cursor overshoot any row committed later
+      //    inside that same millisecond, and that row would never sync again.
+      //
+      // GREATEST over deleted_at too, so a tombstone can't be missed by a
+      // cursor taken from live rows alone.
+      query(
+        `SELECT to_char(
+                  GREATEST(COALESCE(max(updated_at), 'epoch'::timestamptz),
+                           COALESCE(max(deleted_at), 'epoch'::timestamptz)) AT TIME ZONE 'UTC',
+                  'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS cursor
+           FROM coffees`,
+      ),
     ]);
 
     const baseUrl = baseUrlFor(req);
+    // #168: `generatedAt` used to be `new Date()`, which by itself guaranteed a
+    // different body — and so a different ETag — on every single request. It is
+    // the client's `since` cursor for the NEXT sync, so it must still be a real
+    // timestamp that covers everything in this payload; `max(updated_at)` over
+    // the rows actually sent is exactly that, and is stable while nothing
+    // changes. Falling back to the request's own `since` (then epoch) keeps an
+    // empty delta from rewinding the cursor to 1970 and forcing a full resync.
+    const rows = coffeesResult.rows;
+    const generatedAt = cursorResult.rows[0]?.cursor ?? new Date(0).toISOString();
+    // The wall clock is still useful for debugging a sync — it just can't live
+    // in the body, or nothing downstream can ever be conditional.
+    reply.header('X-Snapshot-Served-At', new Date().toISOString());
     return {
       version: SNAPSHOT_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       vocab,
-      coffees: coffeesResult.rows.map((row) => toCompactCoffee(row, baseUrl)),
+      coffees: rows.map((row) => toCompactCoffee(row, baseUrl)),
       deleted: deletedResult.rows.map((r) => r.public_id),
     };
   });
 
-  app.get('/api/snapshot/text', { preHandler: requireAnyToken }, async () => {
+  // ~95% of all sync bytes (894 KB raw, ~337 KB gzipped at the current corpus).
+  // #168 gives it the same `since` cursor `/api/snapshot` has, filtered on
+  // `coffees.updated_at` — so a device that already holds the blobs asks for
+  // the handful that changed instead of the whole dictionary. Callers that
+  // send no `since` still get everything, unchanged.
+  //
+  // `partial: true` tells the client to MERGE the returned keys into its cached
+  // dictionary rather than replace it; without that flag a delta response would
+  // look like "every other coffee's text is gone".
+  app.get('/api/snapshot/text', { preHandler: requireAnyToken }, async (req) => {
+    const sinceRaw = typeof req.query?.since === 'string' ? req.query.since : null;
+    const since = sinceRaw ? new Date(sinceRaw) : null;
+    const sinceValid = Boolean(since) && !Number.isNaN(since.getTime());
     const { rows } = await query(
       `SELECT public_id, search_labels_blob, search_prose_blob
-       FROM coffees WHERE deleted_at IS NULL`,
+       FROM coffees WHERE deleted_at IS NULL ${sinceValid ? 'AND updated_at > $1' : ''}`,
+      sinceValid ? [sinceRaw] : [],
     );
     const texts = {};
     for (const row of rows) {
@@ -243,7 +306,7 @@ export default async function coffeesRoutes(app) {
         .filter(Boolean)
         .join('\n');
     }
-    return { texts };
+    return { texts, partial: sinceValid === true };
   });
 
   // Denormalized, human-readable shape (unlike the compact snapshot row) --
@@ -311,7 +374,11 @@ export default async function coffeesRoutes(app) {
 
     const baseUrl = baseUrlFor(req);
     return {
-      ...toCompactCoffee(row),
+      // #173(d): `baseUrl` was missing here, so the spread's `thumbUrl` built
+      // as "undefined/media/...". Harmless today only because the explicit
+      // `thumbUrl` below overwrites it — one reordering away from shipping a
+      // broken URL to every detail view.
+      ...toCompactCoffee(row, baseUrl),
       descFarmLot: row.desc_farm_lot,
       descBrewGuide: row.desc_brew_guide,
       descRoasterCopy: row.desc_roaster_copy,
@@ -452,6 +519,21 @@ export default async function coffeesRoutes(app) {
     // but every resolution is batched into one `applyResolutionsToCoffee` at
     // the end so a multi-field save (e.g. roaster + roaster country together
     // from #42's edit sheet) writes the coffees row once, not once per field.
+
+    // #172: validate EVERY edit before writing ANY of them. Each `resolveField`
+    // call INSERTs a locked `decided_by = 'human'` row, so a 422 raised by a
+    // later field used to leave the earlier ones recorded as human-confirmed
+    // while `applyResolutionsToCoffee` (below) never ran — the coffee row kept
+    // showing the old values and the DB claimed Radu had confirmed the new
+    // ones. A dry pass costs one extra `canonicalize` per field (pure, no
+    // query) and makes the whole save all-or-nothing from the client's view.
+    for (let i = 0; i < edits.length; i++) {
+      const dry = await resolveField(row.photo_id, dbFields[i], edits[i].value, ctx, { dryRun: true });
+      if (dry.error) {
+        return reply.code(422).send({ error: dry.error, field: edits[i].field, value: edits[i].value });
+      }
+    }
+
     const resolutions = {};
     const results = [];
     for (let i = 0; i < edits.length; i++) {
@@ -771,6 +853,21 @@ export default async function coffeesRoutes(app) {
 
     const sharedCtx = await loadSharedContext();
     const ctx = { ...sharedCtx, photoDate: primaryPhoto.captured_on, rawText: buildRawText(primaryPhoto, photoText) };
+
+
+    // #172: validate EVERY edit before writing ANY of them. Each `resolveField`
+    // call INSERTs a locked `decided_by = 'human'` row, so a 422 raised by a
+    // later field used to leave the earlier ones recorded as human-confirmed
+    // while `applyResolutionsToCoffee` (below) never ran — the coffee row kept
+    // showing the old values and the DB claimed Radu had confirmed the new
+    // ones. A dry pass costs one extra `canonicalize` per field (pure, no
+    // query) and makes the whole save all-or-nothing from the client's view.
+    for (let i = 0; i < edits.length; i++) {
+      const dry = await resolveField(primaryPhoto.id, dbFields[i], edits[i].value, ctx, { dryRun: true });
+      if (dry.error) {
+        return reply.code(422).send({ error: dry.error, field: edits[i].field, value: edits[i].value });
+      }
+    }
 
     const resolutions = {};
     const results = [];

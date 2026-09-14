@@ -39,6 +39,11 @@ import { runExtractA, runExtractB, runCritic, runReconciler, runOcrTranscribe, r
 
 const REQUIRED_FIELDS = ['roaster_id', 'origin_country_ids', 'price', 'weight_g', 'rating'];
 
+// #129: how many empty/failed OCR transcriptions retire a photo from the
+// backfill's candidate set. Three, not one, so a transient model blip or a
+// quota error never permanently writes off a photo that is actually legible.
+export const MAX_OCR_ATTEMPTS = 3;
+
 const ADJUDICATE_CTX_DEFAULTS = {
   ruleVoterWeight: config.extraction.ruleVoterWeight,
   ruleVoterWeightedFields: config.extraction.ruleVoterWeightedFields,
@@ -292,6 +297,12 @@ async function runWithConcurrency(items, limit, worker) {
 // P3 (rules) is the data lane's `src/lib/deterministic.js` (#25) -- absent
 // until that lands, in which case it's simply left out (agents.js's
 // `loadRulesVoter()` resolves to null rather than throwing).
+// ⚠ `model` here is a CACHE-KEY DISCRIMINATOR, not a claim about which model
+// runs (#173(a)). It is hashed into `computeInputSha`, so editing one of these
+// strings orphans every cached extraction keyed on the old value and re-bills
+// the whole corpus on the next pass. The model a call actually used is whatever
+// the `run*` function returns, and that is what lands in `extractions.model`.
+// Change these only when you WANT a full re-extraction.
 export async function defaultVoters() {
   const voters = [
     { agent: 'extract_a', provider: 'vertex', model: 'gemini-2.5-pro', run: runExtractA },
@@ -379,6 +390,61 @@ export async function runLightExtraction({ rawText, images, vocabShortlist, vote
 
 // ---- DB-touching helpers ----
 
+// #170: the SQL fragment `claimBatch` uses to decide "is this photo claimable".
+// Exported as a pure builder so the pending COUNT below and the real claim can
+// never drift apart -- the whole point of the row is that the daily routine
+// trusts this number to decide whether to fire a worker at all, so a count
+// that disagreed with the claim would be worse than no count.
+export function claimableWhereSql({ failuresParam = '$1' } = {}) {
+  return `has_image
+      AND state <> 'processed'
+      AND (state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))
+      AND extraction_failures < ${failuresParam}
+      AND extraction_leased_until IS NULL`;
+}
+
+// #170: how many photos a worker started right now would actually find.
+//
+// Jobs 42-54 (13 straight days) returned `photosDone: 0, spentUsd: 0`: each
+// no-op still opened a pool client, took the advisory lock, built
+// `defaultVoters()` and ran `loadSharedContext()` -- five full-table reads of
+// countries/roasters/farms + aliases, profiles and fx_rates -- before
+// `claimBatch` came back empty. `runWorker` now calls this first and returns
+// `no_work` before any of that.
+//
+//   textReceived        captioned photos waiting for a pass (claimable now)
+//   awaitingTextOverdue #69's deadline sweep, past text_wait_until (claimable now)
+//   imageOnly           awaiting_text photos still inside their text window --
+//                       NOT claimable yet, reported so "nothing to do today"
+//                       is distinguishable from "something lands tomorrow"
+//   total               textReceived + awaitingTextOverdue, i.e. exactly what
+//                       claimBatch would return rows for
+export async function countPendingPhotos({ maxFailures } = {}) {
+  const maxFail = maxFailures ?? config.extraction.worker.maxFailures;
+  const { rows } = await query(
+    `SELECT
+       count(*) FILTER (WHERE state = 'text_received')  AS text_received,
+       count(*) FILTER (WHERE state = 'awaiting_text')  AS awaiting_text_overdue
+     FROM photos
+     WHERE ${claimableWhereSql()}`,
+    [maxFail],
+  );
+  const { rows: waitRows } = await query(
+    `SELECT count(*) AS image_only
+       FROM photos
+      WHERE has_image
+        AND state = 'awaiting_text'
+        AND (text_wait_until IS NULL OR text_wait_until > now())
+        AND extraction_failures < $1
+        AND extraction_leased_until IS NULL`,
+    [maxFail],
+  );
+  const textReceived = Number(rows[0]?.text_received ?? 0);
+  const awaitingTextOverdue = Number(rows[0]?.awaiting_text_overdue ?? 0);
+  const imageOnly = Number(waitRows[0]?.image_only ?? 0);
+  return { textReceived, awaitingTextOverdue, imageOnly, total: textReceived + awaitingTextOverdue };
+}
+
 export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } = {}) {
   const minutes = leaseMinutes ?? config.extraction.worker.leaseMinutes;
   const maxFail = maxFailures ?? config.extraction.worker.maxFailures;
@@ -465,7 +531,20 @@ async function getOrRunVoter(voter, inputSha, ctx) {
   const { extraction, reused } = await storeExtraction({
     agent: voter.agent,
     provider: voter.provider,
-    model: voter.model,
+    // #173(a): record the model the call ACTUALLY used, which each `run*`
+    // returns, not the descriptor's label. `defaultVoters()` still says
+    // `gemini-2.5-pro`/`gemini-2.5-flash` while every runner has used
+    // `gemini-flash-lite-latest` since the move to the free tier, so
+    // `extractions.model` has been lying about provenance -- and cost
+    // attribution read off it was wrong too.
+    //
+    // Deliberately NOT fixing the descriptor instead: `voter.model` is an
+    // input to `computeInputSha`, so changing it there would miss every
+    // cached extraction in the table and re-bill the entire corpus. The
+    // descriptor value is a cache-key discriminator; this column is
+    // provenance. They are allowed to differ, and the comment on
+    // `defaultVoters()` says so.
+    model: result.model ?? voter.model,
     promptVersion: voter.promptVersion ?? PROMPT_VERSION,
     inputSha,
     response,
@@ -615,11 +694,24 @@ async function refreshSearchBlobs(coffeeId, ctx) {
   const row = rows[0];
   if (!row) return;
   const { labelsBlob, proseBlob } = buildSearchBlobs(row, ctx);
-  await query(`UPDATE coffees SET search_labels_blob = $1, search_prose_blob = $2 WHERE id = $3`, [
-    labelsBlob,
-    proseBlob,
-    coffeeId,
-  ]);
+  // #168(c): bump `updated_at` when a blob actually changes, so
+  // `GET /api/snapshot/text?since=` can find it. The blobs are the ~95% of sync
+  // bytes the `since` cursor exists to avoid re-sending, and a blob-only
+  // refresh (the OCR backfill's `refreshSearchBlobs` call, #166(b)) used to
+  // leave `updated_at` untouched — invisible to any delta, so the text a
+  // device holds could be permanently behind the text the server has.
+  // `IS DISTINCT FROM` keeps a no-change refresh from shipping a spurious
+  // delta to every device, which is why this is not an unconditional bump.
+  await query(
+    `UPDATE coffees
+        SET search_labels_blob = $1,
+            search_prose_blob = $2,
+            updated_at = CASE
+              WHEN search_labels_blob IS DISTINCT FROM $1 OR search_prose_blob IS DISTINCT FROM $2
+              THEN now() ELSE updated_at END
+      WHERE id = $3`,
+    [labelsBlob, proseBlob, coffeeId],
+  );
 }
 
 // Writes decided (non-review) fields onto the coffees row and refreshes
@@ -784,6 +876,10 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
       images: image ? [image] : [],
       vocabShortlist,
       candidatesByField: candidatesByFieldSoFar,
+      // #173(b): the rules voter used to load and cache its own vocab once per
+      // PROCESS, so a freshly confirmed alias stayed invisible until the next
+      // deploy. We already hold a per-run copy; hand it over.
+      vocab: sharedCtx.vocab,
     });
     if (!reused) spentUsd += Number(extraction.cost_usd ?? 0);
 
@@ -906,13 +1002,23 @@ async function appendOcrTextToCoffee(coffeeId, ocrText) {
 // against the flash-lite daily quota (per the row's own note) -- each run's
 // SELECT naturally excludes whatever a prior run already appended, so a
 // partial run never re-does work.
-export async function backfillOcrText({ limit = 200, spendCapUsd = null, includeCaptioned = false } = {}) {
+export async function backfillOcrText({ limit = 200, spendCapUsd = null, includeCaptioned = false, retryExhausted = false } = {}) {
   // By default only image-only coffees (raw_caption IS NULL) get OCR — for them
   // the transcription is their ONLY readable text. `includeCaptioned: true`
   // (Radu 2026-08-25, "append OCR text to all coffees") lifts that so captioned
   // coffees are OCR'd too: a bag often prints flavour notes the Instagram
   // caption omits, and #80's flavour-note extraction reads the appended block.
   // The `NOT LIKE '%OCR text%'` guard still makes a re-run idempotent either way.
+  // #129: a photo whose OCR keeps returning nothing legible used to re-enter
+  // the top of every page forever (coffee id 7 did, 20 batches running),
+  // burning a paid call and one batch slot each time. `ocr_attempts` is
+  // incremented on every empty/failed transcription and reset on a successful
+  // append; MAX_OCR_ATTEMPTS of them takes the photo out of the candidate set.
+  // `retryExhausted: true` clears the counters first, so a better photo (or a
+  // better model) can be retried deliberately.
+  if (retryExhausted) {
+    await query(`UPDATE photos SET ocr_attempts = 0 WHERE ocr_attempts > 0`);
+  }
   const { rows } = await query(
     `SELECT c.id AS coffee_id, p.id AS photo_id
      FROM coffees c
@@ -921,10 +1027,22 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null, include
      WHERE c.deleted_at IS NULL
        ${includeCaptioned ? '' : 'AND c.raw_caption IS NULL'}
        AND p.state = 'processed'
+       AND p.ocr_attempts < $3
        AND (c.raw_description IS NULL OR c.raw_description NOT LIKE '%' || $1 || '%')
      ORDER BY c.id
      LIMIT $2`,
-    [OCR_HEADING, limit],
+    [OCR_HEADING, limit, MAX_OCR_ATTEMPTS],
+  );
+
+  // Reported, not silently dropped: an exhausted row is "needs a better photo",
+  // which is actionable, whereas vanishing from the candidate set looks
+  // identical to "already done".
+  const { rows: exhaustedRows } = await query(
+    `SELECT c.public_id, p.ocr_attempts
+       FROM coffees c JOIN photos p ON p.id = c.photo_id
+      WHERE c.deleted_at IS NULL AND p.ocr_attempts >= $1
+      ORDER BY c.id`,
+    [MAX_OCR_ATTEMPTS],
   );
 
   let updated = 0;
@@ -947,14 +1065,31 @@ export async function backfillOcrText({ limit = 200, spendCapUsd = null, include
       // "not tried yet" on the next run -- report it as an error, not a
       // false success, so a stuck row is visible instead of silently
       // re-billing the same $0 non-progress forever.
-      if (wrote) updated += 1;
-      else errors.push({ coffeeId: row.coffee_id, error: 'OCR returned no legible text' });
+      if (wrote) {
+        updated += 1;
+        // #129: a success clears the counter, so an earlier transient failure
+        // never counts against a photo that does transcribe.
+        await query(`UPDATE photos SET ocr_attempts = 0 WHERE id = $1 AND ocr_attempts > 0`, [row.photo_id]);
+      } else {
+        await query(`UPDATE photos SET ocr_attempts = ocr_attempts + 1 WHERE id = $1`, [row.photo_id]);
+        errors.push({ coffeeId: row.coffee_id, error: 'OCR returned no legible text' });
+      }
     } catch (err) {
+      // A thrown call is an attempt too -- a model that 500s on one image every
+      // time is the same forever-loop as an illegible one.
+      await query(`UPDATE photos SET ocr_attempts = ocr_attempts + 1 WHERE id = $1`, [row.photo_id]).catch(() => {});
       errors.push({ coffeeId: row.coffee_id, error: err.message });
     }
   }
 
-  return { scanned: rows.length, updated, spentUsd, errors };
+  return {
+    scanned: rows.length,
+    updated,
+    spentUsd,
+    errors,
+    // #129: visible rather than vanished.
+    exhausted: exhaustedRows.map((r) => ({ coffeeId: r.public_id, attempts: Number(r.ocr_attempts) })),
+  };
 }
 
 // #90: `runFlavorNotes` takes ~90s/call on a coffee whose `raw_description`
@@ -1085,6 +1220,20 @@ export async function runWorker({ voters, limit = 20, spendCapUsd, jobId, worker
         ).catch(() => {});
       }
       return { started: false, reason: 'already_running' };
+    }
+
+    // #170: cheapest possible no-op. One COUNT before defaultVoters() and
+    // loadSharedContext(), so 13 consecutive empty daily runs stop paying for
+    // five full-table vocab reads each.
+    const pending = await countPendingPhotos();
+    if (pending.total === 0) {
+      if (jobId) {
+        await query(
+          `UPDATE extraction_jobs SET status = 'done', finished_at = now() WHERE id = $1 AND status = 'running'`,
+          [jobId],
+        ).catch(() => {});
+      }
+      return { started: true, photosDone: 0, spentUsd: 0, stopped: 'no_work', pending };
     }
 
     const resolvedVoters = voters ?? (await defaultVoters());
