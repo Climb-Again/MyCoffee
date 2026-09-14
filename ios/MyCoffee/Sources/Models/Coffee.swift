@@ -22,70 +22,70 @@ struct CoffeeImageURLs: Codable, Hashable, Sendable {
 /// `.convertFromSnakeCase`, since it compares against the *already-converted*
 /// key, not the original).
 struct Coffee: Identifiable, Codable, Hashable, Sendable {
-    let id: String                          // public id, not the DB serial
+    private(set) var id: String                          // public id, not the DB serial
 
-    let purchasedOn: PlainDate
+    private(set) var purchasedOn: PlainDate
 
     // Optional: a coffee exists before its roaster is resolved/confirmed, so the
     // compact snapshot legitimately sends `roasterId: null`. Decoding it as a
     // required Int threw on every such row and — because the snapshot decodes the
     // coffees array all-or-nothing — dropped ALL coffees, leaving the shell empty.
-    let roasterId: Int?
-    let roasterCountryId: Int?
+    private(set) var roasterId: Int?
+    private(set) var roasterCountryId: Int?
 
-    let originCountryIds: [Int]
-    let originCountryId: Int?                // generated display/primary value
-    let isBlend: Bool
+    private(set) var originCountryIds: [Int]
+    private(set) var originCountryId: Int?                // generated display/primary value
+    private(set) var isBlend: Bool
 
-    let originFarmId: Int?
+    private(set) var originFarmId: Int?
 
-    let altitudeMinM: Int?
-    let altitudeMaxM: Int?
+    private(set) var altitudeMinM: Int?
+    private(set) var altitudeMaxM: Int?
 
-    let profile: Profile?
-    let profileDetail: String?
-    let isDecaf: Bool
+    private(set) var profile: Profile?
+    private(set) var profileDetail: String?
+    private(set) var isDecaf: Bool
 
-    let roastedOn: PlainDate?
+    private(set) var roastedOn: PlainDate?
 
-    let priceOriginalAmount: Double?
-    let priceOriginalCurrency: String?
-    let priceEur: Double?
-    let fxRate: Double?
-    let fxRatePeriod: String?
+    private(set) var priceOriginalAmount: Double?
+    private(set) var priceOriginalCurrency: String?
+    private(set) var priceEur: Double?
+    private(set) var fxRate: Double?
+    private(set) var fxRatePeriod: String?
 
-    let weightG: Int?
+    private(set) var weightG: Int?
 
-    let rating: Double?
-    let isFavorite: Bool
-    let favoriteSetBy: String?               // "human" | "system"; nil if never set
+    private(set) var rating: Double?
+    private(set) var isFavorite: Bool
+    private(set) var favoriteSetBy: String?               // "human" | "system"; nil if never set
 
-    let farmLotNote: String?
-    let brewGuideNote: String?
-    let roasterCopyNote: String?
+    private(set) var farmLotNote: String?
+    private(set) var brewGuideNote: String?
+    private(set) var roasterCopyNote: String?
 
     /// Short comma-separated tasting notes (#79/#81), e.g. "dark chocolate,
     /// cherry, dried plum". Detail-only — the compact snapshot omits it to
     /// spare its per-row budget, so this is nil until a detail fetch supplies
     /// it (same pattern as `farmLotNote`/`rawTitle`). `nil` and `""` both mean
     /// "none yet"; the view shows the section only when non-empty.
-    let flavorNotes: String?
+    private(set) var flavorNotes: String?
 
-    let rawTitle: String?
-    let rawCaption: String?
-    let rawDescription: String?
+    private(set) var rawTitle: String?
+    private(set) var rawCaption: String?
+    private(set) var rawDescription: String?
 
-    let reviewState: String                  // "clean" | "needs_review" — coarse, per-field detail lives server-side
-    let minFieldConfidence: Double?
+    private(set) var reviewState: String                  // "clean" | "needs_review" — coarse, per-field detail lives server-side
+    private(set) var minFieldConfidence: Double?
 
     /// Persisted display rotation (#57/#73): quarter-turns clockwise the app
     /// applies when showing the photo. Optional so an older on-disk cache
     /// (PersistedSnapshot Codable-decodes `[Coffee]` directly) that predates
     /// the field decodes as nil instead of dropping the whole cache; treat nil
     /// as 0 (`rotationTurns`).
-    let rotationQuarterTurns: Int?
+    private(set) var rotationQuarterTurns: Int?
 
-    let images: CoffeeImageURLs?
+    private(set) var images: CoffeeImageURLs?
 
     /// Brew lab (PLAN.md §14, #155/#156): every `BrewOption.id` this coffee has
     /// tried / marked best, by kind. Optional, same reasoning as
@@ -93,8 +93,8 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
     /// compact/detail row with no trials both omit the key entirely, and
     /// decoding that as a required `[Int]` would drop the whole coffee (or the
     /// whole snapshot) rather than just reading as "nothing tried yet".
-    let brewTriedIds: [Int]?
-    let brewBestIds: [Int]?
+    private(set) var brewTriedIds: [Int]?
+    private(set) var brewBestIds: [Int]?
 
     /// nil-safe view of `rotationQuarterTurns`, normalized to 0–3.
     var rotationTurns: Int { ((rotationQuarterTurns ?? 0) % 4 + 4) % 4 }
@@ -149,71 +149,48 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
         )
     }
 
-    /// A copy with `isFavorite` flipped — `Coffee` stays a fully immutable
-    /// value type (every field `let`) so it's trivially `Sendable` across the
-    /// actor boundaries the sync engine and outbox cross; this is how
-    /// `CoffeeStore.toggleFavorite` and `SyncEngine`'s "pending mutation wins"
-    /// rule (PLAN.md §5) both apply an optimistic edit without widening any
-    /// field to `var`.
+    /// One copier instead of three 35-argument ones.
+    ///
+    /// `withFavorite`/`withRotation`/`withBrew` each used to spell out all 35
+    /// initialiser arguments, so adding a field meant editing three unrelated
+    /// functions and any one of them silently dropping the new field was a
+    /// compile-clean bug. They now share this.
+    ///
+    /// The properties are `private(set) var`, so `Coffee` is still immutable to
+    /// everyone outside this file — the only mutators are the three named ones
+    /// below. (The old doc comment justified all-`let` as what made `Coffee`
+    /// `Sendable`; that was never the reason. A struct is `Sendable` when its
+    /// stored properties are, `let` or `var`.)
+    private func with(_ mutate: (inout Coffee) -> Void) -> Coffee {
+        var copy = self
+        mutate(&copy)
+        return copy
+    }
+
+    /// A copy with `isFavorite` flipped — how `CoffeeStore.toggleFavorite` and
+    /// `SyncEngine`'s "pending mutation wins" rule (PLAN.md §5) both apply an
+    /// optimistic edit.
     func withFavorite(_ isFavorite: Bool, setBy: String) -> Coffee {
-        Coffee(
-            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
-            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
-            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
-            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
-            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
-            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
-            rating: rating, isFavorite: isFavorite, favoriteSetBy: setBy,
-            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
-            flavorNotes: flavorNotes,
-            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
-            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
-            rotationQuarterTurns: rotationQuarterTurns, images: images,
-            brewTriedIds: brewTriedIds, brewBestIds: brewBestIds
-        )
+        with {
+            $0.isFavorite = isFavorite
+            $0.favoriteSetBy = setBy
+        }
     }
 
-    /// A copy with the display rotation set (#57) — same immutable-value,
-    /// optimistic-update pattern as `withFavorite`, so the store can reflect a
-    /// rotate the moment the user taps, before the round-trip confirms.
+    /// A copy with the display rotation set (#57) — same optimistic-update
+    /// pattern, so the store reflects a rotate the moment the user taps.
     func withRotation(_ turns: Int) -> Coffee {
-        Coffee(
-            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
-            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
-            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
-            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
-            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
-            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
-            rating: rating, isFavorite: isFavorite, favoriteSetBy: favoriteSetBy,
-            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
-            flavorNotes: flavorNotes,
-            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
-            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
-            rotationQuarterTurns: ((turns % 4) + 4) % 4, images: images,
-            brewTriedIds: brewTriedIds, brewBestIds: brewBestIds
-        )
+        with { $0.rotationQuarterTurns = ((turns % 4) + 4) % 4 }
     }
 
-    /// A copy with the brew lab's tried/best id sets replaced (PLAN.md §14) —
-    /// same immutable-value, optimistic-update pattern as `withFavorite`.
+    /// A copy with the brew lab's tried/best id sets replaced (PLAN.md §14).
     /// `SyncEngine` is the only caller: it computes the new sets (locally for
     /// an optimistic tap, or from the server's whole-state response after a
     /// flush) and passes them straight through.
     func withBrew(tried: [Int], best: [Int]) -> Coffee {
-        Coffee(
-            id: id, purchasedOn: purchasedOn, roasterId: roasterId, roasterCountryId: roasterCountryId,
-            originCountryIds: originCountryIds, originCountryId: originCountryId, isBlend: isBlend,
-            originFarmId: originFarmId, altitudeMinM: altitudeMinM, altitudeMaxM: altitudeMaxM,
-            profile: profile, profileDetail: profileDetail, isDecaf: isDecaf, roastedOn: roastedOn,
-            priceOriginalAmount: priceOriginalAmount, priceOriginalCurrency: priceOriginalCurrency,
-            priceEur: priceEur, fxRate: fxRate, fxRatePeriod: fxRatePeriod, weightG: weightG,
-            rating: rating, isFavorite: isFavorite, favoriteSetBy: favoriteSetBy,
-            farmLotNote: farmLotNote, brewGuideNote: brewGuideNote, roasterCopyNote: roasterCopyNote,
-            flavorNotes: flavorNotes,
-            rawTitle: rawTitle, rawCaption: rawCaption, rawDescription: rawDescription,
-            reviewState: reviewState, minFieldConfidence: minFieldConfidence,
-            rotationQuarterTurns: rotationQuarterTurns, images: images,
-            brewTriedIds: tried, brewBestIds: best
-        )
+        with {
+            $0.brewTriedIds = tried
+            $0.brewBestIds = best
+        }
     }
 }

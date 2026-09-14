@@ -119,15 +119,17 @@ struct CoffeeIndex: Sendable {
     let valueScoreByRow: [Double?]
     let valueBandByRow: [ValueRating.Band?]
 
-    /// Rating sum/count per roaster id and per origin-country id, tallied
-    /// **once** here (#112) rather than inside `topRoasterIDs`/
+    /// Every roaster/origin-country id with at least one rated coffee,
+    /// average-rating descending, tallied and sorted **once** here (#112,
+    /// extended #176(d)) rather than inside `topRoasterIDs`/
     /// `topOriginCountryIDs` — those are called from every visible row's
     /// `body` (`CoffeeRowView.isTopRoaster`/`.originAverage`), so rescanning
-    /// all ~900 coffees on every call made scrolling the full library
-    /// effectively O(rows²). `topAverages` now only filters+sorts these much
-    /// smaller per-id maps, independent of `minCount` or library size.
-    private let roasterRatingTally: (sums: [Int: Double], counts: [Int: Int])
-    private let originCountryRatingTally: (sums: [Int: Double], counts: [Int: Int])
+    /// all ~900 coffees, or even re-filtering+re-sorting the smaller per-id
+    /// tally, on every call made scrolling the full library do real repeated
+    /// work. Computed at `minCount: 0`, so a caller's `minCount` only needs to
+    /// filter this already-sorted array — the order is preserved, no re-sort.
+    private let roasterTopAveragesSorted: [TopVocabAverage]
+    private let originCountryTopAveragesSorted: [TopVocabAverage]
 
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
@@ -179,8 +181,10 @@ struct CoffeeIndex: Sendable {
             brewOptionKinds: brewOptionKinds, valueBandByRow: bandByRow
         )
 
-        self.roasterRatingTally = Self.ratingTally(coffees: sorted) { $0.roasterId.map { [$0] } ?? [] }
-        self.originCountryRatingTally = Self.ratingTally(coffees: sorted) { $0.originCountryIds }
+        let roasterTally = Self.ratingTally(coffees: sorted) { $0.roasterId.map { [$0] } ?? [] }
+        let originCountryTally = Self.ratingTally(coffees: sorted) { $0.originCountryIds }
+        self.roasterTopAveragesSorted = Self.topAverages(minCount: 0, tally: roasterTally)
+        self.originCountryTopAveragesSorted = Self.topAverages(minCount: 0, tally: originCountryTally)
     }
 
     // MARK: - Lookup
@@ -551,13 +555,13 @@ struct CoffeeIndex: Sendable {
     /// average rating — `.first` is "your best roaster" (design handoff
     /// §Row/§Screen 2). Unrated coffees and coffees with no roaster don't count.
     func topRoasterIDs(minCount: Int = 5) -> [TopVocabAverage] {
-        Self.topAverages(minCount: minCount, tally: roasterRatingTally)
+        roasterTopAveragesSorted.filter { $0.count >= minCount }
     }
 
     /// Same as `topRoasterIDs` but over origin countries — a coffee with
     /// multiple origins (a blend) contributes to each of its countries.
     func topOriginCountryIDs(minCount: Int = 5) -> [TopVocabAverage] {
-        Self.topAverages(minCount: minCount, tally: originCountryRatingTally)
+        originCountryTopAveragesSorted.filter { $0.count >= minCount }
     }
 
     /// One O(n) pass over `coffees` building rating sum/count per id — the
@@ -620,6 +624,14 @@ struct CoffeeIndex: Sendable {
 
     // MARK: - Building
 
+    /// #176(b): `searchTexts` carries the free-text blob from
+    /// `/api/snapshot/text` (~894 KB across the library), and every rebuild of
+    /// this index — a favourite toggle, a brew tick, any single-coffee detail
+    /// fetch — rebuilds `searchKeys` for all ~900 coffees. Re-folding that
+    /// whole blob on every such rebuild was the expensive part; `SyncEngine`
+    /// now folds `searchTexts` once, when it's fetched or loaded from disk,
+    /// not here. This only folds the much smaller per-coffee metadata and
+    /// appends the already-folded text unchanged.
     private static func searchKey(for coffee: Coffee, vocabulary: Vocabulary, searchTexts: [String: String]) -> String {
         var parts: [String] = []
         if let roasterID = coffee.roasterId, let roaster = vocabulary.roasters[roasterID] { parts.append(roaster.name) }
@@ -631,8 +643,9 @@ struct CoffeeIndex: Sendable {
         for note in [coffee.profileDetail, coffee.farmLotNote, coffee.rawTitle, coffee.rawCaption, coffee.rawDescription] {
             if let note { parts.append(note) }
         }
-        if let text = searchTexts[coffee.id] { parts.append(text) }
-        return parts.joined(separator: " ").foldedForSearch
+        let metaFolded = parts.joined(separator: " ").foldedForSearch
+        guard let text = searchTexts[coffee.id] else { return metaFolded }
+        return metaFolded + " " + text
     }
 
     private static func buildPostings(

@@ -33,9 +33,36 @@ actor ImageStore {
     private static let maxFullBytes = 30 * 1024 * 1024
     private static let maxAgeSeconds: TimeInterval = 30 * 24 * 60 * 60
 
+    /// #177: the "display" size tier — for the hero/zoom/review images that
+    /// today bypass this cache entirely via a raw `AsyncImage` at full
+    /// 1080-px resolution (`CoffeeDetailView`/`ZoomableImageView`/
+    /// `ReviewCardView`), each re-decoding on every appearance with no cache
+    /// hit possible since the URL's `exp`/`sig` query rotates every sync.
+    /// Wiring call sites through `thumbnail(for:maxPixelSize:)` with this
+    /// constant (#180, iOS UX) gives them the same on-disk + in-memory
+    /// caching the row thumbnails already have, one shared cache key per
+    /// image rather than one per screen's own pixel size. Per CLAUDE.md's
+    /// 30 MB cache budget, adding this tier must stay under the cap — the
+    /// budget note in #177 estimates thumbs alone at ~5 MB today.
+    static let displayMaxPixelSize: CGFloat = 1080
+
     private let session: URLSession
     private let cacheDirectory: URL
     private var inFlight: [String: Task<Data, Error>] = [:]
+
+    /// #177: in-memory decoded-thumbnail cache, keyed by `(cacheKey,
+    /// maxPixelSize)` — `Thumbnail.swift` re-requests on every `.task(id:)`,
+    /// so the same (url, size) pair is decoded over and over on every
+    /// scroll-in even though the on-disk bytes never changed. `NSCache` is
+    /// safe to read/write concurrently, so it needs no actor isolation itself.
+    private let decodedCache = NSCache<NSString, CGImage>()
+
+    /// #177: keys already mtime-touched this launch. `loadData` used to call
+    /// `touch` on every cache hit — every visible row, every scroll frame —
+    /// turning a read into a disk read *and* an attribute write. Since
+    /// eviction only needs "was this used recently, this launch or the last,"
+    /// one touch per key per launch is enough.
+    private var touchedThisLaunch: Set<String> = []
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -50,7 +77,24 @@ actor ImageStore {
     /// `maxPixelSize` is already display-scale-adjusted; the caller (a
     /// SwiftUI view, once wired) knows `@Environment(\.displayScale)`.
     func thumbnail(for urlString: String, maxPixelSize: CGFloat) async throws -> CGImage {
+        let memoKey = Self.decodedCacheKey(for: urlString, maxPixelSize: maxPixelSize)
+        if let cached = decodedCache.object(forKey: memoKey) {
+            return cached
+        }
         let data = try await loadData(for: urlString)
+        // #177: decode off this actor's serial executor. `thumbnail` used to
+        // decode inline, so two requests in flight — from two different rows
+        // — decoded one at a time no matter how many CPU cores were idle;
+        // `decodeThumbnail` is `static`/non-isolated, so `Task.detached` can
+        // run it on the concurrent pool instead.
+        let thumbnail = try await Task.detached(priority: .userInitiated) {
+            try Self.decodeThumbnail(data: data, maxPixelSize: maxPixelSize)
+        }.value
+        decodedCache.setObject(thumbnail, forKey: memoKey)
+        return thumbnail
+    }
+
+    private static func decodeThumbnail(data: Data, maxPixelSize: CGFloat) throws -> CGImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw ImageStoreError.decodeFailed
         }
@@ -65,12 +109,16 @@ actor ImageStore {
         return thumbnail
     }
 
+    private static func decodedCacheKey(for urlString: String, maxPixelSize: CGFloat) -> NSString {
+        "\(cacheKey(for: urlString))@\(Int(maxPixelSize))" as NSString
+    }
+
     private func loadData(for urlString: String) async throws -> Data {
         let key = Self.cacheKey(for: urlString)
         let fileURL = cacheDirectory.appendingPathComponent(key)
 
         if let cached = try? Data(contentsOf: fileURL) {
-            touch(fileURL)
+            touchOncePerLaunch(fileURL, key: key)
             return cached
         }
 
@@ -92,7 +140,9 @@ actor ImageStore {
         return try await task.value
     }
 
-    private func touch(_ fileURL: URL) {
+    private func touchOncePerLaunch(_ fileURL: URL, key: String) {
+        guard !touchedThisLaunch.contains(key) else { return }
+        touchedThisLaunch.insert(key)
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
     }
 

@@ -31,11 +31,29 @@ actor SyncEngine {
 
     private let outbox = MutationOutbox()
 
-    init() {
+    /// #176(a): whether `loadPersistedIfNeeded` has already run. `init()` used
+    /// to call `PersistedSnapshot.load()` (a synchronous ~1.3 MB decode)
+    /// directly — but `SyncEngine()` is constructed synchronously wherever
+    /// `RemoteCoffeeRepository()` is, which is `CoffeeStore`'s `@MainActor`
+    /// `init`, so that decode ran on the main thread before the app ever drew
+    /// a frame. Deferring it to the first real actor call moves the decode
+    /// onto this actor's own executor, off main, for free — no `Task`/`await`
+    /// dance needed at the call site.
+    private var hasLoadedPersisted = false
+
+    init() {}
+
+    private func loadPersistedIfNeeded() {
+        guard !hasLoadedPersisted else { return }
+        hasLoadedPersisted = true
         guard let persisted = PersistedSnapshot.load() else { return }
         coffees = Dictionary(uniqueKeysWithValues: persisted.coffees.map { ($0.id, $0) })
         vocabulary = persisted.vocabulary
-        searchTexts = persisted.searchTexts
+        // #176(b): fold defensively even though a freshly-saved file's
+        // `searchTexts` are already folded (see `sync`, below) — a file
+        // persisted by a build before this change still holds raw text, and
+        // folding an already-folded string is a no-op, not a correctness risk.
+        searchTexts = persisted.searchTexts.mapValues { $0.foldedForSearch }
         profilesByID = persisted.profilesByID
         lastSyncAt = persisted.lastSyncAt
         schemaVersion = persisted.schemaVersion
@@ -46,7 +64,8 @@ actor SyncEngine {
     /// The most recently loaded index — from disk if this is a cold start and
     /// `sync` hasn't run yet. Never touches the network.
     func currentIndex() -> CoffeeIndex {
-        CoffeeIndex(coffees: Array(coffees.values), vocabulary: vocabulary, searchTexts: searchTexts)
+        loadPersistedIfNeeded()
+        return CoffeeIndex(coffees: Array(coffees.values), vocabulary: vocabulary, searchTexts: searchTexts)
     }
 
     /// Delta sync per PLAN.md §5: `since = lastSyncAt − 60s` (clock skew),
@@ -54,6 +73,7 @@ actor SyncEngine {
     /// schema-version mismatch drops the local cache and forces one full
     /// refetch rather than trying to merge two shapes.
     func sync(using client: APIClient) async throws -> CoffeeIndex {
+        loadPersistedIfNeeded()
         let isStale = lastFullSyncAt.map { Date().timeIntervalSince($0) >= Self.fullSyncMaxAge } ?? true
         var requestedSince = (schemaVersion != nil && !isStale) ? lastSyncAt?.addingTimeInterval(-60) : nil
         var response = try await client.snapshot(since: requestedSince)
@@ -72,7 +92,9 @@ actor SyncEngine {
             brewOptionList: response.vocab.brewOptions.compactMap { BrewOption(dto: $0) }
         )
         for dto in response.coffees {
-            var coffee = dto.makeCoffee(profilesByID: profilesByID)
+            // #178(b): nil only for a row with no purchase date — skipped
+            // deliberately and counted, not silently lost.
+            guard var coffee = dto.makeCoffee(profilesByID: profilesByID) else { continue }
             if let pending = await outbox.pendingFavorite(for: dto.id) {
                 coffee = coffee.withFavorite(pending, setBy: "human")
             }
@@ -93,19 +115,30 @@ actor SyncEngine {
         // on a 304 rather than fetching and replacing `searchTexts` every time.
         if let (texts, etag) = try? await client.snapshotText(ifNoneMatch: searchTextsETag) {
             if let texts {
-                searchTexts = texts
+                // #176(b): fold once here, not per `CoffeeIndex` rebuild —
+                // `CoffeeIndex.searchKey` now assumes `searchTexts` values are
+                // already folded and appends them as-is.
+                searchTexts = texts.mapValues { $0.foldedForSearch }
             }
             searchTextsETag = etag ?? searchTextsETag
         }
 
         await flushOutbox(using: client)
         persist()
+        // #177: eviction used to run only at launch (`RootView`), so a cache
+        // that crossed the 30 MB budget mid-session stayed over budget until
+        // the next cold start. A sync is the natural other trigger — it's
+        // when new thumbUrls (and so new cache entries) actually arrive.
+        // Fire-and-forget: the scan is cheap but there's no reason to hold
+        // this sync's result on it.
+        Task { await ImageStore.shared.evictStaleEntries() }
         return currentIndex()
     }
 
     /// Fetches and merges one coffee's detail payload — notes, raw text,
     /// signed image URLs — without a full resync (PLAN.md §4).
     func loadDetail(coffeeId: String, using client: APIClient) async throws -> Coffee {
+        loadPersistedIfNeeded()
         let dto = try await client.coffeeDetail(publicId: coffeeId)
         var coffee = dto.makeCoffee(profilesByID: profilesByID)
         if let pending = await outbox.pendingFavorite(for: coffeeId) {
@@ -113,7 +146,10 @@ actor SyncEngine {
         }
         coffee = applyPendingBrewStates(to: coffee, pending: await outbox.pendingBrewStates(for: coffeeId))
         coffees[coffeeId] = coffee
-        persist()
+        // #176(c): debounced, not immediate — opening coffee details in quick
+        // succession (browsing the listing) used to re-encode + rewrite the
+        // whole ~1.3 MB snapshot on every single open.
+        schedulePersist()
         return coffee
     }
 
@@ -141,6 +177,7 @@ actor SyncEngine {
     /// full network round trip, so offline the heart didn't visibly flip
     /// until that call's ~60 s timeout elapsed.
     func setFavorite(coffeeId: String, isFavorite: Bool, client: APIClient?) async -> CoffeeIndex {
+        loadPersistedIfNeeded()
         if let coffee = coffees[coffeeId] {
             coffees[coffeeId] = coffee.withFavorite(isFavorite, setBy: "human")
             persist()
@@ -158,6 +195,7 @@ actor SyncEngine {
     /// online. This is a tap-tap-tap surface (check tried, tap the trophy for
     /// best), so a spinner per tap would kill it.
     func setBrewState(coffeeId: String, optionId: Int, state: BrewTrialState, client: APIClient?) async -> CoffeeIndex {
+        loadPersistedIfNeeded()
         if let coffee = coffees[coffeeId], let option = vocabulary.brewOptions[optionId] {
             coffees[coffeeId] = applyOptimisticBrewState(to: coffee, option: option, state: state)
             persist()
@@ -178,6 +216,7 @@ actor SyncEngine {
         kind: BrewKind, label: String?, detail: String?, valueNum: Double?, recipe: BrewRecipeSpec?,
         client: APIClient?
     ) async throws -> BrewOption {
+        loadPersistedIfNeeded()
         guard let client else { throw APIClient.APIError.notConfigured }
         let dto = try await client.createBrewOption(kind: kind, label: label, detail: detail, valueNum: valueNum, recipe: recipe)
         guard let option = BrewOption(dto: dto) else {
@@ -191,6 +230,7 @@ actor SyncEngine {
     /// Renames/re-values/archives a catalogue option — same confirmed +
     /// throwing shape as `createBrewOption`.
     func updateBrewOption(id: Int, patch: BrewOptionPatch, client: APIClient?) async throws -> BrewOption {
+        loadPersistedIfNeeded()
         guard let client else { throw APIClient.APIError.notConfigured }
         let dto = try await client.updateBrewOption(id: id, patch: patch)
         guard let option = BrewOption(dto: dto) else {
@@ -268,6 +308,7 @@ actor SyncEngine {
     /// leaves the shown orientation unchanged and the caller can surface the
     /// error — no optimistic flicker to revert.
     func setRotation(coffeeId: String, quarterTurns: Int, client: APIClient?) async throws -> CoffeeIndex {
+        loadPersistedIfNeeded()
         guard let client else { throw APIClient.APIError.notConfigured }
         _ = try await client.setRotation(publicId: coffeeId, quarterTurns: quarterTurns)
         if let coffee = coffees[coffeeId] {
@@ -373,6 +414,7 @@ actor SyncEngine {
     /// via the next normal delta sync, same as any other worker-processed
     /// photo (no new client-sync logic needed).
     func quickCreateCoffee(photoIds: [String], client: APIClient?) async throws -> Coffee {
+        loadPersistedIfNeeded()
         guard let client else { throw APIClient.APIError.notConfigured }
         let response = try await client.quickCreateCoffee(photoIds: photoIds)
         let placeholder = Coffee.pendingPlaceholder(id: response.id, reviewState: response.reviewState)
@@ -388,6 +430,7 @@ actor SyncEngine {
     /// that used to call `outbox.flush(using:)` directly now goes through
     /// this instead of duplicating the reconciliation per call site.
     private func flushOutbox(using client: APIClient) async {
+        loadPersistedIfNeeded()
         let flushedBrewStates = await outbox.flush(using: client)
         guard !flushedBrewStates.isEmpty else { return }
         for flushed in flushedBrewStates {
@@ -398,7 +441,25 @@ actor SyncEngine {
         persist()
     }
 
+    /// #176(c): any still-pending debounced write from `schedulePersist()`.
+    private var pendingPersistTask: Task<Void, Never>?
+
+    /// Coalesces a burst of `loadDetail` calls (fast browsing between coffee
+    /// pages) into one encode+write shortly after the last one, instead of
+    /// re-encoding the whole snapshot per open. Cancelling the previous task
+    /// on each call means only the last call in a burst actually persists.
+    private func schedulePersist() {
+        pendingPersistTask?.cancel()
+        pendingPersistTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.persist()
+        }
+    }
+
     private func persist() {
+        pendingPersistTask?.cancel()
+        pendingPersistTask = nil
         PersistedSnapshot(
             schemaVersion: schemaVersion ?? SnapshotSchema.currentVersion,
             lastSyncAt: lastSyncAt ?? Date(),

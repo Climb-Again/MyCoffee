@@ -46,6 +46,12 @@ struct CoffeesListView: View {
                     filterStateLine(coffees: coffees)
                 }
 
+                // #192: a failed refresh used to be completely silent — the
+                // spinner stopped, the list stayed put, nothing said why.
+                if let syncError = store.lastSyncError {
+                    syncErrorBanner(syncError)
+                }
+
                 let reviewCount = visibleReviewCount(in: coffees)
                 if reviewCount > 0 {
                     reviewNudge(count: reviewCount)
@@ -227,6 +233,38 @@ struct CoffeesListView: View {
             .padding(.leading, 22)
             .padding(.vertical, 6)          // #150: was 10
             .plainListRow()
+    }
+
+    // MARK: - Sync error banner (#192)
+
+    /// Same visual language as `reviewNudge`, deliberately: this is a
+    /// non-blocking notice on the list, not an error screen. The list keeps
+    /// showing the last good data (a failed sync must never blank it), so this
+    /// is the only thing distinguishing "nothing changed" from "we couldn't
+    /// ask". Tapping retries, because the most likely fix is "try again".
+    private func syncErrorBanner(_ message: String) -> some View {
+        Button {
+            Task { await store.refresh() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: Symbols.syncFailed)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Couldn't refresh — showing your last synced data")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowSeparator(.hidden)
+        .accessibilityHint("Tap to try syncing again")
     }
 
     // MARK: - Review nudge

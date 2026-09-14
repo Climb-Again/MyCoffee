@@ -346,6 +346,67 @@ struct APIClient: Sendable {
         }
     }
 
+    // GET /api/history — #195's Shop tab reads the extension's shortlist.
+    //
+    // ⚠ SEAM EDIT (CLAUDE.md §4): `API/**` is ios-shell-owned; added by the
+    // ios-ux lane for #195 and recorded under `## Claimed` in both lane files.
+    //
+    // Needs the WRITE token, not the read one: `/api/history` keys rows on the
+    // sha256 of the presented bearer (migration 037), so presenting APP_TOKEN
+    // would hash to a different key and return an empty list — which reads as
+    // data loss rather than as an auth mismatch. `makeRequest` already sends
+    // whichever token is configured; on a read-token-only install this returns
+    // empty and the tab says so.
+    func shortlist() async throws -> [ShortlistEntry] {
+        let req = try makeRequest(path: "/api/history", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI
+                .decode(ShortlistResponseDTO.self, from: data)
+                .entries
+                .compactMap(\.value)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // GET /api/whatsnew/seen — #201's phone↔iPad sync for What's New check-offs.
+    //
+    // Keys are opaque to the server: it stores whatever string it is given, and
+    // the FNV-1a hash of `title\ndetail` is a CLIENT convention
+    // (`WhatsNewSeenStore.key(for:)`). That's deliberate — it means a re-worded
+    // entry keeps its tick on every device without the server knowing anything
+    // about What's New content.
+    //
+    // ⚠ SEAM EDIT (CLAUDE.md §4): `API/**` is ios-shell-owned; these two thin
+    // wrappers were added by the ios-ux lane for #201 and are recorded under
+    // `## Claimed` in both `status/ios-shell.md` and `status/ios-ux.md`. No new
+    // types and no shell logic — just `send`/`makeRequest` like every method
+    // around them.
+    func whatsNewSeen() async throws -> [String] {
+        let req = try makeRequest(path: "/api/whatsnew/seen", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(WhatsNewSeenResponseDTO.self, from: data).seen
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // POST /api/whatsnew/seen — `{key, seen}`; returns the whole fresh set, so
+    // one round-trip both writes and reconciles.
+    @discardableResult
+    func setWhatsNewSeen(key: String, seen: Bool) async throws -> [String] {
+        let body = try JSONEncoder().encode(WhatsNewSeenRequestDTO(key: key, seen: seen))
+        let req = try makeRequest(path: "/api/whatsnew/seen", method: "POST", body: body)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI.decode(WhatsNewSeenResponseDTO.self, from: data).seen
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // POST /api/photos/manifest — registers one or more photos for the Add
     // Coffee wizard (PLAN.md §6.8, #75/#76) ahead of uploading their bytes.
     // `description` is only ever set on the primary/front photo's entry: it

@@ -6,7 +6,16 @@ merge-conflict generator, whereas one file per lane merges cleanly by constructi
 
 ## Where the work list lives
 
-**`status/BACKLOG.md`** — not the GitHub issue list. Routine-fired sessions run
+**`status/BACKLOG.md`** — not the GitHub issue list.
+
+> **Archived rows (#182, 2026-09-14).** The live file holds **open rows plus
+> any finished row an open row still `needs`** — everything else is in
+> `status/archive/BACKLOG-done.md`, byte-identical, same table. That took it
+> from 435 KB to 58 KB, which every lane past the step-0 gate and every
+> interactive session was reading in full. A lane greps only the live file (a
+> row it can claim is always there); `check-backlog.sh` reads **both**, for the
+> duplicate check and for resolving `needs`. The 2026-08 running commentary
+> that sat under the table is in `status/archive/BACKLOG-notes-2026-08.md`. Routine-fired sessions run
 without MCP connector tools and cannot query the GitHub API, so everything a lane
 needs to pick its next task lives in the repo. Each backlog row mirrors a GitHub
 issue of the same number: the issue holds the full spec, the backlog holds lane,
@@ -145,11 +154,15 @@ a value-meter redefinition, honey vs the v3 redesign. The later row of each pair
 was renumbered to #114/#115/#116; the first-filed one keeps its number, so
 existing references stay valid.
 
-**Before writing a row:**
+**Before writing a row** — and note this greps **both** files (#182): finished
+rows move to `status/archive/BACKLOG-done.md` once nothing open depends on
+them, and a number is never reused, so taking max over the live file alone
+would hand you a number an archived row already owns.
 
 ```bash
 git pull --rebase                     # a stale read is how this went wrong
-grep -oE '^\| *[0-9]{1,3} *\|' status/BACKLOG.md | tr -d '| ' | sort -n | tail -1
+grep -hoE '^\| *[0-9]{1,3} *\|' status/BACKLOG.md status/archive/BACKLOG-done.md \
+  | tr -d '| ' | sort -n | tail -1
 ```
 
 Use that number **+ 1**. Then, before pushing:

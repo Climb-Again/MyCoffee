@@ -19,6 +19,15 @@ import Foundation
 /// already on.
 enum RootTab: Hashable {
     case coffees
+    /// #195: the Brew lab's own landing surface — the catalogue (recipes,
+    /// devices, grind clicks, temperatures) with per-option win rates, which
+    /// until now only existed inside a coffee's detail page and behind
+    /// Settings.
+    case recipes
+    /// #195: the browser extension's shortlist (#187 → #194), read from
+    /// `GET /api/history`. The iOS app cannot see `chrome.storage.local`, so
+    /// this tab is only possible because #194 moved the list server-side.
+    case shop
     case insights
     case review
     /// Redesign v3 §3: the `+` is a middle tab item, not a floating circle.
@@ -42,6 +51,28 @@ final class CoffeeStore: ObservableObject {
     /// roasted-date), which the queue omits — so a badge counting non-clean
     /// coffees never drops as you clear the queue. The badge follows the queue.
     @Published private(set) var reviewQueueCount: Int = 0
+
+    /// #178(c): why the last sync failed, and when one last succeeded.
+    ///
+    /// `refresh()` and `loadDetail()` used to swallow every error into
+    /// `try?`, so a pull-to-refresh against a dead backend, an expired token
+    /// or no network was indistinguishable from a successful refresh that
+    /// happened to change nothing: the spinner stopped, the list stayed put,
+    /// and nothing anywhere said why. These publish that instead of
+    /// discarding it; #192 surfaces them in the UI.
+    ///
+    /// `lastSyncError` is cleared on the next success, so it always describes
+    /// the CURRENT state rather than accumulating history.
+    @Published private(set) var lastSyncError: String?
+    @Published private(set) var lastSyncedAt: Date?
+
+    /// #178(b): how many rows the last snapshot decode dropped because they
+    /// failed to decode (`FailableDecodable` skips an element rather than
+    /// losing the whole array — the right trade, but it must not be silent:
+    /// the app has been blanked three times by all-or-nothing decoding, and a
+    /// partial loss is the same bug wearing a quieter coat). Surfaced in
+    /// Settings as a diagnostic.
+    @Published private(set) var droppedRowCount: Int = 0
 
     private let repository: CoffeeRepository
 
@@ -70,8 +101,16 @@ final class CoffeeStore: ObservableObject {
     }
 
     func refresh() async {
-        if let refreshed = try? await repository.refresh() {
-            index = refreshed
+        do {
+            index = try await repository.refresh()
+            droppedRowCount = SnapshotDecodeStats.shared.droppedRowCount
+            lastSyncedAt = Date()
+            lastSyncError = nil
+        } catch {
+            // #178(c): kept, not swallowed. The index deliberately stays as it
+            // was — a failed refresh must never blank the list — but the
+            // failure is now visible instead of silent.
+            lastSyncError = error.localizedDescription
         }
     }
 
@@ -94,9 +133,17 @@ final class CoffeeStore: ObservableObject {
     /// the next `index` publish.
     @discardableResult
     func loadDetail(for coffee: Coffee) async -> Coffee? {
-        guard let detailed = try? await repository.loadDetail(coffeeId: coffee.id) else { return nil }
-        index = index.replacingCoffee(detailed)
-        return detailed
+        do {
+            let detailed = try await repository.loadDetail(coffeeId: coffee.id)
+            index = index.replacingCoffee(detailed)
+            lastSyncError = nil
+            return detailed
+        } catch {
+            // #178(c): the compact row still renders, so this stays non-fatal —
+            // but "the notes never appeared" now has an explanation attached.
+            lastSyncError = error.localizedDescription
+            return nil
+        }
     }
 
     /// Accept a review task's value — durable through the same offline outbox
@@ -265,18 +312,62 @@ final class CoffeeStore: ObservableObject {
         return created
     }
 
+    /// #178(e): the ONE shell-owned way to get an `APIClient`.
+    ///
+    /// Nine call sites built their own `APIClient(config: AppConfig.shared)` —
+    /// six of them in UX-owned files (`SettingsSheet`, `ReviewQueueView`,
+    /// `CoffeeReviewSheet`, `ReviewFeedCache`, `WhatsNewView`, `ConnectView`),
+    /// each reaching straight past the repository the shell exists to own. A
+    /// change to how a client is configured (a header, a timeout, a base-URL
+    /// fallback) had nine places to remember.
+    ///
+    /// This is the shell half: additive, so no UX file has to change in the
+    /// same commit (the seam rule, CLAUDE.md §4). The UX lane migrates its six
+    /// sites onto it in its own row.
+    ///
+    /// Returns nil rather than throwing, because every current caller wants
+    /// "skip this if we're not configured", not an error to render — the
+    /// Connect screen is what handles being unconfigured.
+    func makeAPIClient() async -> APIClient? {
+        try? await APIClient(config: AppConfig.shared)
+    }
+
+    // ---- #195: the extension's shortlist, for the Shop tab ----
+
+    /// The shortlist as the extension left it. Empty until `loadShortlist()`
+    /// succeeds; deliberately NOT persisted to the on-disk snapshot, because
+    /// it is a 30-day rolling list the server prunes (#197) and a stale local
+    /// copy would show bags that have already aged out.
+    @Published private(set) var shortlist: [ShortlistEntry] = []
+    @Published private(set) var shortlistError: String?
+
+    /// Reads `GET /api/history` — the same rows the extension popup ranks.
+    /// Ordering and the display score are the SERVER's rows rendered as-is,
+    /// so the phone and the browser agree; re-ranking here would be a second
+    /// definition of the same list.
+    func loadShortlist() async {
+        guard let client = await makeAPIClient() else { return }
+        do {
+            shortlist = try await client.shortlist()
+            shortlistError = nil
+        } catch {
+            shortlistError = error.localizedDescription
+        }
+    }
+
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the
     /// Insights screen. A once-a-day read, not part of the coffee snapshot —
     /// no local caching, mirrors `loadDetail`'s fetch-and-return shape.
     func loadBrief() async -> Brief? {
-        try? await APIClient(config: AppConfig.shared).brief()
+        guard let client = await makeAPIClient() else { return nil }
+        return try? await client.brief()
     }
 
     /// Refresh the Review-tab badge from the same feed the Review page renders,
     /// so badge and page always agree. Called on launch; the Review view also
     /// updates it live via `setReviewQueueCount` as items are cleared.
     func refreshReviewCount() async {
-        guard let client = try? await APIClient(config: AppConfig.shared),
+        guard let client = await makeAPIClient(),
               let feed = try? await client.reviewFeed() else { return }
         reviewQueueCount = feed.items.count
     }

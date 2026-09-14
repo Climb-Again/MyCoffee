@@ -8,11 +8,160 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #178 shipped; seam edits taken by ios-ux for #201/#195
+
+**#178 (a)(b)(c)(e) shipped, compile-green run #134.** Full write-up in the
+backlog row. Two things worth carrying forward:
+
+* **(d) was not done, and the row's own claim is partly wrong.** It lists
+  `extractWizardDraft`/`createWizardCoffee` as callerless; they are the
+  `CoffeeStore` end of a `CoffeeRepository` protocol requirement implemented by
+  both `RemoteCoffeeRepository` and `SampleCoffeeRepository`. And
+  `SampleData`/`SampleCoffeeRepository` are referenced only from doc comments,
+  but `SampleData` was edited two commits earlier (#203, `41d5180`) to give the
+  DAK sample roaster a live `logoUrl` "so the tile has something to render in
+  sample mode" — someone believes sample mode is reachable. Deleting either on
+  the strength of a grep would be guessing; verify before the cleanup row.
+* **`Coffee.purchasedOn` stays non-optional on purpose.** #178(b) makes the DTO
+  optional and counts the drop, but widening the model ripples into the
+  canonical sort, the year facet and three Insights aggregations — ~15 UX-owned
+  call sites. Measured 0 of 414 live rows affected, so it is latent; the
+  wizard's `quick-create` path (a photo with no `captured_at`) is how it starts.
+
+**Seam edits taken by ios-ux this session, recorded here per CLAUDE.md §4:**
+
+* `API/APIClient.swift` — `whatsNewSeen()` / `setWhatsNewSeen(key:seen:)` (#201)
+  and `shortlist()` (#195); `API/Wire/WhatsNewWire.swift` — three DTOs.
+* `Store/CoffeeStore.swift` — `RootTab.recipes` / `RootTab.shop`, and
+  `shortlist` / `shortlistError` / `loadShortlist()` (#195).
+* `Models/Shortlist.swift` — new. Every field optional except the url, because
+  the server stores the extension's payload opaquely and the two ship on
+  different schedules.
+
+All thin wrappers over existing `send`/`makeRequest` — no new shell logic.
+
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — seam edit for #203 (ios-ux lane): `SampleData.swift` gives
+  the DAK sample roaster a real, live `logoUrl` (production
+  `ops/roaster-assets/logos/dak-coffee-roasters.webp`) so `RoasterLogoTile`
+  has something to render in sample mode. One line, no new shell logic.
+  Landed `41d5180` alongside ios-ux's `RoasterLogoTile`/`Symbols` changes.**
+
+- **2026-09-14 — seam edit for #180 (ios-ux lane): `CoffeeMapping.swift`'s
+  compact mapping stops seeding `images.display` from `thumbUrl`, using the
+  empty-string sentinel `CoffeeDetailDTO.makeCoffee` already uses for a
+  missing URL instead (`?? ""`), so a coffee page's hero doesn't render a
+  blown-up 320px thumb before the detail fetch supplies the real photo. One
+  line, no new shell logic. Recorded per CLAUDE.md §4's seam rule; ios-ux did
+  the restyle-side work (`CachedImage.swift`, the three call sites) in the
+  same commit, `30889bb`.**
+
+- **2026-09-14 — #176(a)(b, partial)(c)(d), #177, #204 done this session;
+  #178 left `ready`. Compile-checked green: `ios-staging@b6d39b5`,
+  run #128 (https://github.com/Climb-Again/MyCoffee/actions/runs/34806170310),
+  succeeded.**
+
+  **#176 main-thread/rebuild hygiene:**
+  **(a)** `SyncEngine.init` no longer calls `PersistedSnapshot.load()`
+  synchronously — it was running on the *main* thread, not just off-main-not-
+  actually: `SyncEngine()` is constructed as `RemoteCoffeeRepository`'s stored
+  property default, which is itself constructed as `CoffeeStore`'s default
+  argument, evaluated inside `CoffeeStore.init` — `@MainActor`. So the ~1.3 MB
+  decode ran on the UI thread before the app ever drew a frame. Replaced with
+  `loadPersistedIfNeeded()`, called at the top of every actor method that
+  touches the persisted fields (`currentIndex`, `sync`, `loadDetail`,
+  `setFavorite`, `setBrewState`, `createBrewOption`, `updateBrewOption`,
+  `setRotation`, `quickCreateCoffee`, `flushOutbox`) — first call after actor
+  construction does the decode, on the actor's own executor, off main. Missing
+  this guard on any state-touching entry point would silently reset `coffees`
+  to disk-only data mid-session, so it's deliberately on every one rather than
+  just `currentIndex` as the backlog row's own wording suggested.
+
+  **(b), fold-once half only:** `CoffeeIndex.searchKey` no longer folds
+  `searchTexts`' ~894 KB blob on every index rebuild (every favourite toggle,
+  brew tick, or single-coffee detail merge rebuilds the whole index) — it now
+  folds only the per-coffee metadata and appends the already-folded text.
+  `SyncEngine` folds `searchTexts` exactly once, at the two points it's
+  populated: `loadPersistedIfNeeded` (defensively, since a pre-existing
+  on-disk snapshot predates this change and holds raw text) and `sync`'s
+  network merge. Folding is idempotent, so folding an already-folded string
+  a second time is wasted work but not a correctness risk.
+  **NOT done: the "run `replacingCoffee` in `SyncEngine`" half.** That needs
+  `CoffeeRepository.loadDetail`/`editField`/`editFields`/`createCoffee` to
+  return a rebuilt `CoffeeIndex` instead of a bare `Coffee` (a protocol change
+  touching `CoffeeRepository.swift`, `RemoteCoffeeRepository.swift`,
+  `SampleCoffeeRepository.swift`, and every `CoffeeStore` call site) — real
+  value, but a bigger, riskier change than the rest of this batch and not
+  something to land unverified in the same commit as everything else here.
+  Left as an explicit follow-up rather than silently dropped; #176 is not
+  re-filed since the row already exists and still describes it accurately.
+
+  **(c)** `loadDetail`'s `persist()` is now `schedulePersist()` — debounced
+  400 ms, cancelling any still-pending write, so browsing quickly between
+  coffee pages coalesces into one encode+write instead of one per open. Sync's
+  own end-of-sync `persist()` stays immediate (infrequent, not a rapid-fire
+  UI action).
+
+  **(d)** `topRoasterIDs`/`topOriginCountryIDs` were re-filtering *and*
+  re-sorting their rating tally on every call, and both are called from every
+  visible row's `body` (`CoffeeRowView.isTopRoaster`/`.originAverage`) with two
+  different `minCount`s (5, 3) in live use. Precomputed each as a `minCount: 0`
+  average-sorted array in `init`; both accessors are now a `filter` over an
+  already-sorted array (order-preserving, no re-sort) rather than a fresh
+  sort per call. Removed the now-unused raw tally properties.
+
+  **#177 ImageStore:** added an `NSCache<NSString, CGImage>` keyed
+  `(cacheKey, maxPixelSize)` so a re-requested (url, size) pair — which
+  `Thumbnail.swift`'s `.task(id:)` does on every scroll-in — skips the decode
+  entirely; moved the actual `CGImageSourceCreateThumbnailAtIndex` decode into
+  a `private static` (non-isolated) function run via `Task.detached`, so
+  concurrent thumbnail requests decode in parallel instead of serializing
+  through the actor one at a time; `loadData`'s disk-cache-hit path now
+  mtime-touches a key at most once per launch (`touchedThisLaunch: Set<String>`)
+  instead of on every read. Added `ImageStore.displayMaxPixelSize` (1080 px) —
+  a named constant for the "display" tier so the hero/zoom/review call sites
+  (#180, iOS UX — NOT touched here, `Features/**` is UX-owned) can route
+  through `thumbnail(for:maxPixelSize:)` with one shared cache key instead of
+  each screen picking its own size. Also moved `evictStaleEntries()` to run
+  after every `sync()` (fire-and-forget), not only at launch (`RootView`,
+  unchanged) — a cache that crossed 30 MB mid-session used to stay over
+  budget until the next cold start.
+
+  **#204** `Roaster.CodingKeys.countryId` had an explicit raw value
+  (`= "country_id"`), which is exactly wrong under
+  `.keyDecodingStrategy = .convertFromSnakeCase` (`CoffeeCoding.swift`): that
+  strategy converts the JSON key `country_id` → `countryId` *before* matching
+  it against a `CodingKey`'s `stringValue`, and the explicit raw value's
+  `stringValue` is still `"country_id"` — so it never matched and every
+  roaster's `countryId` silently decoded to `nil`. Dropped the raw value
+  (`case countryId`, letting the strategy do the conversion) — same fix shape
+  the row's own diagnosis specified. No unit test target exists in this
+  project to add the requested decode-fixture test (`status/ios-shell.md`'s
+  standing note); grepped the rest of `Vocab.swift` and every `API/Wire/**`
+  file for the same `case x = "snake_case"`-under-`.convertFromSnakeCase`
+  pattern — the only other hit, `Profile.coFermented = "co_fermented"`, is an
+  enum **raw value** (the wire *value*, not a coding key), which
+  `.convertFromSnakeCase` never touches, so it isn't the same bug.
+
+  **#178 (shell hygiene batch) left `ready`, not attempted.** Five sub-items,
+  several genuinely risky to land unverified in one sitting: (a) replacing
+  `Coffee`'s 35-argument initializer at six call sites across three files with
+  a `with(_ mutate:)` builder: (b) `purchasedOn` optionality + a new debug
+  counter; (c) new `@Published lastSyncError`/`lastSyncedAt`; (d) deleting
+  dead code across four files including `SampleData.swift`/
+  `SampleCoffeeRepository.swift`; (e) consolidating five separate ad-hoc
+  `APIClient` construction sites behind one shell entry point. Each is
+  plausible on its own but this session already made four separate,
+  independently-verifiable changes across `SyncEngine`/`CoffeeIndex`/
+  `ImageStore`/`Vocab.swift`; picking up #178's cross-file initializer rewrite
+  in the same sitting risked a red compile nobody could quickly attribute to
+  one change. Next ios-shell session: lowest phase first still puts #178
+  next.
 
 - **2026-09-12 — #175 done this session (sync hygiene, all five sub-items).**
   **(a)** `/api/snapshot/text` (~95% of sync bytes, no `since` of its own) now

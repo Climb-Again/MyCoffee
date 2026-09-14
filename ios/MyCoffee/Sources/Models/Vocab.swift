@@ -63,15 +63,22 @@ struct Roaster: Identifiable, Codable, Hashable, Sendable {
     var blurb: String? = nil
     var logoUrl: String? = nil
 
-    /// The snapshot's roaster vocab block is the raw DB row shape, so its
-    /// country key is snake-case `country_id` (unlike `coffees`, which are
-    /// camelCased by `toCompactCoffee`). Without this mapping `countryId`
-    /// silently decoded to nil for *every* roaster, so the country never
-    /// showed on a roaster page. `blurb`/`logoUrl` already match by name
-    /// (aliased `logo_url AS "logoUrl"` server-side).
+    /// #204: this used to read `case countryId = "country_id"`, on the theory
+    /// that the snapshot's roaster vocab block is the raw DB row shape (its
+    /// country key really is snake-case `country_id`, unlike `coffees`, which
+    /// `toCompactCoffee` camelCases server-side). But the shared decoder
+    /// (`Utilities/CoffeeCoding.swift`) already sets
+    /// `.keyDecodingStrategy = .convertFromSnakeCase`, which converts the JSON
+    /// key `country_id` to `countryId` *before* matching it against a
+    /// `CodingKey`'s `stringValue` — and an explicit raw value of
+    /// `"country_id"` is exactly the one string that conversion no longer
+    /// produces, so it never matched and `countryId` silently decoded to nil
+    /// for *every* roaster. Dropping the raw value lets `.convertFromSnakeCase`
+    /// do the job it already does for every other field here (`blurb`/
+    /// `logoUrl` match by name because the server already aliases
+    /// `logo_url AS "logoUrl"`).
     private enum CodingKeys: String, CodingKey {
-        case id, name, blurb, logoUrl
-        case countryId = "country_id"
+        case id, name, blurb, logoUrl, countryId
     }
 }
 

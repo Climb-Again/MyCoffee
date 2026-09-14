@@ -8,11 +8,111 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #205, #201, #192, #195
+
+Four rows, two compile-green runs (#135 for #205/#201; #136 for #192/#195).
+Full write-ups in the backlog rows. What is worth carrying forward:
+
+* **#205's `Done` segment is derived, not fetched.** `/api/whatsnew` has `live`
+  and `plan` and nothing else; "done" is a per-person fact the server has no
+  opinion about. Live and Done partition `response.live`, so nothing can hide
+  between them, and there is still exactly one definition of the tick.
+* **#205(c)'s swipe needed a new store method, not `toggle`.** Swiping an
+  already-unchecked card would have *re-checked* it. `markNotSeen` is
+  idempotent.
+* **#201 REPLACES the local seen set on a successful GET.** A union looks
+  safer and is wrong: it can never un-check anything, so un-ticking on the iPad
+  would be silently undone by the phone's next sync.
+* **#195's Shop tab renders the server's order as-is.** Re-ranking on the phone
+  would be a second definition of one list, and the phone and the browser would
+  disagree about which bag is top with no way to tell which was right.
+* **⚠ Open for Radu — the two new tabs use SF Symbols, not Lucide.**
+  Redesign v3 §11 wants Lucide outlines on the tab bar; `Assets.xcassets` has
+  13 imagesets and none is a flask or a storefront. Adding one means art.
+  Named `tabRecipesFallback` / `tabShopFallback` in `Symbols.swift` so the
+  placeholder cannot be mistaken for a decision.
+
+**Seam edits made into ios-shell-owned files** (also recorded in
+`status/ios-shell.md`): `APIClient.whatsNewSeen`/`setWhatsNewSeen`/`shortlist`,
+three wire DTOs, `RootTab.recipes`/`.shop`, `CoffeeStore.shortlist`/
+`shortlistError`/`loadShortlist()`, and a new `Models/Shortlist.swift`.
+
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — #180 follow-up: fixed the compile red from run #129
+  (two attempts, green on run #133).** `CachedImage`'s
+  `@ViewBuilder var content: (Phase) -> Content` stored property doesn't get
+  `@ViewBuilder` carried onto the synthesized memberwise initializer's
+  parameter, so every multi-statement trailing closure at the three #180
+  call sites (`switch phase { … }` / `if case … else …`) failed with
+  "generic parameter 'Content' could not be inferred," and every push built
+  on top of that commit (#209, #202) inherited the same red. First attempt
+  (`41d5180`) added an explicit `init` with the closure parameter marked
+  `@ViewBuilder` — run #132 still failed identically, because the deeper
+  cause was `Phase` being nested inside the generic `CachedImage<Content>`:
+  the closure parameter's type name depended on the very `Content` the
+  compiler was trying to infer from that closure's return type, a
+  circularity Swift couldn't resolve. Second attempt (`61520de`) hoisted
+  `Phase` out to a top-level, non-generic `CachedImagePhase` enum — green on
+  run #133 (https://github.com/Climb-Again/MyCoffee/actions/runs/34836406812).
+
+- **2026-09-14 — #203 roaster logo medallion permanently empty.**
+  `RoasterLogoTile.loadMark()` was nonisolated, and every `mark` write
+  followed an `await` (the `RoasterMarkCache` actor hop, then the
+  `URLSession` hop) — the continuation resumed off the main actor each time,
+  so SwiftUI silently dropped the `@State` mutation and the tile stayed an
+  empty cream medallion even on a successful fetch. Marked `loadMark()`
+  `@MainActor`. Also added a `didFail` flag and a neutral
+  `Symbols.roasterMarkFallback` ("storefront") icon so a load that
+  genuinely fails (bad URL, network error, undecodable data) shows a
+  distinguishable fallback instead of the same permanent empty tile as
+  "still loading". **Seam edit** (recorded in `status/ios-shell.md` too):
+  `SampleData.swift`'s DAK sample roaster now carries its real, live
+  production `logoUrl`, so the tile has something to render in
+  previews/sample mode (previously no bundled sample roaster had one).
+  Landed `41d5180` — same commit that fixed the #180 compile red (run #129),
+  found while checking this session's own push.
+
+- **2026-09-14 — #202 filter sheet: make the Unknown-price pill tappable.**
+  `unknownSelectableDimensions` (`FilterSheetView.swift`) omitted `.priceBand`
+  — a stale allow-list from before #117 taught `CoffeeIndex.buildPostings` to
+  emit `.priceBand`/`.pricePer100gBand`/`.altitudeBand`/`.ratingBand`/`.valueBand`
+  → `.unknown` postings for missing fields — so `isTappable(.unknown)` always
+  returned false for the price pill and its toggle never fired. Added all
+  five band dimensions to the set and rewrote the now-inaccurate comment
+  above it. Verified against the live snapshot (243/414 coffees have no
+  `priceEur`) that the pill has a non-zero count to show. Landed `bc2f654`.
+  No shell seam.
+
+- **2026-09-14 — #209 restore the `profileDetail` bracket.** Re-files #110's
+  ios-ux half (the original spin-off, #138, was silently overwritten by a
+  2026-09-09 stranded-branch renumbering, so the restoration never actually
+  shipped). `CoffeeDetailView.pillRow`'s process pill now renders
+  `profilePillText(profile)` — `Washed (Honey)` when `profileDetail` is set
+  and differs from the profile label case-insensitively, else just the label
+  (so a plain "Washed" bag doesn't render "Washed (Washed)"). Landed
+  `f310adf`. No shell seam — pure UX-owned file.
+
+- **2026-09-14 — #180 route hero/zoom/review `display` images through
+  `ImageStore`, fix the thumb-as-hero flash.** New `DesignSystem/CachedImage.swift`
+  mirrors `AsyncImage`'s phase-based API (`.empty`/`.success`/`.failure`) but
+  decodes via `ImageStore.shared.thumbnail(for:maxPixelSize:)`, at the #177
+  `displayMaxPixelSize` (1080) tier. Swapped in at all three sites named in the
+  row: `CoffeeDetailView.heroImage`, `ZoomableImageView.content`,
+  `ReviewCardView.ReviewPhoto`. **Seam edit** (recorded in `status/ios-shell.md`
+  too): `CoffeeMapping.swift`'s compact-snapshot mapping no longer seeds
+  `images.display` from `thumbUrl` — it now uses the empty-string "no URL yet"
+  sentinel `CoffeeDetailDTO.makeCoffee` already uses for a missing URL, so a
+  detail-less coffee page shows the hero placeholder instead of a blown-up
+  320px thumbnail until the detail fetch supplies the real photo.
+  `CoffeeDetailView.hasPhoto` and `CachedImage`'s own guard both treat an empty
+  string the same as `nil`. Landed `30889bb`. Couldn't verify on-device (no
+  Xcode in a session) — compile-check is the only verification available this
+  session.
 
 - **2026-09-12 (iOS UX lane routine) — #193 shared `TogglePill`.** New
   `DesignSystem/TogglePill.swift` unifies `CoffeesListView.filterChip`,

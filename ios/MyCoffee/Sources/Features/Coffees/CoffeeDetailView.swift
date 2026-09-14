@@ -125,7 +125,7 @@ struct CoffeeDetailView: View {
     }
 
     private var hasPhoto: Bool {
-        (coffee.images?.display).flatMap(URL.init(string:)) != nil
+        !(coffee.images?.display.isEmpty ?? true)
     }
 
     /// §1: bare white heart, no chip/circle behind it. Favourited vs not
@@ -153,17 +153,13 @@ struct CoffeeDetailView: View {
 
     private var heroImage: some View {
         ZStack {
-            if let url = (coffee.images?.display).flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    if case let .success(image) = phase {
-                        image.resizable().scaledToFill()
-                            .rotationEffect(.degrees(Double(coffee.rotationTurns) * 90))
-                    } else {
-                        heroPlaceholder
-                    }
+            CachedImage(urlString: coffee.images?.display) { phase in
+                if case let .success(image) = phase {
+                    image.resizable().scaledToFill()
+                        .rotationEffect(.degrees(Double(coffee.rotationTurns) * 90))
+                } else {
+                    heroPlaceholder
                 }
-            } else {
-                heroPlaceholder
             }
         }
         .frame(height: 300)
@@ -443,7 +439,7 @@ struct CoffeeDetailView: View {
             // neutral pill, and omitted entirely when the profile is unknown
             // rather than rendering "Unknown" (missing fields omit their row).
             if let profile = coffee.profile {
-                Pill(text: profile.displayName)
+                Pill(text: profilePillText(profile))
             }
             if let altitude = coffee.altitudeLabel {
                 Pill(text: altitude)
@@ -455,6 +451,20 @@ struct CoffeeDetailView: View {
                 DecafBadge()
             }
         }
+    }
+
+    /// #209: restores the `profileDetail` bracket run #45 originally showed
+    /// beside the profile label ("Natural (Cold Natural)"), dropped by the
+    /// 2a redesign (#88). Skips the bracket when `profileDetail` is the same
+    /// word as the profile label (case-insensitively) so a plain "Washed" bag
+    /// with no real detail doesn't render "Washed (Washed)".
+    private func profilePillText(_ profile: Profile) -> String {
+        guard let detail = coffee.profileDetail, !detail.isEmpty,
+              detail.caseInsensitiveCompare(profile.displayName) != .orderedSame
+        else {
+            return profile.displayName
+        }
+        return "\(profile.displayName) (\(detail))"
     }
 
     @ViewBuilder

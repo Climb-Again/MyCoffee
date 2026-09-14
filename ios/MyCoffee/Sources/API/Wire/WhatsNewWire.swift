@@ -41,3 +41,24 @@ struct WhatsNewItemDTO: Decodable {
     let detail: String
     let area: String?
 }
+
+/// #201 — `GET|POST /api/whatsnew/seen`. The server treats keys as opaque
+/// strings (migration 036: `whatsnew_seen (entry_key PK, seen_at)`, no
+/// `user_id` — MyCoffee has one shared INGEST_TOKEN and therefore one seen
+/// set), so there is nothing to decode but the array itself.
+struct WhatsNewSeenResponseDTO: Decodable {
+    let seen: [String]
+}
+
+struct WhatsNewSeenRequestDTO: Encodable {
+    let key: String
+    let seen: Bool
+}
+
+/// #195 — `GET /api/history`. `FailableDecodable` per element for the usual
+/// reason (`FlexibleDecoding.swift`): the extension owns this payload's shape
+/// and ships on its own schedule, so one row it wrote with an unexpected value
+/// must not empty the whole Shop tab.
+struct ShortlistResponseDTO: Decodable {
+    let entries: [FailableDecodable<ShortlistEntry>]
+}

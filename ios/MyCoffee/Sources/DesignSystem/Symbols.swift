@@ -20,6 +20,7 @@ enum Lucide {
     static let share = "lucide-share"
     static let pencil = "lucide-pencil"
     static let search = "lucide-search"
+
 }
 
 /// A Lucide (or any template) asset image sized explicitly — asset images
@@ -49,6 +50,14 @@ enum Symbols {
     static let tabInsights = "chart.bar"
     static let tabAdd = "plus.circle.fill"
     static let tabReview = "checklist"
+    // #195's two new tabs have NO Lucide asset in Assets.xcassets — there are
+    // only 13 imagesets and none of them is a flask or a storefront. Redesign
+    // v3 §11 wants Lucide outlines on the tab bar, so these two SF Symbols are
+    // a deliberate, visible placeholder rather than an oversight: adding an
+    // asset means art, and art is Radu's call. Swap `tabRecipesFallback` /
+    // `tabShopFallback` for `lucide-*` the moment the glyphs land.
+    static let tabRecipesFallback = "flask"
+    static let tabShopFallback = "bag"
 
     // Listing
     static let filter = "line.3.horizontal.decrease.circle"
@@ -112,6 +121,10 @@ enum Symbols {
     static let whatsNew = "sparkles"
     static let whatsNewEmpty = "tray"
     static let whatsNewUnavailable = "wifi.exclamationmark"
+    /// #205(c): the trailing "Not done" swipe — the screenshot's orange flag.
+    static let whatsNewNotDone = "flag.slash"
+    /// #192: the last sync failed (Settings row + list banner).
+    static let syncFailed = "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90"
 
     // Brew lab (PLAN.md §14, #157). DEVIATION from the row's "add a Lucide
     // trophy SVG": the Lucide set here is vendored from files Radu supplied,
@@ -135,4 +148,9 @@ enum Symbols {
     static let evaluateEntry = "gauge"
     static let evaluateAffinity = "wand.and.stars"
     static let evaluateNovelty = "sparkle"
+
+    // Roaster medallion (#203) — neutral fallback once a logo load has
+    // failed, so a transient fetch/decode error doesn't leave a permanent
+    // empty tile with no visual distinction from "still loading".
+    static let roasterMarkFallback = "storefront"
 }
