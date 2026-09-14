@@ -131,16 +131,7 @@
           "detail": "Queued."
         }
       ],
-      "data": [
-        {
-          "title": "ops/start-extraction-batch.sh exits 0 without POSTing when pending is 0, and the ingest routine says so in…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Backfill the missing roaster blurbs — 95 of 110 roasters have none (Radu, 2026-09-13: \"Sophia has no blurb\",…",
-          "detail": "Queued."
-        }
-      ],
+      "data": [],
       "ios": [
         {
           "title": "Split from #179(f) (2026-09-11) — #179's (a)-(e) shipped ios-staging@14f6257, this is just the part gated on…",
@@ -183,6 +174,10 @@
     "needsApproval": [
       {
         "title": "Nothing here blocks the extension any more — both open questions were given working defaults on 2026-09-09.…",
+        "detail": "Waiting on your call."
+      },
+      {
+        "title": "⚠ 2026-09-14 — status set to human: the code half is DONE, what remains is a decision only Radu can make",
         "detail": "Waiting on your call."
       },
       {

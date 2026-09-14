@@ -4,7 +4,8 @@ _Generated 2026-09-14 from the live backend snapshot (110 roasters, 414 coffees)
 
 Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file by roaster; the `slug` below is the key I map it to). Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug.
 
-- **Blurb**: ✅ = live in the DB (the app shows it), ☐ = missing. **Logo**: ✅ = a file staged in `logos/`, ☐ = none — still file-based, so a staged-but-unwired logo can read ✅ (see the generator docstring).
+- **Both columns now track DELIVERY, not staging.** ✅ = live in the DB, so the app actually shows it. ☐ = missing. **Logo ◐** = the art is staged in `logos/` but no migration has wired it into `roasters.logo_url` yet — real work done, just not delivered.
+- This distinction is the whole point of #207: the Blurb column used to tick ✅ for text merely staged in `blurbs.md`, and reported everything green while 95 of 110 roasters had no blurb in the DB at all.
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 

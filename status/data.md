@@ -22,6 +22,51 @@ still blocks it on the next fired run, the fallback is a manual "run it" from Ra
 
 _none_
 
+## 2026-09-14 (interactive, "run all lanes") — #171 shipped + verified live; #207's code half done, the rest set to `human`
+
+**#171.** `ops/start-extraction-batch.sh` now reads #170's `pending` off the
+same `GET /api/admin/jobs` response it already fetched for the
+is-a-job-running guard — one request, two guards. `total == 0` prints
+`ingest: nothing pending` and exits 0 with no job row and no worker start.
+
+Verified against production, not just reasoned about: live `pending` is
+`{textReceived: 0, awaitingTextOverdue: 0, imageOnly: 0, total: 0}` (which is
+exactly why jobs 42-54 were thirteen straight `photosDone: 0` days), the script
+printed the line, exited 0, and the newest job id stayed **54**.
+
+Two judgement calls worth recording:
+
+* **The escalation rule moved into the script.** "Escalate to images if
+  image-only photos remain" lived only in the routine's prompt, where nothing
+  could check it. When the only claimable photos are image-only
+  (`textReceived == 0 && awaitingTextOverdue > 0`) a text-only pass has nothing
+  to read, so the script flips `includeImages` for that run. Radu's
+  text-only-first rule is about not burning vision calls on photos that HAVE
+  text; it was never about refusing to extract a photo with none.
+* **A backend with no `pending` means "go ahead", not "nothing to do".** A
+  pre-#170 server (or one mid-deploy) sends no such key. Treating that as zero
+  would silently skip every ingest run until someone noticed — far worse than
+  one wasted no-op job.
+
+**Still owed and NOT in the repo:** the "MyCoffee — daily ingest drain" routine
+prompt should now just call the script and trust its exit code, instead of
+reasoning about escalation itself. That prompt lives in the CCR routine.
+
+**#207 — the code half is done; the rest is a decision, so the row is `human`.**
+`gen-checklist.py`'s Blurb column already read the live DB; its **Logo** column
+still globbed `logos/*`, carrying the exact staged-vs-delivered gap that hid
+this bug in the first place. It now reads the snapshot's `logoUrl`, with a third
+state `◐` for "art staged but no migration has wired it up" — a different job
+from `☐` "nobody has found a logo yet", and worth distinguishing rather than
+collapsing to a binary.
+
+Regenerated against production: **all 64 in-library roasters are complete**
+(logo AND blurb both live in the DB), 0 need content, and 0 logos are
+staged-but-unwired. The whole remaining gap is the 46 zero-coffee seeded
+roasters, none of which has either — and whether that tail is worth doing at
+all, plus what "Sophia" actually refers to, are Radu's calls. Left `ready`, the
+next data firing would just re-read the row and ask again.
+
 ## 2026-09-14 — #110 (normaliser half) re-confirmed done; #137/#138's lost spin-offs re-filed as #208/#209; one stranded branch dismissed
 
 **Step 0** matched two `ready` data rows on `origin/main`: #110 (phase 8) and
