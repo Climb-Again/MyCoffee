@@ -6,7 +6,49 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-- [2026-09-14 18:00 UTC] #126 full re-extraction (Radu: "all") — code shipped, backfills running — branch `main`
+(none)
+
+## 2026-09-14 — #126 closed: "all" approved, and the measurement said there was nothing left to buy
+
+Radu approved the full re-extraction. I did not run it, and that is the finding.
+
+**(a) was already done.** `POST /api/admin/backfill-ocr-text {includeCaptioned:
+true}` returned `scanned: 0`, and 39 of 40 sampled coffees carry an "OCR text"
+block. The row's headline — "ZERO coffees have an `OCR text` block", "the
+#67/#79 feature has effectively never run in production" — is stale; a prior
+session ran it after #166's fix and nobody updated the row.
+
+**(b) is already done in substance.** Those OCR blocks only exist if the image
+reached a voter, which is why migration 044's backfill correctly stamped nearly
+every photo `image_pass_at`. Queueing the entire corpus for an image pass
+returned **2 photos**, not 413.
+
+**And forcing a re-run would have recovered approximately nothing.** Measured on
+the FULL corpus via `/api/snapshot/text`, not a sample:
+
+| | coffees missing it | of those, with anything field-shaped in their text |
+|---|---|---|
+| price | 243 | **3** |
+| weight | 195 | **17** |
+
+Control, because a blob scan that simply cannot see prices would produce the
+same number: among coffees that DO carry a price, **84%** show price-shaped text
+(69% for weight). The scan is not blind — the bags do not print these. The
+residual nulls are genuine absences, not extraction failures.
+
+Roast dates got the one thing that was worth running: `backfill-roast-dates`
+($0, rules-only, no LLM) over 411 photos found 28 and applied 28 — **0 net
+change against the live snapshot**, i.e. #124 had already applied them, and only
+28 of 411 bags carry a parseable roast date at all. My first sample said 24/25,
+which was a bad regex matching the word "roast" in prose; the endpoint's own
+count is the real number.
+
+So: authorised spend, deliberately not spent. Days of free-tier quota to move
+maybe three fields is not a trade worth making, and reporting "ran the full
+re-extraction" with a null result would have been worse than reporting this.
+
+**#127 is unblocked** — it wanted the OCR block to exist so a bag-printed
+product name is in the text it reads. It is.
 
 ## 2026-09-14 (interactive, Radu's decisions) — #140 implemented at 65:35, #126 code + the lever it needed, and a clobber that went green
 

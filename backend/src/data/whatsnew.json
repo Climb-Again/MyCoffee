@@ -115,10 +115,6 @@
     "byLane": {
       "backend": [
         {
-          "title": "CLAIMED 2026-09-14 — Radu chose \"all\": full re-extraction, no scoping to the worst rows",
-          "detail": "Queued."
-        },
-        {
           "title": "Extract the coffee's own product name off the package into a new product_name field",
           "detail": "Queued."
         },
