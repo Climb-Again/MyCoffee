@@ -22,6 +22,83 @@ still blocks it on the next fired run, the fallback is a manual "run it" from Ra
 
 _none_
 
+## 2026-09-14 — #110 (normaliser half) re-confirmed done; #137/#138's lost spin-offs re-filed as #208/#209; one stranded branch dismissed
+
+**Step 0** matched two `ready` data rows on `origin/main`: #110 (phase 8) and
+#207 (phase 10, roaster blurbs). Lowest phase first → #110.
+
+**Stranded-branch check first** (`bash status/check-stranded.sh`) was red on
+`claude/peaceful-hamilton-915e6f` — audited its 3 unique commits
+(`git log --oneline origin/claude/peaceful-hamilton-915e6f --not origin/main
+origin/ios-staging`): all three only sync `BACKLOG.md` row statuses
+(#141-#148, #155-#158, #159-#164), and every one of those rows is already
+`done` on `main`'s current copy. Dismissed in `status/stranded-ok.txt`
+(`933f938`) rather than merged — nothing on it is unrecovered.
+
+**#110 itself:** the normaliser half (`parseProfile` in `normalize.js`
+folding honey-only mentions to `Washed`, hybrids to `Experimental`) is
+already shipped on `main` with full table-driven test coverage — confirmed
+by reading the current file and test suite directly, not by trusting the
+backlog row's own description of what's left. `cd backend && npm test`:
+467/467 green, no code change needed.
+
+**But the row's other two halves — the migration and the ios-ux bracket —
+were never actually shipped**, despite `status/data.md`'s own 2026-09-07
+entry below claiming they were spun off as #137 (backend) and #138
+(ios-ux). Both numbers were silently reused: the 2026-09-09 stranded-branch
+recovery (backlog #164) renumbered a *different*, unrelated pair of rows
+(an ios-shell/ios-ux value-band pair, filed 2026-09-02 on a since-recovered
+branch) onto exactly #137/#138, overwriting the honey-migration and
+bracket-restoration content with no trace left in `BACKLOG.md` — the same
+row-collision failure mode CLAUDE.md documents for #108-#110 on 2026-09-02,
+just recurring one level down. Neither the migration nor the bracket exists
+anywhere in the repo today (checked: no `backend/migrations/*.sql` mentions
+honey; no `ios/**/CoffeeDetailView.swift` reference to `profileDetail`).
+
+**Re-verified the migration's target list against LIVE production data
+before re-filing it, since the 2026-08-29 count could no longer be trusted
+at face value.** That write-up said "25 coffees mention honey, all 25 are
+honey-only." Pulled `/api/snapshot` (25 coffees with a honey-mentioning
+`profileDetail`, matching the original count), then fetched
+`/api/coffees/:id` for each to get `rawTitle`/`rawCaption`/`rawDescription`,
+concatenated exactly as `worker.js`'s `buildRawText()` does, and ran the
+*current* `parseProfile` against each. Only **3 of the 25** still recompute
+to `washed` today (`NMjnDjbOn6QA9a3yOVPC2w`, `eRZVF_rb6aUep2PPchz3lQ`,
+`e8dZ8dMwJIgFkoCxzWtlcQ`). The other 22 now carry either a real second
+process alongside the honey word ("Procesare: Black Honey, Carbonic
+Maceration") or a roaster-labelled Procesare field naming a different
+method entirely (a coffee titled "Hydro Honey" whose structured field
+reads "Procesare: Experimental" — honey is only in the product name) —
+both correctly stay out of Washed under the exact same rule. The extra
+description/OCR text later ingestion runs have backfilled onto these rows
+since 08-29 is what surfaced the gap; the rule hasn't changed, the count
+had gone stale. Recomputing live rather than reusing the old figure is what
+caught this — a blind `profile_detail ILIKE '%honey%'` migration would have
+wrongly reclassified 22 real hybrids.
+
+**Re-filed clean, avoiding the numbers that already collided once:**
+- **#208 (backend, ready)** — the migration, named to the 3 verified
+  public_ids (`028_clear_zero_rating.sql`-style, not a pattern scan),
+  guarded against a locked human `field_resolutions` row on `field =
+  'profile'`. `backend/migrations/**` other than `005_vocab_seed.sql` is
+  backend-owned (CLAUDE.md §4), so this isn't mine to write.
+- **#209 (ios-ux, ready)** — restore the `profileDetail` bracket on
+  `CoffeeDetailView`'s process pill, dropped by the #88 redesign and never
+  restored. `ios/**` is out of scope for this lane.
+
+Marked #110 `done` (its data-owned part is complete and both remaining
+parts now have durable, uncollided homes). Regenerated
+`backend/src/data/whatsnew.json` via `node ops/gen-whatsnew-plan.mjs` so it
+stays in sync with the row flips (CLAUDE.md's drift trap). `bash
+status/check-backlog.sh` green (197 rows, no duplicates, no dangling
+`needs`) before pushing. Checked `GET /api/admin/jobs` — nothing `running`
+— before pushing (moot here since nothing under `backend/**` changed, but
+cheap to confirm).
+
+**Left `#207` (roaster blurbs, phase 10) untouched** — it needs Radu's
+input on two open questions (who writes the blurbs, what "Sophia" refers
+to) before any lane should start it; not picked up this session.
+
 ## 2026-09-07 — #110 done (honey -> Washed in `parseProfile`); #137/#138 filed (backend/ios-ux); #115 downgraded to `blocked` on new backend row #139
 
 Picked `#110` (phase 8) over `#115` (also phase 8, ready, needs `—`) per the
