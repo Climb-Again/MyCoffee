@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MyCoffee — Evaluate",
+  "name": "MyCoffee \u2014 Evaluate",
   "description": "Score a coffee against your own tasted library while browsing a roaster's shop.",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "action": {
     "default_title": "Evaluate this coffee",
     "default_popup": "popup.html",

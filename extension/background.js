@@ -73,7 +73,59 @@ async function scoreActiveTab() {
     console.warn('[mycoffee] could not save to history', e);
   }
 
-  return { ok: true, data, pageTitle: scraped.title };
+  // #198: passively grow the VOCAB (roasters, countries, roaster logos) from
+  // pages Radu browses — never his coffees. Silent by design: no popup UI, no
+  // toast. Same "must never fail the score" rule as the history save.
+  try {
+    await postObservations(scraped, data);
+  } catch (e) {
+    console.warn('[mycoffee] vocab observation failed', e);
+  }
+
+  // #196 keys its manual adjustment on the page url, and the popup only has
+  // `activeTab` — which does not reliably expose `tab.url` — so hand back the
+  // url the scrape already resolved rather than re-querying for it.
+  return { ok: true, data, pageTitle: scraped.title, pageUrl: scraped.url };
+}
+
+// #198 (Radu, 2026-09-12): "add new items to database (not to my coffees!!
+// just save to database so we have them later): roaster overview, origin/roaster
+// country (if new country), roaster logo".
+//
+// Every field here is a PROPOSAL about the VOCAB, never about a coffee. The
+// endpoint creates a roaster row if the name is new (same human-accept
+// semantics as #36), fills a null blurb/logo/country on an existing one, and
+// never overwrites a value that is already there. Country resolution stays
+// CLOSED — a new country name becomes an alias proposal, not a new `countries`
+// row, so browsing a page that says "DRC" cannot mint a duplicate Congo.
+//
+// Needs the write token: this writes. With only a read token configured the
+// call is skipped entirely, exactly like #194's sync.
+async function postObservations(scraped, data) {
+  const { baseUrl, writeToken } = await getSettings();
+  if (!writeToken) return;
+
+  const fields = data?.fields ?? {};
+  const body = {
+    sourceUrl: scraped.url ?? null,
+    roaster: fields.roasterName
+      ? {
+          name: fields.roasterName,
+          url: scraped.url ?? null,
+          logoUrl: scraped.logoUrl ?? null,
+          countryName: fields.roasterCountryName ?? null,
+        }
+      : null,
+    originCountryName: fields.originName ?? null,
+  };
+  // Nothing worth sending — don't spend a round-trip on every page view.
+  if (!body.roaster && !body.originCountryName) return;
+
+  await fetch(`${baseUrl}/api/vocab/observations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${writeToken}` },
+    body: JSON.stringify(body),
+  });
 }
 
 // #161: accept one enrich suggestion -- write a single field onto a coffee he

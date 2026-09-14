@@ -13,8 +13,21 @@
 // days" would then depend on the browser having been open. Pruning at the
 // point of use means the rule holds no matter how long the browser was closed.
 
+// #199: one definition of the blend and of roast-age arithmetic, mirrored
+// from backend/src/lib/scoring.js and pinned by a contract test. See
+// extension/scoring-blend.js for why it is a mirror and not an import.
+import { blendScore, daysSinceISO, roastRecencyScore } from './scoring-blend.js';
+
 const KEY = 'history';
-export const RETENTION_DAYS = 10;
+// #197 (Radu, 2026-09-12): "discard after 30d from being added to shortlist
+// (since you sync on server you have timestamp)". Two changes in one ask, and
+// both matter: the window is 30 days, and it is measured from `addedAt` — the
+// FIRST time a coffee entered the list — not from `savedAt`, which `upsert`
+// overwrites on every revisit. Under the old rule a coffee he kept checking in
+// on quietly reset its own clock and rode the list forever, while one he saw
+// once and mentally shortlisted fell off at exactly 10 days. Both wrong, in
+// opposite directions.
+export const RETENTION_DAYS = 30;
 export const TOP_N = 10;
 
 // A hard cap so a heavy browsing week cannot grow storage without bound.
@@ -37,10 +50,23 @@ export function historyKey(url) {
   }
 }
 
+// #197: an entry written before this update has no `addedAt`. Falling back to
+// `savedAt` is the same as saying "he shortlisted it at its last visit", which
+// underestimates its age by at most the old 10-day window — the safe direction,
+// since it keeps a row a little longer rather than dropping it early.
+export function addedAtOf(entry) {
+  if (!entry) return null;
+  if (typeof entry.addedAt === 'number') return entry.addedAt;
+  return typeof entry.savedAt === 'number' ? entry.savedAt : null;
+}
+
 export function prune(entries, now = Date.now()) {
   const cutoff = now - RETENTION_DAYS * DAY_MS;
   return (entries ?? [])
-    .filter((e) => e && typeof e.savedAt === 'number' && e.savedAt > cutoff)
+    .filter((e) => {
+      const added = addedAtOf(e);
+      return added != null && added > cutoff;
+    })
     .sort((a, b) => b.savedAt - a.savedAt)
     .slice(0, MAX_ENTRIES);
 }
@@ -55,7 +81,11 @@ export function prune(entries, now = Date.now()) {
 export function rank(entries, { limit = TOP_N, now = Date.now() } = {}) {
   const live = prune(entries, now);
   const scored = live.filter((e) => typeof e.score === 'number');
-  scored.sort((a, b) => b.score - a.score || b.savedAt - a.savedAt);
+  // #196/#199: rank on the number the popup actually SHOWS, not the frozen one.
+  // Otherwise the whole exercise is cosmetic — a bag that just crossed 40 days
+  // would display a lower score while still sitting at the top of the list, and
+  // a manual -10 would change the badge and nothing else.
+  scored.sort((a, b) => displayScore(b, now) - displayScore(a, now) || b.savedAt - a.savedAt);
   return {
     top: scored.slice(0, limit),
     scoredCount: scored.length,
@@ -72,8 +102,107 @@ export function rank(entries, { limit = TOP_N, now = Date.now() } = {}) {
  */
 export function upsert(entries, entry, now = Date.now()) {
   const key = historyKey(entry.url);
-  const rest = (entries ?? []).filter((e) => historyKey(e.url) !== key);
-  return prune([{ ...entry, savedAt: now }, ...rest], now);
+  const all = entries ?? [];
+  const previous = all.find((e) => historyKey(e.url) === key);
+  const rest = all.filter((e) => historyKey(e.url) !== key);
+  return prune(
+    [
+      {
+        ...entry,
+        // #197: `addedAt` is set ONCE and never bumped by a revisit — that is
+        // the whole point of the ask. `savedAt` still moves, because the "seen
+        // 2h ago" subtitle (#188) is about the visit.
+        addedAt: addedAtOf(previous) ?? addedAtOf(entry) ?? now,
+        savedAt: now,
+        // #196: a manual adjustment belongs to the coffee, not to the visit, so
+        // a re-score must not silently reset it. `entryFromScore` cannot know
+        // about it (it only sees the server's response), so carry it here.
+        adjustment: clampAdjustment(entry.adjustment ?? previous?.adjustment ?? 0),
+      },
+      ...rest,
+    ],
+    now,
+  );
+}
+
+// ---- manual score adjustment (#196) ----
+//
+// Radu, 2026-09-12: "add a manual +10p / -10p button to coffees so i can
+// adjust". CLIENT-ONLY data: never sent to /api/score (that would corrupt the
+// corpus math the score is derived from) and never fed into evaluateCoffee. It
+// rides along in the entry payload, so #194's server sync carries it between
+// browsers for free — the server stores the payload opaquely.
+export const ADJUST_STEP = 10;
+export const ADJUST_MAX = 20;
+
+export function clampAdjustment(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-ADJUST_MAX, Math.min(ADJUST_MAX, Math.round(n)));
+}
+
+// Repeat taps compound (+10 twice = +20); a tap that would exceed the cap
+// resets to 0, which is what makes a single button both "more" and "undo".
+export function nextAdjustment(current, delta) {
+  const next = clampAdjustment(current) + delta;
+  if (next > ADJUST_MAX || next < -ADJUST_MAX) return 0;
+  return clampAdjustment(next);
+}
+
+export function adjust(entries, url, delta, now = Date.now()) {
+  const key = historyKey(url);
+  return (entries ?? []).map((e) =>
+    historyKey(e.url) === key ? { ...e, adjustment: nextAdjustment(e.adjustment, delta) } : e,
+  );
+}
+
+export function resetAdjustment(entries, url) {
+  const key = historyKey(url);
+  return (entries ?? []).map((e) => (historyKey(e.url) === key ? { ...e, adjustment: 0 } : e));
+}
+
+// ---- live roast age + re-blended score (#199) ----
+
+/**
+ * The bag's age TODAY, from its roast date. Falls back to the age frozen at the
+ * visit when no roast date was captured — there is nothing to recompute then.
+ */
+export function liveRoastDays(entry, now = Date.now()) {
+  const fromDate = daysSinceISO(entry?.roastedOn, now);
+  if (fromDate != null) return fromDate;
+  return typeof entry?.roastDays === 'number' ? entry.roastDays : null;
+}
+
+/**
+ * The score to render and to rank on: the blend re-run against today's roast
+ * term, plus any manual adjustment (#196), clamped to 0-100.
+ *
+ * An entry stored before #199 has no `valueScore`/`noveltyScore`, so there is
+ * nothing to re-blend from — it keeps its frozen `score` and picks up the new
+ * fields the next time a visit re-scores it.
+ */
+export function displayScore(entry, now = Date.now()) {
+  if (!entry) return null;
+  const adjustment = clampAdjustment(entry.adjustment);
+  const canReblend = typeof entry.affinity === 'number'
+    && (typeof entry.valueScore === 'number' || typeof entry.noveltyScore === 'number');
+
+  let base = typeof entry.score === 'number' ? entry.score : null;
+  if (canReblend) {
+    const days = liveRoastDays(entry, now);
+    const reblended = blendScore(
+      {
+        affinity: entry.affinity,
+        roast: roastRecencyScore(days),
+        value: entry.valueScore,
+        novelty: entry.noveltyScore,
+      },
+      days,
+    );
+    if (reblended != null) base = reblended;
+  }
+  if (base == null) return null;
+  return Math.max(0, Math.min(100, base + adjustment));
 }
 
 // Only what the list actually renders. Deliberately NOT the page text: it can
@@ -98,10 +227,24 @@ export function entryFromScore(data, { url, title }) {
     // Value pills and the affinity number, for the app-style right column.
     valuePills: data?.components?.value?.pillCount ?? null,
     affinity: data?.components?.affinity?.score ?? null,
-    // #188: the age AS EVALUATED, not recomputed at render time. A bag
-    // roasted 39 days before a visit was fresh-ish when he looked at it, and
-    // the saved score reflects that -- recomputing the age later would show a
-    // red chip beside a score that was calculated when it was amber.
+    // #199: the component INPUTS are frozen; only the ROAST term is live.
+    //
+    // The inputs are snapshots of Radu's library at the moment of the visit — a
+    // roaster he adds later must not retroactively change that page's novelty —
+    // and re-deriving them would need the page text, which #187 deliberately
+    // does not store. But a bag's AGE is a fact about the bag, not about the
+    // visit, and the stale penalty is a rule about that fact: one shortlisted
+    // at 30 days (no penalty) is 45 days two weeks later (-10), and the number
+    // he would shop on has to say so. #188 froze both together to keep the chip
+    // and the score consistent; the fix is to recompute both, not freeze both.
+    //
+    // `valueScore`/`noveltyScore` are stored so an entry can actually be
+    // re-blended — before this, only `pillCount` and `affinity.score` landed,
+    // so an older row had nothing to re-blend from. Rows written before this
+    // version have neither and fall back to their frozen `score` (see
+    // `displayScore`), degrading gracefully rather than showing nothing.
+    valueScore: data?.components?.value?.score ?? null,
+    noveltyScore: data?.components?.novelty?.score ?? null,
     roastDays: data?.components?.roast?.daysSinceRoast ?? null,
     roastStale: data?.components?.roast?.stale ?? null,
     // Owned coffees are worth flagging in the list — "I already have this" is
@@ -226,12 +369,9 @@ export function roastColor(days) {
 // Age from an ISO roast date, for when the response carries the date but no
 // computed component (#190: an older or newer server than this build expects).
 // Belt and braces -- the chip must never fall back to an unlabelled number.
-export function daysSinceISO(iso, now = Date.now()) {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return null;
-  return Math.max(0, Math.floor((now - t) / 86_400_000));
-}
+// Re-exported from scoring-blend.js (#199) so there is exactly one copy of this
+// arithmetic; every existing caller keeps importing it from here.
+export { daysSinceISO };
 
 export function roastLabel(days) {
   if (days == null) return null;

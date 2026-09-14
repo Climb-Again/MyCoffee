@@ -8,6 +8,58 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 (none)
 
+## 2026-09-14 (interactive, same session) — extension batch: #196 #197 #198 #199, manifest 1.6.0
+
+All four in one manifest bump, because they touch the same two files and
+shipping them separately would mean three auto-update rounds for one feature.
+
+**#199's shared module is a MIRROR, not an import, and the row's own shape had
+to change for that.** It asks for `extension/scoring-blend.js` "imported by both
+`backend/src/lib/scoring.js` and the extension". That cannot work: the Railway
+service's Root Directory is `backend`, so `extension/` is not even deployed —
+a backend import of `../../extension/` would resolve locally, pass CI, and
+throw on boot in production. A browser cannot import backend code either. So
+the constants are duplicated deliberately and pinned by
+`backend/test/scoring-blend-contract.test.js` (weights, stale rule, the whole
+recency curve at every edge, day arithmetic incl. a future-dated roast, and the
+blend on a fixed fixture) — exactly the arrangement #194 already uses for
+`history.js`/`lib/history.js`. Same guarantee, no deploy-time landmine.
+
+**#198's three rules are each a test, not a comment.** Nothing in
+`routes/vocab.js` writes `coffees` (asserted by row count across an
+observation); every write is `IS NULL`-guarded so a curated blurb/logo is never
+clobbered by a shop page; countries stay closed, with an unresolvable name
+creating nothing and a resolvable-but-differently-spelled one becoming an ALIAS
+on the existing row — browsing a page that says "DRC" must not mint a second
+Congo. A new roaster goes through #36's `getOrCreateVocabEntry`, which also
+writes the alias; a test asserts that, because a vocab row with no alias is
+invisible to extraction forever (CLAUDE.md §12) and fails *silently*.
+
+**#197 is two changes, and the second is the one that matters.** 30 days is
+easy; measuring from `added_at` rather than `saved_at` is the actual bug —
+`saved_at` is bumped by every revisit, so a coffee Radu kept checking in on
+reset its own clock and rode the list forever, while one he saw once fell off
+at exactly 10. `added_at` is written on INSERT and deliberately left OUT of the
+`ON CONFLICT DO UPDATE` set. `liveEntries` folds the column back into the
+payload rather than trusting the client's copy, so an offline browser cannot
+resurrect a row by posting a fresher one.
+
+**#196 ranks on the adjusted number.** Adjusting only the badge would have been
+cosmetic — the list he shops off has to reorder. Same reasoning applies to
+#199's recomputed score, so both go through one `displayScore(entry, now)` that
+`rank()` sorts on.
+
+**Test-harness change worth knowing about:** `extension-history.test.js` and
+`history-lib.test.js` used to read `extension/history.js` as TEXT, slice it and
+`new Function` it, specifically to keep `chrome` out of scope. #199 adds a
+static `import` to that file, which the slicing harness cannot survive. Both now
+import it as a real module — which works, because `history.js` touches `chrome`
+only inside its async storage helpers, never at module top level. The comment in
+`remoteHistory` warning that a static import "would break that harness" is now
+out of date in its reasoning but right in spirit; the harness is gone.
+
+Migrations `042`, `043`. 505/505 green with a DB.
+
 ## 2026-09-14 (interactive, Radu: "run all lanes … up to publish") — backend batch: #208 #169 #170 #172 #168 #129 #173 #174 shipped; #124 found already-done; #140 closed as superseded
 
 Ten rows in one pass, all verified against a real Postgres 16 rather than

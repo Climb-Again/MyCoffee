@@ -9,7 +9,23 @@
 // never invents one.
 
 import { getSettings } from './settings.js';
-import { loadHistory, rank, RETENTION_DAYS, TOP_N, roastColor, roastLabel, relativeTime, daysSinceISO } from './history.js';
+import {
+  loadHistory,
+  rank,
+  RETENTION_DAYS,
+  TOP_N,
+  roastColor,
+  roastLabel,
+  relativeTime,
+  daysSinceISO,
+  // #196/#199
+  displayScore,
+  liveRoastDays,
+  adjust,
+  resetAdjustment,
+  clampAdjustment,
+  ADJUST_STEP,
+} from './history.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -194,6 +210,88 @@ function renderOwned(match, enrich, hasWriteToken) {
   box.classList.remove('hidden');
 }
 
+// ---- #196: manual +-10, client-side only ----
+//
+// The adjustment is stored on the history entry for this page, so it rides
+// #194's server sync to every other browser for free (the server stores the
+// payload opaquely). It is deliberately never sent to /api/score: that score is
+// derived from Radu's own corpus, and feeding a personal nudge back into it
+// would corrupt the maths for every other coffee.
+let currentUrl = null;
+let currentRawScore = null;
+
+async function currentAdjustment() {
+  if (!currentUrl) return 0;
+  const { historyKey } = await import('./history.js');
+  const entries = await loadHistory();
+  const key = historyKey(currentUrl);
+  const mine = entries.find((e) => historyKey(e.url) === key);
+  return clampAdjustment(mine?.adjustment);
+}
+
+async function paintAdjust() {
+  const box = $('adjust');
+  const scoreEl = $('score');
+  if (currentRawScore == null) {
+    box.classList.add('hidden');
+    scoreEl.textContent = '—';
+    return;
+  }
+  box.classList.remove('hidden');
+  const adjustment = await currentAdjustment();
+  const shown = Math.max(0, Math.min(100, currentRawScore + adjustment));
+  scoreEl.textContent = String(shown);
+  scoreEl.title = adjustment === 0 ? '' : `Evaluator score ${currentRawScore}, adjusted by ${adjustment > 0 ? '+' : ''}${adjustment}`;
+  const badge = $('adjust-badge');
+  badge.textContent = adjustment === 0 ? '' : `${adjustment > 0 ? '+' : ''}${adjustment}`;
+  badge.classList.toggle('hidden', adjustment === 0);
+  $('adjust-reset').classList.toggle('hidden', adjustment === 0);
+}
+
+function renderAdjust(score, scoreEl) {
+  currentRawScore = typeof score === 'number' ? score : null;
+  if (currentRawScore == null) {
+    scoreEl.textContent = '—';
+    $('adjust').classList.add('hidden');
+    return;
+  }
+  paintAdjust();
+}
+
+async function applyAdjust(mutate) {
+  if (!currentUrl) return;
+  const entries = await loadHistory();
+  const next = mutate(entries);
+  await chrome.storage.local.set({ history: next });
+  // Push the changed row back so the adjustment reaches the other browsers.
+  // Best-effort: a failed sync leaves it local, exactly like a failed visit
+  // write, and the next successful round-trip reconciles.
+  try {
+    const { historyKey } = await import('./history.js');
+    const key = historyKey(currentUrl);
+    const mine = next.find((e) => historyKey(e.url) === key);
+    if (mine) {
+      const { getSettings } = await import('./settings.js');
+      const { baseUrl, writeToken } = await getSettings();
+      if (writeToken) {
+        await fetch(`${baseUrl}/api/history`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${writeToken}`, 'content-type': 'application/json' },
+          body: JSON.stringify(mine),
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[mycoffee] adjustment sync failed; kept locally', e);
+  }
+  await paintAdjust();
+  await renderHistory();
+}
+
+$('adjust-up').addEventListener('click', () => applyAdjust((e) => adjust(e, currentUrl, ADJUST_STEP)));
+$('adjust-down').addEventListener('click', () => applyAdjust((e) => adjust(e, currentUrl, -ADJUST_STEP)));
+$('adjust-reset').addEventListener('click', () => applyAdjust((e) => resetAdjustment(e, currentUrl)));
+
 function render(data, hasWriteToken) {
   const { score, confidence, components, fields, missing, explanation, cached, match, enrich } = data;
 
@@ -202,9 +300,11 @@ function render(data, hasWriteToken) {
   // A suppressed headline is a deliberate outcome, not a failure: #106 says
   // show the components and say why, rather than invent a number.
   const scoreEl = $('score');
-  scoreEl.textContent = score == null ? '—' : String(score);
   scoreEl.classList.toggle('suppressed', score == null);
   $('score-label').textContent = score == null ? 'no headline number' : 'fit with what you buy';
+  // #196: the headline shows the ADJUSTED number; the raw one stays in the
+  // tooltip so the server's own score is never lost from view.
+  renderAdjust(score, scoreEl);
   $('confidence').classList.toggle('hidden', confidence !== 'low');
   $('explanation').textContent = explanation ?? '';
 
@@ -289,6 +389,10 @@ function render(data, hasWriteToken) {
 // Include a short summary using the coffee listing layout from the app but
 // including of course the evaluator notes."
 //
+// The window is 30 days now, measured from when a coffee was ADDED rather than
+// last visited (#197) — a revisit no longer resets its own clock. The copy
+// reads `${RETENTION_DAYS}` so it follows the constant rather than drifting.
+//
 // The row deliberately mirrors `CoffeeRowView` from the app (the 2a redesign):
 // image · UPPERCASE ROASTER / heavy one-line title / origin line · a
 // right-aligned column of numbers. The FIT SCORE takes the rating's slot,
@@ -360,12 +464,16 @@ function historyRow(entry) {
   // Roast age (colour-coded) and when I looked at it, on one line.
   const meta = document.createElement('div');
   meta.className = 'hmeta';
-  if (entry.roastDays != null) {
+  // #199: the age is recomputed against TODAY from the stored roast date, not
+  // replayed from the visit. A bag shortlisted at 30 days is 45 days two weeks
+  // later, and both the chip and the score below have to say so.
+  const rowDays = liveRoastDays(entry);
+  if (rowDays != null) {
     const roast = document.createElement('span');
     roast.className = 'hroast';
-    roast.textContent = roastLabel(entry.roastDays);
-    roast.style.color = roastColor(entry.roastDays);
-    if (entry.roastStale) roast.title = 'Over 40 days at the time — the score was penalised';
+    roast.textContent = roastLabel(rowDays);
+    roast.style.color = roastColor(rowDays);
+    if (rowDays > 40) roast.title = 'Over 40 days old — the score is penalised';
     meta.appendChild(roast);
   }
   const seen = document.createElement('span');
@@ -373,7 +481,9 @@ function historyRow(entry) {
   // The age shown is the age AT THE VISIT, so the visit time is what makes it
   // readable — "roasted 30d ago, seen 5d ago" is a different bag today.
   seen.textContent = `seen ${relativeTime(entry.savedAt)}`;
-  seen.title = new Date(entry.savedAt).toLocaleString();
+  seen.title = entry.addedAt
+    ? `Last seen ${new Date(entry.savedAt).toLocaleString()} · added ${new Date(entry.addedAt).toLocaleDateString()}`
+    : new Date(entry.savedAt).toLocaleString();
   meta.appendChild(seen);
   mid.appendChild(meta);
 
@@ -390,10 +500,24 @@ function historyRow(entry) {
   const right = document.createElement('div');
   right.className = 'hright';
 
+  // #196/#199: the number shown (and ranked on) is the re-blended score plus
+  // any manual adjustment. The raw evaluator score stays in the tooltip.
+  const shown = displayScore(entry);
   const score = document.createElement('div');
-  score.className = entry.score >= 60 ? 'hscore high' : 'hscore';
-  score.textContent = entry.score == null ? '—' : String(entry.score);
+  score.className = shown >= 60 ? 'hscore high' : 'hscore';
+  score.textContent = shown == null ? '—' : String(shown);
+  if (shown != null && entry.score != null && shown !== entry.score) {
+    score.title = `Evaluator score ${entry.score} at the visit`;
+  }
   right.appendChild(score);
+
+  const rowAdjust = clampAdjustment(entry.adjustment);
+  if (rowAdjust !== 0) {
+    const badge = document.createElement('div');
+    badge.className = 'hadjust';
+    badge.textContent = `${rowAdjust > 0 ? '+' : ''}${rowAdjust}`;
+    right.appendChild(badge);
+  }
 
   if (entry.pricePer100gEur != null) {
     const p = document.createElement('div');
@@ -500,6 +624,10 @@ async function initHistory() {
 async function run() {
   show('loading');
   const res = await chrome.runtime.sendMessage({ type: 'score' });
+  // #196 keys its manual adjustment on the page url. Taken from the scrape the
+  // background already did, not from chrome.tabs: the popup holds only
+  // `activeTab`, which does not reliably expose `tab.url`.
+  currentUrl = res?.pageUrl ?? null;
   if (!res || res.error) {
     renderError(res ?? { error: 'unexpected' });
   } else {

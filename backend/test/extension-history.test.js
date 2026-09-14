@@ -7,15 +7,30 @@
 // pruning happens on read and write rather than on a timer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
-// history.js touches `chrome` only inside the async storage helpers; the pure
-// functions above them are what these tests exercise.
-const src = readFileSync(new URL('../../extension/history.js', import.meta.url), 'utf8');
-const pure = src.slice(0, src.indexOf('export async function loadHistory')).replace(/^export /gm, '');
-const { prune, rank, upsert, historyKey, RETENTION_DAYS, TOP_N } = new Function(
-  `${pure}; return { prune, rank, upsert, historyKey, RETENTION_DAYS, TOP_N };`,
-)();
+// Imported as a real module, not by slicing and `new Function`-ing the source.
+// The old harness existed to keep `chrome` out of scope, but history.js only
+// touches `chrome` INSIDE its async storage helpers — nothing at module top
+// level — so a plain import works in Node and survives #199's static import of
+// ./scoring-blend.js, which the text-slicing harness could not.
+import {
+  prune,
+  rank,
+  upsert,
+  historyKey,
+  RETENTION_DAYS,
+  TOP_N,
+  adjust,
+  resetAdjustment,
+  nextAdjustment,
+  clampAdjustment,
+  displayScore,
+  liveRoastDays,
+  addedAtOf,
+  ADJUST_MAX,
+} from '../../extension/history.js';
+import * as viewHelpers from '../../extension/history.js';
+import { readFileSync } from 'node:fs';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 8, 10);
@@ -72,8 +87,13 @@ test('rank excludes unscored entries rather than treating them as zero', () => {
 });
 
 test('rank never returns an entry older than the window', () => {
+  // 40 days, not 20: #197 widened retention to 30 days, so the old fixture was
+  // inside the window and this test was asserting the opposite of its name.
   const { top } = rank(
-    [entry({ id: 'old', score: 99, savedAt: NOW - 20 * DAY }), entry({ id: 'new', score: 10 })],
+    [
+      entry({ id: 'old', score: 99, addedAt: NOW - 40 * DAY, savedAt: NOW - 40 * DAY }),
+      entry({ id: 'new', score: 10 }),
+    ],
     { now: NOW },
   );
   assert.deepEqual(top.map((e) => e.score), [10], 'a stale 99 must not outrank a live 10');
@@ -126,10 +146,9 @@ test('upsert prunes as it writes', () => {
 });
 
 // ---- #188: roast-age colour and the visit timestamp ----
-const view = new Function(
-  `${src.slice(src.indexOf('// ---- roast-age colour')).replace(/^export /gm, '')}
-   ; return { roastColor, roastLabel, relativeTime, ROAST_GREEN_DAYS, ROAST_RED_DAYS };`,
-)();
+// Also a plain import now (the slice-and-`new Function` harness this file used
+// to build went away with #199's static import).
+const view = viewHelpers;
 
 test('roast colour is green through two weeks', () => {
   // Radu: "green less than 2w going red as its older".
@@ -214,4 +233,97 @@ test('popup.js reads no component key the API actually sends', async () => {
 
   const unknown = [...read].filter((k) => !produced.has(k));
   assert.deepEqual(unknown, [], `popup reads ${unknown.join(', ')}; API sends ${[...produced].join(', ')}`);
+});
+
+// ---- #197: 30-day retention, measured from ADD time ----
+
+test('#197: retention is 30 days, not 10', () => {
+  assert.equal(RETENTION_DAYS, 30);
+  const kept = prune([entry({ id: 'a', addedAt: NOW - 29 * DAY, savedAt: NOW })], NOW);
+  assert.equal(kept.length, 1);
+  const dropped = prune([entry({ id: 'a', addedAt: NOW - 31 * DAY, savedAt: NOW })], NOW);
+  assert.equal(dropped.length, 0);
+});
+
+test("#197: a revisit does NOT reset the retention clock", () => {
+  // Added 29 days ago, revisited today. Under the old savedAt rule this rode
+  // the list forever; it must now expire tomorrow.
+  const existing = [entry({ id: 'a', addedAt: NOW - 29 * DAY, savedAt: NOW - 29 * DAY })];
+  const after = upsert(existing, { url: 'https://shop.test/a', score: 50 }, NOW);
+  assert.equal(after[0].addedAt, NOW - 29 * DAY, 'addedAt was bumped by a revisit');
+  assert.equal(after[0].savedAt, NOW, 'savedAt did not move on a revisit');
+  assert.equal(prune(after, NOW + 2 * DAY).length, 0, 'entry outlived its 30 days');
+});
+
+test('#197: an entry written before this version falls back to savedAt', () => {
+  const legacy = { url: 'https://shop.test/legacy', score: 50, savedAt: NOW - 5 * DAY };
+  assert.equal(addedAtOf(legacy), NOW - 5 * DAY);
+  assert.equal(prune([legacy], NOW).length, 1);
+});
+
+// ---- #196: manual +-10 adjustment ----
+
+test('#196: adjustments compound and wrap to zero past the cap', () => {
+  assert.equal(nextAdjustment(0, 10), 10);
+  assert.equal(nextAdjustment(10, 10), 20);
+  assert.equal(nextAdjustment(20, 10), 0, 'past the cap resets, which is the undo affordance');
+  assert.equal(nextAdjustment(-20, -10), 0);
+  assert.equal(clampAdjustment('nonsense'), 0);
+  assert.equal(clampAdjustment(999), ADJUST_MAX);
+});
+
+test('#196: adjust targets one entry by url key, reset clears it', () => {
+  const entries = [entry({ id: 'a' }), entry({ id: 'b' })];
+  const bumped = adjust(entries, 'https://shop.test/a?utm=x', 10, NOW);
+  assert.equal(bumped[0].adjustment, 10);
+  assert.equal(bumped[1].adjustment ?? 0, 0);
+  assert.equal(resetAdjustment(bumped, 'https://shop.test/a')[0].adjustment, 0);
+});
+
+test('#196: an adjustment survives a re-score of the same page', () => {
+  const existing = adjust([entry({ id: 'a' })], 'https://shop.test/a', -10, NOW);
+  const after = upsert(existing, { url: 'https://shop.test/a', score: 80 }, NOW);
+  assert.equal(after[0].adjustment, -10, 'a revisit silently reset the manual adjustment');
+});
+
+test('#196: displayScore clamps at 0 and 100', () => {
+  assert.equal(displayScore({ score: 95, adjustment: 20 }), 100);
+  assert.equal(displayScore({ score: 5, adjustment: -20 }), 0);
+});
+
+// ---- #199: the roast term recomputes, the inputs stay frozen ----
+
+test('#199: the same entry scores lower once it crosses 40 days', () => {
+  const e = {
+    url: 'https://shop.test/fresh',
+    score: 70,
+    affinity: 70,
+    valueScore: 50,
+    noveltyScore: 100,
+    roastedOn: new Date(NOW - 30 * DAY).toISOString(),
+    savedAt: NOW,
+    addedAt: NOW,
+  };
+  const atVisit = displayScore(e, NOW);
+  const twoWeeksLater = displayScore(e, NOW + 14 * DAY);
+  assert.ok(twoWeeksLater < atVisit, `expected a drop past 40 days, got ${atVisit} -> ${twoWeeksLater}`);
+  assert.equal(liveRoastDays(e, NOW + 14 * DAY), 44);
+});
+
+test('#199: a pre-#199 entry with no component scores keeps its frozen score', () => {
+  const legacy = { url: 'https://shop.test/old', score: 64, roastDays: 12, savedAt: NOW, addedAt: NOW };
+  assert.equal(displayScore(legacy, NOW + 100 * DAY), 64);
+});
+
+test('#199: ranking uses the recomputed score, not the stored one', () => {
+  const stale = {
+    url: 'https://shop.test/stale', score: 90, affinity: 90, valueScore: 90, noveltyScore: 100,
+    roastedOn: new Date(NOW - 200 * DAY).toISOString(), savedAt: NOW, addedAt: NOW,
+  };
+  const fresh = {
+    url: 'https://shop.test/fresh', score: 70, affinity: 70, valueScore: 70, noveltyScore: 100,
+    roastedOn: new Date(NOW - 2 * DAY).toISOString(), savedAt: NOW, addedAt: NOW,
+  };
+  const { top } = rank([stale, fresh], { now: NOW });
+  assert.equal(top[0].url, fresh.url, 'a 200-day-old bag still outranked a fresh one');
 });

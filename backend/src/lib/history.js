@@ -6,9 +6,16 @@
 // shared (the browser cannot import backend code); history-lib.test.js pins
 // the constants to the extension's values so the two cannot drift silently.
 
-// Retention window, in days. A save older than this is dropped on the next
-// read or write — never on a timer, since a browser can be shut for a week.
-export const RETENTION_DAYS = 10;
+// Retention window, in days, measured from the row's `added_at` — the first
+// time the coffee entered the shortlist, NOT the last visit (#197). `saved_at`
+// is bumped on every revisit, so keying retention on it meant a coffee Radu
+// kept checking in on quietly reset its own clock and rode the list forever,
+// while one he saw once and mentally shortlisted fell off at exactly 10 days.
+// Dropped on the next read or write — never on a timer, since a browser can be
+// shut for a week.
+//
+// ⚠ Pinned against extension/history.js by history-lib.test.js. Change both.
+export const RETENTION_DAYS = 30;
 
 // A hard cap per token so a heavy browsing week cannot grow the table without
 // bound. A backstop, not a policy — well above anything 10 days of coffee

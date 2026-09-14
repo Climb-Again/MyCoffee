@@ -43,6 +43,16 @@
               <div class="score-label" id="score-label">fit with what you buy</div>
               <div class="badge hidden" id="confidence">low confidence</div>
             </div>
+            <!-- #196: manual +-10 nudge. Client-only — never sent to
+                 /api/score, which would corrupt the corpus the score is
+                 derived from. Hidden until the page actually has a score,
+                 because an unscored page has nothing to adjust. -->
+            <div class="adjust hidden" id="adjust">
+              <button class="adjust-btn" id="adjust-down" title="-10 (taps compound; past -20 resets)">−10</button>
+              <span class="adjust-badge hidden" id="adjust-badge"></span>
+              <button class="adjust-btn" id="adjust-up" title="+10 (taps compound; past +20 resets)">+10</button>
+              <button class="adjust-reset hidden" id="adjust-reset" title="Clear the adjustment">↺</button>
+            </div>
           </div>
           <p class="explanation" id="explanation"></p>
         </header>

@@ -311,3 +311,109 @@ test('brew options are served and a trial round-trips', { skip: !HAS_DB }, async
   const mine = snap.json().coffees.find((c) => c.id === ids.coffeePublicId);
   assert.ok((mine.brewTried ?? []).includes(optionId), 'brew trial did not reach the snapshot');
 });
+
+// ---- #198: browsing grows the VOCAB, never the coffee library ----
+
+test('#198: a new roaster is created with an alias, and coffees is untouched', { skip: !HAS_DB }, async () => {
+  const name = `Test Roaster ${Date.now().toString(36)}`;
+  const before = await query(`SELECT count(*)::int AS n FROM coffees`);
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/vocab/observations',
+    headers: ingestAuth(),
+    payload: {
+      sourceUrl: 'https://shop.test/about',
+      roaster: {
+        name,
+        description: 'A small roaster that exists only in this test.',
+        logoUrl: 'https://shop.test/logo.png',
+        countryName: 'Romania',
+      },
+    },
+  });
+  assert.equal(res.statusCode, 200);
+  const body = res.json();
+  assert.ok(body.roasterId, 'no roaster created');
+  assert.ok(body.created.includes('roaster'));
+
+  const { rows } = await query(`SELECT name, blurb, logo_url, country_id FROM roasters WHERE id = $1`, [body.roasterId]);
+  assert.equal(rows[0].name, name);
+  assert.ok(rows[0].blurb, 'blurb not applied');
+  assert.equal(rows[0].logo_url, 'https://shop.test/logo.png');
+
+  // CLAUDE.md §12: a vocab row with no alias is invisible to extraction.
+  const { rows: aliases } = await query(`SELECT count(*)::int AS n FROM roaster_aliases WHERE roaster_id = $1`, [body.roasterId]);
+  assert.ok(aliases[0].n > 0, 'the new roaster has no alias and can never be matched from text');
+
+  const after = await query(`SELECT count(*)::int AS n FROM coffees`);
+  assert.equal(after.rows[0].n, before.rows[0].n, 'an observation created a coffee — the one thing it must never do');
+
+  await query(`DELETE FROM roaster_aliases WHERE roaster_id = $1`, [body.roasterId]);
+  await query(`DELETE FROM vocab_observations WHERE target_id = $1`, [body.roasterId]);
+  await query(`DELETE FROM roasters WHERE id = $1`, [body.roasterId]);
+});
+
+test('#198: an existing blurb/logo is never overwritten', { skip: !HAS_DB }, async () => {
+  const name = `Kept Roaster ${Date.now().toString(36)}`;
+  const first = await app.inject({
+    method: 'POST',
+    url: '/api/vocab/observations',
+    headers: ingestAuth(),
+    payload: { roaster: { name, description: 'the original', logoUrl: 'https://a.test/one.png' } },
+  });
+  const id = first.json().roasterId;
+
+  const second = await app.inject({
+    method: 'POST',
+    url: '/api/vocab/observations',
+    headers: ingestAuth(),
+    payload: { roaster: { name, description: 'a shop page trying to clobber it', logoUrl: 'https://b.test/two.png' } },
+  });
+  assert.ok(second.json().declined.includes('blurb'));
+  assert.ok(second.json().declined.includes('logo'));
+
+  const { rows } = await query(`SELECT blurb, logo_url FROM roasters WHERE id = $1`, [id]);
+  assert.equal(rows[0].blurb, 'the original');
+  assert.equal(rows[0].logo_url, 'https://a.test/one.png');
+
+  await query(`DELETE FROM roaster_aliases WHERE roaster_id = $1`, [id]);
+  await query(`DELETE FROM vocab_observations WHERE target_id = $1`, [id]);
+  await query(`DELETE FROM roasters WHERE id = $1`, [id]);
+});
+
+test('#198: countries stay closed — an unknown one creates nothing', { skip: !HAS_DB }, async () => {
+  const before = await query(`SELECT count(*)::int AS n FROM countries`);
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/vocab/observations',
+    headers: ingestAuth(),
+    payload: { originCountryName: 'Definitely Not A Coffee Country' },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.json().declined.includes('originCountry'));
+  const after = await query(`SELECT count(*)::int AS n FROM countries`);
+  assert.equal(after.rows[0].n, before.rows[0].n, 'a scraped string minted a country row');
+  await query(`DELETE FROM vocab_observations WHERE extracted_value = 'Definitely Not A Coffee Country'`);
+});
+
+test('#198: a non-http logo src is rejected before it reaches the column', { skip: !HAS_DB }, async () => {
+  const name = `Safe Roaster ${Date.now().toString(36)}`;
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/vocab/observations',
+    headers: ingestAuth(),
+    payload: { roaster: { name, logoUrl: 'javascript:alert(1)' } },
+  });
+  const id = res.json().roasterId;
+  const { rows } = await query(`SELECT logo_url FROM roasters WHERE id = $1`, [id]);
+  assert.equal(rows[0].logo_url, null);
+  await query(`DELETE FROM roaster_aliases WHERE roaster_id = $1`, [id]);
+  await query(`DELETE FROM vocab_observations WHERE target_id = $1`, [id]);
+  await query(`DELETE FROM roasters WHERE id = $1`, [id]);
+});
+
+test('#198: an empty observation is a 400, not a silent no-op', { skip: !HAS_DB }, async () => {
+  const res = await app.inject({ method: 'POST', url: '/api/vocab/observations', headers: ingestAuth(), payload: {} });
+  assert.equal(res.statusCode, 400);
+});

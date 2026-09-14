@@ -127,22 +127,6 @@
           "detail": "Queued."
         },
         {
-          "title": "Extension: manual ±10p score adjustment per coffee (Radu, 2026-09-12: verbatim, 'add a manual +10p / -10p…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Extension: 30d shortlist retention, from add time (Radu, 2026-09-12: verbatim, 'discard after 30d from being…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Extension: pipe new roasters + countries + roaster logos to the vocab tables from browsing (never to…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Extension: recompute both roasted N days ago and the fit score against today (Radu, 2026-09-12: verbatim,…",
-          "detail": "Queued."
-        },
-        {
           "title": "Safari Web Extension port of the MyCoffee evaluator (Radu, 2026-09-13: verbatim, \"also do a safari…",
           "detail": "Queued."
         }
