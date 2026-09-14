@@ -6,7 +6,7 @@ Branch: `main` · Ownership + protocol: `status/README.md` · Work items: `PLAN.
 
 ## Claimed
 
-(none)
+- [2026-09-14 07:23 UTC] 121 re-check: buildExtractFields's #121 fix shipped but is now dead code (superseded same-day by #131); real fix needed in adjudicate.js for the quick-create/batch path — branch `main`
 
 ## 2026-09-11 07:27 UTC: #167 Retry storm — DONE, `9e45344`
 
