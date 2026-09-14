@@ -20,6 +20,15 @@ enum Lucide {
     static let share = "lucide-share"
     static let pencil = "lucide-pencil"
     static let search = "lucide-search"
+
+    // #195's two new tabs have NO Lucide asset in Assets.xcassets — there are
+    // only 13 imagesets and none of them is a flask or a storefront. Redesign
+    // v3 §11 wants Lucide outlines on the tab bar, so these two SF Symbols are
+    // a deliberate, visible placeholder rather than an oversight: adding an
+    // asset means art, and art is Radu's call. Swap `tabRecipesFallback` /
+    // `tabShopFallback` for `lucide-*` the moment the glyphs land.
+    static let tabRecipesFallback = "flask"
+    static let tabShopFallback = "bag"
 }
 
 /// A Lucide (or any template) asset image sized explicitly — asset images
@@ -114,6 +123,8 @@ enum Symbols {
     static let whatsNewUnavailable = "wifi.exclamationmark"
     /// #205(c): the trailing "Not done" swipe — the screenshot's orange flag.
     static let whatsNewNotDone = "flag.slash"
+    /// #192: the last sync failed (Settings row + list banner).
+    static let syncFailed = "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90"
 
     // Brew lab (PLAN.md §14, #157). DEVIATION from the row's "add a Lucide
     // trophy SVG": the Lucide set here is vendored from files Radu supplied,

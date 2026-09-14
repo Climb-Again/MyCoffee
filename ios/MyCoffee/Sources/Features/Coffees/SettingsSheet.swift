@@ -4,6 +4,7 @@ import SwiftUI
 /// disconnect. No capture UI, no editor — read-and-review only (§6.7).
 struct SettingsSheet: View {
     @EnvironmentObject private var config: AppConfig
+    @EnvironmentObject private var store: CoffeeStore
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var seenStore = WhatsNewSeenStore.shared
 
@@ -43,6 +44,35 @@ struct SettingsSheet: View {
                         Label("What's New", systemImage: Symbols.whatsNew)
                     }
                     .badge(seenStore.unseenCount(in: whatsnewLive))
+                }
+                // #192: #178(c)'s sync diagnostics, surfaced. The backend
+                // status above answers "can I reach it right now"; this answers
+                // "did the last sync actually work", which is a different
+                // question and the one that was unanswerable before — a
+                // pull-to-refresh that failed looked exactly like one that
+                // succeeded and changed nothing.
+                Section("Last sync") {
+                    if let error = store.lastSyncError {
+                        Label {
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: Symbols.syncFailed)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    if let at = store.lastSyncedAt {
+                        LabeledContent("Succeeded", value: at.formatted(date: .abbreviated, time: .shortened))
+                    } else if store.lastSyncError == nil {
+                        Text("No sync yet this launch")
+                            .foregroundStyle(.secondary)
+                    }
+                    // #178(b): rows the snapshot carried that the library does
+                    // not. Zero is the normal case and says so explicitly —
+                    // a diagnostic that only appears when it is non-zero is one
+                    // you never learn to trust.
+                    LabeledContent("Rows dropped", value: "\(store.droppedRowCount)")
                 }
                 Section {
                     Button("Disconnect", role: .destructive) {

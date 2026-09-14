@@ -19,6 +19,15 @@ import Foundation
 /// already on.
 enum RootTab: Hashable {
     case coffees
+    /// #195: the Brew lab's own landing surface — the catalogue (recipes,
+    /// devices, grind clicks, temperatures) with per-option win rates, which
+    /// until now only existed inside a coffee's detail page and behind
+    /// Settings.
+    case recipes
+    /// #195: the browser extension's shortlist (#187 → #194), read from
+    /// `GET /api/history`. The iOS app cannot see `chrome.storage.local`, so
+    /// this tab is only possible because #194 moved the list server-side.
+    case shop
     case insights
     case review
     /// Redesign v3 §3: the `+` is a middle tab item, not a floating circle.
@@ -321,6 +330,29 @@ final class CoffeeStore: ObservableObject {
     /// Connect screen is what handles being unconfigured.
     func makeAPIClient() async -> APIClient? {
         try? await APIClient(config: AppConfig.shared)
+    }
+
+    // ---- #195: the extension's shortlist, for the Shop tab ----
+
+    /// The shortlist as the extension left it. Empty until `loadShortlist()`
+    /// succeeds; deliberately NOT persisted to the on-disk snapshot, because
+    /// it is a 30-day rolling list the server prunes (#197) and a stale local
+    /// copy would show bags that have already aged out.
+    @Published private(set) var shortlist: [ShortlistEntry] = []
+    @Published private(set) var shortlistError: String?
+
+    /// Reads `GET /api/history` — the same rows the extension popup ranks.
+    /// Ordering and the display score are the SERVER's rows rendered as-is,
+    /// so the phone and the browser agree; re-ranking here would be a second
+    /// definition of the same list.
+    func loadShortlist() async {
+        guard let client = await makeAPIClient() else { return }
+        do {
+            shortlist = try await client.shortlist()
+            shortlistError = nil
+        } catch {
+            shortlistError = error.localizedDescription
+        }
     }
 
     /// Fetches the editorial "This month" brief (PLAN.md §6.4) for the

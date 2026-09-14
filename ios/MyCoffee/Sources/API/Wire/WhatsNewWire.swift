@@ -54,3 +54,11 @@ struct WhatsNewSeenRequestDTO: Encodable {
     let key: String
     let seen: Bool
 }
+
+/// #195 — `GET /api/history`. `FailableDecodable` per element for the usual
+/// reason (`FlexibleDecoding.swift`): the extension owns this payload's shape
+/// and ships on its own schedule, so one row it wrote with an unexpected value
+/// must not empty the whole Shop tab.
+struct ShortlistResponseDTO: Decodable {
+    let entries: [FailableDecodable<ShortlistEntry>]
+}

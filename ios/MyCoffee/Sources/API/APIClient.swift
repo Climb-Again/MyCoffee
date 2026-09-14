@@ -346,6 +346,30 @@ struct APIClient: Sendable {
         }
     }
 
+    // GET /api/history — #195's Shop tab reads the extension's shortlist.
+    //
+    // ⚠ SEAM EDIT (CLAUDE.md §4): `API/**` is ios-shell-owned; added by the
+    // ios-ux lane for #195 and recorded under `## Claimed` in both lane files.
+    //
+    // Needs the WRITE token, not the read one: `/api/history` keys rows on the
+    // sha256 of the presented bearer (migration 037), so presenting APP_TOKEN
+    // would hash to a different key and return an empty list — which reads as
+    // data loss rather than as an auth mismatch. `makeRequest` already sends
+    // whichever token is configured; on a read-token-only install this returns
+    // empty and the tab says so.
+    func shortlist() async throws -> [ShortlistEntry] {
+        let req = try makeRequest(path: "/api/history", method: "GET", body: nil)
+        let data = try await send(req)
+        do {
+            return try JSONDecoder.coffeeAPI
+                .decode(ShortlistResponseDTO.self, from: data)
+                .entries
+                .compactMap(\.value)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // GET /api/whatsnew/seen — #201's phone↔iPad sync for What's New check-offs.
     //
     // Keys are opaque to the server: it stores whatever string it is given, and
