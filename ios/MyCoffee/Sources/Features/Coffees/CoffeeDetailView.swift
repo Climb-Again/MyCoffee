@@ -439,7 +439,7 @@ struct CoffeeDetailView: View {
             // neutral pill, and omitted entirely when the profile is unknown
             // rather than rendering "Unknown" (missing fields omit their row).
             if let profile = coffee.profile {
-                Pill(text: profile.displayName)
+                Pill(text: profilePillText(profile))
             }
             if let altitude = coffee.altitudeLabel {
                 Pill(text: altitude)
@@ -451,6 +451,20 @@ struct CoffeeDetailView: View {
                 DecafBadge()
             }
         }
+    }
+
+    /// #209: restores the `profileDetail` bracket run #45 originally showed
+    /// beside the profile label ("Natural (Cold Natural)"), dropped by the
+    /// 2a redesign (#88). Skips the bracket when `profileDetail` is the same
+    /// word as the profile label (case-insensitively) so a plain "Washed" bag
+    /// with no real detail doesn't render "Washed (Washed)".
+    private func profilePillText(_ profile: Profile) -> String {
+        guard let detail = coffee.profileDetail, !detail.isEmpty,
+              detail.caseInsensitiveCompare(profile.displayName) != .orderedSame
+        else {
+            return profile.displayName
+        }
+        return "\(profile.displayName) (\(detail))"
     }
 
     @ViewBuilder
