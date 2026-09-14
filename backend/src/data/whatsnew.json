@@ -115,10 +115,6 @@
     "byLane": {
       "backend": [
         {
-          "title": "Add Coffee wizard drops a roaster that isn't already in the vocab",
-          "detail": "Queued."
-        },
-        {
           "title": "Roast-date backfill is incomplete: POST /api/admin/adjudicate does NOT re-run the deterministic rules voter,…",
           "detail": "Queued."
         },
