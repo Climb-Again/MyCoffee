@@ -127,7 +127,7 @@
           "detail": "Queued."
         },
         {
-          "title": "Safari Web Extension port of the MyCoffee evaluator (Radu, 2026-09-13: verbatim, \"also do a safari…",
+          "title": "⚠ 2026-09-14 — Radu narrowed this: \"safari macos, low priority, last in queue, no need now\"",
           "detail": "Queued."
         }
       ],
@@ -161,11 +161,7 @@
         "detail": "Waiting on your call."
       },
       {
-        "title": "⚠ 2026-09-14 — status set to human: the code half is DONE, what remains is a decision only Radu can make",
-        "detail": "Waiting on your call."
-      },
-      {
-        "title": "Lane cadence is now above what the queue needs — decide whether to revert (Radu's own rule, #183)",
+        "title": "⚠ 2026-09-14 — Radu: \"lets see how it settles after these deployment.\"",
         "detail": "Waiting on your call."
       },
       {

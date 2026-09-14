@@ -25,6 +25,8 @@ import {
   resetAdjustment,
   clampAdjustment,
   ADJUST_STEP,
+  historyKey,
+  clearHistory,
 } from './history.js';
 
 const $ = (id) => document.getElementById(id);
@@ -222,7 +224,6 @@ let currentRawScore = null;
 
 async function currentAdjustment() {
   if (!currentUrl) return 0;
-  const { historyKey } = await import('./history.js');
   const entries = await loadHistory();
   const key = historyKey(currentUrl);
   const mine = entries.find((e) => historyKey(e.url) === key);
@@ -267,11 +268,9 @@ async function applyAdjust(mutate) {
   // Best-effort: a failed sync leaves it local, exactly like a failed visit
   // write, and the next successful round-trip reconciles.
   try {
-    const { historyKey } = await import('./history.js');
     const key = historyKey(currentUrl);
     const mine = next.find((e) => historyKey(e.url) === key);
     if (mine) {
-      const { getSettings } = await import('./settings.js');
       const { baseUrl, writeToken } = await getSettings();
       if (writeToken) {
         await fetch(`${baseUrl}/api/history`, {
@@ -593,7 +592,6 @@ async function renderHistory() {
   clear.className = 'btn ghost small';
   clear.textContent = 'Clear';
   clear.addEventListener('click', async () => {
-    const { clearHistory } = await import('./history.js');
     await clearHistory();
     renderHistory();
   });
