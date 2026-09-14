@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 10:47 UTC] #180 route hero/zoom/review `display` images through `ImageStore`, fix thumb-as-hero flash; seam edit to `CoffeeMapping.swift:62` (compact mapping no longer seeds `display` from `thumbUrl`) recorded in `status/ios-shell.md` too — branch `ios-staging`
 
 ## Abandoned
 

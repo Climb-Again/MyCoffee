@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 10:47 UTC] Seam edit for #180 (ios-ux lane): `CoffeeMapping.swift` compact mapping stops seeding `images.display` from `thumbUrl` (uses `""` sentinel, matching the detail mapping's existing `?? ""` convention) so the hero doesn't render a blown-up thumb before the detail fetch supplies the real display URL. One-line change, no new shell logic — recorded per CLAUDE.md §4 seam rule.
 
 ## Abandoned
 
