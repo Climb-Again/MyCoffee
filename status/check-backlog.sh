@@ -48,6 +48,36 @@ if [ -n "$missing" ]; then
   echo "FAIL dangling needs:"; echo -e "$missing" | sed '/^$/d'; fail=1
 fi
 
+# A row that VANISHES is the failure this script kept missing. It catches
+# duplicates and dangling needs, but on 2026-08-29 a full-file overwrite
+# silently deleted #102-#104 and reverted #92, and on 2026-09-14 another session
+# did it again — #210, #211 and #212 disappeared in the same commit that added
+# #213, and nothing went red. `sync-backlog-rows.sh` exists precisely to stop
+# that, but it only helps the sessions that use it.
+#
+# So: compare against the previous COMMITTED copy. Every row number that existed
+# then must still exist, in the live file or the archive. Deleting a row on
+# purpose is rare enough to deserve an explicit override; renumbering is not
+# deletion, because the old number would still have to go somewhere.
+#
+# Skipped when there is no git history to compare against (a fresh clone with no
+# HEAD, or the file is newly added), and by BACKLOG_ALLOW_DELETIONS=1.
+if [ "${BACKLOG_ALLOW_DELETIONS:-0}" != "1" ] && git rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  prev=$(git show HEAD:"$F" 2>/dev/null | grep -oE '^\| *[0-9]{1,3} *\|' | tr -d '| ' | sort -n | uniq)
+  if [ -n "$prev" ]; then
+    vanished=""
+    for n in $prev; do
+      echo "$known" | grep -qx "$n" || vanished="$vanished $n"
+    done
+    if [ -n "$vanished" ]; then
+      echo "FAIL rows present in the last commit are gone now:$vanished"
+      echo "  A row number is never reused, so a row must be edited or archived, never deleted."
+      echo "  If this really is intentional, re-run with BACKLOG_ALLOW_DELETIONS=1."
+      fail=1
+    fi
+  fi
+fi
+
 if [ "$fail" = 0 ]; then
   live=$(grep -cE '^\| *[0-9]{1,3} *\|' "$F")
   total=$(echo "$known" | wc -l | tr -d ' ')

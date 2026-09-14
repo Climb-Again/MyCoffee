@@ -87,7 +87,27 @@ export function isDueForExtraction(photo, now = new Date()) {
 // text-only daily job cover both the cheap normal case and the overdue
 // `awaiting_text` sweep, without a separate image-mode routine.
 export function shouldUseImage(photo, includeImages) {
-  return Boolean(includeImages) || photo?.state === 'awaiting_text';
+  // #126(c): a photo flagged by a previous text-only pass as still missing core
+  // fields gets its image sent on the next claim, whatever the job's own flag
+  // says. `image_pass_at` is the hard stop — the flag is only ever set when it
+  // is NULL (see `flagForImagePass`), so a bag whose fields are genuinely
+  // absent (a blurb with no price printed anywhere) cannot burn a vision call
+  // on every run forever.
+  return Boolean(includeImages) || photo?.state === 'awaiting_text' || photo?.needs_image_pass === true;
+}
+
+// #126(c): which of the core fields a photo still has no resolution for.
+// `REQUIRED_FIELDS` is the same set `finalizeCoffeeStatus` measures confidence
+// over, so "unresolved" here means the same thing the app means when it renders
+// a coffee as thin.
+export async function unresolvedCoreFields(photoId) {
+  const { rows } = await query(
+    `SELECT field FROM field_resolutions
+      WHERE photo_id = $1 AND field = ANY($2) AND value IS NOT NULL`,
+    [photoId, REQUIRED_FIELDS],
+  );
+  const resolved = new Set(rows.map((r) => r.field));
+  return REQUIRED_FIELDS.filter((f) => !resolved.has(f));
 }
 
 // Turns adjudicated field resolutions into the `coffees` column set to write.
@@ -397,10 +417,56 @@ export async function runLightExtraction({ rawText, images, vocabShortlist, vote
 // that disagreed with the claim would be worse than no count.
 export function claimableWhereSql({ failuresParam = '$1' } = {}) {
   return `has_image
-      AND state <> 'processed'
-      AND (state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))
+      AND (state <> 'processed' OR (needs_image_pass AND image_pass_at IS NULL))
+      AND (state = 'text_received'
+           OR (state = 'awaiting_text' AND text_wait_until <= now())
+           OR (needs_image_pass AND image_pass_at IS NULL))
       AND extraction_failures < ${failuresParam}
       AND extraction_leased_until IS NULL`;
+}
+
+// #126(a/b): queue photos for their one image pass.
+//
+// Radu approved the full re-extraction ("all"). The obstacle: every one of the
+// 413 photos is already `processed`, so a normal job claims nothing — the
+// worker has no notion of "do it again". #126(c) added exactly the flag that
+// does, so this reuses it rather than inventing a second path: set
+// `needs_image_pass`, and the next job sends each photo's image whatever its
+// own `includeImages` says.
+//
+// `onlyMissingCore` (the default) queues only photos whose coffee is still
+// missing one of REQUIRED_FIELDS — the 187 thin records #126 measured, not the
+// 226 that already carry the whole bag card verbatim. `force` re-queues even
+// photos that have had a pass, and is the only way past `image_pass_at`.
+//
+// Idempotent: re-running queues the same set and the flag is already true.
+export async function queueImagePass({ limit = 500, onlyMissingCore = true, force = false } = {}) {
+  const cap = Math.max(1, Math.min(2000, Number(limit) || 500));
+  const { rows } = await query(
+    `WITH candidate AS (
+       SELECT p.id
+         FROM photos p
+         JOIN coffees c ON c.photo_id = p.id AND c.deleted_at IS NULL
+        WHERE p.has_image
+          ${force ? '' : 'AND p.image_pass_at IS NULL'}
+          ${onlyMissingCore ? `AND EXISTS (
+                SELECT 1 FROM unnest($2::text[]) AS f(field)
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM field_resolutions fr
+                    WHERE fr.photo_id = p.id AND fr.field = f.field AND fr.value IS NOT NULL
+                 )
+              )` : ''}
+        ORDER BY p.id
+        LIMIT $1
+     )
+     UPDATE photos p
+        SET needs_image_pass = true${force ? ', image_pass_at = NULL' : ''}
+       FROM candidate
+      WHERE p.id = candidate.id
+      RETURNING p.id`,
+    onlyMissingCore ? [cap, REQUIRED_FIELDS] : [cap],
+  );
+  return { queued: rows.length, pending: await countPendingPhotos() };
 }
 
 // #170: how many photos a worker started right now would actually find.
@@ -424,7 +490,11 @@ export async function countPendingPhotos({ maxFailures } = {}) {
   const { rows } = await query(
     `SELECT
        count(*) FILTER (WHERE state = 'text_received')  AS text_received,
-       count(*) FILTER (WHERE state = 'awaiting_text')  AS awaiting_text_overdue
+       count(*) FILTER (WHERE state = 'awaiting_text')  AS awaiting_text_overdue,
+       -- #126(c): photos already 'processed' that a text-only pass flagged for
+       -- one image pass. Counted separately so "nothing pending" stays true
+       -- only when there is genuinely nothing to do.
+       count(*) FILTER (WHERE state = 'processed')      AS image_escalation
      FROM photos
      WHERE ${claimableWhereSql()}`,
     [maxFail],
@@ -441,8 +511,15 @@ export async function countPendingPhotos({ maxFailures } = {}) {
   );
   const textReceived = Number(rows[0]?.text_received ?? 0);
   const awaitingTextOverdue = Number(rows[0]?.awaiting_text_overdue ?? 0);
+  const imageEscalation = Number(rows[0]?.image_escalation ?? 0);
   const imageOnly = Number(waitRows[0]?.image_only ?? 0);
-  return { textReceived, awaitingTextOverdue, imageOnly, total: textReceived + awaitingTextOverdue };
+  return {
+    textReceived,
+    awaitingTextOverdue,
+    imageEscalation,
+    imageOnly,
+    total: textReceived + awaitingTextOverdue + imageEscalation,
+  };
 }
 
 export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } = {}) {
@@ -454,7 +531,12 @@ export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } 
   // the job-level flag says. This is what lets a standing text-only daily
   // job also drain the deadline sweep, instead of needing a separate
   // image-mode routine that has to know when to self-delete (#65).
-  const stateClause = `(state = 'text_received' OR (state = 'awaiting_text' AND text_wait_until <= now()))`;
+  // #126(c): `needs_image_pass` re-opens a photo the worker already marked
+  // `processed`, so the one escalation actually gets claimed. Bounded by
+  // `image_pass_at IS NULL`, which the escalating pass itself sets.
+  const stateClause = `(state = 'text_received'
+        OR (state = 'awaiting_text' AND text_wait_until <= now())
+        OR (needs_image_pass AND image_pass_at IS NULL))`;
   return withTransaction(async (client) => {
     // Reap stale leases first -- what recovers a SIGTERM'd worker.
     await client.query(
@@ -464,7 +546,7 @@ export async function claimBatch(limit, { leaseMinutes, workerId, maxFailures } 
     const { rows } = await client.query(
       `SELECT * FROM photos
        WHERE has_image
-         AND state <> 'processed'
+         AND (state <> 'processed' OR (needs_image_pass AND image_pass_at IS NULL))
          AND ${stateClause}
          AND extraction_failures < $2
          AND extraction_leased_until IS NULL
@@ -937,6 +1019,29 @@ export async function processPhoto(photo, voters, sharedCtx, { includeImages = t
       spentUsd += Number(fn.spentUsd ?? 0);
     } catch {
       // leave flavor_notes NULL; the backfill retries
+    }
+  }
+
+  // #126(c): the standing rule that stops the OCR gap re-accruing on every new
+  // bag. A captioned photo used to be extracted from its caption FOREVER and
+  // its image never sent — `shouldUseImage` only fired for `awaiting_text`
+  // photos, and the daily routine escalates to images only when image-only
+  // photos remain, which they never do. Measured: 0 of 413 coffees carried an
+  // OCR text block.
+  //
+  // So: if this pass DID send the image, record it and clear the flag — that is
+  // the one escalation this photo gets. If it did NOT, and core fields are
+  // still unresolved, and it has an image it has never used, flag it and leave
+  // it claimable so the next pass reads the bag.
+  if (image) {
+    await query(
+      `UPDATE photos SET image_pass_at = COALESCE(image_pass_at, now()), needs_image_pass = false WHERE id = $1`,
+      [photo.id],
+    );
+  } else if (photo.has_image && photo.image_pass_at == null) {
+    const missing = await unresolvedCoreFields(photo.id);
+    if (missing.length > 0) {
+      await query(`UPDATE photos SET needs_image_pass = true WHERE id = $1 AND image_pass_at IS NULL`, [photo.id]);
     }
   }
 

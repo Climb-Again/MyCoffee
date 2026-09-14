@@ -18,6 +18,15 @@
 // extension/scoring-blend.js for why it is a mirror and not an import.
 import { blendScore, daysSinceISO, roastRecencyScore } from './scoring-blend.js';
 
+// #194 sync uses `getSettings`. Must be a STATIC import — this module is
+// pulled in by `background.js`'s service worker, and MV3 service workers
+// reject `await import()` at runtime ("import() is disallowed on
+// ServiceWorkerGlobalScope"). A dynamic import here was the reason the
+// shortlist silently stayed empty on every browser: the try/catch around
+// `remoteHistory` swallowed the TypeError, the local write still landed,
+// nothing reached the server, and no user saw an error.
+import { getSettings } from './settings.js';
+
 const KEY = 'history';
 // #197 (Radu, 2026-09-12): "discard after 30d from being added to shortlist
 // (since you sync on server you have timestamp)". Two changes in one ask, and
@@ -264,11 +273,7 @@ export function entryFromScore(data, { url, title }) {
 // not un-prune a row on next sync — so a remote result REPLACES the cache
 // wholesale rather than being merged into it.
 //
-// A dynamic import keeps settings.js out of this module's top half, whose pure
-// functions are unit-tested by evaluating the source text directly (a static
-// `import` there would break that harness).
 async function remoteHistory(method, body) {
-  const { getSettings } = await import('./settings.js');
   const { baseUrl, writeToken } = await getSettings();
   // No write token → local-only, exactly as before #194. Syncing is a write
   // (it stores under that token) and reuses the same INGEST_TOKEN #161 does.
