@@ -1,10 +1,10 @@
 # Roaster content checklist — logos + blurbs
 
-_Generated 2026-09-10 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
+_Generated 2026-09-14 from the live backend snapshot (110 roasters, 414 coffees). Regenerate with `python3 ops/roaster-assets/gen-checklist.py`._
 
 Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file by roaster; the `slug` below is the key I map it to). Paste blurbs in chat — I stage them into `blurbs.md` keyed by slug.
 
-- **Logo** / **Blurb**: ☐ = missing, ✅ = provided.
+- **Blurb**: ✅ = live in the DB (the app shows it), ☐ = missing. **Logo**: ✅ = a file staged in `logos/`, ☐ = none — still file-based, so a staged-but-unwired logo can read ✅ (see the generator docstring).
 - **★avg** = average rating across that roaster's rated coffees (— = none rated yet).
 - Sorted **incomplete first** (still missing a logo or blurb), then by **★avg descending** — so the top rows are the highest-rated coffees still needing content.
 
@@ -28,8 +28,8 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Concept Coffee Roasters | `concept-coffee-roasters` | Slovakia | 7 | 4.2 |
 | ✅ | ✅ | WatchHouse | `watchhouse` | United Kingdom | 3 | 4.2 |
 | ✅ | ✅ | Tim Wendelboe | `tim-wendelboe` | Norway | 8 | 4.1 |
-| ✅ | ✅ | La Cabra | `la-cabra` | Denmark | 1 | 4.1 |
 | ✅ | ✅ | Sprout Coffee Roasters | `sprout-coffee-roasters` | Netherlands | 1 | 4.1 |
+| ✅ | ✅ | La Cabra | `la-cabra` | Denmark | 1 | 4.1 |
 | ✅ | ✅ | Coffea Circulor | `coffea-circulor` | Norway | 6 | 4.1 |
 | ✅ | ✅ | Gardelli | `gardelli` | Italy | 91 | 4.1 |
 | ✅ | ✅ | Manhattan Coffee Roasters | `manhattan-coffee-roasters` | Netherlands | 17 | 4.1 |
@@ -37,22 +37,22 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Mabo | `mabo` | Romania | 50 | 4.0 |
 | ✅ | ✅ | Livingfoodlab | `livingfoodlab` | Indonesia | 2 | 4.0 |
 | ✅ | ✅ | BeBerry Coffee | `beberry-coffee` | Czech Republic | 1 | 4.0 |
-| ✅ | ✅ | Koppi | `koppi` | Sweden | 1 | 4.0 |
-| ✅ | ✅ | Sentido | `sentido` | Japan | 1 | 4.0 |
-| ✅ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 | 4.0 |
-| ✅ | ✅ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
-| ✅ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 | 4.0 |
 | ✅ | ✅ | FRUKT | `frukt` | Finland | 1 | 4.0 |
-| ✅ | ✅ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
+| ✅ | ✅ | Legendary Everyday | `legendary-everyday` | Netherlands | 1 | 4.0 |
+| ✅ | ✅ | Three Marks Coffee | `three-marks-coffee` | Spain | 1 | 4.0 |
+| ✅ | ✅ | Koppi | `koppi` | Sweden | 1 | 4.0 |
+| ✅ | ✅ | Coffeein | `coffeein` | Slovakia | 1 | 4.0 |
 | ✅ | ✅ | D-Origen | `d-origen` | Spain | 1 | 4.0 |
+| ✅ | ✅ | Felix Kaffee | `felix-kaffee` | Germany | 1 | 4.0 |
+| ✅ | ✅ | Sentido | `sentido` | Japan | 1 | 4.0 |
 | ✅ | ✅ | A.M.O.C | `a-m-o-c` | Netherlands | 5 | 4.0 |
 | ✅ | ✅ | Goriffee | `goriffee` | Slovakia | 2 | 4.0 |
 | ✅ | ✅ | Right Side | `right-side` | Spain | 2 | 4.0 |
 | ✅ | ✅ | Friedhats | `friedhats` | Netherlands | 6 | 3.9 |
 | ✅ | ✅ | ONYX | `onyx` | United States | 3 | 3.9 |
 | ✅ | ✅ | Kawa | `kawa` | France | 1 | 3.9 |
-| ✅ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ✅ | ✅ | Drop Coffee Roaster | `drop-coffee-roaster` | Sweden | 1 | 3.9 |
+| ✅ | ✅ | Mission Coffee Works | `mission-coffee-works` | United Kingdom | 1 | 3.9 |
 | ✅ | ✅ | The Barn | `the-barn` | Germany | 65 | 3.8 |
 | ✅ | ✅ | Public Coffee Roasters | `public-coffee-roasters` | Germany | 2 | 3.8 |
 | ✅ | ✅ | Uncommon | `uncommon` | Netherlands | 2 | 3.8 |
@@ -73,9 +73,9 @@ Tracks backlog **#132–#134**. Drop a logo as `logos/<slug>.png` (name the file
 | ✅ | ✅ | Elbgold | `elbgold` | Germany | 2 | 3.1 |
 | ✅ | ✅ | Origo | `origo` | Romania | 4 | 3.0 |
 | ✅ | ✅ | Father's Coffee Roastery | `father-s-coffee-roastery` | Czech Republic | 3 | — |
+| ✅ | ✅ | Spojka | `spojka` | Slovakia | 1 | — |
 | ✅ | ✅ | Dos Mundos | `dos-mundos` | Czech Republic | 1 | — |
 | ✅ | ✅ | 17g Coffee | `17g-coffee` | Switzerland | 1 | — |
-| ✅ | ✅ | Spojka | `spojka` | Slovakia | 1 | — |
 
 ## Seeded but unused — 0 coffees (46) — low priority / test fixtures
 
