@@ -44,8 +44,25 @@ extension CompactCoffeeDTO {
     /// Fields the compact shape doesn't carry (notes, raw text, images,
     /// `fxRate`) come back `nil` until `CoffeeDetailDTO.makeCoffee` enriches
     /// this same id via an on-demand detail fetch (PLAN.md §4).
-    func makeCoffee(profilesByID: [Int: Profile]) -> Coffee {
-        Coffee(
+    /// #178(b): FAILABLE, because `purchasedOn` is nullable server-side
+    /// (`008_coffees.sql:26`) while `Coffee.purchasedOn` is not — it feeds the
+    /// canonical sort order, the year facet and three Insights aggregations,
+    /// so widening it is a cross-lane change, filed as its own row rather than
+    /// half-done here.
+    ///
+    /// What changed is that the drop is now DELIBERATE AND COUNTED. Before,
+    /// such a row threw inside `CompactCoffeeDTO.init(from:)`, was swallowed by
+    /// `FailableDecodable`, and vanished — indistinguishable from a coffee that
+    /// was never added. It now decodes fine, is skipped here on purpose, and
+    /// lands in `SnapshotDecodeStats` so Settings can say "1 row dropped".
+    /// Zero of 414 live rows are affected today; the wizard's `quick-create`
+    /// path, whose photo may carry no `captured_at`, is how it would start.
+    func makeCoffee(profilesByID: [Int: Profile]) -> Coffee? {
+        guard let purchasedOn else {
+            SnapshotDecodeStats.shared.recordExtraDrop()
+            return nil
+        }
+        return Coffee(
             id: id,
             purchasedOn: purchasedOn,
             roasterId: roasterId,

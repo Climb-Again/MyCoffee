@@ -92,7 +92,9 @@ actor SyncEngine {
             brewOptionList: response.vocab.brewOptions.compactMap { BrewOption(dto: $0) }
         )
         for dto in response.coffees {
-            var coffee = dto.makeCoffee(profilesByID: profilesByID)
+            // #178(b): nil only for a row with no purchase date — skipped
+            // deliberately and counted, not silently lost.
+            guard var coffee = dto.makeCoffee(profilesByID: profilesByID) else { continue }
             if let pending = await outbox.pendingFavorite(for: dto.id) {
                 coffee = coffee.withFavorite(pending, setBy: "human")
             }

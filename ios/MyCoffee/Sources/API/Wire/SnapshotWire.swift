@@ -21,7 +21,15 @@ struct SnapshotResponseDTO: Decodable {
         vocab = try c.decode(VocabDTO.self, forKey: .vocab)
         // Lenient: skip any coffee row that fails to decode rather than losing
         // the whole list. One malformed row must never blank the app again.
-        coffees = try c.decode([FailableDecodable<CompactCoffeeDTO>].self, forKey: .coffees).compactMap(\.value)
+        //
+        // #178(b): but it must not be SILENT either. Skipping is the right
+        // trade; skipping without telling anyone means a coffee can vanish
+        // from the library and look exactly like a coffee that was never
+        // added. `SnapshotDecodeStats` records how many rows this dropped;
+        // `CoffeeStore.droppedRowCount` publishes it and Settings shows it.
+        let decoded = try c.decode([FailableDecodable<CompactCoffeeDTO>].self, forKey: .coffees)
+        coffees = decoded.compactMap(\.value)
+        SnapshotDecodeStats.shared.record(dropped: decoded.count - coffees.count)
         deleted = try c.decodeIfPresent([String].self, forKey: .deleted) ?? []
     }
 }
@@ -77,7 +85,16 @@ struct ProfileVocabDTO: Decodable {
 struct CompactCoffeeDTO: Decodable {
     let id: String
     let thumbUrl: String?
-    let purchasedOn: PlainDate
+    /// #178(b): OPTIONAL, because `coffees.purchased_on` is nullable in the DB
+    /// (008_coffees.sql:26) while this was the one required date in the DTO.
+    /// A coffee with no purchase date therefore threw here and was silently
+    /// dropped by `FailableDecodable` — a row that exists server-side and
+    /// simply never appears in the app, with nothing logged. Every live row
+    /// happens to have one today (checked: 0 of 414 null), so this is a latent
+    /// bug, not an active one — but the wizard's `quick-create` path can
+    /// produce a coffee whose photo has no `captured_at`, and that is exactly
+    /// how it would start biting.
+    let purchasedOn: PlainDate?
     let roasterId: Int?
     let roasterCountryId: Int?
     let originCountryIds: [Int]
@@ -114,7 +131,7 @@ struct CompactCoffeeDTO: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         thumbUrl = try container.decodeIfPresent(String.self, forKey: .thumbUrl)
-        purchasedOn = try container.decode(PlainDate.self, forKey: .purchasedOn)
+        purchasedOn = try container.decodeIfPresent(PlainDate.self, forKey: .purchasedOn)
         roasterId = try container.decodeIfPresent(Int.self, forKey: .roasterId)
         roasterCountryId = try container.decodeIfPresent(Int.self, forKey: .roasterCountryId)
         originCountryIds = try container.decodeIfPresent([Int].self, forKey: .originCountryIds) ?? []
@@ -137,5 +154,46 @@ struct CompactCoffeeDTO: Decodable {
         rotationQuarterTurns = try container.decodeIfPresent(Int.self, forKey: .rotationQuarterTurns)
         brewTried = try container.decodeIfPresent([Int].self, forKey: .brewTried)
         brewBest = try container.decodeIfPresent([Int].self, forKey: .brewBest)
+    }
+}
+
+
+/// #178(b): a tiny counter for rows `FailableDecodable` skipped on the last
+/// snapshot decode.
+///
+/// Deliberately a global rather than a return value: the decode happens inside
+/// `Decodable.init(from:)`, which has nowhere to put an out-parameter, and
+/// threading a context through every DTO to carry one diagnostic integer would
+/// be worse than this. Written once per decode on whatever actor the decode
+/// runs on and read on the main actor by `CoffeeStore.refresh()`, so it is a
+/// simple locked box rather than an actor.
+final class SnapshotDecodeStats: @unchecked Sendable {
+    static let shared = SnapshotDecodeStats()
+
+    private let lock = NSLock()
+    private var dropped = 0
+
+    private init() {}
+
+    func record(dropped count: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        dropped = count
+    }
+
+    /// A row that decoded fine but was skipped downstream — today only
+    /// `CompactCoffeeDTO.makeCoffee` returning nil for a null `purchasedOn`.
+    /// Added to the same total so Settings reports one number for "rows the
+    /// snapshot had that the library does not".
+    func recordExtraDrop() {
+        lock.lock()
+        defer { lock.unlock() }
+        dropped += 1
+    }
+
+    var droppedRowCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return dropped
     }
 }
