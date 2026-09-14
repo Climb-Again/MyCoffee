@@ -14,15 +14,22 @@ _none_
 
 ## Session notes
 
-- **2026-09-14 — #180 follow-up: fixed the compile red from run #129.**
-  `CachedImage`'s `@ViewBuilder var content: (Phase) -> Content` stored
-  property doesn't get `@ViewBuilder` carried onto the synthesized
-  memberwise initializer's parameter, so every multi-statement trailing
-  closure at the three #180 call sites (`switch phase { … }` /
-  `if case … else …`) failed with "generic parameter 'Content' could not be
-  inferred," and every push built on top of that commit (#209, #202)
-  inherited the same red. Added an explicit `init` with the closure
-  parameter marked `@ViewBuilder`. Landed `41d5180`.
+- **2026-09-14 — #180 follow-up: fixed the compile red from run #129
+  (two attempts, green on run #133).** `CachedImage`'s
+  `@ViewBuilder var content: (Phase) -> Content` stored property doesn't get
+  `@ViewBuilder` carried onto the synthesized memberwise initializer's
+  parameter, so every multi-statement trailing closure at the three #180
+  call sites (`switch phase { … }` / `if case … else …`) failed with
+  "generic parameter 'Content' could not be inferred," and every push built
+  on top of that commit (#209, #202) inherited the same red. First attempt
+  (`41d5180`) added an explicit `init` with the closure parameter marked
+  `@ViewBuilder` — run #132 still failed identically, because the deeper
+  cause was `Phase` being nested inside the generic `CachedImage<Content>`:
+  the closure parameter's type name depended on the very `Content` the
+  compiler was trying to infer from that closure's return type, a
+  circularity Swift couldn't resolve. Second attempt (`61520de`) hoisted
+  `Phase` out to a top-level, non-generic `CachedImagePhase` enum — green on
+  run #133 (https://github.com/Climb-Again/MyCoffee/actions/runs/34836406812).
 
 - **2026-09-14 — #203 roaster logo medallion permanently empty.**
   `RoasterLogoTile.loadMark()` was nonisolated, and every `mark` write
