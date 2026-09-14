@@ -6,13 +6,24 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-- [2026-09-14 11:15 UTC] #202 filter sheet: add `.priceBand` (+ the other band dimensions) to `unknownSelectableDimensions` so the Unknown-price pill is tappable — branch `ios-staging`
+_none_
 
 ## Abandoned
 
 _none_
 
 ## Session notes
+
+- **2026-09-14 — #202 filter sheet: make the Unknown-price pill tappable.**
+  `unknownSelectableDimensions` (`FilterSheetView.swift`) omitted `.priceBand`
+  — a stale allow-list from before #117 taught `CoffeeIndex.buildPostings` to
+  emit `.priceBand`/`.pricePer100gBand`/`.altitudeBand`/`.ratingBand`/`.valueBand`
+  → `.unknown` postings for missing fields — so `isTappable(.unknown)` always
+  returned false for the price pill and its toggle never fired. Added all
+  five band dimensions to the set and rewrote the now-inaccurate comment
+  above it. Verified against the live snapshot (243/414 coffees have no
+  `priceEur`) that the pill has a non-zero count to show. Landed `bc2f654`.
+  No shell seam.
 
 - **2026-09-14 — #209 restore the `profileDetail` bracket.** Re-files #110's
   ios-ux half (the original spin-off, #138, was silently overwritten by a
