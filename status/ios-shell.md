@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_ — #176, #177, #204 claimed and completed this session (2026-09-14); #178 left `ready` (see session notes).
+_none_
 
 ## Abandoned
 
@@ -15,7 +15,9 @@ _none_
 ## Session notes
 
 - **2026-09-14 — #176(a)(b, partial)(c)(d), #177, #204 done this session;
-  #178 left `ready`.**
+  #178 left `ready`. Compile-checked green: `ios-staging@b6d39b5`,
+  run #128 (https://github.com/Climb-Again/MyCoffee/actions/runs/34806170310),
+  succeeded.**
 
   **#176 main-thread/rebuild hygiene:**
   **(a)** `SyncEngine.init` no longer calls `PersistedSnapshot.load()`
