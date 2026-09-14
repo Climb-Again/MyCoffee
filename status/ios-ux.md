@@ -6,7 +6,7 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+- [2026-09-14 11:05 UTC] #209 restore the `profileDetail` bracket on `CoffeeDetailView`'s process pill — branch `ios-staging`
 
 ## Abandoned
 
