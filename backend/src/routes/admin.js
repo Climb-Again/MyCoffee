@@ -124,6 +124,45 @@ export default async function adminRoutes(app) {
     }
   });
 
+  // #222: read the tail of the vocab_observations table (#198). Everything
+  // the extension has proposed — roaster names, blurbs, logos, country hints —
+  // with `applied` telling you whether the server actually took it (usually
+  // false when the field was already populated). Useful to answer "did my
+  // browse just teach the server anything?" without shelling into psql.
+  app.get('/api/admin/vocab-observations', { preHandler: requireIngestToken }, async (req) => {
+    const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50)));
+    const kindFilter = typeof req.query?.kind === 'string' ? req.query.kind : null;
+    const { rows } = await query(
+      kindFilter
+        ? `SELECT id, kind, target_id, source_url, extracted_value, applied, observed_at
+             FROM vocab_observations WHERE kind = $1
+             ORDER BY observed_at DESC LIMIT $2`
+        : `SELECT id, kind, target_id, source_url, extracted_value, applied, observed_at
+             FROM vocab_observations
+             ORDER BY observed_at DESC LIMIT $1`,
+      kindFilter ? [kindFilter, limit] : [limit],
+    );
+    // A truncated preview keeps blurbs from filling the terminal — the full
+    // value lives in the DB and this endpoint is a peek, not an export.
+    const previewLen = 200;
+    return {
+      observations: rows.map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        targetId: r.target_id,
+        sourceUrl: r.source_url,
+        applied: r.applied,
+        observedAt: r.observed_at,
+        preview:
+          r.extracted_value == null
+            ? null
+            : r.extracted_value.length > previewLen
+              ? `${r.extracted_value.slice(0, previewLen)}…`
+              : r.extracted_value,
+      })),
+    };
+  });
+
   app.get('/api/admin/jobs', { preHandler: requireIngestToken }, async (req, reply) => {
     const id = req.query?.id != null ? parseJobId(req.query.id) : null;
     if (req.query?.id != null && id == null) return reply.code(400).send({ error: 'invalid_job_id' });
