@@ -99,8 +99,12 @@ struct SettingsSheet: View {
     }
 
     private func refreshStatus() async {
+        guard let client = await store.makeAPIClient() else {
+            isHealthy = false
+            statusText = "Offline"
+            return
+        }
         do {
-            let client = try APIClient(config: config)
             let status = try await client.status()
             isHealthy = status.db
             statusText = status.db ? "Connected · DB healthy" : "Connected · DB unavailable"
@@ -113,8 +117,11 @@ struct SettingsSheet: View {
     private func refreshWhatsNewBadge() async {
         // Non-blocking: a fetch failure leaves the badge at 0, which is honest
         // (we don't know how many are new) rather than showing a stale count.
+        guard let client = await store.makeAPIClient() else {
+            whatsnewLive = []
+            return
+        }
         do {
-            let client = try APIClient(config: config)
             whatsnewLive = try await client.whatsNew().live
         } catch {
             whatsnewLive = []

@@ -48,6 +48,7 @@ struct WhatsNewView: View {
     }
 
     @EnvironmentObject private var config: AppConfig
+    @EnvironmentObject private var store: CoffeeStore
     @ObservedObject private var seenStore = WhatsNewSeenStore.shared
     @State private var segment: Segment = .live
     @State private var seenFilter: SeenFilter = .all
@@ -145,8 +146,12 @@ struct WhatsNewView: View {
     private func load() async {
         isLoading = true
         loadError = nil
+        guard let client = await store.makeAPIClient() else {
+            loadError = "Couldn't connect"
+            isLoading = false
+            return
+        }
         do {
-            let client = try APIClient(config: config)
             response = try await client.whatsNew()
         } catch {
             loadError = error.localizedDescription

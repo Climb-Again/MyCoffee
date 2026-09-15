@@ -153,4 +153,7 @@ enum Symbols {
     // failed, so a transient fetch/decode error doesn't leave a permanent
     // empty tile with no visual distinction from "still loading".
     static let roasterMarkFallback = "storefront"
+
+    // #153: roaster page nudge when its own blurb/logo is missing.
+    static let roasterMissingContent = "text.badge.plus"
 }

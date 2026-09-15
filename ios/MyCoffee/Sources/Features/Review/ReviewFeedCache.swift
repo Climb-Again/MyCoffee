@@ -37,22 +37,26 @@ final class ReviewFeedCache: ObservableObject {
 
     /// Fetches once; a later screen that also calls this is free until
     /// `refresh()` is asked for explicitly.
-    func ensureLoaded() async {
+    func ensureLoaded(store: CoffeeStore) async {
         guard reviewableCoffeeIds == nil else { return }
-        await refresh()
+        await refresh(store: store)
     }
 
     /// Re-fetches `GET /api/review` and replaces the cached set. Call after an
     /// accept/dismiss flow finishes so a coffee whose last actionable item was
     /// just resolved stops showing the Review affordance right away.
-    func refresh() async {
+    ///
+    /// #212: takes the store rather than building its own `APIClient`, so
+    /// this singleton goes through the one shell entry point
+    /// (`CoffeeStore.makeAPIClient()`) like every other call site.
+    func refresh(store: CoffeeStore) async {
         if let inFlight {
             await inFlight.value
             return
         }
         let task = Task { [weak self] in
             guard let self else { return }
-            guard let client = try? await APIClient(config: AppConfig.shared) else { return }
+            guard let client = await store.makeAPIClient() else { return }
             guard let feed = try? await client.reviewFeed() else { return }
             self.adopt(feed)
         }

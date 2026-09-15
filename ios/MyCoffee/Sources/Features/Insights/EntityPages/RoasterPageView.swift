@@ -30,6 +30,22 @@ struct RoasterPageView: View {
         return RoasterBlurbParser.parse(blurb)
     }
 
+    /// #153(a) — detection half of "notify me in the app to upload text +
+    /// logo for any roaster that has none." The editor half (submitting an
+    /// edit) needs a shell-owned API surface that doesn't exist yet, so this
+    /// session ships the passive nudge only — the row's own recommended
+    /// first cut.
+    private var missingContentDescription: String? {
+        let noBlurb = parsedBlurb == nil
+        let noLogo = roaster?.logoUrl == nil
+        switch (noBlurb, noLogo) {
+        case (true, true): return "a logo and a blurb"
+        case (true, false): return "a blurb"
+        case (false, true): return "a logo"
+        case (false, false): return nil
+        }
+    }
+
     var body: some View {
         List {
             Section {
@@ -51,6 +67,25 @@ struct RoasterPageView: View {
                 )
             }
             .listRowSeparator(.hidden)
+
+            if let missingContentDescription {
+                Section {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: Symbols.roasterMissingContent)
+                            .foregroundStyle(Theme.Colors.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("This page is missing \(missingContentDescription)")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("Flagged for Radu — an in-app editor is on the way.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+                .listRowSeparator(.hidden)
+            }
 
             // #134/#148: the roaster blurb, markdown stripped, shown only
             // when there is one (an empty box is worse than nothing).

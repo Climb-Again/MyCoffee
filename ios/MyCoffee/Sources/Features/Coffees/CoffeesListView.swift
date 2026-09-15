@@ -169,7 +169,7 @@ struct CoffeesListView: View {
                 // #151 needs the per-coffee reviewable set to scope the nudge
                 // to the filtered subset. Fails open: until this resolves,
                 // `visibleReviewCount` is the library-wide count as before.
-                await reviewCache.ensureLoaded()
+                await reviewCache.ensureLoaded(store: store)
             }
             // #191: clamps to a readable column on iPad landscape/wide
             // multitasking — a no-op on iPhone. Carries the surface

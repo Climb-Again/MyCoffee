@@ -113,7 +113,7 @@ struct RootTabView: View {
             await store.refreshReviewCount()
         }
         .task {
-            await reviewCache.ensureLoaded()
+            await reviewCache.ensureLoaded(store: store)
         }
         .sheet(isPresented: $showAddCoffeeWizard) {
             AddCoffeeWizardView()

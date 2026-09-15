@@ -6,6 +6,62 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
+**#217 — done. Shop tab: false "IN YOUR LIBRARY", missing freshness/process, price
+rounding (Radu screenshot, 2026-09-15).** `Features/Shop/ShopTabView.swift`. (a) The
+tag was matching a shortlisted roaster's name against the FULL canonical roaster
+vocabulary (`store.index.vocabulary.roasters`, every roaster the extraction
+pipeline has ever seen) instead of roasters actually in Radu's library — so any
+shortlisted bag from a roaster he'd never bought from still lit up. Fixed by
+matching against `ownedRoasterNames`, built once per list render from
+`store.index.coffees.compactMap(\.roasterId)`. **This is a proxy, not the exact
+fix the row asked for** — the row wanted `ownedTitle`/`match?.rawTitle`
+(coffee-level, exact) gated with a `publicId` check, but that field isn't decoded
+on `ShortlistEntry` at all (confirmed against `extension/history.js`'s
+`entryFromScore`, which does write it into the `/api/history` payload — it's a
+missing decode, not a missing wire field). Filed **#220** (`ios-shell`) to add
+`ownedTitle`/`profileId` to `Models/Shortlist.swift`; once that lands, swap the
+roaster-level proxy for the exact per-bag check. (b) Freshness line ("roasted Nd
+ago · seen Nh ago", colour-coded) built from fields already decoded today
+(`roastedOn` via `PlainDate`, `savedDate`) — mirrors `extension/history.js`'s
+`roastLabel`/`relativeTime` arithmetic, with a 3-tier green/orange/red bucket
+(14d/60d breakpoints, matching the extension's `ROAST_GREEN_DAYS`/`ROAST_RED_DAYS`)
+in place of its continuous hue ramp. Process (the other missing field in "origin ·
+process") also needs #220's `profileId` — not shown yet. (c) €/100g format string
+`%.1f` → `%.2f`, matching the extension's 2-decimal display. **Not verified against
+Radu's exact 3 screenshotted rows** — no device/simulator in this session,
+compile-check is the only signal available (see #212 below for that run).
+
+**#212 — done. Migrated the six UX-owned `APIClient(config:)` sites onto
+`CoffeeStore.makeAPIClient()`.** `SettingsSheet.swift` (×2), `CoffeeReviewSheet.swift`,
+`ReviewQueueView.swift`, `WhatsNewView.swift` — straightforward `guard let client =
+await store.makeAPIClient() else { …fail path… }` in place of `try APIClient(config:)`.
+`ReviewFeedCache.swift` needed a small signature change instead of a drop-in swap:
+it's a bare singleton (`ReviewFeedCache.shared`), not a View, so it has no
+`CoffeeStore` of its own to call `makeAPIClient()` on. `ensureLoaded()`/`refresh()`
+now take a `store: CoffeeStore` parameter, threaded through from the four UX-owned
+call sites that already had one in scope (`CoffeesListView`, `CoffeeDetailView` ×2,
+`RootTabView`). `WhatsNewSeenStore.swift`'s two `APIClient(config:)` sites were left
+alone — not in the row's enumerated list, and (like `ConnectView`) worth a fresh
+look rather than folding in silently. Compile-check: pending on this push (no Xcode
+in this session — check the `ios-staging` push-triggered run before trusting green).
+
+**#153(a) — passive detection nudge for roasters missing content shipped; editor
+still blocked.** `Features/Insights/EntityPages/RoasterPageView.swift`: when a
+roaster's own `blurb`/`logoUrl` is missing, the page now shows "This page is
+missing a logo/blurb — flagged for Radu — an in-app editor is on the way." Built
+entirely from data already on the synced `Roaster` (no shell change needed) —
+same reasoning #135 used to read `CoffeeIndex`'s internal surface directly rather
+than asking shell for a helper. **Did not build (b), the in-app editor** — that
+needs a shell-owned write surface (`APIClient` methods for #152's `PATCH
+/api/roasters/:slug` and `PUT /api/roasters/:slug/logo`, plus a `CoffeeStore`
+passthrough) that doesn't exist yet; building the editor sheet against nothing to
+call would be a half-finished feature. Filed **#219** (`ios-shell`) for that
+surface and set #153 to `blocked` on it rather than `ready`, per the #125
+precedent (never leave a cross-lane-blocked row silently `ready`). Also left
+open, per the row itself: Radu's "notify me in the app" scope decision (passive
+banner — shipped — vs a real local-notification/BGTask nudge) — a product call,
+not something this session picked silently.
+
 **#215 — fav/share/edit unreachable on iPad (Radu, 2026-09-15, "do 215 now").**
 Moved the three controls out of a hero overlay into a
 `ToolbarItemGroup(.topBarTrailing)`. The overlay's 44pt hit boxes sat at screen

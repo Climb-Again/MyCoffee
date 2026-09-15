@@ -60,8 +60,16 @@ struct ShopTabView: View {
             .padding(.horizontal, 22)
             .padding(.top, 8)
         } else {
+            // #217(a): roasters actually in the library, not the whole
+            // canonical vocabulary — see `ShortlistRow.isOwnedRoaster`.
+            // Computed once per list build rather than per row.
+            let ownedRoasterNames = Set(
+                store.index.coffees.compactMap { coffee in
+                    coffee.roasterId.flatMap { store.index.vocabulary.roasters[$0]?.name.lowercased() }
+                }
+            )
             List(store.shortlist) { entry in
-                ShortlistRow(entry: entry)
+                ShortlistRow(entry: entry, ownedRoasterNames: ownedRoasterNames)
                     .plainListRow()
             }
             .listStyle(.plain)
@@ -76,15 +84,77 @@ struct ShopTabView: View {
 /// that is the number this surface knows — the library shows what he rated it,
 /// this shows how well it fits.
 private struct ShortlistRow: View {
-    @EnvironmentObject private var store: CoffeeStore
     let entry: ShortlistEntry
+    /// Roaster names (lowercased) with at least one bag in the library —
+    /// computed once for the whole list by `ShopTabView`, not per row.
+    let ownedRoasterNames: Set<String>
 
     /// "IN YOUR LIBRARY" — the single most useful thing a shortlist row can
-    /// say. Matched on roaster name against the same vocab the extension
-    /// matches against, so the two agree.
+    /// say. #217(a): used to match against the FULL canonical roaster
+    /// vocabulary (every roaster the extraction pipeline knows about, not
+    /// just Radu's own), so a shortlisted bag from a roaster he has never
+    /// bought from still lit up the tag. `ownedRoasterNames` is scoped to
+    /// roasters that actually appear in his library, matching what the
+    /// extension itself would call owned in spirit — the precise per-bag
+    /// `ownedTitle` match the extension uses isn't in the synced payload yet
+    /// (see #219), so roaster-level is the closest available proxy.
     private var isOwnedRoaster: Bool {
         guard let roaster = entry.roasterName?.lowercased(), !roaster.isEmpty else { return false }
-        return store.index.vocabulary.roasters.values.contains { $0.name.lowercased() == roaster }
+        return ownedRoasterNames.contains(roaster)
+    }
+
+    /// #217(b): mirrors the extension's own day-since-roast bucket
+    /// (`extension/history.js` `roastLabel`), computed from the same
+    /// `roastedOn` date already synced onto the entry.
+    private var roastDaysAgo: Int? {
+        guard let roastedOn = entry.roastedOn, let date = PlainDate(string: roastedOn) else { return nil }
+        return Calendar.utc.dateComponents([.day], from: date.utcMidnight, to: Date()).day
+    }
+
+    private var roastLabel: String? {
+        guard let days = roastDaysAgo else { return nil }
+        if days <= 0 { return "roasted today" }
+        if days < 70 { return "roasted \(days)d ago" }
+        return "roasted ~\(Int((Double(days) / 30).rounded()))mo ago"
+    }
+
+    /// Three-tier bucket rather than the extension's continuous hue ramp — a
+    /// list row doesn't carry the same "why did this lose points" burden the
+    /// popup chip does. Breakpoints (14/60 days) match
+    /// `ROAST_GREEN_DAYS`/`ROAST_RED_DAYS` in `extension/history.js`.
+    private var roastLabelColor: Color? {
+        guard let days = roastDaysAgo else { return nil }
+        switch days {
+        case ..<14: return .green
+        case 14..<60: return .orange
+        default: return .red
+        }
+    }
+
+    /// #217(b): "seen Nh ago" — mirrors `relativeTime` in
+    /// `extension/history.js` (floor at the minute, round above it).
+    private var seenLabel: String? {
+        guard let savedDate = entry.savedDate else { return nil }
+        let mins = max(0, Int(Date().timeIntervalSince(savedDate) / 60))
+        if mins < 1 { return "seen just now" }
+        if mins < 60 { return "seen \(mins)m ago" }
+        let hours = Int((Double(mins) / 60).rounded())
+        if hours < 24 { return "seen \(hours)h ago" }
+        let days = Int((Double(hours) / 24).rounded())
+        return days == 1 ? "seen yesterday" : "seen \(days)d ago"
+    }
+
+    /// Two independently-coloured segments concatenated via `Text +`, so the
+    /// roast half can carry `roastLabelColor` without tinting "seen" too.
+    private var freshnessLine: Text? {
+        let roast = roastLabel.map { Text($0).foregroundColor(roastLabelColor ?? Theme.Colors.neutral700) }
+        let seen = seenLabel.map { Text($0).foregroundColor(Theme.Colors.neutral700) }
+        switch (roast, seen) {
+        case (let r?, let s?): return r + Text(" · ").foregroundColor(Theme.Colors.neutral700) + s
+        case (let r?, nil): return r
+        case (nil, let s?): return s
+        case (nil, nil): return nil
+        }
     }
 
     var body: some View {
@@ -116,6 +186,10 @@ private struct ShortlistRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if let freshnessLine {
+                    freshnessLine
+                        .font(.caption2)
+                }
                 if isOwnedRoaster {
                     Text("IN YOUR LIBRARY")
                         .font(.caption2.weight(.bold))
@@ -137,7 +211,9 @@ private struct ShortlistRow: View {
                         .foregroundStyle(Theme.Colors.accent)
                 }
                 if let per100 = entry.pricePer100gEur {
-                    Text(String(format: "€%.1f/100g", per100))
+                    // #217(c): match the extension's 2-decimal, no-space
+                    // format ("€7.56/100g") — the app was rounding to 1.
+                    Text(String(format: "€%.2f/100g", per100))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

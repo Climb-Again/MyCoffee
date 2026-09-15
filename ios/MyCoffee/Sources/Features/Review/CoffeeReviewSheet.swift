@@ -55,8 +55,12 @@ struct CoffeeReviewSheet: View {
     private func load() async {
         isLoading = engine.isEmpty
         loadError = nil
+        guard let client = await store.makeAPIClient() else {
+            loadError = "Couldn't connect"
+            isLoading = false
+            return
+        }
         do {
-            let client = try await APIClient(config: AppConfig.shared)
             let feed = try await client.reviewFeed()
             ReviewFeedCache.shared.adopt(feed)
             let tasks = feed.items

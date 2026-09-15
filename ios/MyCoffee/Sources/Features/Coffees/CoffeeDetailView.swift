@@ -45,7 +45,7 @@ struct CoffeeDetailView: View {
             await store.loadDetail(for: initialCoffee)
         }
         .task {
-            await reviewCache.ensureLoaded()
+            await reviewCache.ensureLoaded(store: store)
         }
         // #215: favourite/share/edit are TOOLBAR ITEMS, not overlays on the
         // photo. They were overlays (`HEADER_UPDATE.md` §1) and that made them
@@ -102,7 +102,7 @@ struct CoffeeDetailView: View {
         .sheet(isPresented: $showReview) {
             CoffeeReviewSheet(coffeeId: coffee.id) {
                 Task {
-                    await reviewCache.refresh()
+                    await reviewCache.refresh(store: store)
                     await store.loadDetail(for: initialCoffee)
                 }
             }
