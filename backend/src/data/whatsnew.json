@@ -140,6 +140,14 @@
         {
           "title": "Move the six UX-owned APIClient(config:) constructions onto #178(e)'s CoffeeStore.makeAPIClient()",
           "detail": "Queued."
+        },
+        {
+          "title": "Favourite / share / edit on the coffee page are unreachable on iPad and barely tappable on iPhone — the…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Roaster logos still render nothing on the coffee page — and the entire server side is now ruled out, so the…",
+          "detail": "Queued."
         }
       ]
     },
