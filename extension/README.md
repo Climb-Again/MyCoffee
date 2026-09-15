@@ -50,8 +50,10 @@ executed. MV3 forbids remote code and this respects that: the only thing that
 changes the extension's behaviour is a file `git pull` put on disk.
 
 **Options → Updates** shows the state. If it says a version is available but
-reloading isn't picking it up, the `git pull` half isn't running — check
-`launchctl list | grep mycoffee` and `~/Library/Logs/mycoffee-extension-update.log`.
+reloading isn't picking it up:
+
+1. **Check the `git pull` half is running.** `grep version <clone>/extension/manifest.json` — if that's not the version Options claims is available, the clone is stale. `cd <clone> && git pull --rebase` should catch it up; then verify `launchctl list | grep mycoffee` returns a row and `~/Library/Logs/mycoffee-extension-update.log` shows recent activity.
+2. **Chrome refused the reload.** MV3 unpacked extensions occasionally ignore `chrome.runtime.reload()` and sit on the old manifest even after `git pull` lands. The fix: on `chrome://extensions`, toggle the MyCoffee card's blue switch OFF then ON — that forces a full re-init, not just a soft reload. If that still doesn't take it, `⌘Q` Chrome entirely and relaunch. **Do not** Remove + Load Unpacked as a first move — that clears `chrome.storage.local` (tokens, pre-#194 shortlist) and each browser gets a new install ID, so the sync only recovers what the server already has.
 
 To undo:
 
