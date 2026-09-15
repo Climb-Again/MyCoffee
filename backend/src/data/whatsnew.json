@@ -138,10 +138,6 @@
           "detail": "Queued behind earlier work."
         },
         {
-          "title": "Widen Coffee.purchasedOn to optional — the half of #178(b) that is a cross-lane change",
-          "detail": "Queued."
-        },
-        {
           "title": "Move the six UX-owned APIClient(config:) constructions onto #178(e)'s CoffeeStore.makeAPIClient()",
           "detail": "Queued."
         }
