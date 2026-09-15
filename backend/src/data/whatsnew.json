@@ -131,22 +131,14 @@
         },
         {
           "title": "In-app nudge + editor to add a missing roaster logo/blurb (the feature Radu asked for)",
-          "detail": "Queued."
+          "detail": "Queued behind earlier work."
         },
         {
           "title": "Push notification when a new roaster lands with no logo/blurb (Radu wants a real push, not just the in-app…",
           "detail": "Queued behind earlier work."
         },
         {
-          "title": "Move the six UX-owned APIClient(config:) constructions onto #178(e)'s CoffeeStore.makeAPIClient()",
-          "detail": "Queued."
-        },
-        {
           "title": "⚠⚠⚠ 2026-09-15 — PROVEN FROM SCREENSHOTS. logoUrl is nil on device while blurb on the SAME object is not.…",
-          "detail": "Queued."
-        },
-        {
-          "title": "Shop tab: false 'IN YOUR LIBRARY' on every row + missing details vs the extension popup (Radu, 2026-09-15,…",
           "detail": "Queued."
         },
         {
