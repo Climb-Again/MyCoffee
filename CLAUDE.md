@@ -218,8 +218,8 @@ log. MyHealthOS fires at 09:00, so no MyCoffee routine shares its hour.
 | Ingest drain (extract + OCR, merged) | `13 8 * * *` | daily |
 | Backend lane | `23 7 * * 1,3,5` | Mon/Wed/Fri — **raised from Mon + Thu on 2026-09-09 (Radu, #183)** while >5 backend rows are `ready`; revert to `23 7 * * 1,4` when the queue is under 5 |
 | Data extract + validate lane | `37 1 * * 1` | Mon |
-| iOS shell lane | `17 4 * * 1,3,5` | Mon/Wed/Fri |
-| iOS UX lane | `47 10 * * 1,3,5` | Mon/Wed/Fri |
+| iOS shell lane | `17 4 * * 1,2,3,4,5,6` | Mon–Sat — **raised from Mon/Wed/Fri 2026-09-11** (see the lane→publish window below); drop back to `1,3,5` when fewer than 5 rows are `ready` |
+| iOS UX lane | `47 10 * * 1,2,3,4,5,6` | Mon–Sat — same raise, same revert condition |
 | Publish lane | `0 15 * * 4,0` | Thu + Sun (15:00, **not** 20:00 — corrected 2026-09-11) |
 | Roaster logo intake sweep | `0 8 * * 2,5` | Tue + Fri — **paused by Radu 2026-09-08** (content intake for #133; re-enable when new logos land) |
 | Stranded-branch check (GitHub Actions, not a CCR routine) | `41 5 * * *` | daily — `status/check-stranded.sh` |

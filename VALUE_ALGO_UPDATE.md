@@ -1,6 +1,7 @@
 # Value algorithm — proposal (#218)
 
-**Status: proposal, awaiting Radu.** Nothing is implemented. Trigger: Radu,
+**Status: APPROVED 2026-09-15 — floor at 4.5 (Radu: "floor 4.5"). Ready to build;
+see §8 for scope.** Trigger: Radu,
 2026-09-15, on a shipped row — *"Anything 4.6 or higher cannot be poor value.
 Let's update algo so it's not linear."* The screenshot: SPOJKA Colombia, **4.7 ★,
 22,53 € / 11,26 € per 100 g → POOR VALUE**.
@@ -63,7 +64,7 @@ right to be expensive by being excellent.
 w(rating) = 0.65 + 0.30 · clamp((rating − 4.5) / 0.5, 0, 1)
 cheapPct  = max(cheapPct, 0.05)                    // cause 2, cheap insurance
 score     = ratingPct^w · cheapPct^(1 − w)
-band      = max(quintile(score), rating ≥ 4.6 ? 3 : 1)   // Radu's rule, as an invariant
+band      = max(quintile(score), rating ≥ 4.5 ? 3 : 1)   // Radu's rule, as an invariant
 ```
 
 | rating | w (rating weight) | price weight |
@@ -80,9 +81,15 @@ already treats a rating as special (the `4.5+ ★` filter card, the accent-colou
 rating). It keeps the geometric mean, so "both must be decent" still holds and a
 cheap mediocre bag still cannot buy its way to GREAT.
 
-The floor is Radu's rule stated as an invariant rather than a hope. On today's
-data **it never fires** — the curve alone already lifts all 15 high-rated rows
-out of POOR. It exists so the rule cannot break on next month's corpus.
+The floor is Radu's rule stated as an invariant rather than a hope. At **4.5**
+(his call, 2026-09-15 — the proposal defaulted to the 4.6 he first named) it
+shares its anchor with the curve's knee, so one number governs both: from 4.5
+upward the price weight starts fading *and* the verdict cannot fall below FAIR.
+
+It fires on **two** rows today, both rated exactly 4.5 — see §7. Above 4.5 it is
+inert: the curve alone already lifts all 15 coffees rated ≥ 4.6 out of POOR, so
+for Radu's original sentence the floor is pure insurance against a future
+corpus.
 
 ## 5. Measured effect — every coffee rated ≥ 4.6
 
@@ -110,43 +117,56 @@ excellence buys immunity from *POOR*, not a free pass.
 
 ## 6. The cost, stated plainly
 
-**27 of 106 rows change band: 10 up, 17 down.** The demotions are not a bug in
+**27 of 106 rows change band: 11 up, 16 down.** The demotions are not a bug in
 the proposal — they are the quota (cause 3) doing its job. Bands are a fixed
-20 % each, so ten promotions must push seventeen rows down to pay for them. The
-demoted rows are the mid-table: mostly 3.8–4.2 coffees dropping one band.
+20 % each, so the promotions must push other rows down to pay for them. The
+demoted rows are the mid-table: mostly 3.8–4.2 coffees dropping one band. Because
+the floor lifts two rows without displacing anyone, the bands no longer come out
+exactly 20 % each — 20 / 19 / 24 / 21 / 22 rather than 21 / 21 / 21 / 21 / 22.
 
-One demotion is worth Radu's attention: **4.5 ★ @ 10.03 €/100 g goes FAIR →
-POOR.** It sits one tenth of a point below the line he drew, so the floor does
-not protect it.
+## 7. Decided — the floor sits at 4.5 (Radu, 2026-09-15)
 
-## 7. Open question for Radu — one only
+The proposal asked 4.6-as-stated vs 4.5, and defaulted to 4.6. Radu chose **4.5**,
+and the data says he was right: at 4.6 the floor leaves **two** rows stranded,
+not the one §6 originally flagged.
 
-**Where does the floor sit: 4.6 as stated, or 4.5?**
-Default if he says nothing: **4.6**, exactly as he wrote it. Moving it to 4.5
-costs nothing structurally and rescues the one row above; his sentence named
-4.6, so that is what this proposes.
+| rating | €/100g | curve alone | floor 4.6 | floor 4.5 |
+|---|---|---|---|---|
+| 4.5 | 10.03 | POOR | POOR | **FAIR** |
+| 4.5 | 20.00 | OVERPAID | OVERPAID | **FAIR** |
 
-Not proposed, deliberately, and flagged only so the decision is on record:
-**removing the quintile quota** (cause 3 — absolute score thresholds instead of
-a forced 20 % per band, so "everything I own is good value" becomes expressible).
-It is the deepest of the three causes, it changes what the meter *means* rather
-than how it ranks, and it should not ride along with a fix Radu asked for
-narrowly. File it separately if the demotions in §6 annoy him.
+The second row is the one that settles it. A **4.5 ★ at 20 €/100 g reading
+OVERPAID while a 4.6 ★ at 25 €/100 g reads FAIR** is a one-tenth-of-a-star cliff
+across a 5 €/100 g price gap — indefensible on sight, and exactly the class of
+result that produced the original complaint. At 4.5 the floor and the curve's
+knee share one anchor and that cliff does not exist.
+
+After the change: **0 coffees rated ≥ 4.5 read POOR or OVERPAID** (today: 8).
+
+Still not proposed, and flagged only so the decision is on record: **removing the
+quintile quota** (cause 3 — absolute score thresholds instead of a forced 20 %
+per band, so "everything I own is good value" becomes expressible). It is the
+deepest of the three causes, it changes what the meter *means* rather than how it
+ranks, and it should not ride along with a fix Radu asked for narrowly. File it
+separately if the demotions in §6 annoy him.
 
 ## 8. Scope when approved
 
 - **One file, one lane:** `ios/MyCoffee/Sources/Store/CoffeeIndex.swift` —
   `cheapForQualityScore` plus the two call sites that already share it (`init`'s
   precompute and `valueBand(for:)`'s fallback). **ios-shell** owns `Store/**`.
-- **`.value` sort must follow.** `coffees(matching:sortedBy:)` orders by
-  `valueScoreByRow`, the raw score. Once the floor can lift a band above its
-  score's quintile, the list order and the printed verdict can disagree — sort
-  by `(band, score)` so they cannot.
+- **`.value` sort must follow — this is now load-bearing, not theoretical.**
+  `coffees(matching:sortedBy:)` orders by `valueScoreByRow`, the raw score. The
+  4.5 floor *does* fire (§7), so two rows would sort among the OVERPAID/POOR tail
+  while printing FAIR. Sort by `(band, score)` so order and verdict cannot
+  disagree.
 - **No UI change.** #186's depth ramp, the five labels, the pill geometry and
   the `pillCount == band.rawValue` invariant all stand untouched.
 - **Not in scope: `backend/src/lib/scoring.js`.** The extension scores *unowned*
   shop coffees, where there is no rating to weight — it predicts affinity and
   compares it to the mean of the price band. Different problem, deliberately
   different model; this change does not apply to it and must not be copied there.
-- **Tests:** the five rows in §5 make natural fixtures, with the 5.0 @ 11.46 and
-  the 4.8 @ 25.00 as the two that pin the intent.
+- **Tests:** the rows in §5 make natural fixtures, with the 5.0 @ 11.46 and the
+  4.8 @ 25.00 pinning the curve's intent, and **§7's 4.5 @ 20.00 pinning the
+  floor** — it is the one row whose verdict comes from the floor rather than the
+  score, so it is the only test that fails if the floor is dropped or set at 4.6.
