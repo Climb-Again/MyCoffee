@@ -24,7 +24,11 @@ struct CoffeeImageURLs: Codable, Hashable, Sendable {
 struct Coffee: Identifiable, Codable, Hashable, Sendable {
     private(set) var id: String                          // public id, not the DB serial
 
-    private(set) var purchasedOn: PlainDate
+    /// Optional (#211): nullable server-side (`008_coffees.sql:26`). Widened
+    /// from non-optional so `CompactCoffeeDTO.makeCoffee` no longer has to
+    /// drop the whole coffee to satisfy this one field (#178(b)) — see that
+    /// function's history for what the old failable path cost.
+    private(set) var purchasedOn: PlainDate?
 
     // Optional: a coffee exists before its roaster is resolved/confirmed, so the
     // compact snapshot legitimately sends `roasterId: null`. Decoding it as a
@@ -104,8 +108,8 @@ struct Coffee: Identifiable, Codable, Hashable, Sendable {
     var triedBrewOptionIds: [Int] { brewTriedIds ?? [] }
     var bestBrewOptionIds: [Int] { brewBestIds ?? [] }
 
-    var purchasedYear: Int { purchasedOn.year }
-    var purchasedMonth: Int { purchasedOn.month }
+    var purchasedYear: Int? { purchasedOn?.year }
+    var purchasedMonth: Int? { purchasedOn?.month }
 
     var altitudeMidM: Int? {
         switch (altitudeMinM, altitudeMaxM) {

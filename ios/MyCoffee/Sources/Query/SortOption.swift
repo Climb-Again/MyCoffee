@@ -20,7 +20,7 @@ enum SortOption: CaseIterable, Hashable, Sendable {
     func isOrderedBefore(_ lhs: Coffee, _ rhs: Coffee) -> Bool {
         switch self {
         case .dateBought:
-            return rhs.purchasedOn < lhs.purchasedOn
+            return orderedByOptional(lhs.purchasedOn, rhs.purchasedOn)
         case .rating:
             return orderedByOptional(lhs.rating, rhs.rating)
         case .price:
@@ -30,11 +30,11 @@ enum SortOption: CaseIterable, Hashable, Sendable {
         case .value:
             // No index in scope — fall back to the default listing order so a
             // stray caller still gets a stable, sensible sequence.
-            return rhs.purchasedOn < lhs.purchasedOn
+            return orderedByOptional(lhs.purchasedOn, rhs.purchasedOn)
         }
     }
 
-    private func orderedByOptional(_ lhs: Double?, _ rhs: Double?) -> Bool {
+    private func orderedByOptional<T: Comparable>(_ lhs: T?, _ rhs: T?) -> Bool {
         switch (lhs, rhs) {
         case let (.some(l), .some(r)): return l > r
         case (.some, nil): return true
@@ -57,7 +57,7 @@ enum SortOption: CaseIterable, Hashable, Sendable {
     ) -> String {
         switch self {
         case .dateBought:
-            return Self.monthYearFormatter.string(from: coffee.purchasedOn.utcMidnight)
+            return Self.monthYearLabel(for: coffee)
         case .rating:
             return RatingBand.band(for: coffee.rating).label
         case .price:
@@ -72,9 +72,11 @@ enum SortOption: CaseIterable, Hashable, Sendable {
     }
 
     /// When *not* sorted by date, the row footer falls back to month-year so
-    /// the brief's required date is never lost (PLAN.md §6.1).
+    /// the brief's required date is never lost (PLAN.md §6.1). `purchasedOn`
+    /// is optional (#211) — an undated bag has no month-year to show.
     static func monthYearLabel(for coffee: Coffee) -> String {
-        monthYearFormatter.string(from: coffee.purchasedOn.utcMidnight)
+        guard let purchasedOn = coffee.purchasedOn else { return "No purchase date" }
+        return monthYearFormatter.string(from: purchasedOn.utcMidnight)
     }
 
     private static let monthYearFormatter: DateFormatter = {

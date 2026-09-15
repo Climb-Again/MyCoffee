@@ -522,21 +522,26 @@ struct InsightsView: View {
             return coffeesSince(months: 18)
         case .years:
             guard !selectedYears.isEmpty else { return coffees }
-            return coffees.filter { selectedYears.contains($0.purchasedYear) }
+            // #211 seam: purchasedYear is now optional; an undated bag matches
+            // no specific-year selection. Plain compiling fix — ios-shell.
+            return coffees.filter { $0.purchasedYear.map(selectedYears.contains) ?? false }
         }
     }
 
     private func coffeesSince(months: Int) -> [Coffee] {
         let cutoff = Calendar.utc.date(byAdding: .month, value: -months, to: Date()) ?? .distantPast
-        return coffees.filter { $0.purchasedOn.utcMidnight >= cutoff }
+        // #211 seam: an undated bag can't fall inside a relative window.
+        return coffees.filter { $0.purchasedOn.map { $0.utcMidnight >= cutoff } ?? false }
     }
 
     private var availableYears: [Int] {
-        Array(Set(coffees.map(\.purchasedYear))).sorted(by: >)
+        // #211 seam: undated bags have no year to list.
+        Array(Set(coffees.compactMap(\.purchasedYear))).sorted(by: >)
     }
 
     private var yearCounts: [Int: Int] {
-        Dictionary(coffees.map { ($0.purchasedYear, 1) }, uniquingKeysWith: +)
+        // #211 seam: undated bags excluded, same as `availableYears`.
+        Dictionary(coffees.compactMap { $0.purchasedYear.map { ($0, 1) } }, uniquingKeysWith: +)
     }
 
     private var overallAverageRating: Double? { coffees.averageRating }

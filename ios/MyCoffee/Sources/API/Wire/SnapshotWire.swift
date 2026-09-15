@@ -181,16 +181,6 @@ final class SnapshotDecodeStats: @unchecked Sendable {
         dropped = count
     }
 
-    /// A row that decoded fine but was skipped downstream — today only
-    /// `CompactCoffeeDTO.makeCoffee` returning nil for a null `purchasedOn`.
-    /// Added to the same total so Settings reports one number for "rows the
-    /// snapshot had that the library does not".
-    func recordExtraDrop() {
-        lock.lock()
-        defer { lock.unlock() }
-        dropped += 1
-    }
-
     var droppedRowCount: Int {
         lock.lock()
         defer { lock.unlock() }

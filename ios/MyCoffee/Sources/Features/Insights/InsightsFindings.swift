@@ -118,7 +118,9 @@ enum InsightsFindings {
         // ~0 every year by construction, so the comparison is meaningless
         // once that mode is on.
         if !useZScore {
-            addOrdinal(subject: "More recent purchases") { Double($0.purchasedYear) }
+            // #211 seam: purchasedYear is now optional; an undated bag drops
+            // out of this correlation rather than crashing the `Double` init.
+            addOrdinal(subject: "More recent purchases") { $0.purchasedYear.map(Double.init) }
         }
 
         return Array(findings.sorted { $0.effectSize > $1.effectSize }.prefix(limit))
@@ -133,8 +135,10 @@ enum InsightsFindings {
         guard useZScore else {
             return coffees.compactMap { coffee in coffee.rating.map { ScoredCoffee(coffee: coffee, value: $0) } }
         }
-        let rated = coffees.filter { $0.rating != nil }
-        let points = rated.map { (year: $0.purchasedYear, rating: $0.rating!) }
+        // #211 seam: purchasedYear is now optional; keep `rated`/`points`/the
+        // later `zip(rated, zScores)` aligned by excluding undated bags here too.
+        let rated = coffees.filter { $0.rating != nil && $0.purchasedYear != nil }
+        let points = rated.map { (year: $0.purchasedYear!, rating: $0.rating!) }
         let zScores = InsightsStats.withinYearZScores(points)
         return zip(rated, zScores).compactMap { coffee, z in z.map { ScoredCoffee(coffee: coffee, value: $0) } }
     }

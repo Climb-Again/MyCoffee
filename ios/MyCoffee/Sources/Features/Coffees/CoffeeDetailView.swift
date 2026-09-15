@@ -530,7 +530,9 @@ struct CoffeeDetailView: View {
 
     private var factRows: [FactRow] {
         var rows: [FactRow] = []
-        rows.append(FactRow(label: "Purchased", value: PlainDateFormatting.exact(coffee.purchasedOn)))
+        if let purchasedOn = coffee.purchasedOn {
+            rows.append(FactRow(label: "Purchased", value: PlainDateFormatting.exact(purchasedOn)))
+        }
         if let roastedOn = coffee.roastedOn {
             rows.append(FactRow(label: "Roasted", value: PlainDateFormatting.exact(roastedOn)))
         }

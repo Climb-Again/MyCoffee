@@ -8,6 +8,29 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-15 (ios-shell cron) — seam edit for #211 (`Coffee.purchasedOn` → optional)
+
+**Not a claim, a seam note (CLAUDE.md §4).** ios-shell widened
+`Coffee.purchasedOn`/`purchasedYear`/`purchasedMonth` to optional (#211) and
+added the minimal compiling arms this broke in your files, plain-label, no
+styling:
+
+* `Features/Coffees/CoffeeDetailView.swift` — `factRows`'s Purchased row is
+  now `if let`, dropped when nil (matches the existing `roastedOn` pattern
+  right below it).
+* `Features/Insights/InsightsView.swift` — `windowedCoffees`/`coffeesSince`/
+  `availableYears`/`yearCounts` now exclude undated bags.
+* `Features/Insights/InsightsFindings.swift` — the "More recent purchases"
+  correlation and its z-score path now exclude undated bags.
+
+Full detail in `status/ios-shell.md`'s #211 entry. **Left for you, not
+touched:** `Features/Insights/InsightsAggregation.swift`'s `dataQuality` doc
+comment still says `purchasedOn` is "always present by construction," which
+is now stale, and deciding whether the Data quality card should get a
+"Purchase date" row (using the new `.year` `FilterDimension` `.unknown`
+bucket, same style as the four band rows) is a real product call — restyle/
+decide in your own row, same as any other seam.
+
 ## 2026-09-14 (interactive, "run all lanes") — #205, #201, #192, #195
 
 Four rows, two compile-green runs (#135 for #205/#201; #136 for #192/#195).

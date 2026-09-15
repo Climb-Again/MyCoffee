@@ -134,7 +134,16 @@ struct CoffeeIndex: Sendable {
     static let empty = CoffeeIndex(coffees: [], vocabulary: .empty)
 
     init(coffees rawCoffees: [Coffee], vocabulary: Vocabulary, searchTexts: [String: String] = [:]) {
-        let sorted = rawCoffees.sorted { $0.purchasedOn > $1.purchasedOn }
+        // #211: `purchasedOn` is optional — an undated bag (nil) sorts last,
+        // same "nils last" rule every other optional-keyed sort in this app uses.
+        let sorted = rawCoffees.sorted { lhs, rhs in
+            switch (lhs.purchasedOn, rhs.purchasedOn) {
+            case let (.some(l), .some(r)): return l > r
+            case (.some, nil): return true
+            case (nil, .some): return false
+            case (nil, nil): return false
+            }
+        }
         self.coffees = sorted
         self.byID = Dictionary(uniqueKeysWithValues: sorted.enumerated().map { ($1.id, $0) })
         self.vocabulary = vocabulary
@@ -229,7 +238,10 @@ struct CoffeeIndex: Sendable {
         // it can't live in the prebuilt postings and is applied directly here.
         if let window = filter.relativeWindow {
             let cutoff = window.cutoff()
-            let matchingIndices = coffees.indices.filter { coffees[$0].purchasedOn.utcMidnight >= cutoff }
+            // #211: an undated bag can't fall inside any relative window.
+            let matchingIndices = coffees.indices.filter {
+                coffees[$0].purchasedOn.map { $0.utcMidnight >= cutoff } ?? false
+            }
             result.formIntersection(IndexSet(matchingIndices))
         }
 
@@ -746,7 +758,13 @@ struct CoffeeIndex: Sendable {
                 add(.valueBand, .unknown, index)
             }
 
-            add(.year, .year(coffee.purchasedYear), index)
+            // #211: `purchasedYear` is optional now — an undated bag routes to
+            // the generic `.unknown` bucket, same as the four band dimensions above.
+            if let purchasedYear = coffee.purchasedYear {
+                add(.year, .year(purchasedYear), index)
+            } else {
+                add(.year, .unknown, index)
+            }
 
             // Brew lab (PLAN.md §14, #156/#158) — postings over TRIED ids, not
             // best-only, so "coffees I made on the V60" includes ones that

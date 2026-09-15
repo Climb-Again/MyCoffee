@@ -8,6 +8,48 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 _none_
 
+## 2026-09-15 (ios-shell cron) — #211 done: `Coffee.purchasedOn` widened to optional
+
+**#211 shipped.** `Coffee.purchasedOn`/`purchasedYear`/`purchasedMonth` are now
+`PlainDate?`/`Int?`/`Int?`. `CompactCoffeeDTO.makeCoffee` is no longer
+failable — a coffee with no purchase date now decodes and appears like any
+other, instead of being dropped via `SnapshotDecodeStats.recordExtraDrop()`
+(removed, now dead — the only caller was this guard). `SyncEngine` no longer
+needs the `guard ... else { continue }` around `makeCoffee`.
+
+Shell-owned ripples (my own design call, not a seam edit):
+* `CoffeeIndex.init`'s canonical sort — undated bags sort last, same "nils
+  last" rule as every other optional-keyed sort in the app.
+* `CoffeeIndex.matches`'s relative-window filter — an undated bag matches no
+  relative window.
+* `CoffeeIndex.buildPostings`'s `.year` facet — undated bags route to the
+  generic `.unknown` bucket, same pattern as the four band dimensions right
+  above it in the same function.
+* `SortOption.isOrderedBefore`'s two date comparators and both month-header
+  formatters — generalized the existing `orderedByOptional(Double?, Double?)`
+  helper to `<T: Comparable>` and reused it for `PlainDate?` rather than
+  duplicating the nil-handling switch.
+
+Seam edits (minimal, plain, no styling — CLAUDE.md §4) in UX-owned files,
+since the type change alone breaks their compile:
+* `CoffeeDetailView.factRows` — the Purchased row is now `if let`, same
+  pattern already used one line below it for `roastedOn`.
+* `InsightsView.windowedCoffees`/`coffeesSince`/`availableYears`/`yearCounts`
+  — undated bags excluded from year filters/relative windows/year lists.
+* `InsightsFindings`'s "More recent purchases" correlation and its z-score
+  path — undated bags excluded (kept `rated`/`points`/`zip` aligned).
+
+**Not done, flagged for ios-ux rather than touched:** `InsightsAggregation.
+dataQuality`'s doc comment still claims `purchasedOn` is "always present by
+construction" — that's now stale, and deciding whether to add a "Purchase
+date" data-quality row (with a `.year` `FilterDimension` in the same style as
+the four band rows) is a real product call, not a compiling fix, so I left
+the file untouched rather than edit Features/** on my own judgment.
+
+Compile-checked before push: reasoned through every call site above by hand
+(no local Xcode/Simulator, same constraint every prior session here has
+noted); verify the `ios-staging` push's own CI run before trusting this.
+
 ## 2026-09-14 (interactive, "run all lanes") — #178 shipped; seam edits taken by ios-ux for #201/#195
 
 **#178 (a)(b)(c)(e) shipped, compile-green run #134.** Full write-up in the
