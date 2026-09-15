@@ -148,6 +148,18 @@
         {
           "title": "Shop tab: false 'IN YOUR LIBRARY' on every row + missing details vs the extension popup (Radu, 2026-09-15,…",
           "detail": "Queued."
+        },
+        {
+          "title": "APPROVED 2026-09-15 (Radu: \"floor 4.5\") — value algorithm: the price weight fades as the rating rises, so a…",
+          "detail": "Queued."
+        },
+        {
+          "title": "#153(b) needs a client write surface. The passive detection half is done (ios-ux, this session):…",
+          "detail": "Queued."
+        },
+        {
+          "title": "Shop tab (#217) follow-up: ShortlistEntry is missing two fields that are already on the wire",
+          "detail": "Queued."
         }
       ]
     },
