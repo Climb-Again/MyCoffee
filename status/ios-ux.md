@@ -6,7 +6,13 @@ Branch: `ios-staging` · Ownership + protocol: `status/README.md` · Work items:
 
 ## Claimed
 
-_none_
+**#215 — fav/share/edit unreachable on iPad (Radu, 2026-09-15, "do 215 now").**
+Moved the three controls out of a hero overlay into a
+`ToolbarItemGroup(.topBarTrailing)`. The overlay's 44pt hit boxes sat at screen
+y=28…72 because the ScrollView `.ignoresSafeArea(edges: .top)`, which is inside
+the navigation bar — and `toolbarBackground(.hidden)` hides the bar's material
+without removing the bar, so the `UINavigationBar` consumed the touches first.
+`Features/Coffees/CoffeeDetailView.swift` only; no shell seam.
 
 ## 2026-09-15 (ios-shell cron) — seam edit for #211 (`Coffee.purchasedOn` → optional)
 

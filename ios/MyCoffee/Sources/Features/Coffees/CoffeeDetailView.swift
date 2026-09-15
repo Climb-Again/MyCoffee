@@ -47,17 +47,55 @@ struct CoffeeDetailView: View {
         .task {
             await reviewCache.ensureLoaded()
         }
-        // No ToolbarItems here any more (`HEADER_UPDATE.md` §1): favourite/
-        // share/edit are bare overlays on the photo now, not toolbar-hosted
-        // circles. The back chevron is left entirely to the system — it is
-        // NOT rebuilt as a fourth bare overlay control, even though §1 groups
-        // it with the other three, because a custom overlay back button
-        // paired with `.navigationBarBackButtonHidden` is exactly what killed
-        // edge-swipe-back and duplicated the arrow the one time this was
-        // tried (see the file-level doc comment). The automatic system back
-        // button over the transparent bar is the safe, already-working
-        // mechanism, so it stays untouched; its styling won't hit §1's exact
-        // stroke/shadow spec, which is a known, deliberate partial gap.
+        // #215: favourite/share/edit are TOOLBAR ITEMS, not overlays on the
+        // photo. They were overlays (`HEADER_UPDATE.md` §1) and that made them
+        // untappable: this ScrollView `.ignoresSafeArea(edges: .top)`, so the
+        // hero's frame starts at screen y=0 and the overlay's 44pt hit boxes
+        // sat at y=28…72 — inside the navigation bar. `toolbarBackground
+        // (.hidden)` hides the bar's MATERIAL but leaves the `UINavigationBar`
+        // in the hierarchy, and it consumes every touch in its own frame
+        // before SwiftUI content underneath is hit-tested. On iPhone (bar
+        // ≈ y59…103) only a sliver above 59 stayed live — Radu: "it barely
+        // works"; on iPad (bar ≈ y24…74) the controls were entirely inside it
+        // — "clicking upper buttons on ipad does not work".
+        //
+        // As bar items they are hit-tested BY the bar instead of being
+        // blocked by it, and they land on the back chevron's own baseline,
+        // which is what §1 asks for anyway. The visual spec is unchanged:
+        // `bareIcon` still draws a white glyph with a shadow and no circle
+        // chrome, still over the transparent bar, still legible against the
+        // hero's top scrim — which is why that scrim stays.
+        //
+        // The back chevron is still left entirely to the system — NOT rebuilt
+        // as a fourth control, even though §1 groups it with the other three,
+        // because a custom back button paired with
+        // `.navigationBarBackButtonHidden` is exactly what killed
+        // edge-swipe-back and duplicated the arrow the one time it was tried
+        // (see the file-level doc comment).
+        .toolbar {
+            // `.tint(.white)` per control, NOT on the group and NOT on the
+            // ScrollView. `AppIcon` is `.renderingMode(.template)`, so a bar
+            // item's tint beats the `foregroundStyle` inside its label and the
+            // glyphs would otherwise come back accent-coloured instead of §1's
+            // white. It cannot go on the `ToolbarItemGroup` (`.tint` is a View
+            // modifier; `ToolbarContent` has no such member — that does not
+            // compile), and it must not go on the ScrollView, which would tint
+            // every control inside the card white as well.
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                favoriteButton
+                    .tint(.white)
+                ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
+                    bareIcon(Lucide.share, size: 21)
+                }
+                .tint(.white)
+                Button {
+                    showEdit = true
+                } label: {
+                    bareIcon(Lucide.pencil, size: 21)
+                }
+                .tint(.white)
+            }
+        }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
@@ -141,11 +179,15 @@ struct CoffeeDetailView: View {
     /// One bare white photo control (§1): no capsule/circle/material/fill,
     /// just the icon, tinted white with a drop shadow for legibility, inside
     /// a 44×44 hit area.
+    /// #215: no explicit 44x44 frame any more. These are bar items now, and
+    /// UIKit already guarantees a bar button a ≥44pt touch target — while a
+    /// hard 44pt height inside a ~44pt bar is tight enough to get compressed
+    /// or clipped. The glyph size, white fill and shadow (§1's "bare control
+    /// over the photo") are unchanged; only the self-imposed box is gone.
     private func bareIcon(_ name: String, size: CGFloat) -> some View {
         AppIcon(name: name, size: size)
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
-            .frame(width: 44, height: 44)
             .contentShape(Rectangle())
     }
 
@@ -179,29 +221,6 @@ struct CoffeeDetailView: View {
                 .frame(height: 126)
                 .allowsHitTesting(false)
         }
-        .overlay(alignment: .top) {
-            photoControls
-        }
-    }
-
-    /// The trailing three bare controls, `HStack(spacing: 0)` per §1. All on
-    /// one baseline 50pt from the top of the frame — a 44pt-tall hit area
-    /// centred there sits 28pt from the top, hence the padding below.
-    private var photoControls: some View {
-        HStack(spacing: 0) {
-            Spacer()
-            favoriteButton
-            ShareLink(item: coffee.displayTitle(vocabulary: vocabulary)) {
-                bareIcon(Lucide.share, size: 21)
-            }
-            Button {
-                showEdit = true
-            } label: {
-                bareIcon(Lucide.pencil, size: 21)
-            }
-        }
-        .padding(.top, 28)
-        .padding(.trailing, 6)
     }
 
     private var heroPlaceholder: some View {
